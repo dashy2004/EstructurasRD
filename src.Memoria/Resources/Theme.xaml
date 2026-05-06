@@ -1,0 +1,273 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+
+    <!-- ================================================================
+         Memoria Plus — Design Tokens
+         Fuente: docs/referencia/ui-design/memoria_plus/DESIGN.md
+         (paleta extendida tipo Material 3, palette neutra + cobalt accent)
+         ================================================================ -->
+
+    <!-- Surfaces -->
+    <Color x:Key="ColorSurface">#FCF8FB</Color>
+    <Color x:Key="ColorSurfaceContainerLowest">#FFFFFF</Color>
+    <Color x:Key="ColorSurfaceContainerLow">#F6F3F5</Color>
+    <Color x:Key="ColorSurfaceContainer">#F0EDEF</Color>
+    <Color x:Key="ColorSurfaceContainerHigh">#EAE7EA</Color>
+    <Color x:Key="ColorSurfaceContainerHighest">#E4E2E4</Color>
+    <Color x:Key="ColorOnSurface">#1B1B1D</Color>
+    <Color x:Key="ColorOnSurfaceVariant">#434751</Color>
+    <Color x:Key="ColorOutline">#737782</Color>
+    <Color x:Key="ColorOutlineVariant">#C3C6D2</Color>
+
+    <!-- Primary (cobalt) -->
+    <Color x:Key="ColorPrimary">#064287</Color>
+    <Color x:Key="ColorPrimaryContainer">#2C5AA0</Color>
+    <Color x:Key="ColorOnPrimary">#FFFFFF</Color>
+    <Color x:Key="ColorOnPrimaryContainer">#BFD3FF</Color>
+
+    <!-- Secondary (neutral gray accent) -->
+    <Color x:Key="ColorSecondary">#5D5E60</Color>
+    <Color x:Key="ColorSecondaryContainer">#DFDFE1</Color>
+    <Color x:Key="ColorOnSecondary">#FFFFFF</Color>
+    <Color x:Key="ColorOnSecondaryContainer">#616365</Color>
+
+    <!-- Status -->
+    <Color x:Key="ColorSuccess">#2D7A4F</Color>
+    <Color x:Key="ColorWarning">#C18A2C</Color>
+    <Color x:Key="ColorError">#BA1A1A</Color>
+    <Color x:Key="ColorErrorContainer">#FFDAD6</Color>
+
+    <!-- Brushes (lo que la UI consume) -->
+    <SolidColorBrush x:Key="SurfaceBrush"                  Color="{StaticResource ColorSurface}"/>
+    <SolidColorBrush x:Key="SurfaceContainerLowestBrush"   Color="{StaticResource ColorSurfaceContainerLowest}"/>
+    <SolidColorBrush x:Key="SurfaceContainerLowBrush"      Color="{StaticResource ColorSurfaceContainerLow}"/>
+    <SolidColorBrush x:Key="SurfaceContainerBrush"         Color="{StaticResource ColorSurfaceContainer}"/>
+    <SolidColorBrush x:Key="SurfaceContainerHighBrush"     Color="{StaticResource ColorSurfaceContainerHigh}"/>
+    <SolidColorBrush x:Key="SurfaceContainerHighestBrush"  Color="{StaticResource ColorSurfaceContainerHighest}"/>
+    <SolidColorBrush x:Key="OnSurfaceBrush"                Color="{StaticResource ColorOnSurface}"/>
+    <SolidColorBrush x:Key="OnSurfaceVariantBrush"         Color="{StaticResource ColorOnSurfaceVariant}"/>
+    <SolidColorBrush x:Key="OutlineBrush"                  Color="{StaticResource ColorOutline}"/>
+    <SolidColorBrush x:Key="OutlineVariantBrush"           Color="{StaticResource ColorOutlineVariant}"/>
+    <SolidColorBrush x:Key="PrimaryBrush"                  Color="{StaticResource ColorPrimary}"/>
+    <SolidColorBrush x:Key="PrimaryContainerBrush"         Color="{StaticResource ColorPrimaryContainer}"/>
+    <SolidColorBrush x:Key="OnPrimaryBrush"                Color="{StaticResource ColorOnPrimary}"/>
+    <SolidColorBrush x:Key="OnPrimaryContainerBrush"       Color="{StaticResource ColorOnPrimaryContainer}"/>
+    <SolidColorBrush x:Key="SecondaryBrush"                Color="{StaticResource ColorSecondary}"/>
+    <SolidColorBrush x:Key="SecondaryContainerBrush"       Color="{StaticResource ColorSecondaryContainer}"/>
+    <SolidColorBrush x:Key="SuccessBrush"                  Color="{StaticResource ColorSuccess}"/>
+    <SolidColorBrush x:Key="WarningBrush"                  Color="{StaticResource ColorWarning}"/>
+    <SolidColorBrush x:Key="ErrorBrush"                    Color="{StaticResource ColorError}"/>
+    <SolidColorBrush x:Key="ErrorContainerBrush"           Color="{StaticResource ColorErrorContainer}"/>
+
+    <!-- ================================================================
+         Typography — Inter (UI) + JetBrains Mono (datos tabulares)
+         Fallback a Segoe UI / Consolas si las familias no estan instaladas.
+         ================================================================ -->
+    <FontFamily x:Key="FontFamilyUI">Inter, Segoe UI, sans-serif</FontFamily>
+    <FontFamily x:Key="FontFamilyMono">JetBrains Mono, Iosevka, Consolas, monospace</FontFamily>
+
+    <sys:Double x:Key="FontSizeH1">24</sys:Double>
+    <sys:Double x:Key="FontSizeH2">18</sys:Double>
+    <sys:Double x:Key="FontSizeBody">13</sys:Double>
+    <sys:Double x:Key="FontSizeLabel">11</sys:Double>
+    <sys:Double x:Key="FontSizeData">12</sys:Double>
+
+    <!-- ================================================================
+         Spacing & sizing — strict 4px baseline grid
+         ================================================================ -->
+    <sys:Double x:Key="RowHeightDense">28</sys:Double>
+    <sys:Double x:Key="InputHeight">32</sys:Double>
+    <sys:Double x:Key="ContainerPadding">16</sys:Double>
+    <sys:Double x:Key="ElementGap">8</sys:Double>
+    <sys:Double x:Key="GridGutter">12</sys:Double>
+    <CornerRadius x:Key="CornerRadiusSm">2</CornerRadius>
+    <CornerRadius x:Key="CornerRadiusDefault">4</CornerRadius>
+    <Thickness x:Key="HairlineThickness">1</Thickness>
+
+    <!-- ================================================================
+         Component styles (minimal — se amplian conforme se construyan vistas)
+         ================================================================ -->
+
+    <!-- Window default -->
+    <Style TargetType="{x:Type Window}" x:Key="MemoriaWindowStyle">
+        <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+        <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+        <Setter Property="FontSize"   Value="{StaticResource FontSizeBody}"/>
+        <Setter Property="UseLayoutRounding" Value="True"/>
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+        <Setter Property="TextOptions.TextRenderingMode"  Value="ClearType"/>
+    </Style>
+
+    <!-- Headers -->
+    <Style TargetType="{x:Type TextBlock}" x:Key="H1Style">
+        <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+        <Setter Property="FontSize"   Value="{StaticResource FontSizeH1}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+    </Style>
+
+    <Style TargetType="{x:Type TextBlock}" x:Key="H2Style">
+        <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+        <Setter Property="FontSize"   Value="{StaticResource FontSizeH2}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+    </Style>
+
+    <Style TargetType="{x:Type TextBlock}" x:Key="LabelCapsStyle">
+        <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+        <Setter Property="FontSize"   Value="{StaticResource FontSizeLabel}"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+    </Style>
+
+    <Style TargetType="{x:Type TextBlock}" x:Key="DataTabularStyle">
+        <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}"/>
+        <Setter Property="FontSize"   Value="{StaticResource FontSizeData}"/>
+        <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Primary button (cobalt fill) -->
+    <Style TargetType="{x:Type Button}" x:Key="PrimaryButtonStyle">
+        <Setter Property="Background" Value="{StaticResource PrimaryContainerBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource OnPrimaryBrush}"/>
+        <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+        <Setter Property="FontSize"   Value="{StaticResource FontSizeBody}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Height"     Value="{StaticResource InputHeight}"/>
+        <Setter Property="Padding"    Value="14,0"/>
+        <Setter Property="Cursor"     Value="Hand"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <Border x:Name="bd" CornerRadius="{StaticResource CornerRadiusDefault}"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}"
+                                          TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{StaticResource PrimaryBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="bd" Property="Opacity" Value="0.5"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Secondary button (white fill, outline) -->
+    <Style TargetType="{x:Type Button}" x:Key="SecondaryButtonStyle">
+        <Setter Property="Background" Value="{StaticResource SurfaceContainerLowestBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+        <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+        <Setter Property="FontSize"   Value="{StaticResource FontSizeBody}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Height"     Value="{StaticResource InputHeight}"/>
+        <Setter Property="Padding"    Value="14,0"/>
+        <Setter Property="Cursor"     Value="Hand"/>
+        <Setter Property="BorderBrush" Value="{StaticResource OutlineVariantBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <Border x:Name="bd" CornerRadius="{StaticResource CornerRadiusDefault}"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}"
+                                          TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{StaticResource SurfaceContainerLowBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="bd" Property="Opacity" Value="0.5"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Sidebar nav item -->
+    <Style TargetType="{x:Type RadioButton}" x:Key="SidebarNavItemStyle">
+        <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+        <Setter Property="FontSize"   Value="{StaticResource FontSizeBody}"/>
+        <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+        <Setter Property="Padding"    Value="12,8"/>
+        <Setter Property="Cursor"     Value="Hand"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type RadioButton}">
+                    <Border x:Name="bd" CornerRadius="{StaticResource CornerRadiusDefault}"
+                            Background="Transparent"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Left"
+                                          TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{StaticResource SurfaceContainerHighBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{StaticResource SurfaceContainerHighestBrush}"/>
+                            <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Tab control (top tabs en pantallas Datos/Cargas/Niveles/Generar) -->
+    <Style TargetType="{x:Type TabItem}" x:Key="MemoriaTabItemStyle">
+        <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+        <Setter Property="FontSize"   Value="{StaticResource FontSizeBody}"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+        <Setter Property="Padding"    Value="16,10"/>
+        <Setter Property="Cursor"     Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type TabItem}">
+                    <Border x:Name="bd" Padding="{TemplateBinding Padding}"
+                            BorderThickness="0,0,0,2" BorderBrush="Transparent">
+                        <ContentPresenter ContentSource="Header" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                          TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                            <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="{x:Type TabControl}" x:Key="MemoriaTabControlStyle">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="ItemContainerStyle" Value="{StaticResource MemoriaTabItemStyle}"/>
+    </Style>
+
+</ResourceDictionary>

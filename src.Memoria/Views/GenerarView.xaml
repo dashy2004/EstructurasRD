@@ -1,0 +1,35 @@
+<UserControl x:Class="MemoriaPlus.Views.GenerarView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{StaticResource SurfaceBrush}">
+    <Grid Margin="24">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="360"/>
+            <ColumnDefinition Width="12"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Padding="12"
+                Background="{StaticResource SurfaceContainerLowestBrush}"
+                BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
+                CornerRadius="{StaticResource CornerRadiusDefault}">
+            <StackPanel>
+                <TextBlock Style="{StaticResource H2Style}" Text="Pre-generacion"/>
+                <TextBlock Margin="0,8,0,0" Foreground="{StaticResource OnSurfaceVariantBrush}"
+                           TextWrapping="Wrap"
+                           Text="Checklist: datos generales · cargas · niveles · .txt importado · plantilla · sin warnings · espesores OK · qu OK. Placeholder."/>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Column="2" Padding="0"
+                Background="{StaticResource SurfaceContainerBrush}"
+                BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
+                CornerRadius="{StaticResource CornerRadiusDefault}">
+            <Grid>
+                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Foreground="{StaticResource OnSurfaceVariantBrush}"
+                           Text="VISTA PREVIA DEL .DOCX  ·  placeholder"/>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

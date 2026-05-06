@@ -1,0 +1,50 @@
+<UserControl x:Class="MemoriaPlus.Views.NivelesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="{StaticResource SurfaceBrush}">
+    <Grid Margin="24">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="200"/>
+            <ColumnDefinition Width="12"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="12"/>
+            <ColumnDefinition Width="320"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Padding="12"
+                Background="{StaticResource SurfaceContainerLowestBrush}"
+                BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
+                CornerRadius="{StaticResource CornerRadiusDefault}">
+            <StackPanel>
+                <TextBlock Style="{StaticResource LabelCapsStyle}" Text="ESTRUCTURA"/>
+                <TextBlock Margin="0,8,0,0" Foreground="{StaticResource OnSurfaceVariantBrush}"
+                           TextWrapping="Wrap"
+                           Text="Lista de niveles del proyecto (E1, E2, ..., Techo). Placeholder."/>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Column="2" Padding="12"
+                Background="{StaticResource SurfaceContainerLowestBrush}"
+                BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
+                CornerRadius="{StaticResource CornerRadiusDefault}">
+            <StackPanel>
+                <TextBlock Style="{StaticResource H2Style}" Text="Losas — Nivel E1"/>
+                <TextBlock Margin="0,8,0,0" Foreground="{StaticResource OnSurfaceVariantBrush}"
+                           TextWrapping="Wrap"
+                           Text="Tabla densa con ID · Lx · Ly · Cond · K · h_calc · h_usar · Mamp · bw · H_blq · h_eq · qd · ql · qu. Placeholder — el grid se llena cuando aterrice CalculoEngine."/>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Column="4" Padding="12"
+                Background="{StaticResource SurfaceContainerLowestBrush}"
+                BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
+                CornerRadius="{StaticResource CornerRadiusDefault}">
+            <StackPanel>
+                <TextBlock Style="{StaticResource LabelCapsStyle}" Text="IMPORTACION .TXT"/>
+                <TextBlock Margin="0,8,0,0" Foreground="{StaticResource OnSurfaceVariantBrush}"
+                           TextWrapping="Wrap"
+                           Text="Salida del software F. Perdomo (Losas v5.20). Placeholder."/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>
