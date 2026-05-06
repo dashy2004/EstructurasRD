@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>LosasPlus.Core</AssemblyName>
+    <RootNamespace>LosasPlus</RootNamespace>
+    <Version>0.1.0</Version>
+    <!-- CA2255: ModuleInitializer en librería es intencional para registrar cp1252
+         (requerido por el parser de .DL/.TXT). Comportamiento documentado en
+         EncodingInit.cs y verificado en tests. -->
+    <NoWarn>$(NoWarn);CA2255</NoWarn>
+    <Authors>Emil Guillen De la Cruz</Authors>
+    <Product>LosasPlus.Core</Product>
+    <Description>
+      Modelo de dominio y servicios sin dependencias de UI compartidos por LosasPlus
+      (wrapper sobre Losas.exe de F. Perdomo) y MemoriaPlus (generador de memorias
+      de calculo). Contiene Proyecto/Sistema/Losa, parsers de .DL y .TXT, exportadores
+      CSV/XLSX, y sandbox de plugins Roslyn.
+    </Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.104.2" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.10.0" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="8.0.0" />
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+
+</Project>

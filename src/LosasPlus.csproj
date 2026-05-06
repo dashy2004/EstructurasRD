@@ -19,11 +19,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ClosedXML" Version="0.104.2" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.10.0" />
+    <ProjectReference Include="..\src.Core\LosasPlus.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- SharpVectors es UI-only (renderer SVG en WPF). El resto de paquetes
+         (ClosedXML, Roslyn, EncodingCodePages, Text.Json) llegan transitivamente
+         vía LosasPlus.Core. -->
     <PackageReference Include="SharpVectors.Reloaded" Version="1.8.4.2" />
-    <PackageReference Include="System.Text.Encoding.CodePages" Version="8.0.0" />
-    <PackageReference Include="System.Text.Json" Version="8.0.5" />
   </ItemGroup>
 
   <ItemGroup>
