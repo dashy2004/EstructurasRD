@@ -1,0 +1,7 @@
+{
+  "name": "Ejemplo · registro de tipos",
+  "author": "LosasPlus",
+  "version": "1.0.0",
+  "description": "Plugin demo: registra dos tipos de losa adicionales (80, 90) y reporta en el log cada vez que se importa un .TXT.",
+  "hooks": ["load", "post-txt"]
+}

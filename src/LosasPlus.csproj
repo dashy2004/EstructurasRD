@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>LosasPlus</AssemblyName>
+    <RootNamespace>LosasPlus</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version>0.1.0</Version>
+    <Authors>Wrapper basado en el motor de F. Perdomo (Losas v5.00)</Authors>
+    <Product>LosasPlus</Product>
+    <Description>Capa moderna de UI/edición/exportación sobre el motor de cálculo Losas.exe de Francisco Eludino Perdomo.</Description>
+    <Copyright>Motor de cálculo: © Francisco Eludino Perdomo. Wrapper: créditos al autor original.</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.104.2" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.10.0" />
+    <PackageReference Include="SharpVectors.Reloaded" Version="1.8.4.2" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="8.0.0" />
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\TiposLosa.json" />
+    <Resource Include="Resources\Reglamento.json" />
+    <Resource Include="Resources\icons\*.svg" />
+  </ItemGroup>
+
+</Project>

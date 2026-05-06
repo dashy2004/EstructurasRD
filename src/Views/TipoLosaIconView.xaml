@@ -1,0 +1,16 @@
+<UserControl x:Class="LosasPlus.Views.TipoLosaIconView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:svgc="http://sharpvectors.codeplex.com/svgc/"
+             Background="Transparent"
+             ClipToBounds="True">
+    <Grid>
+        <!-- Si hay SVG embebido para el código, lo mostramos como vector escalable. -->
+        <svgc:SvgViewbox x:Name="Svg" Visibility="Collapsed"
+                         Stretch="Uniform"
+                         IsHitTestVisible="False"/>
+
+        <!-- Fallback: Canvas con dibujo programático cuando no hay SVG para el código. -->
+        <Canvas x:Name="Canvas" Background="Transparent" Visibility="Collapsed"/>
+    </Grid>
+</UserControl>

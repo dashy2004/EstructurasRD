@@ -1,0 +1,38 @@
+<Window x:Class="LosasPlus.Views.AppearanceDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Configuración · Apariencia · Personalizar colores"
+        Height="700" Width="780"
+        Background="{DynamicResource BgPrimary}"
+        WindowStartupLocation="CenterOwner">
+    <DockPanel Margin="14">
+
+        <!-- Header -->
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+            <TextBlock Text="Personalización de colores" FontWeight="Bold" FontSize="16"/>
+            <TextBlock TextWrapping="Wrap" Margin="0,4,0,0"
+                       Foreground="{DynamicResource FgMuted}">
+                Editá cualquier token del theme con HEX o sliders RGB. Los cambios se aplican
+                en vivo a TODA la aplicación. Los overrides se guardan en
+                <Run FontFamily="JetBrains Mono">%AppData%\LosasPlus\theme_overrides.json</Run>
+                y se reaplican automáticamente al cambiar de theme.
+            </TextBlock>
+        </StackPanel>
+
+        <!-- Footer -->
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0" LastChildFill="False">
+            <Button DockPanel.Dock="Right" Content="Cerrar" Width="100" Margin="6,0,0,0"
+                    Click="OnClose"/>
+            <Button DockPanel.Dock="Right" Content="Guardar como default" Width="180"
+                    Style="{StaticResource PrimaryButton}"
+                    Click="OnSavePersist"/>
+            <Button DockPanel.Dock="Left" Content="Restaurar valores del theme" Width="200"
+                    Click="OnReset"/>
+        </DockPanel>
+
+        <!-- Lista scrollable de tokens agrupados por categoría -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="TokensHost"/>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

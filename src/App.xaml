@@ -1,0 +1,205 @@
+<Application x:Class="LosasPlus.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:lp="clr-namespace:LosasPlus"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Tema activo (Precision = Stitch light por default). App.SetTheme(...) lo reemplaza en runtime. -->
+                <ResourceDictionary Source="Resources/ThemePrecision.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Converters globales -->
+            <lp:NullToCollapsedConverter      x:Key="NullToCollapsed"/>
+            <lp:BoolToCollapsedIfTrueConverter  x:Key="BoolToCollapsedIfTrue"/>
+            <lp:BoolToCollapsedIfFalseConverter x:Key="BoolToCollapsedIfFalse"/>
+
+            <!-- Estilos base. Los colores son siempre referencias a las claves del tema activo,
+                 así un Theme switch refresca toda la UI sin tocar los estilos. -->
+
+            <Style TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                <Setter Property="FontFamily" Value="Inter, Segoe UI, Tahoma, Helvetica, Arial"/>
+                <Setter Property="FontSize" Value="13"/>
+            </Style>
+
+            <Style TargetType="TextBox">
+                <Setter Property="Background" Value="{DynamicResource BgInput}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="6,4"/>
+                <Setter Property="MinHeight" Value="32"/>
+                <Setter Property="CaretBrush" Value="{DynamicResource FgPrimary}"/>
+                <Setter Property="SelectionBrush" Value="{DynamicResource Selection}"/>
+                <Setter Property="FontFamily" Value="Inter, Segoe UI"/>
+                <Style.Triggers>
+                    <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                        <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- Botón secundario (default): flat con border, bg superficie. -->
+            <Style TargetType="Button">
+                <Setter Property="Background" Value="{DynamicResource BgInput}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="12,6"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="MinHeight" Value="32"/>
+                <Setter Property="FontFamily" Value="Inter, Segoe UI"/>
+                <Setter Property="FontWeight" Value="Medium"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{DynamicResource BgTertiary}"/>
+                    </Trigger>
+                    <Trigger Property="IsEnabled" Value="False">
+                        <Setter Property="Opacity" Value="0.5"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- Botón primario: bg accent, texto blanco. Usar class="primary" via Style "PrimaryButton". -->
+            <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                <Setter Property="Background" Value="{DynamicResource Accent}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FgOnAccent}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="{DynamicResource AccentHi}"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource AccentHi}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- ComboBox: el bug histórico era foreground negro sobre BgTertiary oscuro.
+                 Ahora foreground depende del tema; en el dropdown forzamos texto oscuro
+                 contra fondo claro (la lista interna en WPF default usa colores del sistema). -->
+            <Style TargetType="ComboBox">
+                <Setter Property="Background" Value="{DynamicResource BgInput}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+                <Setter Property="MinHeight" Value="26"/>
+            </Style>
+            <Style TargetType="ComboBoxItem">
+                <Setter Property="Background" Value="{DynamicResource BgInput}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                <Setter Property="Padding" Value="6,4"/>
+                <Style.Triggers>
+                    <Trigger Property="IsHighlighted" Value="True">
+                        <Setter Property="Background" Value="{DynamicResource Selection}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource FgOnAccent}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style TargetType="DataGrid">
+                <Setter Property="Background" Value="{DynamicResource BgInput}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                <Setter Property="RowBackground" Value="{DynamicResource BgInput}"/>
+                <Setter Property="AlternatingRowBackground" Value="{DynamicResource RowAlt}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+                <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+                <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource Border}"/>
+                <Setter Property="HeadersVisibility" Value="Column"/>
+                <Setter Property="FontFamily" Value="Inter, Segoe UI"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="RowHeight" Value="32"/>
+            </Style>
+
+            <Style TargetType="DataGridColumnHeader">
+                <Setter Property="Background" Value="{DynamicResource BgTertiary}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Padding" Value="6,4"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            </Style>
+
+            <Style TargetType="DataGridCell">
+                <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Padding" Value="4,2"/>
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="{DynamicResource Selection}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource FgOnAccent}"/>
+                    </Trigger>
+                    <Trigger Property="Validation.HasError" Value="True">
+                        <Setter Property="BorderBrush" Value="{DynamicResource Err}"/>
+                        <Setter Property="BorderThickness" Value="2"/>
+                        <Setter Property="ToolTip"
+                                Value="{Binding RelativeSource={RelativeSource Self},
+                                                Path=(Validation.Errors)[0].ErrorContent}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style TargetType="DataGridRow">
+                <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="{DynamicResource Selection}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style TargetType="TabControl">
+                <Setter Property="Background" Value="{DynamicResource BgPrimary}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            </Style>
+
+            <Style TargetType="TabItem">
+                <Setter Property="Background" Value="{DynamicResource BgSecondary}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FgSecondary}"/>
+                <Setter Property="Padding" Value="14,6"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Style.Triggers>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="{DynamicResource BgTertiary}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                    </Trigger>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <Style TargetType="ScrollViewer">
+                <Setter Property="Background" Value="{DynamicResource BgPrimary}"/>
+            </Style>
+
+            <Style TargetType="ListView">
+                <Setter Property="Background" Value="{DynamicResource BgSecondary}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            </Style>
+            <Style TargetType="GridViewColumnHeader">
+                <Setter Property="Background" Value="{DynamicResource BgTertiary}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Padding" Value="6,4"/>
+            </Style>
+
+            <Style TargetType="Separator">
+                <Setter Property="Background" Value="{DynamicResource Border}"/>
+                <Setter Property="Height" Value="1"/>
+            </Style>
+
+            <Style TargetType="Border" x:Key="PanelBorder">
+                <Setter Property="Background" Value="{DynamicResource BgSecondary}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+            </Style>
+
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

@@ -1,0 +1,481 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Input;
+using LosasPlus.Models;
+using LosasPlus.Services;
+
+namespace LosasPlus.ViewModels;
+
+public class MainViewModel : INotifyPropertyChanged
+{
+    private readonly Proyecto _proyecto = new();
+    private Sistema _sistemaActivo = NuevoSistemaDemo();
+    private string _losasExePath = "";
+    private string? _dlPath;
+    private string? _txtPath;
+    private string _txtContent = "";
+    private string _dlContent = "";
+    private string _logText = "";
+    private string _filtroTipo = "";
+    private bool _ocupado;
+
+    public Proyecto Proyecto => _proyecto;
+
+    /// <summary>
+    /// Sistema actualmente activo (el que se edita en el Editor / Esquema / etc.).
+    /// Cambiar este valor refresca todas las vistas suscritas vía NotifyPropertyChanged.
+    /// </summary>
+    public Sistema SistemaActivo
+    {
+        get => _sistemaActivo;
+        set
+        {
+            if (ReferenceEquals(_sistemaActivo, value)) return;
+            _sistemaActivo = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(Sistema));
+            OnPropertyChanged(nameof(LosasFiltradas));
+            RefreshDLContent();
+        }
+    }
+
+    /// <summary>Alias retro-compatible: el resto del código y los XAML siguen accediendo a "Sistema".</summary>
+    public Sistema Sistema
+    {
+        get => _sistemaActivo;
+        set
+        {
+            SistemaActivo = value;
+            // Si cambió la referencia, asegurar que esté en el proyecto.
+            if (!_proyecto.Sistemas.Contains(value))
+            {
+                _proyecto.Sistemas.Clear();
+                _proyecto.Sistemas.Add(value);
+            }
+        }
+    }
+
+    public string LosasExePath
+    {
+        get => _losasExePath;
+        set { _losasExePath = value; OnPropertyChanged(); }
+    }
+
+    public string? DLPath
+    {
+        get => _dlPath;
+        set { _dlPath = value; OnPropertyChanged(); }
+    }
+
+    public string? TxtPath
+    {
+        get => _txtPath;
+        set { _txtPath = value; OnPropertyChanged(); }
+    }
+
+    public string TxtContent
+    {
+        get => _txtContent;
+        set { _txtContent = value; OnPropertyChanged(); }
+    }
+
+    public string DLContent
+    {
+        get => _dlContent;
+        set { _dlContent = value; OnPropertyChanged(); }
+    }
+
+    public string LogText
+    {
+        get => _logText;
+        set { _logText = value; OnPropertyChanged(); }
+    }
+
+    public string FiltroTipo
+    {
+        get => _filtroTipo;
+        set { _filtroTipo = value; OnPropertyChanged(); OnPropertyChanged(nameof(LosasFiltradas)); }
+    }
+
+    public bool Ocupado
+    {
+        get => _ocupado;
+        set { _ocupado = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Vista filtrada para la tabla principal (búsqueda por tipo).</summary>
+    public ObservableCollection<Losa> LosasFiltradas
+    {
+        get
+        {
+            var src = Sistema.Losas.AsEnumerable();
+            if (!string.IsNullOrWhiteSpace(_filtroTipo))
+            {
+                if (int.TryParse(_filtroTipo, out var t))
+                    src = src.Where(l => l.Tipo == t);
+                else
+                    src = src.Where(l => l.TipoDescripcion.Contains(_filtroTipo, StringComparison.OrdinalIgnoreCase));
+            }
+            return new ObservableCollection<Losa>(src);
+        }
+    }
+
+    public ObservableCollection<TipoLosa> TiposCatalogo { get; } =
+        new ObservableCollection<TipoLosa>(TipoLosa.Catalogo.Values);
+
+    public PluginHost Plugins { get; }
+
+    public MainViewModel()
+    {
+        // El proyecto arranca con el sistema demo activo.
+        _proyecto.Sistemas.Add(_sistemaActivo);
+
+        var dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? "";
+
+        // Buscar carpeta /plugins: 1) junto al ejecutable, 2) raíz del proyecto en dev (.../LosasPlus/plugins)
+        string? pluginsDir = Path.Combine(dir, "plugins");
+        if (!Directory.Exists(pluginsDir))
+        {
+            // intentar subiendo hasta encontrar 'plugins/' (modo desarrollo)
+            var probe = new DirectoryInfo(dir);
+            while (probe != null)
+            {
+                var cand = Path.Combine(probe.FullName, "plugins");
+                if (Directory.Exists(cand)) { pluginsDir = cand; break; }
+                probe = probe.Parent;
+            }
+        }
+        Plugins = new PluginHost(pluginsDir ?? Path.Combine(dir, "plugins"));
+
+        // Localizar Losas.exe: 1) junto al exe, 2) carpeta padre, 3) abuela
+        string? losas = null;
+        var probe2 = new DirectoryInfo(dir);
+        for (int i = 0; i < 3 && probe2 != null; i++)
+        {
+            var cand = Path.Combine(probe2.FullName, "Losas.exe");
+            if (File.Exists(cand)) { losas = cand; break; }
+            probe2 = probe2.Parent;
+        }
+        _losasExePath = losas ?? "";
+
+        RefreshDLContent();
+    }
+
+    public void Log(string msg)
+    {
+        LogText = $"[{DateTime.Now:HH:mm:ss}] {msg}\r\n" + LogText;
+    }
+
+    public void RefreshDLContent()
+    {
+        try { DLContent = DLFileService.WriteAll(_proyecto.Sistemas); }
+        catch (Exception ex) { Log("Error al serializar .DL: " + ex.Message); }
+    }
+
+    public void AbrirDL(string path)
+    {
+        try
+        {
+            var sistemas = DLFileService.ReadAll(path);
+            if (sistemas.Count == 0) { Log("El .DL no contiene ningún sistema."); return; }
+
+            _proyecto.Sistemas.Clear();
+            foreach (var s in sistemas) _proyecto.Sistemas.Add(s);
+            _proyecto.Archivo = path;
+            _proyecto.Nombre = Path.GetFileNameWithoutExtension(path);
+
+            SistemaActivo = sistemas[0];
+            DLPath = path;
+            Log($"Cargado .DL: {path} ({sistemas.Count} sistema{(sistemas.Count == 1 ? "" : "s")})");
+            OnPropertyChanged(nameof(LosasFiltradas));
+            OnPropertyChanged(nameof(Proyecto));
+        }
+        catch (Exception ex) { Log("Error abriendo .DL: " + ex.Message); }
+    }
+
+    /// <summary>Abre un proyecto multi-archivo (manifest <c>proyecto.lpx.json</c>).</summary>
+    public void AbrirProyecto(string manifestPath)
+    {
+        try
+        {
+            var p = ProyectoService.AbrirProyecto(manifestPath);
+            _proyecto.Sistemas.Clear();
+            foreach (var s in p.Sistemas) _proyecto.Sistemas.Add(s);
+            _proyecto.Archivo = p.Archivo;
+            _proyecto.Nombre = p.Nombre;
+            _proyecto.Autor = p.Autor;
+            _proyecto.CodigoObra = p.CodigoObra;
+            _proyecto.Ubicacion = p.Ubicacion;
+            _proyecto.Descripcion = p.Descripcion;
+            _proyecto.FechaCreacion = p.FechaCreacion;
+
+            SistemaActivo = _proyecto.Sistemas.First();
+            Log($"Proyecto abierto: '{p.Nombre}' ({p.Sistemas.Count} sistemas) desde {manifestPath}");
+            OnPropertyChanged(nameof(Proyecto));
+            OnPropertyChanged(nameof(LosasFiltradas));
+            RefreshDLContent();
+        }
+        catch (Exception ex) { Log("Error abriendo proyecto: " + ex.Message); }
+    }
+
+    /// <summary>Guarda el proyecto como multi-archivo en una carpeta destino.</summary>
+    public void GuardarProyecto(string carpetaDestino)
+    {
+        try
+        {
+            ProyectoService.GuardarProyecto(_proyecto, carpetaDestino);
+            DLPath = _proyecto.Archivo;
+            Log($"Proyecto guardado en {carpetaDestino} con {_proyecto.Sistemas.Count} sistema(s) — manifest: {ProyectoService.ManifestFileName}");
+            OnPropertyChanged(nameof(Proyecto));
+        }
+        catch (Exception ex) { Log("Error guardando proyecto: " + ex.Message); }
+    }
+
+    /// <summary>Agrega un sistema vacío al proyecto y lo deja activo.</summary>
+    public Sistema AgregarSistema(string? nombre = null)
+    {
+        var n = _proyecto.Sistemas.Count + 1;
+        var nuevo = new Sistema
+        {
+            Nombre = nombre ?? $"Sistema No {n}",
+            Fc = SistemaActivo.Fc,
+            Fy = SistemaActivo.Fy,
+            Adicionales = SistemaActivo.Adicionales,
+        };
+        _proyecto.Sistemas.Add(nuevo);
+        SistemaActivo = nuevo;
+        Log($"Sistema agregado: {nuevo.Nombre}");
+        return nuevo;
+    }
+
+    /// <summary>Elimina el sistema dado del proyecto. Si era el activo, queda activo el anterior.</summary>
+    public void EliminarSistema(Sistema s)
+    {
+        if (_proyecto.Sistemas.Count <= 1)
+        {
+            Log("No se puede eliminar: el proyecto debe tener al menos un sistema.");
+            return;
+        }
+        var idx = _proyecto.Sistemas.IndexOf(s);
+        if (idx < 0) return;
+        var fueActivo = ReferenceEquals(_sistemaActivo, s);
+        _proyecto.Sistemas.Remove(s);
+        if (fueActivo)
+            SistemaActivo = _proyecto.Sistemas[Math.Min(idx, _proyecto.Sistemas.Count - 1)];
+        Log($"Sistema eliminado: {s.Nombre}");
+    }
+
+    public async Task GuardarDLAsync(string path)
+    {
+        try
+        {
+            await Plugins.LoadAllAsync(Log);
+            await Plugins.RunHookAsync("pre-dl", BuildPluginContext(), Log);
+
+            // Guarda TODOS los sistemas del proyecto (uno o varios)
+            DLFileService.SaveAll(_proyecto.Sistemas, path);
+            DLPath = path;
+            _proyecto.Archivo = path;
+            RefreshDLContent();
+            var n = _proyecto.Sistemas.Count;
+            Log($"Guardado .DL: {path} ({n} sistema{(n == 1 ? "" : "s")})");
+        }
+        catch (Exception ex) { Log("Error guardando .DL: " + ex.Message); }
+    }
+
+    /// <summary>
+    /// Lanza el motor de cálculo original Losas.exe (de F. Perdomo) sin automatizarlo:
+    /// el binario es de Visual Smalltalk Enterprise 3.1, ignora argumentos CLI y no expone
+    /// patterns UIA programables (ver <c>docs/RUNNER_BEHAVIOR.md</c>). El usuario carga el
+    /// .DL, ejecuta y guarda el .TXT manualmente desde la GUI nativa, luego usa
+    /// "Importar .TXT" en LosasPlus para traer los resultados.
+    /// </summary>
+    public async Task LanzarLosasExeAsync()
+    {
+        if (string.IsNullOrWhiteSpace(LosasExePath) || !File.Exists(LosasExePath))
+        { Log("Configura la ruta de Losas.exe en el panel superior."); return; }
+
+        try
+        {
+            await Plugins.LoadAllAsync(Log);
+            await Plugins.RunHookAsync("pre-run", BuildPluginContext(), Log);
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = LosasExePath,
+                WorkingDirectory = Path.GetDirectoryName(LosasExePath) ?? Environment.CurrentDirectory,
+                UseShellExecute = true
+            };
+            var p = Process.Start(psi);
+            Log(p != null
+                ? $"Losas.exe lanzado (PID {p.Id}). Cargá el .DL desde el menú File del programa, ejecutá el cálculo y guardá el .TXT."
+                : "No se pudo lanzar Losas.exe.");
+        }
+        catch (Exception ex) { Log("Error lanzando Losas.exe: " + ex.Message); }
+    }
+
+    private PluginContext BuildPluginContext(string? outputTxt = null, string? xlsx = null, string? csv = null)
+        => new PluginContext
+        {
+            Sistema = Sistema,
+            OutputTxt = outputTxt,
+            OutputXlsxPath = xlsx,
+            OutputCsvPath = csv,
+            PluginsDir = Plugins.PluginsDirectory,
+            DLPath = DLPath,
+            LosasExePath = LosasExePath,
+            HostLog = Log,
+        };
+
+    /// <summary>
+    /// Carga un .TXT producido manualmente por Losas.exe, lo parsea, lo asocia a las losas
+    /// del sistema actual y dispara el hook 'post-txt'.
+    /// </summary>
+    public async Task ImportarTxtAsync(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        { Log("Archivo .TXT no encontrado: " + path); return; }
+
+        try
+        {
+            Ocupado = true;
+            var content = await File.ReadAllTextAsync(path, Encoding.GetEncoding(1252));
+            TxtPath = path;
+            TxtContent = content;
+
+            var parsed = TxtParser.Parse(content, Sistema.Losas);
+            TxtParser.Apply(parsed, Sistema.Losas);
+            TxtParser.ApplyApoyos(parsed, Sistema.BordesX, Sistema.BordesY);
+            OnPropertyChanged(nameof(LosasFiltradas));
+
+            await Plugins.LoadAllAsync(Log);
+            var ctx = BuildPluginContext(outputTxt: content);
+            await Plugins.RunHookAsync("post-txt", ctx, Log);
+            // 'post-run' es alias de post-txt: el .TXT representa el output de la corrida
+            // del motor, así que ambos hooks tienen la misma semántica práctica.
+            await Plugins.RunHookAsync("post-run", ctx, Log);
+
+            Log($"Importado .TXT: {path} ({parsed.PorLosa.Count} losas con resultados detectados)");
+        }
+        catch (Exception ex) { Log("Error importando .TXT: " + ex.Message); }
+        finally { Ocupado = false; }
+    }
+
+    public void AgregarLosa()
+    {
+        var nuevoId = Sistema.Losas.Count == 0 ? 1 : Sistema.Losas.Max(l => l.Id) + 1;
+        Sistema.Losas.Add(new Losa { Id = nuevoId, Tipo = 11, Carga = 2.0, Espesor = 0.12, Lx = 4, Ly = 4, Rec = 0.02 });
+        OnPropertyChanged(nameof(LosasFiltradas));
+        RefreshDLContent();
+    }
+
+    public void EliminarLosa(Losa l)
+    {
+        Sistema.Losas.Remove(l);
+        OnPropertyChanged(nameof(LosasFiltradas));
+        RefreshDLContent();
+    }
+
+    public void AgregarBorde(bool eje_X)
+    {
+        var coll = eje_X ? Sistema.BordesX : Sistema.BordesY;
+        coll.Add(new BordeAdic { BI = 1, BJ = 2, Balanceo = "S" });
+        RefreshDLContent();
+    }
+
+    public void EliminarBorde(BordeAdic b)
+    {
+        if (Sistema.BordesX.Remove(b)) { RefreshDLContent(); return; }
+        if (Sistema.BordesY.Remove(b)) RefreshDLContent();
+    }
+
+    public async Task ExportarCsvAsync(string path)
+    {
+        try
+        {
+            CsvExporter.Export(Sistema, path);
+            Log("CSV exportado: " + path);
+            await Plugins.LoadAllAsync(Log);
+            await Plugins.RunHookAsync("custom-export", BuildPluginContext(csv: path), Log);
+        }
+        catch (Exception ex) { Log("Error exportando CSV: " + ex.Message); }
+    }
+
+    /// <summary>
+    /// Exporta a XLSX con varias hojas (Resumen / Losas / Apoyos / Esquema / Combinaciones).
+    /// La ventana llama a este método después de capturar el PNG del Canvas (opcional).
+    /// </summary>
+    public async Task ExportarXlsxAsync(string path, byte[]? esquemaPng = null)
+    {
+        try
+        {
+            string? dzp = null, cez = null;
+            if (!string.IsNullOrEmpty(LosasExePath))
+            {
+                var dir = Path.GetDirectoryName(LosasExePath);
+                if (!string.IsNullOrEmpty(dir))
+                {
+                    var candDzp = Path.Combine(dir, "Combinaciones.DZP");
+                    var candCez = Path.Combine(dir, "Combinaciones.CEZ");
+                    if (File.Exists(candDzp)) dzp = candDzp;
+                    if (File.Exists(candCez)) cez = candCez;
+                }
+            }
+            XlsxExporter.Export(new XlsxExporter.ExportContext
+            {
+                Sistema = Sistema,
+                EsquemaPng = esquemaPng,
+                CombinacionesDzpPath = dzp,
+                CombinacionesCezPath = cez,
+                TxtSalidaPath = TxtPath,
+                TxtSalidaContenido = TxtContent,
+                DLPath = DLPath,
+            }, path);
+            Log("XLSX exportado: " + path);
+
+            await Plugins.LoadAllAsync(Log);
+            await Plugins.RunHookAsync("custom-export", BuildPluginContext(xlsx: path), Log);
+        }
+        catch (Exception ex) { Log("Error exportando XLSX: " + ex.Message); }
+    }
+
+    public IReadOnlyList<Norma> Normas => ReglamentoService.Load();
+
+    private static Sistema NuevoSistemaDemo()
+    {
+        var s = new Sistema { Nombre = "Sistema No 1", Fc = 0.210, Fy = 4.200, Adicionales = 1 };
+        s.Losas.Add(new Losa { Id = 1, Tipo = 40, Carga = 2.000, Espesor = 0.120, Lx = 4.000, Ly = 3.500, Rec = 0.020 });
+        s.Losas.Add(new Losa { Id = 2, Tipo = 22, Carga = 2.000, Espesor = 0.120, Lx = 3.500, Ly = 3.500, Rec = 0.020 });
+        s.Losas.Add(new Losa { Id = 3, Tipo = 21, Carga = 2.000, Espesor = 0.120, Lx = 4.000, Ly = 4.000, Rec = 0.020 });
+        s.BordesX.Add(new BordeAdic { BI = 1, BJ = 2, Balanceo = "S" });
+        s.BordesY.Add(new BordeAdic { BI = 1, BJ = 3, Balanceo = "S" });
+        return s;
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged([CallerMemberName] string? n = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
+}
+
+public sealed class RelayCommand : ICommand
+{
+    private readonly Action<object?> _exec;
+    private readonly Predicate<object?>? _can;
+    public RelayCommand(Action<object?> exec, Predicate<object?>? can = null) { _exec = exec; _can = can; }
+    public bool CanExecute(object? p) => _can?.Invoke(p) ?? true;
+    public void Execute(object? p) => _exec(p);
+    public event EventHandler? CanExecuteChanged
+    {
+        add { CommandManager.RequerySuggested += value; }
+        remove { CommandManager.RequerySuggested -= value; }
+    }
+}

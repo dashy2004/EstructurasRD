@@ -1,0 +1,16 @@
+<UserControl x:Class="LosasPlus.Views.HighlightedTxtView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <RichTextBox x:Name="Editor"
+                 IsReadOnly="True"
+                 IsDocumentEnabled="True"
+                 VerticalScrollBarVisibility="Auto"
+                 HorizontalScrollBarVisibility="Auto"
+                 Background="{DynamicResource BgInput}"
+                 Foreground="{DynamicResource FgPrimary}"
+                 BorderBrush="{DynamicResource Border}"
+                 BorderThickness="1"
+                 FontFamily="Consolas, Cascadia Mono, Courier New"
+                 FontSize="12"
+                 Padding="6"/>
+</UserControl>

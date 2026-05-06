@@ -1,0 +1,633 @@
+<Window x:Class="LosasPlus.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:LosasPlus.ViewModels"
+        xmlns:m="clr-namespace:LosasPlus.Models"
+        xmlns:v="clr-namespace:LosasPlus.Views"
+        xmlns:s="clr-namespace:LosasPlus.Services"
+        xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+        Title="LosasPlus  ·  wrapper sobre Losas.exe (motor: F. Perdomo)"
+        Height="820" Width="1280" MinHeight="600" MinWidth="900"
+        Background="{DynamicResource BgPrimary}"
+        WindowStartupLocation="CenterScreen">
+    <Window.DataContext>
+        <vm:MainViewModel/>
+    </Window.DataContext>
+
+    <DockPanel LastChildFill="True">
+
+        <!-- Top bar minimalista (estilo Stitch Precision): logo + menús File/Engine/Export -->
+        <Border DockPanel.Dock="Top" Background="{DynamicResource BgInput}" Padding="14,6"
+                BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Left" Text="LosasPlus"
+                           FontWeight="Bold" FontSize="16" VerticalAlignment="Center"
+                           Foreground="{DynamicResource FgPrimary}" Margin="0,0,16,0"/>
+
+                <!-- Menus agrupados estilo "File / Engine / Export" -->
+                <Menu DockPanel.Dock="Left" Background="Transparent" VerticalAlignment="Center">
+                    <Menu.Resources>
+                        <Style TargetType="MenuItem">
+                            <Setter Property="Padding" Value="10,6"/>
+                            <Setter Property="FontFamily" Value="Inter, Segoe UI"/>
+                            <Setter Property="FontSize" Value="13"/>
+                            <Setter Property="FontWeight" Value="Medium"/>
+                            <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                        </Style>
+                    </Menu.Resources>
+                    <MenuItem Header="File">
+                        <MenuItem Header="Nuevo proyecto..." Click="OnNewProjectClick"/>
+                        <MenuItem Header="Abrir proyecto..." Click="OnOpenProjectClick"/>
+                        <MenuItem Header="Guardar proyecto..." Click="OnSaveProjectClick"/>
+                        <Separator/>
+                        <MenuItem Header="Abrir .DL legacy..." Click="OnOpenClick"/>
+                        <MenuItem Header="Guardar .DL agregado..." Click="OnSaveClick"
+                                  ToolTip="Guarda todos los sistemas en un único .DL multi-sistema (formato legacy)."/>
+                        <Separator/>
+                        <MenuItem Header="Pegar de Excel..." Click="OnPasteFromExcelClick"/>
+                    </MenuItem>
+                    <MenuItem Header="Engine">
+                        <MenuItem Header="Examinar Losas.exe..." Click="OnBrowseLosasExe"/>
+                        <MenuItem Header="Lanzar Losas.exe" Click="OnLaunchLosasExeClick"/>
+                        <MenuItem Header="Importar .TXT..." Click="OnImportTxtClick"/>
+                    </MenuItem>
+                    <MenuItem Header="Export">
+                        <MenuItem Header="Exportar CSV..." Click="OnExportCsvClick"/>
+                        <MenuItem Header="Exportar XLSX..." Click="OnExportXlsxClick"/>
+                    </MenuItem>
+                </Menu>
+
+                <!-- Acciones rápidas en la derecha -->
+                <Button DockPanel.Dock="Right" Content="Apariencia" Width="100" Margin="6,0,0,0"
+                        Click="OnAppearanceClick"
+                        ToolTip="Personaliza colores: HEX y sliders RGB para cada token del theme."/>
+                <Button DockPanel.Dock="Right" Content="Tema" Width="70" Margin="6,0,0,0" Click="OnToggleTheme"
+                        ToolTip="Cicla entre Precision · Light · Dark. La preferencia se guarda en %AppData%\LosasPlus."/>
+                <Button DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}"
+                        Content="▶ Lanzar motor" Width="140" Margin="6,0,0,0"
+                        Click="OnLaunchLosasExeClick"
+                        ToolTip="Abre Losas.exe. Cargá el .DL desde su menú File y ejecutá el cálculo, luego volvé acá e Importá el .TXT."/>
+
+                <!-- Path Losas.exe compacto -->
+                <TextBlock DockPanel.Dock="Left" Text="Losas.exe:" VerticalAlignment="Center"
+                           Margin="20,0,6,0" Foreground="{DynamicResource FgMuted}" FontSize="12"/>
+                <TextBox Text="{Binding LosasExePath, UpdateSourceTrigger=PropertyChanged}"
+                         FontFamily="JetBrains Mono, Consolas" FontSize="11"
+                         VerticalAlignment="Center" MinHeight="28" Margin="0,0,6,0"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Status bar inferior (estilo Stitch) + Log colapsable -->
+        <Border DockPanel.Dock="Bottom" Background="{DynamicResource BgInput}"
+                BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
+            <DockPanel>
+                <!-- Status bar fija -->
+                <Border DockPanel.Dock="Top" Padding="14,4">
+                    <DockPanel>
+                        <Ellipse DockPanel.Dock="Left" Width="8" Height="8" Margin="0,0,6,0"
+                                 Fill="{DynamicResource Ok}" VerticalAlignment="Center"/>
+                        <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" FontSize="12">
+                            <Run Foreground="{DynamicResource FgMuted}" Text="Status:"/>
+                            <Run Foreground="{DynamicResource FgPrimary}" FontWeight="SemiBold" Text="Connected"/>
+                            <Run Foreground="{DynamicResource FgMuted}" Text="  ·  "/>
+                            <Run Foreground="{DynamicResource FgSecondary}" Text="{Binding SistemaActivo.Nombre, FallbackValue=(sin sistema), TargetNullValue=(sin sistema), Mode=OneWay}"/>
+                        </TextBlock>
+
+                        <!-- Toggle log -->
+                        <ToggleButton DockPanel.Dock="Right" x:Name="LogToggle"
+                                      Content="Logs" Width="60" Margin="6,0,0,0"
+                                      Background="Transparent"
+                                      Foreground="{DynamicResource FgSecondary}"
+                                      BorderThickness="0"
+                                      FontSize="12" FontWeight="Medium"/>
+                        <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{DynamicResource FgMuted}"
+                                   Text="© 2026 LosasPlus · motor: F. Perdomo (Pieper-Martens)"/>
+                    </DockPanel>
+                </Border>
+
+                <!-- Log expandible (visible si LogToggle.IsChecked) -->
+                <Border DockPanel.Dock="Bottom"
+                        Background="#0F172A"
+                        BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0"
+                        Visibility="{Binding ElementName=LogToggle, Path=IsChecked, Converter={StaticResource BoolToCollapsedIfFalse}}"
+                        Padding="14,8">
+                    <TextBox Height="120"
+                             Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True"
+                             Background="#0F172A" Foreground="#E2E8F0"
+                             BorderThickness="0"
+                             FontFamily="JetBrains Mono, Consolas, Cascadia Mono"
+                             FontSize="11"
+                             VerticalScrollBarVisibility="Auto"/>
+                </Border>
+            </DockPanel>
+        </Border>
+
+        <!-- Sidebar izquierda: project header + lista de sistemas (estilo Stitch) -->
+        <Border DockPanel.Dock="Left" Width="240"
+                Background="{DynamicResource BgSecondary}"
+                BorderBrush="{DynamicResource Border}" BorderThickness="0,0,1,0">
+            <DockPanel LastChildFill="True" Margin="14,12">
+                <!-- Project header -->
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                    <TextBlock Text="Project" FontSize="11" FontWeight="Bold"
+                               Foreground="{DynamicResource FgMuted}" Margin="0,0,0,4"/>
+                    <TextBlock Text="{Binding Proyecto.Archivo, FallbackValue=(sin .DL), TargetNullValue=(sin .DL), Mode=OneWay}"
+                               FontFamily="JetBrains Mono, Consolas" FontSize="11"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource FgSecondary}"/>
+                </StackPanel>
+
+                <TextBlock DockPanel.Dock="Top" Text="SISTEMAS" FontWeight="Bold" FontSize="11"
+                           Foreground="{DynamicResource FgMuted}" Margin="0,0,0,6"/>
+                <DockPanel DockPanel.Dock="Bottom" LastChildFill="False" Margin="0,4,0,0">
+                    <Button DockPanel.Dock="Left" Content="+ Sistema" Width="90"
+                            Click="OnAddSistema"
+                            ToolTip="Agrega un nuevo sistema al proyecto"/>
+                    <Button DockPanel.Dock="Right" Content="− Sistema" Width="90"
+                            Click="OnDeleteSistema"
+                            Background="{DynamicResource Border}"
+                            ToolTip="Elimina el sistema seleccionado (deshabilitado si queda sólo uno)"/>
+                </DockPanel>
+                <ListBox x:Name="SistemasList"
+                         ItemsSource="{Binding Proyecto.Sistemas}"
+                         SelectedItem="{Binding SistemaActivo, Mode=TwoWay}"
+                         Background="{DynamicResource BgInput}"
+                         Foreground="{DynamicResource FgPrimary}"
+                         BorderBrush="{DynamicResource Border}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="2,4">
+                                <TextBlock Text="{Binding Nombre}" FontWeight="SemiBold"/>
+                                <TextBlock FontSize="10" Foreground="{DynamicResource FgMuted}">
+                                    <Run Text="{Binding Losas.Count, Mode=OneWay}"/>
+                                    <Run Text=" losas · "/>
+                                    <Run Text="{Binding BordesX.Count, Mode=OneWay}"/>
+                                    <Run Text="X + "/>
+                                    <Run Text="{Binding BordesY.Count, Mode=OneWay}"/>
+                                    <Run Text="Y bordes"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <!-- Tabs verticales (estilo nav Stitch). Las pestañas aparecen como sidebar a la izquierda del contenido. -->
+        <TabControl Background="{DynamicResource BgPrimary}" Foreground="{DynamicResource FgPrimary}"
+                    TabStripPlacement="Left"
+                    BorderThickness="0">
+            <TabControl.Resources>
+                <!-- Tab item estilo Stitch: 200 px de ancho, padding 14/8, border-left 3 px en activo (Accent). -->
+                <Style TargetType="TabItem">
+                    <Setter Property="FontFamily" Value="Inter, Segoe UI"/>
+                    <Setter Property="FontSize" Value="13"/>
+                    <Setter Property="Cursor" Value="Hand"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="TabItem">
+                                <Border x:Name="Bd" Width="200"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="Transparent" BorderThickness="3,0,0,0"
+                                        Padding="11,8">
+                                    <DockPanel LastChildFill="True">
+                                        <TextBlock DockPanel.Dock="Left"
+                                                   Text="{TemplateBinding Tag}"
+                                                   FontSize="16" Width="22" Margin="0,0,8,0"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{TemplateBinding Foreground}"/>
+                                        <ContentPresenter ContentSource="Header"
+                                                          VerticalAlignment="Center"
+                                                          TextElement.Foreground="{TemplateBinding Foreground}"
+                                                          TextElement.FontWeight="{TemplateBinding FontWeight}"/>
+                                    </DockPanel>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BgTertiary}"/>
+                                        <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource ActiveBar}"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="False">
+                                        <Setter Property="Foreground" Value="{DynamicResource FgSecondary}"/>
+                                    </Trigger>
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="IsMouseOver" Value="True"/>
+                                            <Condition Property="IsSelected" Value="False"/>
+                                        </MultiTrigger.Conditions>
+                                        <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BgSecondary}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                                    </MultiTrigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </TabControl.Resources>
+
+            <!-- TAB 1: Editor estructurado -->
+            <TabItem Header="Editor" Tag="✎">
+                <Grid Margin="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="320"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Tabla de losas + panel de tipos abajo -->
+                    <DockPanel Grid.Column="0">
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4">
+                            <TextBlock Text="Filtro tipo:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBox Width="180" Text="{Binding FiltroTipo, UpdateSourceTrigger=PropertyChanged}"/>
+                            <Button Content="+ Losa" Width="80" Margin="8,0,0,0" Click="OnAddLosa"/>
+                            <Button Content="– Losa" Width="80" Margin="4,0,0,0" Click="OnDelLosa"/>
+                            <Button Content="Pegar de Excel..." Width="140" Margin="8,0,0,0"
+                                    Click="OnPasteFromExcelClick"
+                                    ToolTip="Pegar (Ctrl+V) una tabla con columnas Lx, Ly, Espesor, Carga (opcionalmente Tipo y Rec) y crear las losas."/>
+                            <TextBlock Text="(seleccioná una fila para eliminar / aplicar tipo)" VerticalAlignment="Center" Margin="8,0,0,0"
+                                       Foreground="{DynamicResource FgMuted}"/>
+                        </DockPanel>
+
+                        <!-- Panel de tipos visuales (abajo del grid, altura fija con scroll si hace falta) -->
+                        <Border DockPanel.Dock="Bottom"
+                                Background="{DynamicResource BgSecondary}"
+                                BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                Margin="0,6,0,0" Padding="6" Height="240">
+                            <DockPanel LastChildFill="True">
+                                <TextBlock DockPanel.Dock="Top" Margin="0,0,0,6"
+                                           Foreground="{DynamicResource FgMuted}" TextWrapping="Wrap">
+                                    <Run Text="TIPOS DE LOSAS · " FontWeight="Bold"/>
+                                    <Run Text="hover = descripción · click = aplicar a la fila seleccionada"/>
+                                </TextBlock>
+                                <v:TiposLosaPanel x:Name="TiposPanel"/>
+                            </DockPanel>
+                        </Border>
+
+                        <DataGrid x:Name="LosasGrid"
+                                  ItemsSource="{Binding LosasFiltradas}"
+                                  AutoGenerateColumns="False"
+                                  SelectionMode="Single"
+                                  CanUserAddRows="False"
+                                  HeadersVisibility="Column"
+                                  CellEditEnding="OnLosasCellEdited">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="40"/>
+                                <DataGridTemplateColumn Header="" Width="50" IsReadOnly="True">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <v:TipoLosaIconView Codigo="{Binding Tipo, Mode=OneWay}"
+                                                                Width="44" Height="44"
+                                                                ToolTip="{Binding TipoDescripcion}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="TIPO" Width="180">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Margin="4,2" VerticalAlignment="Center">
+                                                <Run Text="{Binding Tipo, Mode=OneWay}"/>
+                                                <Run Text=" — "/>
+                                                <Run Text="{Binding TipoDescripcion, Mode=OneWay}"/>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                    <DataGridTemplateColumn.CellEditingTemplate>
+                                        <DataTemplate>
+                                            <ComboBox SelectedValue="{Binding Tipo, UpdateSourceTrigger=PropertyChanged}"
+                                                      SelectedValuePath="Codigo"
+                                                      ItemsSource="{Binding DataContext.TiposCatalogo, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      DisplayMemberPath="Descripcion"
+                                                      IsEditable="False" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellEditingTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Carga [t/m²]" Width="90"
+                                                    Binding="{Binding Carga, StringFormat=0.000, ValidatesOnDataErrors=True, UpdateSourceTrigger=LostFocus}"/>
+                                <DataGridTextColumn Header="H [m]" Width="70"
+                                                    Binding="{Binding Espesor, StringFormat=0.000, ValidatesOnDataErrors=True, UpdateSourceTrigger=LostFocus}"/>
+                                <DataGridTextColumn Header="Lx [m]" Width="70"
+                                                    Binding="{Binding Lx, StringFormat=0.000, ValidatesOnDataErrors=True, UpdateSourceTrigger=LostFocus}"/>
+                                <DataGridTextColumn Header="Ly [m]" Width="70"
+                                                    Binding="{Binding Ly, StringFormat=0.000, ValidatesOnDataErrors=True, UpdateSourceTrigger=LostFocus}"/>
+                                <DataGridTextColumn Header="Rec [m]" Width="70"
+                                                    Binding="{Binding Rec, StringFormat=0.000, ValidatesOnDataErrors=True, UpdateSourceTrigger=LostFocus}"/>
+                                <DataGridTemplateColumn Header="Ly/Lx" Width="60" IsReadOnly="True">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="4,2">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding AspectoFueraDeRango}" Value="True">
+                                                                <Setter Property="Background" Value="{StaticResource Warn}"/>
+                                                                <Setter Property="ToolTip" Value="{Binding AspectoMensaje}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding Aspecto, StringFormat=0.00, Mode=OneWay}"
+                                                           VerticalAlignment="Center"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Mfx" Binding="{Binding Mfx, StringFormat=0.0000}" Width="80" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Mfy" Binding="{Binding Mfy, StringFormat=0.0000}" Width="80" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="MSx" Binding="{Binding MSx, StringFormat=0.0000}" Width="80" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="MSy" Binding="{Binding MSy, StringFormat=0.0000}" Width="80" IsReadOnly="True"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+
+                    <!-- Panel lateral: encabezado + bordes -->
+                    <Border Grid.Column="1" Background="{DynamicResource BgSecondary}" Margin="6,0,0,0" Padding="8">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="Sistema" FontWeight="Bold" FontSize="14"/>
+                                <TextBlock Text="Nombre" Margin="0,8,0,0"/>
+                                <TextBox Text="{Binding Sistema.Nombre, UpdateSourceTrigger=LostFocus}"/>
+                                <TextBlock Text="FC [ton/cm²]" Margin="0,8,0,0"/>
+                                <TextBox Text="{Binding Sistema.Fc, StringFormat=0.000, UpdateSourceTrigger=LostFocus}"/>
+                                <TextBlock Text="FY [ton/cm²]" Margin="0,8,0,0"/>
+                                <TextBox Text="{Binding Sistema.Fy, StringFormat=0.000, UpdateSourceTrigger=LostFocus}"/>
+                                <TextBlock Text="ADICIONALES (0=rectas, 1=camelladas)" Margin="0,8,0,0"/>
+                                <TextBox Text="{Binding Sistema.Adicionales, UpdateSourceTrigger=LostFocus}"/>
+
+                                <Separator Margin="0,12,0,12"/>
+                                <TextBlock Text="Bordes adic. SEGÚN X" FontWeight="Bold"/>
+                                <DataGrid ItemsSource="{Binding Sistema.BordesX}" AutoGenerateColumns="False" Height="100" Margin="0,4,0,0" CanUserAddRows="False" SelectionMode="Single" Tag="X">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="B-I" Binding="{Binding BI}" Width="*"/>
+                                        <DataGridTextColumn Header="B-J" Binding="{Binding BJ}" Width="*"/>
+                                        <DataGridTemplateColumn Header="BAL" Width="60">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <ComboBox SelectedValue="{Binding Balanceo, UpdateSourceTrigger=PropertyChanged}">
+                                                        <ComboBoxItem Content="S"/>
+                                                        <ComboBoxItem Content="N"/>
+                                                    </ComboBox>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                    <Button Content="+ Borde X" Click="OnAddBordeX"/>
+                                    <Button Content="– Borde X" Click="OnDelBordeX" Margin="4,0,0,0"/>
+                                </StackPanel>
+
+                                <Separator Margin="0,12,0,12"/>
+                                <TextBlock Text="Bordes adic. SEGÚN Y" FontWeight="Bold"/>
+                                <DataGrid ItemsSource="{Binding Sistema.BordesY}" AutoGenerateColumns="False" Height="100" Margin="0,4,0,0" CanUserAddRows="False" SelectionMode="Single" Tag="Y">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="B-I" Binding="{Binding BI}" Width="*"/>
+                                        <DataGridTextColumn Header="B-J" Binding="{Binding BJ}" Width="*"/>
+                                        <DataGridTemplateColumn Header="BAL" Width="60">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <ComboBox SelectedValue="{Binding Balanceo, UpdateSourceTrigger=PropertyChanged}">
+                                                        <ComboBoxItem Content="S"/>
+                                                        <ComboBoxItem Content="N"/>
+                                                    </ComboBox>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                    <Button Content="+ Borde Y" Click="OnAddBordeY"/>
+                                    <Button Content="– Borde Y" Click="OnDelBordeY" Margin="4,0,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 2: Esquema visual -->
+            <TabItem Header="Esquema" Tag="⛶">
+                <v:DiagramView x:Name="Diagram" DataContext="{Binding}"/>
+            </TabItem>
+
+            <!-- TAB 3: .DL crudo -->
+            <TabItem Header=".DL" Tag="▤">
+                <Grid Margin="4">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="0,0,0,4">
+                        <TextBlock Text="Vista del archivo .DL generado a partir del modelo (lectura/edición)" />
+                        <Button DockPanel.Dock="Right" Content="Aplicar al modelo" Width="140" Click="OnApplyDLText"/>
+                    </DockPanel>
+                    <TextBox Grid.Row="1"
+                             x:Name="DLEditor"
+                             Text="{Binding DLContent, UpdateSourceTrigger=PropertyChanged}"
+                             AcceptsReturn="True" AcceptsTab="True"
+                             VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                             FontFamily="Consolas" FontSize="12"/>
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 4: Salida .TXT (con resaltado) -->
+            <TabItem Header="Salida .TXT" Tag="⇲">
+                <Grid Margin="4">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0"
+                               Text="{Binding TxtPath, StringFormat={}Archivo: {0}}"
+                               Foreground="{DynamicResource FgMuted}" Margin="0,0,0,4"/>
+                    <v:HighlightedTxtView Grid.Row="1" Text="{Binding TxtContent}"/>
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 5: Reglamento dominicano -->
+            <TabItem Header="Reglamento" Tag="⚖">
+                <v:ReglamentoView DataContext="{Binding}"/>
+            </TabItem>
+
+            <!-- TAB 6: Plugins -->
+            <TabItem Header="Plugins" Tag="◆">
+                <Grid Margin="6">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0" Margin="0,0,0,4">
+                        <Button DockPanel.Dock="Right" Content="Recargar plugins" Width="140" Click="OnReloadPlugins"/>
+                        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
+                                   Text="Scripts .csx en /plugins. Hooks soportados: load, pre-dl, pre-run, post-run, post-txt, custom-export. Los hooks SOLO se ejecutan para plugins marcados como CONFIABLES (Roslyn no es un sandbox de seguridad fuerte)."/>
+                    </DockPanel>
+                    <ItemsControl Grid.Row="1" ItemsSource="{Binding Plugins.Loaded}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                        Background="{DynamicResource BgSecondary}"
+                                        Margin="0,0,0,8" Padding="12">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <DockPanel>
+                                                <TextBlock DockPanel.Dock="Left"
+                                                           Text="{Binding Name}" FontWeight="Bold" FontSize="14"/>
+                                                <TextBlock DockPanel.Dock="Left" Margin="10,2,0,0"
+                                                           Text="{Binding FileName, StringFormat=({0})}"
+                                                           Foreground="{DynamicResource FgMuted}"/>
+                                                <TextBlock HorizontalAlignment="Right">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Text" Value="● No confiable"/>
+                                                            <Setter Property="Foreground" Value="{DynamicResource Warn}"/>
+                                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Trusted}" Value="True">
+                                                                    <Setter Property="Text" Value="● Confiable"/>
+                                                                    <Setter Property="Foreground" Value="{DynamicResource Ok}"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </DockPanel>
+
+                                            <TextBlock Margin="0,4,0,0">
+                                                <Run Foreground="{DynamicResource FgMuted}" Text="Autor:" />
+                                                <Run Text="{Binding Manifest.Author, FallbackValue=(sin manifest), TargetNullValue=(sin manifest), Mode=OneWay}"/>
+                                                <Run Foreground="{DynamicResource FgMuted}" Text=" · Versión:"/>
+                                                <Run Text="{Binding Manifest.Version, FallbackValue=-, TargetNullValue=-, Mode=OneWay}"/>
+                                            </TextBlock>
+                                            <TextBlock Margin="0,4,0,0" TextWrapping="Wrap"
+                                                       Text="{Binding Manifest.Description, FallbackValue=Sin descripción, TargetNullValue=Sin descripción, Mode=OneWay}"
+                                                       Foreground="{DynamicResource FgSecondary}"/>
+                                            <TextBlock Margin="0,4,0,0" Foreground="{DynamicResource FgMuted}"
+                                                       Text="{Binding Sha256, StringFormat=SHA-256: {0}}"
+                                                       FontFamily="Consolas" FontSize="10"/>
+
+                                            <TextBlock Margin="0,6,0,0" Foreground="{DynamicResource Err}"
+                                                       Text="{Binding CompileError, StringFormat=Error de compilación: {0}}"
+                                                       Visibility="{Binding CompileError, Converter={StaticResource NullToCollapsed}}"
+                                                       TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Top" Margin="12,0,0,0">
+                                            <Button Content="Confiar" Width="100" Click="OnTrustPluginClick"
+                                                    Tag="{Binding FullPath}"
+                                                    Visibility="{Binding Trusted, Converter={StaticResource BoolToCollapsedIfTrue}}"/>
+                                            <Button Content="Revocar" Width="100" Margin="0,4,0,0" Click="OnRevokeTrustClick"
+                                                    Tag="{Binding FullPath}"
+                                                    Background="{DynamicResource Border}"
+                                                    Visibility="{Binding Trusted, Converter={StaticResource BoolToCollapsedIfFalse}}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                        <ItemsControl.Template>
+                            <ControlTemplate>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsPresenter/>
+                                </ScrollViewer>
+                            </ControlTemplate>
+                        </ItemsControl.Template>
+                    </ItemsControl>
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 7: Acerca de -->
+            <TabItem Header="Acerca de" Tag="ℹ">
+                <ScrollViewer>
+                    <StackPanel Margin="20" MaxWidth="900">
+                        <TextBlock Text="LosasPlus" FontSize="22" FontWeight="Bold"/>
+                        <TextBlock Text="Capa de UI, edición, visualización y exportación construida sobre el motor original." Margin="0,4,0,0"/>
+
+                        <Separator Margin="0,12,0,12"/>
+                        <TextBlock Text="Crédito principal" FontWeight="Bold" FontSize="14"/>
+                        <TextBlock TextWrapping="Wrap" Margin="0,4,0,0">
+                            El motor de cálculo es obra de <Run FontWeight="Bold">Francisco Eludino Perdomo</Run>
+                            (Losas v5.00, febrero 2011). El método implementado es el de Pieper-Martens
+                            (TU Braunschweig), adaptado por el autor para el análisis de losas continuas
+                            apoyadas en tres y cuatro bordes. Contacto del autor original:
+                            <Run Text=" fa.perdomo@gmail.com" FontStyle="Italic"/>.
+                        </TextBlock>
+
+                        <Separator Margin="0,12,0,12"/>
+                        <TextBlock Text="Alcance del wrapper" FontWeight="Bold" FontSize="14"/>
+                        <TextBlock TextWrapping="Wrap" Margin="0,4,0,0">
+                            El presente programa NO modifica el binario original. Genera el archivo .DL
+                            de entrada conforme al formato documentado por el autor en Losas.hlp,
+                            permite lanzar Losas.exe (la ejecución del cálculo es manual desde la GUI
+                            nativa del programa, ver <Run FontStyle="Italic">docs/RUNNER_BEHAVIOR.md</Run>)
+                            e importar el .TXT resultante para visualizar y exportar. Agrega capas de:
+                            edición estructurada con catálogo de tipos, esquema visual, preview del .TXT
+                            de salida, exportación a CSV, panel del Reglamento de Construcción Dominicano
+                            y arquitectura de plugins .csx en sandbox Roslyn.
+                        </TextBlock>
+
+                        <Separator Margin="0,12,0,12"/>
+                        <TextBlock Text="Limitaciones del motor (según el autor)" FontWeight="Bold" FontSize="14"/>
+                        <TextBlock TextWrapping="Wrap" Margin="0,4,0,0">
+                            · Carga viva ≤ 2/3 de la carga total (sin factorizar). · Apoyos lineales
+                            rígidos (vigas con peralte &gt; 4·h o cumplimiento del §13.6.1.6 ACI 318-08).
+                            · No verifica fuerza cortante. · No calcula deformaciones.
+                        </TextBlock>
+
+                        <Separator Margin="0,12,0,12"/>
+                        <TextBlock Text="Autor del wrapper LosasPlus" FontWeight="Bold" FontSize="14"/>
+                        <TextBlock TextWrapping="Wrap" Margin="0,4,0,0">
+                            Esta capa de UI/edición/exportación fue construida por
+                            <Run FontWeight="Bold">Emil Guillen De la Cruz</Run> como aporte al ecosistema
+                            de herramientas estructurales en República Dominicana. El motor de cálculo
+                            sigue siendo obra exclusiva de F. Perdomo; LosasPlus se ofrece como sugerencia
+                            de modernización al autor original.
+                        </TextBlock>
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Email" Foreground="{DynamicResource FgMuted}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="ContactEmail">
+                                <Hyperlink NavigateUri="mailto:emilgdc@gmail.com" RequestNavigate="OnContactNavigate">emilgdc@gmail.com</Hyperlink>
+                            </TextBlock>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="GitHub" Foreground="{DynamicResource FgMuted}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1">
+                                <Hyperlink NavigateUri="https://github.com/dashy2004" RequestNavigate="OnContactNavigate">@dashy2004</Hyperlink>
+                            </TextBlock>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="YouTube" Foreground="{DynamicResource FgMuted}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1">
+                                <Hyperlink NavigateUri="https://www.youtube.com/@emilguillen" RequestNavigate="OnContactNavigate">@emilguillen</Hyperlink>
+                            </TextBlock>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Instagram" Foreground="{DynamicResource FgMuted}"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1">
+                                <Hyperlink NavigateUri="https://www.instagram.com/emilguillendelacruz" RequestNavigate="OnContactNavigate">@emilguillendelacruz</Hyperlink>
+                            </TextBlock>
+                        </Grid>
+
+                        <Separator Margin="0,12,0,12"/>
+                        <TextBlock Text="Aviso legal" FontWeight="Bold" FontSize="14"/>
+                        <TextBlock TextWrapping="Wrap" Margin="0,4,0,0" Foreground="{DynamicResource Warn}">
+                            La distribución y uso público de este wrapper junto con el binario original
+                            requieren autorización de F. Perdomo. La presente compilación es una capa
+                            externa que respeta y atribuye la autoría del motor de cálculo. El código
+                            fuente del wrapper es de Emil Guillen De la Cruz y se entrega como
+                            sugerencia/aporte sin reclamar derechos sobre el motor original.
+                        </TextBlock>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+        </TabControl>
+    </DockPanel>
+</Window>
