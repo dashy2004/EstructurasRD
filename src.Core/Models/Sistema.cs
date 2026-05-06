@@ -23,7 +23,7 @@ namespace LosasPlus.Models;
 /// siendo byte-compatible con <c>Losas.exe</c> (un sistema por archivo, lectura
 /// directa por el motor).
 /// </summary>
-public class Proyecto : INotifyPropertyChanged
+public partial class Proyecto : INotifyPropertyChanged
 {
     private string _archivo = "";
     private string _nombre = "Proyecto sin título";
@@ -75,7 +75,7 @@ public class Proyecto : INotifyPropertyChanged
 /// (Pieper-Martens, F. Perdomo Ver. 5.00).
 /// Estructura: NLOSA, FC, FY, ADICIONALES + lista de losas + bordes adicionales según X / Y.
 /// </summary>
-public class Sistema : INotifyPropertyChanged
+public partial class Sistema : INotifyPropertyChanged
 {
     private string _nombre = "Sistema No 1";
     private double _fc = 0.210;        // ton/cm2
@@ -133,7 +133,7 @@ public class Sistema : INotifyPropertyChanged
 /// la relación Ly/Lx queda fuera del rango [0.5, 2.0] cubierto por las tablas de
 /// Pieper-Martens.
 /// </summary>
-public class Losa : INotifyPropertyChanged, IDataErrorInfo
+public partial class Losa : INotifyPropertyChanged, IDataErrorInfo
 {
     /// <summary>Rango de Ly/Lx para el cual las tablas Pieper-Martens son aplicables.</summary>
     public const double AspectoMin = 0.5;
