@@ -162,9 +162,11 @@
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button Style="{StaticResource SecondaryButtonStyle}"
-                                Content="Guardar borrador" Margin="0,0,8,0"/>
+                                Content="Guardar borrador" Margin="0,0,8,0"
+                                Command="{Binding GuardarBorradorCommand}"/>
                         <Button Style="{StaticResource PrimaryButtonStyle}"
-                                Content="Continuar"/>
+                                Content="{Binding TextoBotonContinuar}"
+                                Command="{Binding ContinuarCommand}"/>
                     </StackPanel>
                 </Grid>
             </Border>

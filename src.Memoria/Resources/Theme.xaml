@@ -270,4 +270,184 @@
         <Setter Property="ItemContainerStyle" Value="{StaticResource MemoriaTabItemStyle}"/>
     </Style>
 
+    <!-- ================================================================
+         Section card — Border con surface-container-lowest + outline-variant
+         ================================================================ -->
+    <Style TargetType="{x:Type Border}" x:Key="SectionCardStyle">
+        <Setter Property="Background"      Value="{StaticResource SurfaceContainerLowestBrush}"/>
+        <Setter Property="BorderBrush"     Value="{StaticResource OutlineVariantBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius"    Value="{StaticResource CornerRadiusDefault}"/>
+        <Setter Property="Padding"         Value="16"/>
+    </Style>
+
+    <!-- Field label encima del input (caption pequeña) -->
+    <Style TargetType="{x:Type TextBlock}" x:Key="FieldLabelStyle">
+        <Setter Property="FontFamily"    Value="{StaticResource FontFamilyUI}"/>
+        <Setter Property="FontSize"      Value="{StaticResource FontSizeLabel}"/>
+        <Setter Property="FontWeight"    Value="Medium"/>
+        <Setter Property="Foreground"    Value="{StaticResource OnSurfaceVariantBrush}"/>
+        <Setter Property="Margin"        Value="0,0,0,4"/>
+    </Style>
+
+    <!-- ================================================================
+         TextBox — 32 px, hairline border, focus ring cobalt
+         ================================================================ -->
+    <Style TargetType="{x:Type TextBox}" x:Key="MemoriaTextBoxStyle">
+        <Setter Property="Background"        Value="{StaticResource SurfaceContainerLowestBrush}"/>
+        <Setter Property="Foreground"        Value="{StaticResource OnSurfaceBrush}"/>
+        <Setter Property="FontFamily"        Value="{StaticResource FontFamilyUI}"/>
+        <Setter Property="FontSize"          Value="{StaticResource FontSizeBody}"/>
+        <Setter Property="Height"            Value="{StaticResource InputHeight}"/>
+        <Setter Property="Padding"           Value="10,0"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="BorderBrush"       Value="{StaticResource OutlineVariantBrush}"/>
+        <Setter Property="BorderThickness"   Value="1"/>
+        <Setter Property="SelectionBrush"    Value="{StaticResource PrimaryContainerBrush}"/>
+        <Setter Property="CaretBrush"        Value="{StaticResource OnSurfaceBrush}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type TextBox}">
+                    <Border x:Name="bd" CornerRadius="{StaticResource CornerRadiusDefault}"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}">
+                        <ScrollViewer x:Name="PART_ContentHost"
+                                      Margin="{TemplateBinding Padding}"
+                                      VerticalAlignment="Center"
+                                      Background="Transparent"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                            <Setter TargetName="bd" Property="BorderThickness" Value="2"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="bd" Property="Opacity" Value="0.5"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- TextBox multilinea para Otros Parametros (auto-wrap, >32px) -->
+    <Style TargetType="{x:Type TextBox}" x:Key="MemoriaTextAreaStyle"
+           BasedOn="{StaticResource MemoriaTextBoxStyle}">
+        <Setter Property="Height"             Value="Auto"/>
+        <Setter Property="MinHeight"          Value="64"/>
+        <Setter Property="MaxHeight"          Value="120"/>
+        <Setter Property="Padding"            Value="10,8"/>
+        <Setter Property="TextWrapping"       Value="Wrap"/>
+        <Setter Property="AcceptsReturn"      Value="True"/>
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+    </Style>
+
+    <!-- ================================================================
+         ComboBox — 32 px, hairline border, dropdown estilizado
+         ================================================================ -->
+    <Style TargetType="{x:Type ComboBoxItem}" x:Key="MemoriaComboBoxItemStyle">
+        <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+        <Setter Property="FontSize"   Value="{StaticResource FontSizeBody}"/>
+        <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+        <Setter Property="Padding"    Value="10,6"/>
+        <Setter Property="Cursor"     Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ComboBoxItem}">
+                    <Border x:Name="bd"
+                            Background="Transparent"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{StaticResource SurfaceContainerHighBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{StaticResource SurfaceContainerHighestBrush}"/>
+                            <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="{x:Type ComboBox}" x:Key="MemoriaComboBoxStyle">
+        <Setter Property="Background"      Value="{StaticResource SurfaceContainerLowestBrush}"/>
+        <Setter Property="Foreground"      Value="{StaticResource OnSurfaceBrush}"/>
+        <Setter Property="FontFamily"      Value="{StaticResource FontFamilyUI}"/>
+        <Setter Property="FontSize"        Value="{StaticResource FontSizeBody}"/>
+        <Setter Property="Height"          Value="{StaticResource InputHeight}"/>
+        <Setter Property="Padding"         Value="10,0"/>
+        <Setter Property="BorderBrush"     Value="{StaticResource OutlineVariantBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="ItemContainerStyle" Value="{StaticResource MemoriaComboBoxItemStyle}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ComboBox}">
+                    <Grid>
+                        <Border x:Name="bd" CornerRadius="{StaticResource CornerRadiusDefault}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="28"/>
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter Grid.Column="0"
+                                                  Content="{TemplateBinding SelectionBoxItem}"
+                                                  ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                  VerticalAlignment="Center" Margin="10,0,0,0"
+                                                  TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                                <ToggleButton Grid.Column="1"
+                                              Background="Transparent" BorderThickness="0"
+                                              Focusable="False"
+                                              IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                                    <ToggleButton.Template>
+                                        <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                            <Border Background="Transparent">
+                                                <Path HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                      Data="M 0 0 L 4 4 L 8 0 Z"
+                                                      Fill="{StaticResource OnSurfaceVariantBrush}"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </ToggleButton.Template>
+                                </ToggleButton>
+                            </Grid>
+                        </Border>
+                        <Popup Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                               AllowsTransparency="True" PopupAnimation="Slide" Focusable="False">
+                            <Border CornerRadius="{StaticResource CornerRadiusDefault}"
+                                    Background="{StaticResource SurfaceContainerLowestBrush}"
+                                    BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
+                                    MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                    Margin="0,2,0,0">
+                                <ScrollViewer MaxHeight="240">
+                                    <ItemsPresenter Margin="2"/>
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                            <Setter TargetName="bd" Property="BorderThickness" Value="2"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ================================================================
+         Hacer los estilos por default cuando no se especifica Style explicito
+         (asi cualquier TextBox/ComboBox/Border en una vista hereda el look)
+         ================================================================ -->
+    <Style TargetType="{x:Type TextBox}"  BasedOn="{StaticResource MemoriaTextBoxStyle}"/>
+    <Style TargetType="{x:Type ComboBox}" BasedOn="{StaticResource MemoriaComboBoxStyle}"/>
+
 </ResourceDictionary>
