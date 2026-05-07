@@ -9,6 +9,7 @@ using LosasPlus.Calculo;
 using LosasPlus.Generation;
 using LosasPlus.Importers;
 using LosasPlus.Models;
+using LosasPlus.Services;
 using MemoriaPlus.Common;
 
 namespace MemoriaPlus.ViewModels;
@@ -36,6 +37,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         GuardarBorradorCommand    = new RelayCommand(GuardarBorrador);
         RestaurarCargasCommand    = new RelayCommand(RestaurarCargas);
         ImportarCargasXlsCommand  = new RelayCommand(ImportarCargasXls);
+        ImportarTxtPerdomoCommand = new RelayCommand(ImportarTxtPerdomo, () => SistemaActivo != null);
+        QuitarTxtPerdomoCommand   = new RelayCommand(QuitarTxtPerdomo,   () => SistemaActivo?.TieneSalidaPerdomo == true);
         GenerarMemoriaCommand     = new RelayCommand(GenerarMemoria);
         AbrirUltimaMemoriaCommand = new RelayCommand(AbrirUltimaMemoria, () => UltimoArchivoGenerado != null);
 
@@ -148,12 +151,19 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private Sistema? _sistemaActivo;
     /// <summary>
     /// Sistema/nivel actualmente seleccionado en la pestaña Niveles. Cuando
-    /// cambia, el DataGrid central de losas se rebina automáticamente.
+    /// cambia, el DataGrid central de losas se rebina automáticamente y los
+    /// commands del panel F. Perdomo refrescan su CanExecute.
     /// </summary>
     public Sistema? SistemaActivo
     {
         get => _sistemaActivo;
-        set { _sistemaActivo = value; OnPropertyChanged(); }
+        set
+        {
+            _sistemaActivo = value;
+            OnPropertyChanged();
+            ImportarTxtPerdomoCommand?.RaiseCanExecuteChanged();
+            QuitarTxtPerdomoCommand?.RaiseCanExecuteChanged();
+        }
     }
 
     private ModoSidebar _modoActivo;
@@ -194,6 +204,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand GuardarBorradorCommand    { get; }
     public RelayCommand RestaurarCargasCommand    { get; }
     public RelayCommand ImportarCargasXlsCommand  { get; }
+    public RelayCommand ImportarTxtPerdomoCommand { get; }
+    public RelayCommand QuitarTxtPerdomoCommand   { get; }
     public RelayCommand GenerarMemoriaCommand     { get; }
     public RelayCommand AbrirUltimaMemoriaCommand { get; }
 
@@ -401,6 +413,68 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         get => _statusImportarCargas;
         private set { _statusImportarCargas = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// Abre un <see cref="Microsoft.Win32.OpenFileDialog"/> para elegir el
+    /// <c>.txt</c> de salida de Losas.exe (F. Perdomo) y lo asocia al
+    /// <see cref="SistemaActivo"/>. El parser respeta el encoding cp1252 que
+    /// produce el motor original.
+    /// </summary>
+    private void ImportarTxtPerdomo()
+    {
+        if (SistemaActivo is null) return;
+        try
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title  = $"Importar salida F. Perdomo — Nivel {SistemaActivo.Nombre}",
+                Filter = "Salida Losas.exe (*.txt;*.TXT)|*.txt;*.TXT|Todos los archivos|*.*",
+                CheckFileExists = true,
+            };
+            if (dlg.ShowDialog() != true)
+            {
+                StatusImportarTxt = "";
+                return;
+            }
+
+            var idsEsperados = SistemaActivo.Losas.Select(l => l.Id);
+            var salida = SalidaPerdomoAdapter.FromFile(dlg.FileName, idsEsperados);
+            SistemaActivo.SalidaPerdomo = salida;
+
+            var huerfanas = salida.LosasNoParseadas.Count;
+            StatusImportarTxt = huerfanas == 0
+                ? $".txt importado: {salida.Momentos.Count} losas con momentos, " +
+                  $"{salida.ArmadurasXCentro.Count}+{salida.ArmadurasYCentro.Count} armaduras de vano, " +
+                  $"{salida.ArmadurasXApoyos.Count}+{salida.ArmadurasYApoyos.Count} sobre apoyos."
+                : $".txt importado con {huerfanas} losa(s) sin parsear: " +
+                  string.Join(", ", salida.LosasNoParseadas.Select(id => $"L{id}"));
+
+            QuitarTxtPerdomoCommand.RaiseCanExecuteChanged();
+            OnPropertyChanged(nameof(SistemaActivo));  // refresca bindings dependientes
+        }
+        catch (Exception ex)
+        {
+            StatusImportarTxt = $"Error importando .txt: {ex.Message}";
+        }
+    }
+
+    /// <summary>Desasocia el .txt del SistemaActivo (vuelve a "Sin .txt importado").</summary>
+    private void QuitarTxtPerdomo()
+    {
+        if (SistemaActivo?.SalidaPerdomo is null) return;
+        SistemaActivo.SalidaPerdomo = null;
+        StatusImportarTxt = "";
+        QuitarTxtPerdomoCommand.RaiseCanExecuteChanged();
+        OnPropertyChanged(nameof(SistemaActivo));
+    }
+
+    private string _statusImportarTxt = "";
+    /// <summary>Mensaje del último intento de importar el .txt F. Perdomo del nivel activo.</summary>
+    public string StatusImportarTxt
+    {
+        get => _statusImportarTxt;
+        private set { _statusImportarTxt = value; OnPropertyChanged(); }
     }
 
     /// <summary>

@@ -270,15 +270,15 @@
         </Border>
 
         <!-- ====================================================================
-             COL 3 — Panel F. Perdomo (placeholder)
+             COL 3 — Panel F. Perdomo (importacion + status)
              ==================================================================== -->
         <Border Grid.Column="4" Style="{StaticResource SectionCardStyle}">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>  <!-- header label -->
+                    <RowDefinition Height="Auto"/>  <!-- boton importar -->
+                    <RowDefinition Height="Auto"/>  <!-- texto descripcion -->
+                    <RowDefinition Height="*"/>     <!-- card de status -->
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0" Style="{StaticResource LabelCapsStyle}"
@@ -287,32 +287,139 @@
                 <Button Grid.Row="1" Margin="0,12,0,0"
                         Style="{StaticResource PrimaryButtonStyle}"
                         Content="Importar salida F. Perdomo"
-                        HorizontalAlignment="Stretch"/>
+                        HorizontalAlignment="Stretch"
+                        Command="{Binding ImportarTxtPerdomoCommand}"/>
 
                 <TextBlock Grid.Row="2" Margin="0,12,0,8"
                            Foreground="{StaticResource OnSurfaceVariantBrush}"
                            FontSize="11" TextWrapping="Wrap"
                            Text="El parser del .txt del software Losas v5.20 (F. Perdomo) extrae momentos flectores y armaduras por losa, y los inyecta en la sección 4.x.3 de la memoria."/>
 
-                <Border Grid.Row="3" Padding="12"
-                        Background="{StaticResource SurfaceContainerLowBrush}"
-                        BorderBrush="{StaticResource OutlineVariantBrush}"
-                        BorderThickness="1"
-                        CornerRadius="{StaticResource CornerRadiusDefault}">
-                    <StackPanel>
-                        <TextBlock Style="{StaticResource LabelCapsStyle}" Text="ESTADO"/>
-                        <TextBlock Margin="0,4,0,0"
-                                   FontFamily="{StaticResource FontFamilyMono}"
-                                   FontSize="12"
-                                   Foreground="{StaticResource WarningBrush}"
-                                   Text="⚠  Sin .txt importado para este nivel"/>
-                        <TextBlock Margin="0,8,0,0"
-                                   FontFamily="{StaticResource FontFamilyMono}"
-                                   FontSize="11"
-                                   Foreground="{StaticResource OnSurfaceVariantBrush}"
-                                   Text="Bloque F. Perdomo no aparecerá en la memoria hasta importar."/>
-                    </StackPanel>
-                </Border>
+                <!-- Card de status — alterna entre 2 estados via DataTriggers -->
+                <Grid Grid.Row="3">
+                    <!-- Estado: SIN .txt importado -->
+                    <Border Padding="12"
+                            Background="{StaticResource SurfaceContainerLowBrush}"
+                            BorderBrush="{StaticResource WarningBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource CornerRadiusDefault}">
+                        <Border.Style>
+                            <Style TargetType="{x:Type Border}">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SistemaActivo.TieneSalidaPerdomo}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource LabelCapsStyle}" Text="ESTADO"/>
+                            <TextBlock Margin="0,4,0,0"
+                                       FontFamily="{StaticResource FontFamilyMono}"
+                                       FontSize="12"
+                                       Foreground="{StaticResource WarningBrush}"
+                                       Text="⚠  Sin .txt importado para este nivel"/>
+                            <TextBlock Margin="0,8,0,0"
+                                       FontFamily="{StaticResource FontFamilyMono}"
+                                       FontSize="11"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                       TextWrapping="Wrap"
+                                       Text="Bloque F. Perdomo no aparecerá en la memoria hasta importar."/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Estado: CON .txt importado -->
+                    <Border Padding="12"
+                            Background="{StaticResource SurfaceContainerLowestBrush}"
+                            BorderBrush="{StaticResource SuccessBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource CornerRadiusDefault}">
+                        <Border.Style>
+                            <Style TargetType="{x:Type Border}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding SistemaActivo.TieneSalidaPerdomo}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel>
+                            <Grid>
+                                <TextBlock Style="{StaticResource LabelCapsStyle}" Text="✓ .TXT IMPORTADO"
+                                           Foreground="{StaticResource SuccessBrush}"
+                                           VerticalAlignment="Center"/>
+                                <Button HorizontalAlignment="Right"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Content="✕ Quitar"
+                                        Padding="8,0"
+                                        Command="{Binding QuitarTxtPerdomoCommand}"/>
+                            </Grid>
+
+                            <TextBlock Margin="0,12,0,0" Style="{StaticResource LabelCapsStyle}" Text="ARCHIVO"/>
+                            <TextBlock FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
+                                       Foreground="{StaticResource OnSurfaceBrush}"
+                                       TextTrimming="CharacterEllipsis"
+                                       Text="{Binding SistemaActivo.SalidaPerdomo.ArchivoTxt}"/>
+
+                            <TextBlock Margin="0,12,0,0" Style="{StaticResource LabelCapsStyle}" Text="VERSIÓN MOTOR"/>
+                            <TextBlock FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
+                                       Foreground="{StaticResource OnSurfaceBrush}">
+                                <Run Text="Losas v"/>
+                                <Run Text="{Binding SistemaActivo.SalidaPerdomo.VersionMotor, Mode=OneWay}"/>
+                            </TextBlock>
+
+                            <Border Margin="0,12,0,0" Padding="0"
+                                    BorderBrush="{StaticResource OutlineVariantBrush}"
+                                    BorderThickness="0,1,0,0"/>
+
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" FontSize="11"
+                                           Foreground="{StaticResource OnSurfaceVariantBrush}" Text="Momentos"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}"
+                                           FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right"
+                                           Foreground="{StaticResource PrimaryBrush}"
+                                           Text="{Binding SistemaActivo.SalidaPerdomo.Momentos.Count, Mode=OneWay}"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" FontSize="11" Margin="0,4,0,0"
+                                           Foreground="{StaticResource OnSurfaceVariantBrush}" Text="Armaduras X / Y"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}"
+                                           FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right"
+                                           Margin="0,4,0,0" Foreground="{StaticResource PrimaryBrush}">
+                                    <Run Text="{Binding SistemaActivo.SalidaPerdomo.ArmadurasXCentro.Count, Mode=OneWay}"/>
+                                    <Run Text=" / "/>
+                                    <Run Text="{Binding SistemaActivo.SalidaPerdomo.ArmadurasYCentro.Count, Mode=OneWay}"/>
+                                </TextBlock>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" FontSize="11" Margin="0,4,0,0"
+                                           Foreground="{StaticResource OnSurfaceVariantBrush}" Text="Apoyos X / Y"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}"
+                                           FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right"
+                                           Margin="0,4,0,0" Foreground="{StaticResource PrimaryBrush}">
+                                    <Run Text="{Binding SistemaActivo.SalidaPerdomo.ArmadurasXApoyos.Count, Mode=OneWay}"/>
+                                    <Run Text=" / "/>
+                                    <Run Text="{Binding SistemaActivo.SalidaPerdomo.ArmadurasYApoyos.Count, Mode=OneWay}"/>
+                                </TextBlock>
+                            </Grid>
+
+                            <TextBlock Margin="0,12,0,0"
+                                       FontSize="11" Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                       TextWrapping="Wrap"
+                                       Text="{Binding StatusImportarTxt}"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </Grid>
         </Border>
     </Grid>
