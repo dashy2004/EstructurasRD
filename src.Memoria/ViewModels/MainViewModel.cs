@@ -7,6 +7,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using LosasPlus.Calculo;
 using LosasPlus.Generation;
+using LosasPlus.Importers;
 using LosasPlus.Models;
 using MemoriaPlus.Common;
 
@@ -358,14 +359,48 @@ public sealed class MainViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Importa los pesos propios y la tabla de carga muerta desde un libro
-    /// Excel (formato del ingeniero, hoja <c>Cargas</c>). Stub por ahora —
-    /// la lógica con ClosedXML aterrizara en commit dedicado.
+    /// Abre un <see cref="Microsoft.Win32.OpenFileDialog"/> para elegir un libro
+    /// Excel (formato del ingeniero, hoja <c>Cargas</c>), corre el
+    /// <see cref="CargasGlobalesXlsxImporter"/>, y reemplaza
+    /// <see cref="Proyecto.Cargas"/> con el resultado. Errores se reportan en
+    /// <see cref="StatusImportarCargas"/>.
     /// </summary>
     private void ImportarCargasXls()
     {
-        // TODO: OpenFileDialog -> ClosedXML -> CargasGlobalesXlsxImporter.Import()
-        // -> reemplazar ProyectoActivo.Cargas con el resultado.
+        try
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title  = "Importar cargas globales desde Excel",
+                Filter = "Libro Excel (*.xlsx)|*.xlsx|Libro Excel 97-2003 (*.xls)|*.xls",
+                CheckFileExists = true,
+            };
+            if (dlg.ShowDialog() != true)
+            {
+                StatusImportarCargas = "";
+                return;
+            }
+
+            var importer = new CargasGlobalesXlsxImporter();
+            var nuevas = importer.Importar(dlg.FileName);
+            ProyectoActivo.Cargas = nuevas;
+            StatusImportarCargas = $"Cargas importadas desde {Path.GetFileName(dlg.FileName)}: " +
+                                   $"{nuevas.PesosPropiosEntrepiso.Items.Count} pesos propios entrepiso, " +
+                                   $"{nuevas.PesosPropiosTecho.Items.Count} pesos propios techo, " +
+                                   $"{nuevas.CargaMuertaPorEspesor.Filas.Count} filas en tabla h↔qd.";
+        }
+        catch (Exception ex)
+        {
+            StatusImportarCargas = $"Error importando .xls: {ex.Message}";
+        }
+    }
+
+    private string _statusImportarCargas = "";
+    /// <summary>Mensaje del último intento de importar cargas (éxito o error). Se limpia al cancelar el dialog.</summary>
+    public string StatusImportarCargas
+    {
+        get => _statusImportarCargas;
+        private set { _statusImportarCargas = value; OnPropertyChanged(); }
     }
 
     /// <summary>
