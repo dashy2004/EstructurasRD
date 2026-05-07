@@ -43,6 +43,74 @@ Material fuente del módulo Memoria Plus (generador de memorias de cálculo estr
    - Entrepiso: Mosaicos (0.069), Mortero (0.072), Pañete (0.040)
    - Techo: por inspeccionar en el .xlsx (filas 65-68 de hoja `Cargas`).
 
+## Convención de placeholders en la plantilla
+
+`MemoriaGenerator` (en `LosasPlus.Core/Generation/`) sustituye placeholders `{{KEY}}` por valores del proyecto. Hay dos grupos:
+
+### 1. Placeholders de portada (17, sustitución uno-a-uno)
+
+Donde aparezcan en la plantilla — body, headers o footers — se reemplazan por el valor correspondiente del `Proyecto` activo. Lista completa en `PlaceholderConstants.Todos`:
+
+```
+{{NOMBRE_PROYECTO}}        {{TEL_FIJO}}             {{TIPO_FUNDACIONES}}
+{{CIUDAD_UBICACION}}       {{TEL_CELULAR}}          {{ESFUERZO_ADMISIBLE}}
+{{MES_AÑO}}                {{NOMBRE_DISEÑADOR_ARQ}} {{PROFUNDIDAD_DESPLANTE}}
+{{UBICACION_COMPLETA}}     {{NOMBRE_INGENIERO}}     {{OTROS_PARAMETROS}}
+{{USO}}                    {{CODIA}}                {{DD/MM/AAAA}}
+{{CANTIDAD_NIVELES}}       {{SISTEMA_ESTRUCTURAL}}
+```
+
+`{{DD/MM/AAAA}}` es la fecha de generación (timestamp del momento de correr el botón Generar), no un campo del proyecto.
+
+### 2. Bloque plurinivel (clonado por `Sistema`)
+
+Si la plantilla tiene **dos markers de bloque**, todo lo que esté entre ellos se clona una vez por cada `Sistema` del proyecto, sustituyendo placeholders del nivel en cada clon:
+
+```
+... contenido de portada ...
+
+{{NIVEL_BLOQUE_INICIO}}        ← marker (en su propio párrafo)
+
+  ## Diseño de Losas - Nivel {{NIVEL_NOMBRE}}        ← se clona N veces
+  Uso: {{NIVEL_USO}}, cota +{{NIVEL_COTA}}
+  Cantidad de losas: {{NIVEL_NUMERO_LOSAS}}
+  ... más contenido por nivel (tablas, descripciones, etc.) ...
+
+{{NIVEL_BLOQUE_FIN}}           ← marker (en su propio párrafo)
+
+... contenido de cierre / firma ...
+```
+
+Placeholders disponibles dentro del bloque (`PlaceholderConstants.TodosNivel`):
+
+| Placeholder | Valor |
+|---|---|
+| `{{NIVEL_NOMBRE}}` | Nombre del sistema (`E1`, `E2`, `Techo`, ...) |
+| `{{NIVEL_NUMERO}}` | Índice 1-based (1, 2, 3, ...) |
+| `{{NIVEL_USO}}` | `Entrepiso`, `Techo`, `Balcon`, `Otro` |
+| `{{NIVEL_COTA}}` | Cota desde el +0.00 formateada (`+2.80 m`) |
+| `{{NIVEL_NUMERO_LOSAS}}` | Cantidad de losas en el sistema |
+
+Reglas:
+
+- Cada marker debe vivir en **su propio párrafo** (texto plano del marker, sin más contenido en la línea). El generador remueve el párrafo completo del marker después de renderizar.
+- Si la plantilla **no** tiene los markers, el generador procede solo con la sustitución de portada (compat con plantillas simples).
+- Si hay 0 sistemas en el proyecto, el bloque NIVEL desaparece del output completo (no quedan markers ni contenido del bloque). El proyecto puede generarse aunque no haya niveles capturados.
+- Los placeholders de portada también se sustituyen dentro de los clones (orden: clonado plurinivel → reemplazo de portada). Útil si querés repetir `{{NOMBRE_PROYECTO}}` en cada nivel, por ejemplo en el header de cada sección.
+
+### ¿Cómo agrego los markers a `Memoria_Losas_PLANTILLA.docx`?
+
+La plantilla actual del ingeniero **no** tiene markers — fue diseñada para un solo nivel hardcodeado. Para activar plurinivel:
+
+1. Abrir `Memoria_Losas_PLANTILLA.docx` en Microsoft Word.
+2. Identificar la sección que el ingeniero hoy duplica manualmente por cada nivel (típicamente el bloque "DISEÑO DE LOSAS - Nivel X" con sus tablas).
+3. Insertar `{{NIVEL_BLOQUE_INICIO}}` en un párrafo nuevo justo arriba del bloque.
+4. Reemplazar los nombres hardcodeados (`E1`, etc.) por los placeholders correspondientes (`{{NIVEL_NOMBRE}}`, etc.).
+5. Insertar `{{NIVEL_BLOQUE_FIN}}` en un párrafo nuevo justo debajo del bloque.
+6. Guardar.
+
+Para validar sin tocar la plantilla original, los tests usan plantillas programáticas creadas con OpenXml — ver `tests/LosasPlus.Tests/MemoriaGeneratorPluriNivelTests.cs::ConstruirPlantillaConMarkers`.
+
 ## Aviso
 
 Estos archivos contienen información de proyectos reales (Neapolis IV, ingeniero Oliver Guillén Rosa CODIA 18139; proyecto Luis Samboy). Se mantienen en este repo solo para servir de golden de tests y referencia de plantilla. **No redistribuir** sin consentimiento del autor.

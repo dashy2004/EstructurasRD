@@ -77,7 +77,22 @@ public sealed class MemoriaGenerator
             var main = doc.MainDocumentPart
                 ?? throw new InvalidOperationException("Plantilla sin MainDocumentPart");
 
+            // 3a. Render plurinivel: si la plantilla tiene los markers
+            //     {{NIVEL_BLOQUE_INICIO}} y {{NIVEL_BLOQUE_FIN}}, clona el bloque
+            //     una vez por sistema y sustituye los placeholders de nivel.
+            //     Si no hay markers, el método es no-op (compat con plantillas
+            //     simples que solo tienen los 17 placeholders de portada).
             int totalSust = 0;
+            if (main.Document.Body is { } body0)
+            {
+                var (niveles, sustNivel) = RenderearNiveles(body0, proyecto.Sistemas);
+                reporte.NivelesRenderizados = niveles;
+                totalSust += sustNivel;
+            }
+
+            // 3b. Aplicar reemplazos de portada/descripcion. Estos corren DESPUES
+            //     del render plurinivel para que los clones (ya replicados) tambien
+            //     reciban substituciones globales en caso de tenerlas.
             if (main.Document.Body is { } body)
                 totalSust += AplicarReemplazos(body, reemplazos);
 
@@ -94,10 +109,118 @@ public sealed class MemoriaGenerator
 
             // 4. Detectar placeholders huérfanos (definidos en la plantilla pero no
             //    cubiertos por la tabla de reemplazos).
-            reporte.PlaceholdersNoSustituidos = DetectarPlaceholdersHuerfanos(main, reemplazos.Keys);
+            var conocidos = reemplazos.Keys.Concat(new[]
+            {
+                PlaceholderConstants.NivelBloqueInicio,
+                PlaceholderConstants.NivelBloqueFin,
+            }).Concat(PlaceholderConstants.TodosNivel);
+            reporte.PlaceholdersNoSustituidos = DetectarPlaceholdersHuerfanos(main, conocidos);
         }
 
         return reporte;
+    }
+
+    // =====================================================================
+    // RENDER PLURINIVEL
+    // =====================================================================
+
+    /// <summary>
+    /// Si la plantilla contiene los markers <c>{{NIVEL_BLOQUE_INICIO}}</c> y
+    /// <c>{{NIVEL_BLOQUE_FIN}}</c>, clona el contenido entre ellos una vez por
+    /// cada <see cref="Sistema"/> de <paramref name="sistemas"/>, y sustituye
+    /// los placeholders de nivel (<c>{{NIVEL_NOMBRE}}</c>, etc.) en cada clon.
+    /// Después remueve los markers y el contenido original del bloque.
+    ///
+    /// <para>
+    /// Devuelve la cantidad de niveles renderizados. Si los markers no están en
+    /// la plantilla, devuelve 0 (no-op gracioso).
+    /// </para>
+    ///
+    /// <para>
+    /// <b>Convención de los markers</b>: cada uno debe vivir en su propio párrafo
+    /// (texto plano del marker, sin más contenido). Esto permite remover el
+    /// párrafo completo del marker sin tocar el contenido adyacente.
+    /// </para>
+    /// </summary>
+    private static (int Niveles, int Sustituciones) RenderearNiveles(OpenXmlElement body, IList<Sistema> sistemas)
+    {
+        // 1. Encontrar parrafos marker (texto = marker, ignorando espacios).
+        var (inicio, fin) = EncontrarMarkersNivel(body);
+        if (inicio is null || fin is null) return (0, 0);
+
+        // 2. Recolectar elementos entre los markers (siblings).
+        var template = new List<OpenXmlElement>();
+        var node = inicio.NextSibling();
+        while (node is not null && node != fin)
+        {
+            template.Add(node);
+            node = node.NextSibling();
+        }
+
+        // 3. Remover el contenido original del bloque (lo vamos a re-insertar
+        //    como clones para mantener un loop simétrico).
+        foreach (var el in template) el.Remove();
+
+        // 4. Por cada sistema, clonar template, sustituir placeholders, e
+        //    insertar antes del marker fin.
+        int totalSust = 0;
+        for (int i = 0; i < sistemas.Count; i++)
+        {
+            var sistema = sistemas[i];
+            var dict = ConstruirReemplazosNivel(sistema, indiceUnoBased: i + 1);
+
+            foreach (var t in template)
+            {
+                var clone = t.CloneNode(deep: true);
+                fin.InsertBeforeSelf(clone);
+                totalSust += AplicarReemplazos(clone, dict);
+            }
+        }
+
+        // 5. Remover los markers (ya cumplieron su función).
+        inicio.Remove();
+        fin.Remove();
+
+        return (sistemas.Count, totalSust);
+    }
+
+    /// <summary>
+    /// Localiza los párrafos que contienen <c>{{NIVEL_BLOQUE_INICIO}}</c> y
+    /// <c>{{NIVEL_BLOQUE_FIN}}</c>. Devuelve <c>(null, null)</c> si alguno
+    /// no aparece. Ambos markers se buscan en el <see cref="Body"/>; cualquier
+    /// otra ubicación (header, footer) se ignora — el render plurinivel solo
+    /// aplica al cuerpo del documento.
+    /// </summary>
+    private static (Paragraph? inicio, Paragraph? fin) EncontrarMarkersNivel(OpenXmlElement body)
+    {
+        Paragraph? inicio = null, fin = null;
+        foreach (var p in body.Descendants<Paragraph>())
+        {
+            var texto = string.Concat(p.Descendants<Text>().Select(t => t.Text ?? "")).Trim();
+            if (inicio is null && texto.Contains(PlaceholderConstants.NivelBloqueInicio, StringComparison.Ordinal))
+                inicio = p;
+            else if (fin is null && texto.Contains(PlaceholderConstants.NivelBloqueFin, StringComparison.Ordinal))
+                fin = p;
+            if (inicio is not null && fin is not null) break;
+        }
+        return (inicio, fin);
+    }
+
+    /// <summary>
+    /// Construye la tabla de reemplazos por-nivel a partir de un
+    /// <see cref="Sistema"/>.
+    /// </summary>
+    private static Dictionary<string, string> ConstruirReemplazosNivel(Sistema s, int indiceUnoBased)
+    {
+        var inv = CultureInfo.InvariantCulture;
+        return new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [PlaceholderConstants.NivelNombre]       = s.Nombre ?? "",
+            [PlaceholderConstants.NivelNumero]       = indiceUnoBased.ToString(inv),
+            [PlaceholderConstants.NivelUso]          = s.Uso.ToString(),
+            [PlaceholderConstants.NivelCota]         = $"+{s.CotaMetros.ToString("0.00", inv)} m",
+            [PlaceholderConstants.NivelNumeroLosas]  = s.Losas.Count.ToString(inv),
+        };
     }
 
     /// <summary>
@@ -131,16 +254,31 @@ public sealed class MemoriaGenerator
         };
     }
 
-    /// <summary>Aplica los reemplazos a todos los párrafos descendientes y devuelve la cantidad de sustituciones.</summary>
+    /// <summary>
+    /// Aplica los reemplazos a todos los párrafos descendientes — incluyendo el
+    /// propio <paramref name="root"/> si éste es un <see cref="Paragraph"/>.
+    /// Devuelve la cantidad de sustituciones aplicadas.
+    /// </summary>
     private static int AplicarReemplazos(OpenXmlElement root, Dictionary<string, string> reemplazos)
     {
         int total = 0;
-        foreach (var paragraph in root.Descendants<Paragraph>())
+        foreach (var paragraph in EnumerarParrafos(root))
         {
             NormalizarParrafo(paragraph);
             total += ReemplazarTextos(paragraph, reemplazos);
         }
         return total;
+    }
+
+    /// <summary>
+    /// Yields self-or-descendants Paragraphs. Necesario porque
+    /// <see cref="OpenXmlElement.Descendants{T}()"/> no incluye al propio
+    /// elemento — y los clones del bloque NIVEL pueden ser Paragraphs raíz.
+    /// </summary>
+    private static IEnumerable<Paragraph> EnumerarParrafos(OpenXmlElement root)
+    {
+        if (root is Paragraph rootP) yield return rootP;
+        foreach (var p in root.Descendants<Paragraph>()) yield return p;
     }
 
     /// <summary>
@@ -302,6 +440,13 @@ public sealed class ReporteGeneracion
 
     /// <summary>Cantidad total de placeholders sustituidos en el documento.</summary>
     public int SustitucionesAplicadas { get; set; }
+
+    /// <summary>
+    /// Cantidad de niveles renderizados (clones del bloque NIVEL). Si la
+    /// plantilla no tiene markers <c>{{NIVEL_BLOQUE_*}}</c>, queda en 0 — el
+    /// generador siguió funcionando solo con los placeholders de portada.
+    /// </summary>
+    public int NivelesRenderizados { get; set; }
 
     /// <summary>
     /// Placeholders <c>{{...}}</c> que aparecen en la plantilla pero no estaban
