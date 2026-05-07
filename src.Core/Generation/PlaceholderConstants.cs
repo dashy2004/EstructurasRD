@@ -83,9 +83,23 @@ public static class PlaceholderConstants
     /// <summary>Cantidad de losas en el nivel.</summary>
     public const string NivelNumeroLosas = "{{NIVEL_NUMERO_LOSAS}}";
 
+    /// <summary>
+    /// Placeholder bloque-completo: el parrafo que lo contiene se REEMPLAZA por
+    /// una tabla OpenXml generada con una fila por cada <c>Losa</c> del sistema
+    /// del nivel actual. Columnas: ID, Lx, Ly, Cond, h_usar, qd, ql, qu.
+    ///
+    /// <para>
+    /// Convencion: poner el placeholder en su propio parrafo dentro del bloque
+    /// NIVEL (entre los markers <see cref="NivelBloqueInicio"/> y
+    /// <see cref="NivelBloqueFin"/>). El parrafo desaparece y se inserta una
+    /// <see cref="DocumentFormat.OpenXml.Wordprocessing.Table"/> en su lugar.
+    /// </para>
+    /// </summary>
+    public const string TablaLosas = "{{TABLA_LOSAS}}";
+
     /// <summary>Lista cerrada de placeholders interiores al bloque NIVEL.</summary>
     public static readonly string[] TodosNivel = new[]
     {
-        NivelNombre, NivelNumero, NivelUso, NivelCota, NivelNumeroLosas,
+        NivelNombre, NivelNumero, NivelUso, NivelCota, NivelNumeroLosas, TablaLosas,
     };
 }

@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using LosasPlus.Calculo;
 using LosasPlus.Generation;
 using LosasPlus.Models;
 using Xunit;
@@ -314,6 +315,177 @@ public class MemoriaGeneratorPluriNivelTests : IDisposable
     // =================================================================
     // Reporte combinado (portada + plurinivel)
     // =================================================================
+
+    // =================================================================
+    // {{TABLA_LOSAS}} — tabla OpenXml por nivel
+    // =================================================================
+
+    /// <summary>
+    /// Plantilla minimal con bloque NIVEL que incluye un placeholder
+    /// <c>{{TABLA_LOSAS}}</c> en su propio párrafo.
+    /// </summary>
+    private string ConstruirPlantillaConTablaLosas()
+    {
+        var path = TempFile("docx");
+        using var doc = WordprocessingDocument.Create(path, WordprocessingDocumentType.Document);
+        var main = doc.AddMainDocumentPart();
+        main.Document = new Document(new Body(
+            new Paragraph(new Run(new Text("Proyecto: {{NOMBRE_PROYECTO}}"))),
+            new Paragraph(new Run(new Text("{{NIVEL_BLOQUE_INICIO}}"))),
+            new Paragraph(new Run(new Text("Nivel: {{NIVEL_NOMBRE}}"))),
+            new Paragraph(new Run(new Text("{{TABLA_LOSAS}}"))),
+            new Paragraph(new Run(new Text("Fin del nivel."))),
+            new Paragraph(new Run(new Text("{{NIVEL_BLOQUE_FIN}}"))),
+            new Paragraph(new Run(new Text("Cierre")))
+        ));
+        main.Document.Save();
+        return path;
+    }
+
+    private static (Proyecto proyecto, Sistema sistema) ProyectoConLosasReales()
+    {
+        var p = new Proyecto { Nombre = "Tabla Test", FyKgCm2 = 4200 };
+        var s = new Sistema { Nombre = "E1", Uso = SistemaUso.Entrepiso };
+        s.Losas.Add(new Losa { Id = 1, Lx = 6.45, Ly = 5.40, MampO = 1.78 });
+        s.Losas.Add(new Losa { Id = 2, Lx = 4.90, Ly = 4.45, MampO = 7.67 });
+        s.Losas.Add(new Losa { Id = 3, Lx = 4.90, Ly = 4.40 });
+        p.Sistemas.Add(s);
+        CalculoEngine.RecalcularProyecto(p);
+        return (p, s);
+    }
+
+    [Fact]
+    public void TablaLosas_remueve_el_placeholder_y_inserta_una_Table()
+    {
+        var plantilla = ConstruirPlantillaConTablaLosas();
+        var output = TempFile("docx");
+        var (p, _) = ProyectoConLosasReales();
+
+        new MemoriaGenerator().Generar(p, plantilla, output);
+
+        // El texto extraido NO debe contener el placeholder literal.
+        var texto = ExtraerTexto(output);
+        Assert.DoesNotContain("{{TABLA_LOSAS}}", texto);
+
+        // Debe haber al menos una Table en el body.
+        using var doc = WordprocessingDocument.Open(output, isEditable: false);
+        var tablas = doc.MainDocumentPart!.Document.Body!.Descendants<Table>().ToList();
+        Assert.NotEmpty(tablas);
+    }
+
+    [Fact]
+    public void TablaLosas_tiene_header_mas_una_fila_por_losa()
+    {
+        var plantilla = ConstruirPlantillaConTablaLosas();
+        var output = TempFile("docx");
+        var (p, sistema) = ProyectoConLosasReales();
+
+        new MemoriaGenerator().Generar(p, plantilla, output);
+
+        using var doc = WordprocessingDocument.Open(output, isEditable: false);
+        var tabla = doc.MainDocumentPart!.Document.Body!.Descendants<Table>().Single();
+
+        var rows = tabla.Elements<TableRow>().ToList();
+        // 1 header + 3 losas
+        Assert.Equal(1 + sistema.Losas.Count, rows.Count);
+    }
+
+    [Fact]
+    public void TablaLosas_inyecta_los_valores_computados_de_cada_losa()
+    {
+        var plantilla = ConstruirPlantillaConTablaLosas();
+        var output = TempFile("docx");
+        var (p, sistema) = ProyectoConLosasReales();
+
+        new MemoriaGenerator().Generar(p, plantilla, output);
+
+        using var doc = WordprocessingDocument.Open(output, isEditable: false);
+        var tabla = doc.MainDocumentPart!.Document.Body!.Descendants<Table>().Single();
+        var rows = tabla.Elements<TableRow>().ToList();
+
+        // Fila Losa 1: ID=1, Lx=6.45, Ly=5.40, Cond=2D, h=0.150, qu≈1.089
+        var fila1 = string.Concat(rows[1].Descendants<Text>().Select(t => t.Text ?? ""));
+        Assert.Contains("6.45",    fila1);
+        Assert.Contains("5.40",    fila1);
+        Assert.Contains("2D",      fila1);
+        Assert.Contains("0.150",   fila1);
+        Assert.Contains("1.089",   fila1);   // Qu losa 1 del .xls Neapolis
+
+        // Fila Losa 3 (sin mamposteria): qu = 0.883
+        var fila3 = string.Concat(rows[3].Descendants<Text>().Select(t => t.Text ?? ""));
+        Assert.Contains("0.883", fila3);
+    }
+
+    [Fact]
+    public void TablaLosas_genera_una_tabla_por_sistema()
+    {
+        var plantilla = ConstruirPlantillaConTablaLosas();
+        var output = TempFile("docx");
+        var p = new Proyecto { Nombre = "Multi", FyKgCm2 = 4200 };
+        var e1 = new Sistema { Nombre = "E1", Uso = SistemaUso.Entrepiso };
+        e1.Losas.Add(new Losa { Id = 1, Lx = 4, Ly = 4 });
+        e1.Losas.Add(new Losa { Id = 2, Lx = 5, Ly = 4 });
+        var techo = new Sistema { Nombre = "Techo", Uso = SistemaUso.Techo };
+        techo.Losas.Add(new Losa { Id = 1, Lx = 4, Ly = 4 });
+        p.Sistemas.Add(e1);
+        p.Sistemas.Add(techo);
+        CalculoEngine.RecalcularProyecto(p);
+
+        new MemoriaGenerator().Generar(p, plantilla, output);
+
+        using var doc = WordprocessingDocument.Open(output, isEditable: false);
+        var tablas = doc.MainDocumentPart!.Document.Body!.Descendants<Table>().ToList();
+
+        // Una tabla por sistema (E1 con 2 losas, Techo con 1).
+        Assert.Equal(2, tablas.Count);
+        Assert.Equal(1 + 2, tablas[0].Elements<TableRow>().Count());  // header + 2 losas
+        Assert.Equal(1 + 1, tablas[1].Elements<TableRow>().Count());  // header + 1 losa
+    }
+
+    [Fact]
+    public void TablaLosas_sin_recalcular_muestra_dash_en_celdas_computadas()
+    {
+        var plantilla = ConstruirPlantillaConTablaLosas();
+        var output = TempFile("docx");
+        var p = new Proyecto { Nombre = "Sin recalc" };
+        var s = new Sistema { Nombre = "E1" };
+        s.Losas.Add(new Losa { Id = 1, Lx = 4, Ly = 4 });
+        p.Sistemas.Add(s);
+        // NO llamamos CalculoEngine.RecalcularProyecto — Qd/Ql/Qu quedan en null.
+
+        new MemoriaGenerator().Generar(p, plantilla, output);
+
+        using var doc = WordprocessingDocument.Open(output, isEditable: false);
+        var tabla = doc.MainDocumentPart!.Document.Body!.Descendants<Table>().Single();
+        var fila1 = string.Concat(tabla.Elements<TableRow>().ElementAt(1).Descendants<Text>().Select(t => t.Text ?? ""));
+        // Las 3 celdas de Qd, Ql, Qu deben mostrar "—".
+        Assert.True(fila1.Split('—').Length >= 4,
+            $"Esperaba al menos 3 dashes en fila 1, contenido: {fila1}");
+    }
+
+    [Fact]
+    public void TablaLosas_header_contiene_los_titulos_correctos()
+    {
+        var plantilla = ConstruirPlantillaConTablaLosas();
+        var output = TempFile("docx");
+        var (p, _) = ProyectoConLosasReales();
+
+        new MemoriaGenerator().Generar(p, plantilla, output);
+
+        using var doc = WordprocessingDocument.Open(output, isEditable: false);
+        var tabla = doc.MainDocumentPart!.Document.Body!.Descendants<Table>().Single();
+        var header = string.Concat(tabla.Elements<TableRow>().First()
+                                        .Descendants<Text>().Select(t => t.Text ?? ""));
+
+        Assert.Contains("ID",       header);
+        Assert.Contains("Lx",       header);
+        Assert.Contains("Ly",       header);
+        Assert.Contains("Cond",     header);
+        Assert.Contains("h",        header);
+        Assert.Contains("qd",       header);
+        Assert.Contains("ql",       header);
+        Assert.Contains("qu",       header);
+    }
 
     [Fact]
     public void Reporte_combina_correctamente_sustituciones_de_portada_y_plurinivel()

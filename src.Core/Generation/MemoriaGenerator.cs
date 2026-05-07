@@ -169,12 +169,21 @@ public sealed class MemoriaGenerator
             var sistema = sistemas[i];
             var dict = ConstruirReemplazosNivel(sistema, indiceUnoBased: i + 1);
 
+            // Recolectamos los clones de este sistema para post-procesar tablas
+            // de losas (necesitamos referencias estables a los Paragraphs ya
+            // insertados en el documento).
+            var clonesEsteSistema = new List<OpenXmlElement>();
             foreach (var t in template)
             {
                 var clone = t.CloneNode(deep: true);
                 fin.InsertBeforeSelf(clone);
                 totalSust += AplicarReemplazos(clone, dict);
+                clonesEsteSistema.Add(clone);
             }
+
+            // Reemplazar {{TABLA_LOSAS}} por una Table real con las losas del sistema.
+            foreach (var c in clonesEsteSistema)
+                RenderearTablaLosas(c, sistema);
         }
 
         // 5. Remover los markers (ya cumplieron su función).
@@ -182,6 +191,109 @@ public sealed class MemoriaGenerator
         fin.Remove();
 
         return (sistemas.Count, totalSust);
+    }
+
+    /// <summary>
+    /// Busca dentro de <paramref name="root"/> párrafos que contengan
+    /// <c>{{TABLA_LOSAS}}</c> y los reemplaza por una <see cref="Table"/>
+    /// generada con una fila por cada losa de <paramref name="sistema"/>.
+    ///
+    /// <para>
+    /// Columnas: ID, Lx, Ly, Cond, h_usar, qd, ql, qu — los outputs computados
+    /// del <c>CalculoEngine</c>. Si una losa todavía no fue recalculada
+    /// (Qd / Ql / Qu en null), las celdas correspondientes muestran "—".
+    /// </para>
+    /// </summary>
+    private static void RenderearTablaLosas(OpenXmlElement root, Sistema sistema)
+    {
+        // Localizar parrafos cuyo texto combinado contenga el placeholder.
+        var candidatos = EnumerarParrafos(root)
+            .Where(p => string.Concat(p.Descendants<Text>().Select(t => t.Text ?? ""))
+                              .Contains(PlaceholderConstants.TablaLosas, StringComparison.Ordinal))
+            .ToList();
+
+        if (candidatos.Count == 0) return;
+
+        foreach (var placeholder in candidatos)
+        {
+            var tabla = ConstruirTablaLosas(sistema);
+            // Insertar la tabla DESPUES del placeholder y luego remover el placeholder.
+            // (No se puede InsertBeforeSelf en un Paragraph hermano con Table directa
+            // si el padre no permite mezclar; en Body sí — tablas son hermanas de
+            // parrafos por definicion.)
+            placeholder.Parent?.InsertAfter(tabla, placeholder);
+            placeholder.Remove();
+        }
+    }
+
+    /// <summary>Construye una <see cref="Table"/> OpenXml con header + 1 fila por losa.</summary>
+    private static Table ConstruirTablaLosas(Sistema sistema)
+    {
+        var inv = CultureInfo.InvariantCulture;
+
+        var tabla = new Table();
+
+        // Borders 1pt (8 = 1pt en eighths-of-a-point) en todas las cells.
+        var props = new TableProperties(
+            new TableBorders(
+                new TopBorder    { Val = BorderValues.Single, Size = 4 },
+                new BottomBorder { Val = BorderValues.Single, Size = 4 },
+                new LeftBorder   { Val = BorderValues.Single, Size = 4 },
+                new RightBorder  { Val = BorderValues.Single, Size = 4 },
+                new InsideHorizontalBorder { Val = BorderValues.Single, Size = 4 },
+                new InsideVerticalBorder   { Val = BorderValues.Single, Size = 4 }
+            )
+        );
+        tabla.AppendChild(props);
+
+        // Header.
+        tabla.AppendChild(FilaHeader(new[]
+        {
+            "ID", "Lx (m)", "Ly (m)", "Cond.", "h (m)",
+            "qd (t/m²)", "ql (t/m²)", "qu (t/m²)"
+        }));
+
+        // Filas.
+        foreach (var losa in sistema.Losas)
+        {
+            tabla.AppendChild(FilaDatos(new[]
+            {
+                losa.Id.ToString(inv),
+                losa.Lx.ToString("0.00", inv),
+                losa.Ly.ToString("0.00", inv),
+                losa.Cond,
+                losa.Espesor.ToString("0.000", inv),
+                losa.Qd.HasValue ? losa.Qd.Value.ToString("0.000", inv) : "—",
+                losa.Ql.HasValue ? losa.Ql.Value.ToString("0.000", inv) : "—",
+                losa.Qu.HasValue ? losa.Qu.Value.ToString("0.000", inv) : "—",
+            }));
+        }
+
+        return tabla;
+    }
+
+    /// <summary>Crea un <see cref="TableRow"/> con celdas de cabecera (texto en bold).</summary>
+    private static TableRow FilaHeader(string[] textos)
+    {
+        var row = new TableRow();
+        foreach (var t in textos)
+        {
+            var run = new Run(new Text(t));
+            run.PrependChild(new RunProperties(new Bold()));
+            row.AppendChild(new TableCell(new Paragraph(run)));
+        }
+        return row;
+    }
+
+    /// <summary>Crea un <see cref="TableRow"/> con celdas de datos (texto plano).</summary>
+    private static TableRow FilaDatos(string[] textos)
+    {
+        var row = new TableRow();
+        foreach (var t in textos)
+        {
+            row.AppendChild(new TableCell(new Paragraph(new Run(new Text(t)))));
+        }
+        return row;
     }
 
     /// <summary>
