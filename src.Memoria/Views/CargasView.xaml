@@ -1,19 +1,228 @@
 <UserControl x:Class="MemoriaPlus.Views.CargasView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+             mc:Ignorable="d"
              Background="{StaticResource SurfaceBrush}">
-    <Grid Margin="24">
-        <StackPanel VerticalAlignment="Top" HorizontalAlignment="Left" MaxWidth="900">
-            <TextBlock Style="{StaticResource H1Style}" Text="Tabla de cargas"/>
-            <TextBlock Style="{StaticResource LabelCapsStyle}" Margin="0,4,0,0"
-                       Text="PLACEHOLDER · 15 filas h=0.06..0.20 + pesos propios entrepiso/techo + carga viva + factores"/>
-            <Border Margin="0,16,0,0" Padding="12,8"
-                    Background="{StaticResource SurfaceContainerBrush}"
-                    BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
+
+    <!--
+        DataContext heredado: MainViewModel.
+        Bindings al modelo: {Binding ProyectoActivo.Cargas.<sub>}.
+    -->
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,16,24,16">
+        <StackPanel>
+
+            <!-- ============================================================
+                 INFO BANNER
+                 ============================================================ -->
+            <Border Padding="12,10" Margin="0,0,0,12"
+                    Background="{StaticResource SecondaryContainerBrush}"
+                    BorderBrush="{StaticResource OutlineVariantBrush}"
+                    BorderThickness="1"
                     CornerRadius="{StaticResource CornerRadiusDefault}">
-                <TextBlock Foreground="{StaticResource OnSurfaceVariantBrush}"
-                           Text="ⓘ  Estos valores aplican a todo el proyecto. La importacion desde el .xlsx semilla y el editor en vivo se conectan en commits posteriores."/>
+                <TextBlock Foreground="{StaticResource OnSecondaryContainerBrush}"
+                           FontSize="{StaticResource FontSizeBody}"
+                           Text="ⓘ  Estos valores aplican a todo el proyecto y se inyectan en el cálculo de cada losa de cada nivel."/>
             </Border>
+
+            <!-- ============================================================
+                 CARD 1 — Pesos propios (entrepiso + techo, lado a lado)
+                 ============================================================ -->
+            <Grid Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Entrepiso -->
+                <Border Grid.Column="0" Style="{StaticResource SectionCardStyle}">
+                    <StackPanel>
+                        <Grid>
+                            <TextBlock Style="{StaticResource LabelCapsStyle}"
+                                       Text="🏢  PESOS PROPIOS — ENTREPISO"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock HorizontalAlignment="Right"
+                                       FontFamily="{StaticResource FontFamilyMono}"
+                                       FontSize="11"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}">
+                                <Run Text="Total: "/>
+                                <Run Text="{Binding ProyectoActivo.Cargas.PesosPropiosEntrepiso.Total, StringFormat={}{0:0.000}, Mode=OneWay}"/>
+                                <Run Text=" t/m²"/>
+                            </TextBlock>
+                        </Grid>
+                        <DataGrid Margin="0,12,0,0" MinHeight="120"
+                                  ItemsSource="{Binding ProyectoActivo.Cargas.PesosPropiosEntrepiso.Items}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="ELEMENTO" Width="*"
+                                                    Binding="{Binding Nombre, UpdateSourceTrigger=LostFocus}"/>
+                                <DataGridTextColumn Header="ESPESOR (m)" Width="100"
+                                                    Binding="{Binding Espesor, StringFormat=0.000, UpdateSourceTrigger=LostFocus}"/>
+                                <DataGridTextColumn Header="DENSIDAD (t/m³)" Width="120"
+                                                    Binding="{Binding Densidad, StringFormat=0.000, UpdateSourceTrigger=LostFocus}"/>
+                                <DataGridTextColumn Header="W (t/m²)" Width="100" IsReadOnly="True"
+                                                    Binding="{Binding W, StringFormat=0.000}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Techo -->
+                <Border Grid.Column="2" Style="{StaticResource SectionCardStyle}">
+                    <StackPanel>
+                        <Grid>
+                            <TextBlock Style="{StaticResource LabelCapsStyle}"
+                                       Text="🏠  PESOS PROPIOS — TECHO"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock HorizontalAlignment="Right"
+                                       FontFamily="{StaticResource FontFamilyMono}"
+                                       FontSize="11"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}">
+                                <Run Text="Total: "/>
+                                <Run Text="{Binding ProyectoActivo.Cargas.PesosPropiosTecho.Total, StringFormat={}{0:0.000}, Mode=OneWay}"/>
+                                <Run Text=" t/m²"/>
+                            </TextBlock>
+                        </Grid>
+                        <DataGrid Margin="0,12,0,0" MinHeight="120"
+                                  ItemsSource="{Binding ProyectoActivo.Cargas.PesosPropiosTecho.Items}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="ELEMENTO" Width="*"
+                                                    Binding="{Binding Nombre, UpdateSourceTrigger=LostFocus}"/>
+                                <DataGridTextColumn Header="ESPESOR (m)" Width="100"
+                                                    Binding="{Binding Espesor, StringFormat=0.000, UpdateSourceTrigger=LostFocus}"/>
+                                <DataGridTextColumn Header="DENSIDAD (t/m³)" Width="120"
+                                                    Binding="{Binding Densidad, StringFormat=0.000, UpdateSourceTrigger=LostFocus}"/>
+                                <DataGridTextColumn Header="W (t/m²)" Width="100" IsReadOnly="True"
+                                                    Binding="{Binding W, StringFormat=0.000}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- ============================================================
+                 CARD 2 — Carga muerta por espesor (15 filas h=0.06..0.20)
+                 ============================================================ -->
+            <Border Style="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
+                <StackPanel>
+                    <Grid>
+                        <TextBlock Style="{StaticResource LabelCapsStyle}"
+                                   Text="📐  CARGA MUERTA POR ESPESOR"
+                                   VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Style="{StaticResource SecondaryButtonStyle}"
+                                    Content="↺ Restaurar"
+                                    Command="{Binding RestaurarCargasCommand}"
+                                    Margin="0,0,8,0"/>
+                            <Button Style="{StaticResource SecondaryButtonStyle}"
+                                    Content="📥 Importar de .xls"
+                                    Command="{Binding ImportarCargasXlsCommand}"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock Margin="0,4,0,0"
+                               Foreground="{StaticResource OnSurfaceVariantBrush}"
+                               FontSize="11"
+                               Text="Cada fila representa el peso del hormigón a ese espesor (h · densidad). Los pesos propios del uso del nivel se suman aparte en el motor de cálculo."/>
+
+                    <DataGrid Margin="0,12,0,0" MaxHeight="320"
+                              ItemsSource="{Binding ProyectoActivo.Cargas.CargaMuertaPorEspesor.Filas}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="H (m)" Width="100" IsReadOnly="True"
+                                                Binding="{Binding H, StringFormat=0.00}"/>
+                            <DataGridTextColumn Header="DENSIDAD (t/m³)" Width="160"
+                                                Binding="{Binding Densidad, StringFormat=0.000, UpdateSourceTrigger=LostFocus}"/>
+                            <DataGridTextColumn Header="W PROPIO (t/m²)" Width="160" IsReadOnly="True"
+                                                Binding="{Binding WPropio, StringFormat=0.000}"/>
+                            <DataGridTextColumn Header="QD OVERRIDE (t/m²)" Width="*"
+                                                Binding="{Binding Qd, StringFormat=0.000, UpdateSourceTrigger=LostFocus}"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <TextBlock Margin="0,8,0,0"
+                               Foreground="{StaticResource OnSurfaceVariantBrush}"
+                               FontSize="11"
+                               TextWrapping="Wrap"
+                               Text="QD override: si lo dejas en 0, el motor calcula qd = W propio + pesos propios (entrepiso o techo según el uso del nivel). Si lo seteas, el valor se respeta."/>
+                </StackPanel>
+            </Border>
+
+            <!-- ============================================================
+                 CARD 3 — Cargas vivas + factores de combinación
+                 ============================================================ -->
+            <Border Style="{StaticResource SectionCardStyle}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource LabelCapsStyle}"
+                               Text="🚶  CARGAS VIVAS Y COMBINACIÓN ACI 318-05"/>
+
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Style="{StaticResource FieldLabelStyle}" Text="Entrepiso (t/m²)"/>
+                            <TextBox Text="{Binding ProyectoActivo.Cargas.CargasVivas.Entrepiso, StringFormat=0.000, UpdateSourceTrigger=LostFocus}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Style="{StaticResource FieldLabelStyle}" Text="Balcones / Escalera (t/m²)"/>
+                            <TextBox Text="{Binding ProyectoActivo.Cargas.CargasVivas.BalconesEscalera, StringFormat=0.000, UpdateSourceTrigger=LostFocus}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="4">
+                            <TextBlock Style="{StaticResource FieldLabelStyle}" Text="Techo plano (t/m²)"/>
+                            <TextBox Text="{Binding ProyectoActivo.Cargas.CargasVivas.TechoPlano, StringFormat=0.000, UpdateSourceTrigger=LostFocus}"/>
+                        </StackPanel>
+
+                        <Border Grid.Column="5" Width="1"
+                                Background="{StaticResource OutlineVariantBrush}"
+                                Margin="0,4"/>
+
+                        <StackPanel Grid.Column="6">
+                            <TextBlock Style="{StaticResource FieldLabelStyle}" Text="Factor D"/>
+                            <TextBox Text="{Binding ProyectoActivo.Cargas.Factores.FactorD, StringFormat=0.0, UpdateSourceTrigger=LostFocus}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="8">
+                            <TextBlock Style="{StaticResource FieldLabelStyle}" Text="Factor L"/>
+                            <TextBox Text="{Binding ProyectoActivo.Cargas.Factores.FactorL, StringFormat=0.0, UpdateSourceTrigger=LostFocus}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="10">
+                            <TextBlock Style="{StaticResource FieldLabelStyle}" Text="Norma"/>
+                            <TextBox Text="{Binding ProyectoActivo.Cargas.Factores.Norma, UpdateSourceTrigger=LostFocus}"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Border Margin="0,12,0,0" Padding="12,8"
+                            Background="{StaticResource SurfaceContainerLowBrush}"
+                            CornerRadius="{StaticResource CornerRadiusDefault}">
+                        <TextBlock FontFamily="{StaticResource FontFamilyMono}"
+                                   FontSize="12"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}">
+                            <Run Text="qu = "/>
+                            <Run Text="{Binding ProyectoActivo.Cargas.Factores.FactorD, StringFormat=0.0, Mode=OneWay}"
+                                 Foreground="{StaticResource PrimaryBrush}"/>
+                            <Run Text=" · qd  +  "/>
+                            <Run Text="{Binding ProyectoActivo.Cargas.Factores.FactorL, StringFormat=0.0, Mode=OneWay}"
+                                 Foreground="{StaticResource PrimaryBrush}"/>
+                            <Run Text=" · ql"/>
+                        </TextBlock>
+                    </Border>
+                </StackPanel>
+            </Border>
+
         </StackPanel>
-    </Grid>
+    </ScrollViewer>
 </UserControl>

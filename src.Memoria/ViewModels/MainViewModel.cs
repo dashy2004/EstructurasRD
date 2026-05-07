@@ -26,8 +26,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         // ---- Commands del top bar (se inicializan PRIMERO porque el setter de
         //      TabActivo invoca ContinuarCommand.RaiseCanExecuteChanged) ----
-        ContinuarCommand        = new RelayCommand(Continuar,        PuedeContinuar);
-        GuardarBorradorCommand  = new RelayCommand(GuardarBorrador);
+        ContinuarCommand          = new RelayCommand(Continuar,        PuedeContinuar);
+        GuardarBorradorCommand    = new RelayCommand(GuardarBorrador);
+        RestaurarCargasCommand    = new RelayCommand(RestaurarCargas);
+        ImportarCargasXlsCommand  = new RelayCommand(ImportarCargasXls);
 
         // ---- Datos placeholder para sidebar (lista de proyectos recientes) ----
         ProyectosRecientes = new ObservableCollection<ProyectoResumen>
@@ -46,7 +48,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             new("Niveles",         "Niveles"),
             new("Generar",         "Generar"),
         };
-        TabActivo = Tabs[0];
+        TabActivo = ResolverTabInicialDesdeArgs();
 
         // ---- Proyecto activo (semilla de ejemplo Torre Residencial) ----
         ProyectoActivo = SeedProyectoEjemplo();
@@ -80,8 +82,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
         set { _proyectoActivo = value; OnPropertyChanged(); }
     }
 
-    public RelayCommand ContinuarCommand       { get; }
-    public RelayCommand GuardarBorradorCommand { get; }
+    public RelayCommand ContinuarCommand         { get; }
+    public RelayCommand GuardarBorradorCommand   { get; }
+    public RelayCommand RestaurarCargasCommand   { get; }
+    public RelayCommand ImportarCargasXlsCommand { get; }
 
     /// <summary>
     /// Texto contextual del botón primario del top bar — cambia según la pestaña
@@ -144,11 +148,58 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private bool PuedeContinuar() => Tabs.IndexOf(_tabActivo) < Tabs.Count - 1;
 
+    /// <summary>
+    /// Permite a un smoke test/launcher abrir la app directamente en una pestaña
+    /// específica via flag CLI: <c>--tab=cargas|niveles|generar|datos</c>. Útil
+    /// para automatización; sin flag, default a Datos generales.
+    /// </summary>
+    private TabPage ResolverTabInicialDesdeArgs()
+    {
+        try
+        {
+            var args = System.Environment.GetCommandLineArgs();
+            foreach (var arg in args)
+            {
+                if (arg.StartsWith("--tab=", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    var slug = arg.Substring(6).Trim().ToLowerInvariant();
+                    var tab = Tabs.FirstOrDefault(t => t.Slug.ToLowerInvariant().StartsWith(slug)
+                                                   || t.Titulo.ToLowerInvariant().StartsWith(slug));
+                    if (tab is not null) return tab;
+                }
+            }
+        }
+        catch { /* fallback abajo */ }
+        return Tabs[0];
+    }
+
     private void GuardarBorrador()
     {
         // TODO: persistir <c>ProyectoActivo</c> a <c>proyecto.lpx.json</c> via
         // ProyectoService extendido para Memoria Plus. Por ahora no-op para
         // que el botón sea clickeable sin romper.
+    }
+
+    /// <summary>
+    /// Reemplaza <see cref="Proyecto.Cargas"/> por una nueva instancia con la
+    /// semilla por defecto del .xlsx (Mosaicos/Mortero/Pañete entrepiso, Fino/
+    /// Impermeabilizante/Pañete techo, vivas R-001, factores ACI 318-05).
+    /// Útil si el usuario "rompe" la tabla por accidente.
+    /// </summary>
+    private void RestaurarCargas()
+    {
+        ProyectoActivo.Cargas = LosasPlus.Models.CargasGlobales.SemillaPorDefecto();
+    }
+
+    /// <summary>
+    /// Importa los pesos propios y la tabla de carga muerta desde un libro
+    /// Excel (formato del ingeniero, hoja <c>Cargas</c>). Stub por ahora —
+    /// la lógica con ClosedXML aterrizara en commit dedicado.
+    /// </summary>
+    private void ImportarCargasXls()
+    {
+        // TODO: OpenFileDialog -> ClosedXML -> CargasGlobalesXlsxImporter.Import()
+        // -> reemplazar ProyectoActivo.Cargas con el resultado.
     }
 
     // -------------------------------------------------------------

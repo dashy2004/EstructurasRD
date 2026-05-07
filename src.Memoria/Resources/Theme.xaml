@@ -56,6 +56,10 @@
     <SolidColorBrush x:Key="OnPrimaryContainerBrush"       Color="{StaticResource ColorOnPrimaryContainer}"/>
     <SolidColorBrush x:Key="SecondaryBrush"                Color="{StaticResource ColorSecondary}"/>
     <SolidColorBrush x:Key="SecondaryContainerBrush"       Color="{StaticResource ColorSecondaryContainer}"/>
+    <SolidColorBrush x:Key="OnSecondaryBrush"              Color="{StaticResource ColorOnSecondary}"/>
+    <SolidColorBrush x:Key="OnSecondaryContainerBrush"     Color="{StaticResource ColorOnSecondaryContainer}"/>
+    <SolidColorBrush x:Key="OnErrorBrush"                  Color="{StaticResource ColorOnError}"/>
+    <SolidColorBrush x:Key="OnErrorContainerBrush"         Color="{StaticResource ColorOnErrorContainer}"/>
     <SolidColorBrush x:Key="SuccessBrush"                  Color="{StaticResource ColorSuccess}"/>
     <SolidColorBrush x:Key="WarningBrush"                  Color="{StaticResource ColorWarning}"/>
     <SolidColorBrush x:Key="ErrorBrush"                    Color="{StaticResource ColorError}"/>
@@ -444,10 +448,108 @@
     </Style>
 
     <!-- ================================================================
+         DataGrid — denso, sin lineas verticales, header surface-container-high
+         row height 28 px, datos monospace
+         ================================================================ -->
+    <Style TargetType="{x:Type DataGridColumnHeader}" x:Key="MemoriaDataGridHeaderStyle">
+        <Setter Property="Background"          Value="{StaticResource SurfaceContainerHighBrush}"/>
+        <Setter Property="Foreground"          Value="{StaticResource OnSurfaceVariantBrush}"/>
+        <Setter Property="FontFamily"          Value="{StaticResource FontFamilyUI}"/>
+        <Setter Property="FontSize"            Value="{StaticResource FontSizeLabel}"/>
+        <Setter Property="FontWeight"          Value="SemiBold"/>
+        <Setter Property="Height"              Value="28"/>
+        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        <Setter Property="Padding"             Value="10,0"/>
+        <Setter Property="BorderBrush"         Value="{StaticResource OutlineVariantBrush}"/>
+        <Setter Property="BorderThickness"     Value="0,0,0,1"/>
+        <Setter Property="SeparatorBrush"      Value="Transparent"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type DataGridColumnHeader}">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter VerticalAlignment="Center"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="{x:Type DataGridRow}" x:Key="MemoriaDataGridRowStyle">
+        <Setter Property="Background" Value="{StaticResource SurfaceContainerLowestBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+        <Setter Property="Height"     Value="28"/>
+        <Setter Property="MinHeight"  Value="28"/>
+        <Style.Triggers>
+            <Trigger Property="AlternationIndex" Value="1">
+                <Setter Property="Background" Value="{StaticResource SurfaceContainerLowBrush}"/>
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="{StaticResource SurfaceContainerBrush}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style TargetType="{x:Type DataGridCell}" x:Key="MemoriaDataGridCellStyle">
+        <Setter Property="Background"      Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding"         Value="10,0"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type DataGridCell}">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter VerticalAlignment="Center"
+                                          TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{StaticResource SurfaceContainerHighestBrush}"/>
+                <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style TargetType="{x:Type DataGrid}" x:Key="MemoriaDataGridStyle">
+        <Setter Property="Background"            Value="{StaticResource SurfaceContainerLowestBrush}"/>
+        <Setter Property="Foreground"            Value="{StaticResource OnSurfaceBrush}"/>
+        <Setter Property="FontFamily"            Value="{StaticResource FontFamilyMono}"/>
+        <Setter Property="FontSize"              Value="{StaticResource FontSizeData}"/>
+        <Setter Property="BorderBrush"           Value="{StaticResource OutlineVariantBrush}"/>
+        <Setter Property="BorderThickness"       Value="1"/>
+        <Setter Property="GridLinesVisibility"   Value="Horizontal"/>
+        <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource OutlineVariantBrush}"/>
+        <Setter Property="HeadersVisibility"     Value="Column"/>
+        <Setter Property="AutoGenerateColumns"   Value="False"/>
+        <Setter Property="CanUserAddRows"        Value="False"/>
+        <Setter Property="CanUserDeleteRows"     Value="False"/>
+        <Setter Property="CanUserResizeRows"     Value="False"/>
+        <Setter Property="CanUserReorderColumns" Value="False"/>
+        <Setter Property="SelectionUnit"         Value="Cell"/>
+        <Setter Property="AlternationCount"      Value="2"/>
+        <Setter Property="ColumnHeaderStyle"     Value="{StaticResource MemoriaDataGridHeaderStyle}"/>
+        <Setter Property="RowStyle"              Value="{StaticResource MemoriaDataGridRowStyle}"/>
+        <Setter Property="CellStyle"             Value="{StaticResource MemoriaDataGridCellStyle}"/>
+        <Setter Property="RowHeaderWidth"        Value="0"/>
+    </Style>
+
+    <!-- ================================================================
          Hacer los estilos por default cuando no se especifica Style explicito
          (asi cualquier TextBox/ComboBox/Border en una vista hereda el look)
          ================================================================ -->
     <Style TargetType="{x:Type TextBox}"  BasedOn="{StaticResource MemoriaTextBoxStyle}"/>
     <Style TargetType="{x:Type ComboBox}" BasedOn="{StaticResource MemoriaComboBoxStyle}"/>
+    <Style TargetType="{x:Type DataGrid}" BasedOn="{StaticResource MemoriaDataGridStyle}"/>
 
 </ResourceDictionary>
