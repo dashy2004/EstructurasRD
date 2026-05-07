@@ -1,34 +1,287 @@
 <UserControl x:Class="MemoriaPlus.Views.GenerarView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+             mc:Ignorable="d"
              Background="{StaticResource SurfaceBrush}">
-    <Grid Margin="24">
+
+    <Grid Margin="24,16,24,16">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="360"/>
-            <ColumnDefinition Width="12"/>
+            <ColumnDefinition Width="380"/>
+            <ColumnDefinition Width="16"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <Border Grid.Column="0" Padding="12"
-                Background="{StaticResource SurfaceContainerLowestBrush}"
-                BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
-                CornerRadius="{StaticResource CornerRadiusDefault}">
-            <StackPanel>
-                <TextBlock Style="{StaticResource H2Style}" Text="Pre-generacion"/>
-                <TextBlock Margin="0,8,0,0" Foreground="{StaticResource OnSurfaceVariantBrush}"
-                           TextWrapping="Wrap"
-                           Text="Checklist: datos generales · cargas · niveles · .txt importado · plantilla · sin warnings · espesores OK · qu OK. Placeholder."/>
-            </StackPanel>
+        <!-- =========================================================
+             COL 1 — Checklist + acciones primarias
+             ========================================================= -->
+        <Border Grid.Column="0" Style="{StaticResource SectionCardStyle}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Style="{StaticResource H2Style}"
+                           Text="Generar memoria"/>
+                <TextBlock Grid.Row="1" Margin="0,4,0,16"
+                           Foreground="{StaticResource OnSurfaceVariantBrush}"
+                           FontSize="13" TextWrapping="Wrap"
+                           Text="Aplica los datos del proyecto a la plantilla .docx y produce el documento final con todos los placeholders sustituidos."/>
+
+                <!-- Checklist (basico v0 — luego se conectara a una validacion real) -->
+                <StackPanel Grid.Row="2">
+                    <TextBlock Style="{StaticResource LabelCapsStyle}"
+                               Text="VERIFICACIONES PREVIAS"
+                               Margin="0,0,0,8"/>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="✓"
+                                   Foreground="{StaticResource SuccessBrush}"
+                                   FontSize="14" FontWeight="Bold"/>
+                        <TextBlock Grid.Column="1" Text="Datos generales del proyecto"
+                                   Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="✓"
+                                   Foreground="{StaticResource SuccessBrush}"
+                                   FontSize="14" FontWeight="Bold"/>
+                        <TextBlock Grid.Column="1" Text="Cargas globales configuradas"
+                                   Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="✓"
+                                   Foreground="{StaticResource SuccessBrush}"
+                                   FontSize="14" FontWeight="Bold"/>
+                        <TextBlock Grid.Column="1" FontSize="13"
+                                   Foreground="{StaticResource OnSurfaceBrush}">
+                            <Run Text="Niveles cargados ("/>
+                            <Run Text="{Binding ProyectoActivo.Sistemas.Count, Mode=OneWay}"/>
+                            <Run Text=")"/>
+                        </TextBlock>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="●"
+                                   Foreground="{StaticResource WarningBrush}"
+                                   FontSize="14" FontWeight="Bold"/>
+                        <TextBlock Grid.Column="1" Text=".txt F. Perdomo (opcional, manual por ahora)"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}" FontSize="13"/>
+                    </Grid>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="✓"
+                                   Foreground="{StaticResource SuccessBrush}"
+                                   FontSize="14" FontWeight="Bold"/>
+                        <TextBlock Grid.Column="1" Text="Plantilla bundleada en Resources/templates/"
+                                   Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Botón principal -->
+                <StackPanel Grid.Row="3">
+                    <Button Style="{StaticResource PrimaryButtonStyle}"
+                            Content="📄 Generar memoria .docx"
+                            HorizontalAlignment="Stretch"
+                            Height="40"
+                            Command="{Binding GenerarMemoriaCommand}"/>
+                    <TextBlock Margin="0,8,0,0"
+                               Foreground="{StaticResource OnSurfaceVariantBrush}"
+                               FontSize="11" TextAlignment="Center"
+                               Text="Se abrirá un diálogo para elegir dónde guardar."/>
+                </StackPanel>
+            </Grid>
         </Border>
 
-        <Border Grid.Column="2" Padding="0"
-                Background="{StaticResource SurfaceContainerBrush}"
-                BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
-                CornerRadius="{StaticResource CornerRadiusDefault}">
+        <!-- =========================================================
+             COL 2 — Vista previa / status del docx generado
+             ========================================================= -->
+        <Border Grid.Column="2" Style="{StaticResource SectionCardStyle}">
             <Grid>
-                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
-                           Foreground="{StaticResource OnSurfaceVariantBrush}"
-                           Text="VISTA PREVIA DEL .DOCX  ·  placeholder"/>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>  <!-- header -->
+                    <RowDefinition Height="*"/>     <!-- vista previa -->
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Style="{StaticResource LabelCapsStyle}"
+                               Text="📋  RESULTADO DE LA GENERACIÓN" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Style="{StaticResource SecondaryButtonStyle}"
+                            Content="📂 Abrir archivo"
+                            Command="{Binding AbrirUltimaMemoriaCommand}"/>
+                </Grid>
+
+                <!-- Estado vacío vs estado con resultado -->
+                <Grid Grid.Row="1">
+                    <!-- Estado vacío (default antes de la primera generación) -->
+                    <Border Background="{StaticResource SurfaceContainerLowBrush}"
+                            BorderBrush="{StaticResource OutlineVariantBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource CornerRadiusDefault}"
+                            Padding="32">
+                        <Border.Style>
+                            <Style TargetType="{x:Type Border}">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding StatusGeneracion}" Value="">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding GeneracionExitosa}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding GeneracionConError}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="420">
+                            <TextBlock FontSize="48" HorizontalAlignment="Center"
+                                       Foreground="{StaticResource OutlineBrush}"
+                                       Text="📄"/>
+                            <TextBlock Style="{StaticResource H2Style}" HorizontalAlignment="Center"
+                                       Margin="0,12,0,4"
+                                       Text="Aún no hay memoria generada"/>
+                            <TextBlock Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                       FontSize="13" TextAlignment="Center" TextWrapping="Wrap"
+                                       Text="Presiona “Generar memoria .docx” a la izquierda para producir el documento. Verás aquí el reporte con la cantidad de placeholders sustituidos y el path al archivo final."/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Estado éxito -->
+                    <Border Background="{StaticResource SurfaceContainerLowestBrush}"
+                            BorderBrush="{StaticResource SuccessBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource CornerRadiusDefault}"
+                            Padding="20">
+                        <Border.Style>
+                            <Style TargetType="{x:Type Border}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding GeneracionExitosa}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="✓" FontSize="32"
+                                           Foreground="{StaticResource SuccessBrush}"
+                                           Margin="0,0,16,0" VerticalAlignment="Top"/>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Style="{StaticResource H2Style}"
+                                               Text="Memoria generada"/>
+                                    <TextBlock Margin="0,4,0,0"
+                                               Foreground="{StaticResource OnSurfaceBrush}"
+                                               FontSize="13" TextWrapping="Wrap"
+                                               Text="{Binding StatusGeneracion}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <Border Margin="0,16,0,0" Padding="12,10"
+                                    Background="{StaticResource SurfaceContainerLowBrush}"
+                                    CornerRadius="{StaticResource CornerRadiusDefault}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Style="{StaticResource LabelCapsStyle}"
+                                                   Text="ARCHIVO" Margin="0,0,0,2"/>
+                                        <TextBlock FontFamily="{StaticResource FontFamilyMono}"
+                                                   FontSize="12"
+                                                   Foreground="{StaticResource OnSurfaceBrush}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Text="{Binding UltimoArchivoGenerado}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource LabelCapsStyle}"
+                                                   Text="SUSTITUCIONES" Margin="0,0,0,2"
+                                                   HorizontalAlignment="Right"/>
+                                        <TextBlock FontFamily="{StaticResource FontFamilyMono}"
+                                                   FontSize="14" FontWeight="Bold"
+                                                   Foreground="{StaticResource PrimaryBrush}"
+                                                   HorizontalAlignment="Right"
+                                                   Text="{Binding UltimasSustituciones}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Estado error -->
+                    <Border Background="{StaticResource ErrorContainerBrush}"
+                            BorderBrush="{StaticResource ErrorBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource CornerRadiusDefault}"
+                            Padding="20">
+                        <Border.Style>
+                            <Style TargetType="{x:Type Border}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding GeneracionConError}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="⚠" FontSize="32"
+                                       Foreground="{StaticResource ErrorBrush}"
+                                       Margin="0,0,16,0" VerticalAlignment="Top"/>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Style="{StaticResource H2Style}"
+                                           Foreground="{StaticResource ErrorBrush}"
+                                           Text="Generación con problemas"/>
+                                <TextBlock Margin="0,4,0,0"
+                                           Foreground="{StaticResource OnErrorContainerBrush}"
+                                           FontSize="13" TextWrapping="Wrap"
+                                           Text="{Binding StatusGeneracion}"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
             </Grid>
         </Border>
     </Grid>

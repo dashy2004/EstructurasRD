@@ -27,6 +27,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Plantillas .docx empaquetadas con la app — disponibles en
+         %APP_BASE%\Resources\templates\ tras el build / publish.
+         El usuario eventualmente podra agregar las suyas via la pestaña
+         Plantillas (commit dedicado). -->
+    <Content Include="Resources\templates\*.docx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- DocumentFormat.OpenXml SDK para la generacion .docx (Content Controls / SDT,
          imagenes, fórmulas OMML). Version alineada con la transitiva de ClosedXML
          para evitar downgrade. Open-XML-PowerTools se agregara cuando se necesiten

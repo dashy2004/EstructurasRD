@@ -1,8 +1,12 @@
+using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using LosasPlus.Calculo;
+using LosasPlus.Generation;
 using LosasPlus.Models;
 using MemoriaPlus.Common;
 
@@ -31,6 +35,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         GuardarBorradorCommand    = new RelayCommand(GuardarBorrador);
         RestaurarCargasCommand    = new RelayCommand(RestaurarCargas);
         ImportarCargasXlsCommand  = new RelayCommand(ImportarCargasXls);
+        GenerarMemoriaCommand     = new RelayCommand(GenerarMemoria);
+        AbrirUltimaMemoriaCommand = new RelayCommand(AbrirUltimaMemoria, () => UltimoArchivoGenerado != null);
 
         // ---- Datos placeholder para sidebar (lista de proyectos recientes) ----
         ProyectosRecientes = new ObservableCollection<ProyectoResumen>
@@ -183,10 +189,46 @@ public sealed class MainViewModel : INotifyPropertyChanged
         set { _proyectoRecienteSeleccionado = value; OnPropertyChanged(); }
     }
 
-    public RelayCommand ContinuarCommand         { get; }
-    public RelayCommand GuardarBorradorCommand   { get; }
-    public RelayCommand RestaurarCargasCommand   { get; }
-    public RelayCommand ImportarCargasXlsCommand { get; }
+    public RelayCommand ContinuarCommand          { get; }
+    public RelayCommand GuardarBorradorCommand    { get; }
+    public RelayCommand RestaurarCargasCommand    { get; }
+    public RelayCommand ImportarCargasXlsCommand  { get; }
+    public RelayCommand GenerarMemoriaCommand     { get; }
+    public RelayCommand AbrirUltimaMemoriaCommand { get; }
+
+    // ----- Estado de la pestaña Generar -----
+
+    private string? _ultimoArchivoGenerado;
+    /// <summary>Path del .docx producido por la última generación exitosa.</summary>
+    public string? UltimoArchivoGenerado
+    {
+        get => _ultimoArchivoGenerado;
+        private set
+        {
+            _ultimoArchivoGenerado = value;
+            OnPropertyChanged();
+            AbrirUltimaMemoriaCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    private string _statusGeneracion = "";
+    /// <summary>Mensaje de status de la última generación (éxito o error).</summary>
+    public string StatusGeneracion
+    {
+        get => _statusGeneracion;
+        private set { _statusGeneracion = value; OnPropertyChanged(); OnPropertyChanged(nameof(GeneracionExitosa)); OnPropertyChanged(nameof(GeneracionConError)); }
+    }
+
+    private bool _generacionExito;
+    public bool GeneracionExitosa  => _generacionExito  && !string.IsNullOrEmpty(_statusGeneracion);
+    public bool GeneracionConError => !_generacionExito && !string.IsNullOrEmpty(_statusGeneracion);
+
+    private int _ultimasSustituciones;
+    public int UltimasSustituciones
+    {
+        get => _ultimasSustituciones;
+        private set { _ultimasSustituciones = value; OnPropertyChanged(); }
+    }
 
     /// <summary>
     /// Texto contextual del botón primario del top bar — cambia según la pestaña
@@ -324,6 +366,101 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         // TODO: OpenFileDialog -> ClosedXML -> CargasGlobalesXlsxImporter.Import()
         // -> reemplazar ProyectoActivo.Cargas con el resultado.
+    }
+
+    /// <summary>
+    /// Genera el .docx de la memoria con los datos de <see cref="ProyectoActivo"/>.
+    /// Abre un <see cref="Microsoft.Win32.SaveFileDialog"/> para que el usuario
+    /// elija el destino, llama al <see cref="MemoriaGenerator"/>, y deja el
+    /// status visible en <see cref="StatusGeneracion"/> + path en
+    /// <see cref="UltimoArchivoGenerado"/>.
+    /// </summary>
+    private void GenerarMemoria()
+    {
+        try
+        {
+            var plantilla = ResolverPlantillaPath();
+            if (plantilla is null)
+            {
+                StatusGeneracion = "Plantilla no encontrada en Resources/templates/.";
+                _generacionExito = false;
+                return;
+            }
+
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Title    = "Guardar memoria de cálculo",
+                Filter   = "Documento Word (*.docx)|*.docx",
+                FileName = SugerirNombreArchivo(),
+                AddExtension = true,
+                DefaultExt   = ".docx",
+                OverwritePrompt = true,
+            };
+            if (dlg.ShowDialog() != true)
+            {
+                StatusGeneracion = "";  // usuario canceló — limpiar status
+                return;
+            }
+
+            var gen = new MemoriaGenerator();
+            var reporte = gen.Generar(ProyectoActivo, plantilla, dlg.FileName);
+
+            UltimoArchivoGenerado = reporte.OutputPath;
+            UltimasSustituciones  = reporte.SustitucionesAplicadas;
+            _generacionExito = reporte.Exito;
+            if (reporte.Exito)
+            {
+                StatusGeneracion = $"Memoria generada con {reporte.SustitucionesAplicadas} sustituciones. " +
+                                   $"Archivo: {Path.GetFileName(reporte.OutputPath)}";
+            }
+            else
+            {
+                StatusGeneracion = "Generada con advertencias: " +
+                                   $"{reporte.PlaceholdersNoSustituidos.Count} placeholder(s) sin sustituir " +
+                                   $"({string.Join(", ", reporte.PlaceholdersNoSustituidos)}).";
+            }
+        }
+        catch (Exception ex)
+        {
+            UltimoArchivoGenerado = null;
+            _generacionExito = false;
+            StatusGeneracion = $"Error generando memoria: {ex.Message}";
+        }
+    }
+
+    private void AbrirUltimaMemoria()
+    {
+        if (UltimoArchivoGenerado is null || !File.Exists(UltimoArchivoGenerado)) return;
+        try
+        {
+            Process.Start(new ProcessStartInfo(UltimoArchivoGenerado) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            StatusGeneracion = $"No se pudo abrir el archivo: {ex.Message}";
+            _generacionExito = false;
+        }
+    }
+
+    /// <summary>
+    /// Encuentra la plantilla bundleada con la app. Default:
+    /// <c>{AppBaseDir}/Resources/templates/Memoria_Losas_PLANTILLA.docx</c>.
+    /// </summary>
+    private static string? ResolverPlantillaPath()
+    {
+        var path = Path.Combine(
+            AppDomain.CurrentDomain.BaseDirectory,
+            "Resources", "templates", "Memoria_Losas_PLANTILLA.docx");
+        return File.Exists(path) ? path : null;
+    }
+
+    /// <summary>Sugiere un nombre tipo <c>Torre_Sol_Memoria_07-05-2026.docx</c>.</summary>
+    private string SugerirNombreArchivo()
+    {
+        var slug = (ProyectoActivo?.Nombre ?? "Memoria")
+            .Replace(' ', '_').Replace('/', '-').Replace('\\', '-');
+        var fecha = DateTime.Now.ToString("dd-MM-yyyy");
+        return $"{slug}_Memoria_{fecha}.docx";
     }
 
     // -------------------------------------------------------------
