@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using LosasPlus.Calculo;
 using LosasPlus.Models;
 using MemoriaPlus.Common;
 
@@ -50,14 +51,63 @@ public sealed class MainViewModel : INotifyPropertyChanged
         };
         TabActivo = ResolverTabInicialDesdeArgs();
 
-        // ---- Proyecto activo (semilla de ejemplo Torre Residencial) ----
+        // ---- Proyecto activo (semilla de ejemplo Torre Residencial + sistemas) ----
         ProyectoActivo = SeedProyectoEjemplo();
+        SistemaActivo  = ProyectoActivo.Sistemas.FirstOrDefault();
+
+        // ---- Recalculo inicial: llena HCalc/HEq/Qmamp/Qd/Qu en cada losa ----
+        CalculoEngine.RecalcularProyecto(ProyectoActivo);
+
+        // ---- Suscripcion al PropertyChanged de cada losa para recalcular en vivo ----
+        AdjuntarRecalculoEnVivo(ProyectoActivo);
 
         // ---- Modo de la sidebar (default Calculos para preservar el flujo) ----
         ModoActivo = ResolverModoInicialDesdeArgs();
 
         // ---- Selección visible en la lista de proyectos recientes ----
         ProyectoRecienteSeleccionado = ProyectosRecientes.FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Conjunto de propiedades de <see cref="Losa"/> cuyas modificaciones disparan
+    /// un recalculo del engine. Se mantiene como HashSet para lookup O(1).
+    /// </summary>
+    private static readonly System.Collections.Generic.HashSet<string> _propsRecalcLosa = new()
+    {
+        nameof(Losa.Lx),
+        nameof(Losa.Ly),
+        nameof(Losa.K),
+        nameof(Losa.HUsarOverride),
+        nameof(Losa.HPisoTecho),
+        nameof(Losa.MampN),
+        nameof(Losa.MampO),
+        nameof(Losa.MampP),
+        nameof(Losa.Bw),
+        nameof(Losa.HBloque),
+        nameof(Losa.CarryQuToCarga),
+    };
+
+    /// <summary>
+    /// Suscribe el handler de recalculo a <see cref="Losa.PropertyChanged"/> para
+    /// cada losa de cada sistema del proyecto. Cuando una propiedad de input cambia,
+    /// el engine vuelve a correr sobre esa losa y los outputs (HCalc, Qd, Qu, ...)
+    /// se actualizan, lo que dispara los bindings del DataGrid.
+    /// </summary>
+    private void AdjuntarRecalculoEnVivo(Proyecto p)
+    {
+        foreach (var sistema in p.Sistemas)
+        {
+            foreach (var losa in sistema.Losas)
+            {
+                losa.PropertyChanged += (s, e) =>
+                {
+                    if (e.PropertyName != null && _propsRecalcLosa.Contains(e.PropertyName))
+                    {
+                        CalculoEngine.RecalcularLosa(losa, sistema, p);
+                    }
+                };
+            }
+        }
     }
 
     public ObservableCollection<ProyectoResumen> ProyectosRecientes { get; }
@@ -86,6 +136,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         get => _proyectoActivo;
         set { _proyectoActivo = value; OnPropertyChanged(); }
+    }
+
+    private Sistema? _sistemaActivo;
+    /// <summary>
+    /// Sistema/nivel actualmente seleccionado en la pestaña Niveles. Cuando
+    /// cambia, el DataGrid central de losas se rebina automáticamente.
+    /// </summary>
+    public Sistema? SistemaActivo
+    {
+        get => _sistemaActivo;
+        set { _sistemaActivo = value; OnPropertyChanged(); }
     }
 
     private ModoSidebar _modoActivo;
@@ -295,6 +356,48 @@ public sealed class MainViewModel : INotifyPropertyChanged
         };
         p.Normas.Add("ACI 318-05");
         p.Normas.Add("R-001");
+
+        // ---- Sistemas / niveles ----
+        // E1: replica las primeras losas reales del xls Neapolis IV (Carga
+        // EARLLETTE filas 9-13). Sirven de fixture visual para que el usuario
+        // vea el engine rellenar HCalc/Qd/Qu inmediatamente al arrancar.
+        var e1 = new Sistema
+        {
+            Nombre = "E1",
+            Uso    = SistemaUso.Entrepiso,
+            CotaMetros = 2.80,
+        };
+        e1.Losas.Add(new Losa { Id = 1, Tipo = 10, Lx = 6.45, Ly = 5.40, MampO = 1.78 });
+        e1.Losas.Add(new Losa { Id = 2, Tipo = 33, Lx = 4.90, Ly = 4.45, MampO = 7.67 });
+        e1.Losas.Add(new Losa { Id = 3, Tipo = 33, Lx = 4.90, Ly = 4.40 });
+        e1.Losas.Add(new Losa { Id = 4, Tipo = 22, Lx = 3.80, Ly = 1.50 });
+        e1.Losas.Add(new Losa { Id = 5, Tipo = 22, Lx = 1.20, Ly = 4.65 });
+
+        // E2: copia simple de E1 para mostrar plurinivel.
+        var e2 = new Sistema
+        {
+            Nombre = "E2",
+            Uso    = SistemaUso.Entrepiso,
+            CotaMetros = 5.60,
+        };
+        e2.Losas.Add(new Losa { Id = 1, Tipo = 10, Lx = 6.45, Ly = 5.40, MampO = 1.78 });
+        e2.Losas.Add(new Losa { Id = 2, Tipo = 33, Lx = 4.90, Ly = 4.45 });
+        e2.Losas.Add(new Losa { Id = 3, Tipo = 33, Lx = 4.90, Ly = 4.40 });
+
+        // Techo: nivel superior — uso=Techo cambia ql de 0.20 a 0.10.
+        var techo = new Sistema
+        {
+            Nombre = "Techo",
+            Uso    = SistemaUso.Techo,
+            CotaMetros = 8.40,
+        };
+        techo.Losas.Add(new Losa { Id = 1, Tipo = 10, Lx = 6.45, Ly = 5.40 });
+        techo.Losas.Add(new Losa { Id = 2, Tipo = 33, Lx = 4.90, Ly = 4.45 });
+
+        p.Sistemas.Add(e1);
+        p.Sistemas.Add(e2);
+        p.Sistemas.Add(techo);
+
         return p;
     }
 

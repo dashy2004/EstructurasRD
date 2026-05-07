@@ -1,50 +1,319 @@
 <UserControl x:Class="MemoriaPlus.Views.NivelesView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+             mc:Ignorable="d"
              Background="{StaticResource SurfaceBrush}">
-    <Grid Margin="24">
+
+    <Grid Margin="16">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="200"/>
+            <ColumnDefinition Width="240"/>   <!-- lista de sistemas -->
             <ColumnDefinition Width="12"/>
-            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>     <!-- DataGrid de losas -->
             <ColumnDefinition Width="12"/>
-            <ColumnDefinition Width="320"/>
+            <ColumnDefinition Width="320"/>   <!-- panel F. Perdomo -->
         </Grid.ColumnDefinitions>
 
-        <Border Grid.Column="0" Padding="12"
-                Background="{StaticResource SurfaceContainerLowestBrush}"
-                BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
-                CornerRadius="{StaticResource CornerRadiusDefault}">
-            <StackPanel>
-                <TextBlock Style="{StaticResource LabelCapsStyle}" Text="ESTRUCTURA"/>
-                <TextBlock Margin="0,8,0,0" Foreground="{StaticResource OnSurfaceVariantBrush}"
-                           TextWrapping="Wrap"
-                           Text="Lista de niveles del proyecto (E1, E2, ..., Techo). Placeholder."/>
-            </StackPanel>
+        <!-- ====================================================================
+             COL 1 — Lista de sistemas/niveles
+             ==================================================================== -->
+        <Border Grid.Column="0" Style="{StaticResource SectionCardStyle}" Padding="0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Padding="16,12,16,8"
+                        BorderBrush="{StaticResource OutlineVariantBrush}"
+                        BorderThickness="0,0,0,1">
+                    <TextBlock Style="{StaticResource LabelCapsStyle}" Text="🏗  ESTRUCTURA"/>
+                </Border>
+
+                <ListBox Grid.Row="1"
+                         BorderThickness="0"
+                         Background="Transparent"
+                         ItemsSource="{Binding ProyectoActivo.Sistemas}"
+                         SelectedItem="{Binding SistemaActivo}"
+                         HorizontalContentAlignment="Stretch"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="{x:Type ListBoxItem}">
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="Margin"  Value="8,4"/>
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                                        <Border x:Name="bd"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{StaticResource OutlineVariantBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="{StaticResource CornerRadiusDefault}"
+                                                Padding="12,10">
+                                            <ContentPresenter/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="bd" Property="Background" Value="{StaticResource SurfaceContainerBrush}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="bd" Property="Background" Value="{StaticResource SurfaceContainerHighestBrush}"/>
+                                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                                                <Setter TargetName="bd" Property="BorderThickness" Value="2"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0"
+                                           Text="{Binding Nombre}"
+                                           FontFamily="{StaticResource FontFamilyUI}"
+                                           FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{StaticResource OnSurfaceBrush}"/>
+
+                                <Border Grid.Row="0" Grid.Column="1"
+                                        Background="{StaticResource SecondaryContainerBrush}"
+                                        CornerRadius="{StaticResource CornerRadiusSm}"
+                                        Padding="6,1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Uso}"
+                                               FontFamily="{StaticResource FontFamilyMono}"
+                                               FontSize="10"
+                                               Foreground="{StaticResource OnSurfaceBrush}"/>
+                                </Border>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                           FontFamily="{StaticResource FontFamilyMono}"
+                                           FontSize="11"
+                                           Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                           Margin="0,4,0,0">
+                                    <Run Text="{Binding Losas.Count, Mode=OneWay}"/>
+                                    <Run Text=" losas  ·  +"/>
+                                    <Run Text="{Binding CotaMetros, StringFormat=0.00, Mode=OneWay}"/>
+                                    <Run Text=" m"/>
+                                </TextBlock>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <Button Grid.Row="2" Margin="8,4,8,8"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Content="+ Agregar nivel"/>
+            </Grid>
         </Border>
 
-        <Border Grid.Column="2" Padding="12"
-                Background="{StaticResource SurfaceContainerLowestBrush}"
-                BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
-                CornerRadius="{StaticResource CornerRadiusDefault}">
-            <StackPanel>
-                <TextBlock Style="{StaticResource H2Style}" Text="Losas — Nivel E1"/>
-                <TextBlock Margin="0,8,0,0" Foreground="{StaticResource OnSurfaceVariantBrush}"
-                           TextWrapping="Wrap"
-                           Text="Tabla densa con ID · Lx · Ly · Cond · K · h_calc · h_usar · Mamp · bw · H_blq · h_eq · qd · ql · qu. Placeholder — el grid se llena cuando aterrice CalculoEngine."/>
-            </StackPanel>
+        <!-- ====================================================================
+             COL 2 — DataGrid de losas (centro)
+             ==================================================================== -->
+        <Border Grid.Column="2" Style="{StaticResource SectionCardStyle}" Padding="0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>  <!-- header -->
+                    <RowDefinition Height="*"/>     <!-- DataGrid -->
+                    <RowDefinition Height="Auto"/>  <!-- summary -->
+                </Grid.RowDefinitions>
+
+                <!-- Header con titulo -->
+                <Grid Grid.Row="0" Background="{StaticResource SurfaceContainerLowBrush}">
+                    <Border BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="0,0,0,1" Padding="16,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource LabelCapsStyle}" Text="📐  LOSAS — NIVEL "/>
+                                <TextBlock Style="{StaticResource LabelCapsStyle}"
+                                           Text="{Binding SistemaActivo.Nombre}"
+                                           Foreground="{StaticResource PrimaryBrush}"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" Style="{StaticResource SecondaryButtonStyle}"
+                                    Content="+ Losa"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- DataGrid principal -->
+                <DataGrid Grid.Row="1"
+                          ItemsSource="{Binding SistemaActivo.Losas}"
+                          BorderThickness="0">
+                    <DataGrid.Columns>
+                        <!-- Inputs -->
+                        <DataGridTextColumn Header="ID"          Width="40"  IsReadOnly="True" Binding="{Binding Id}"/>
+                        <DataGridTextColumn Header="LX (m)"      Width="65"  Binding="{Binding Lx, StringFormat=0.00, UpdateSourceTrigger=LostFocus}"/>
+                        <DataGridTextColumn Header="LY (m)"      Width="65"  Binding="{Binding Ly, StringFormat=0.00, UpdateSourceTrigger=LostFocus}"/>
+                        <!-- Cond y Ratio: read-only computados -->
+                        <DataGridTemplateColumn Header="COND" Width="55">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border Background="{StaticResource SecondaryContainerBrush}"
+                                            CornerRadius="{StaticResource CornerRadiusSm}"
+                                            Padding="6,1" Margin="2"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Cond}"
+                                                   FontFamily="{StaticResource FontFamilyMono}"
+                                                   FontSize="10"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource OnSurfaceBrush}"/>
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="K"           Width="40"  Binding="{Binding K, UpdateSourceTrigger=LostFocus}"/>
+                        <!-- Outputs computados (read-only, gray foreground) -->
+                        <DataGridTextColumn Header="HCALC (m)"   Width="80"  IsReadOnly="True"
+                                            Binding="{Binding HCalc, StringFormat=0.000, TargetNullValue=—}">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="{x:Type TextBlock}">
+                                    <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding EspesorInsuficiente}" Value="True">
+                                            <Setter Property="Foreground" Value="{StaticResource ErrorBrush}"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="H USAR (m)"  Width="80"  Binding="{Binding Espesor, StringFormat=0.000, UpdateSourceTrigger=LostFocus}"/>
+                        <!-- Mampostería -->
+                        <DataGridTextColumn Header="MAMP 0.20"   Width="75"  Binding="{Binding MampN, StringFormat=0.00, UpdateSourceTrigger=LostFocus}"/>
+                        <DataGridTextColumn Header="MAMP 0.15"   Width="75"  Binding="{Binding MampO, StringFormat=0.00, UpdateSourceTrigger=LostFocus}"/>
+                        <DataGridTextColumn Header="MAMP 0.10"   Width="75"  Binding="{Binding MampP, StringFormat=0.00, UpdateSourceTrigger=LostFocus}"/>
+                        <!-- Cargas computadas -->
+                        <DataGridTextColumn Header="QMAP (t/m²)" Width="85"  IsReadOnly="True"
+                                            Binding="{Binding Qmap, StringFormat=0.000, TargetNullValue=—}">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="{x:Type TextBlock}">
+                                    <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="QD (t/m²)"   Width="80"  IsReadOnly="True"
+                                            Binding="{Binding Qd, StringFormat=0.000, TargetNullValue=—}">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="{x:Type TextBlock}">
+                                    <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="QL (t/m²)"   Width="80"  IsReadOnly="True"
+                                            Binding="{Binding Ql, StringFormat=0.000, TargetNullValue=—}">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="{x:Type TextBlock}">
+                                    <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="QU (t/m²)"   Width="*"   IsReadOnly="True"
+                                            Binding="{Binding Qu, StringFormat=0.000, TargetNullValue=—}">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="{x:Type TextBlock}">
+                                    <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- Summary footer -->
+                <Border Grid.Row="2" Padding="16,10"
+                        Background="{StaticResource SurfaceContainerLowBrush}"
+                        BorderBrush="{StaticResource OutlineVariantBrush}"
+                        BorderThickness="0,1,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}">
+                            <Run Text="Losas: "/>
+                            <Run Text="{Binding SistemaActivo.Losas.Count, Mode=OneWay}"
+                                 Foreground="{StaticResource OnSurfaceBrush}"/>
+                        </TextBlock>
+                        <TextBlock FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                   Margin="20,0,0,0">
+                            <Run Text="Uso: "/>
+                            <Run Text="{Binding SistemaActivo.Uso, Mode=OneWay}"
+                                 Foreground="{StaticResource OnSurfaceBrush}"/>
+                        </TextBlock>
+                        <TextBlock FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                   Margin="20,0,0,0">
+                            <Run Text="Cota: +"/>
+                            <Run Text="{Binding SistemaActivo.CotaMetros, StringFormat=0.00, Mode=OneWay}"
+                                 Foreground="{StaticResource OnSurfaceBrush}"/>
+                            <Run Text=" m"/>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+            </Grid>
         </Border>
 
-        <Border Grid.Column="4" Padding="12"
-                Background="{StaticResource SurfaceContainerLowestBrush}"
-                BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
-                CornerRadius="{StaticResource CornerRadiusDefault}">
-            <StackPanel>
-                <TextBlock Style="{StaticResource LabelCapsStyle}" Text="IMPORTACION .TXT"/>
-                <TextBlock Margin="0,8,0,0" Foreground="{StaticResource OnSurfaceVariantBrush}"
-                           TextWrapping="Wrap"
-                           Text="Salida del software F. Perdomo (Losas v5.20). Placeholder."/>
-            </StackPanel>
+        <!-- ====================================================================
+             COL 3 — Panel F. Perdomo (placeholder)
+             ==================================================================== -->
+        <Border Grid.Column="4" Style="{StaticResource SectionCardStyle}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Style="{StaticResource LabelCapsStyle}"
+                           Text="📥  IMPORTACIÓN .TXT"/>
+
+                <Button Grid.Row="1" Margin="0,12,0,0"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Content="Importar salida F. Perdomo"
+                        HorizontalAlignment="Stretch"/>
+
+                <TextBlock Grid.Row="2" Margin="0,12,0,8"
+                           Foreground="{StaticResource OnSurfaceVariantBrush}"
+                           FontSize="11" TextWrapping="Wrap"
+                           Text="El parser del .txt del software Losas v5.20 (F. Perdomo) extrae momentos flectores y armaduras por losa, y los inyecta en la sección 4.x.3 de la memoria."/>
+
+                <Border Grid.Row="3" Padding="12"
+                        Background="{StaticResource SurfaceContainerLowBrush}"
+                        BorderBrush="{StaticResource OutlineVariantBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource CornerRadiusDefault}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource LabelCapsStyle}" Text="ESTADO"/>
+                        <TextBlock Margin="0,4,0,0"
+                                   FontFamily="{StaticResource FontFamilyMono}"
+                                   FontSize="12"
+                                   Foreground="{StaticResource WarningBrush}"
+                                   Text="⚠  Sin .txt importado para este nivel"/>
+                        <TextBlock Margin="0,8,0,0"
+                                   FontFamily="{StaticResource FontFamilyMono}"
+                                   FontSize="11"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                   Text="Bloque F. Perdomo no aparecerá en la memoria hasta importar."/>
+                    </StackPanel>
+                </Border>
+            </Grid>
         </Border>
     </Grid>
 </UserControl>
