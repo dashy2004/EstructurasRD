@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
         xmlns:vw="clr-namespace:MemoriaPlus.Views"
+        xmlns:cmn="clr-namespace:MemoriaPlus.Common"
         Title="Memoria Plus"
         Height="900" Width="1440"
         MinHeight="640" MinWidth="1100"
@@ -13,6 +14,10 @@
         <vm:MainViewModel/>
     </Window.DataContext>
 
+    <Window.Resources>
+        <cmn:EnumToBoolConverter x:Key="EnumToBoolConverter"/>
+    </Window.Resources>
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="240"/>
@@ -20,7 +25,7 @@
         </Grid.ColumnDefinitions>
 
         <!-- ===========================================================
-             Sidebar (240 px) — branding + navegacion + perfil
+             Sidebar (240 px) — branding + navegación + perfil
              =========================================================== -->
         <Border Grid.Column="0" Background="{StaticResource SurfaceContainerLowBrush}"
                 BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="0,0,1,0">
@@ -51,26 +56,37 @@
                         Style="{StaticResource PrimaryButtonStyle}"
                         Content="+ Nuevo proyecto"/>
 
-                <!-- Navegacion primaria -->
+                <!-- =================== Navegación primaria ===================
+                     Cada RadioButton enlaza IsChecked al enum ModoActivo via
+                     EnumToBoolConverter. Click → ConvertBack devuelve el enum
+                     correspondiente y actualiza el VM, lo cual dispara el
+                     switch del contenido principal y el visible/oculto del
+                     top bar de tabs.
+                     =========================================================== -->
                 <StackPanel Grid.Row="2" Margin="8,0,8,8">
                     <RadioButton Style="{StaticResource SidebarNavItemStyle}"
-                                 GroupName="SidebarNav" IsChecked="True"
+                                 GroupName="SidebarNav"
+                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Explorador}"
                                  Content="📂  Explorador"/>
                     <RadioButton Style="{StaticResource SidebarNavItemStyle}"
                                  GroupName="SidebarNav"
+                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Busqueda}"
                                  Content="🔍  Búsqueda"/>
                     <RadioButton Style="{StaticResource SidebarNavItemStyle}"
                                  GroupName="SidebarNav"
+                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Calculos}"
                                  Content="🧮  Cálculos"/>
                     <RadioButton Style="{StaticResource SidebarNavItemStyle}"
                                  GroupName="SidebarNav"
+                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Plantillas}"
                                  Content="📚  Plantillas"/>
                     <RadioButton Style="{StaticResource SidebarNavItemStyle}"
                                  GroupName="SidebarNav"
+                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Configuracion}"
                                  Content="⚙  Configuración"/>
                 </StackPanel>
 
-                <!-- Proyectos recientes -->
+                <!-- Proyectos recientes (lista compacta) -->
                 <Border Grid.Row="3" Margin="16,8,16,8" Padding="0"
                         Background="Transparent">
                     <StackPanel>
@@ -119,20 +135,35 @@
         </Border>
 
         <!-- ===========================================================
-             Contenido principal — tabs Datos/Cargas/Niveles/Generar
+             Contenido principal — switch por ModoActivo
+             - Calculos: top bar (tabs + acciones) + 4 vistas internas
+             - Explorador: hub de proyectos
+             - Búsqueda/Plantillas/Configuración: ComingSoonView
              =========================================================== -->
         <Grid Grid.Column="1">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>  <!-- top bar (tabs + acciones) -->
-                <RowDefinition Height="*"/>     <!-- contenido tab -->
+                <RowDefinition Height="Auto"/>  <!-- top bar (visible solo en Calculos) -->
+                <RowDefinition Height="*"/>     <!-- contenido switch -->
                 <RowDefinition Height="Auto"/>  <!-- statusbar -->
             </Grid.RowDefinitions>
 
-            <!-- Top bar -->
+            <!-- ============================================================
+                 Top bar — solo en modo Calculos
+                 ============================================================ -->
             <Border Grid.Row="0" Padding="16,0"
                     Background="{StaticResource SurfaceBrush}"
                     BorderBrush="{StaticResource OutlineVariantBrush}"
                     BorderThickness="0,0,0,1">
+                <Border.Style>
+                    <Style TargetType="{x:Type Border}">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding ModoActivo}" Value="Calculos">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -152,8 +183,6 @@
                             </DataTemplate>
                         </TabControl.ItemTemplate>
                         <TabControl.ContentTemplate>
-                            <!-- Vacio: el contenido real se rendera abajo via ContentPresenter
-                                 con DataTrigger por Slug, para evitar instanciar 4 veces. -->
                             <DataTemplate>
                                 <Grid/>
                             </DataTemplate>
@@ -171,36 +200,85 @@
                 </Grid>
             </Border>
 
-            <!-- Contenido del tab activo (switch por Slug) -->
+            <!-- ============================================================
+                 Contenido principal — switch por ModoActivo
+                 ============================================================ -->
             <ContentControl Grid.Row="1">
                 <ContentControl.Style>
                     <Style TargetType="{x:Type ContentControl}">
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding TabActivo.Slug}" Value="DatosGenerales">
+                            <!-- ====== Modo Calculos: switch interno por TabActivo ====== -->
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding ModoActivo}" Value="Calculos"/>
+                                    <Condition Binding="{Binding TabActivo.Slug}" Value="DatosGenerales"/>
+                                </MultiDataTrigger.Conditions>
                                 <Setter Property="Content">
                                     <Setter.Value>
                                         <vw:DatosGeneralesView/>
                                     </Setter.Value>
                                 </Setter>
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding TabActivo.Slug}" Value="Cargas">
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding ModoActivo}" Value="Calculos"/>
+                                    <Condition Binding="{Binding TabActivo.Slug}" Value="Cargas"/>
+                                </MultiDataTrigger.Conditions>
                                 <Setter Property="Content">
                                     <Setter.Value>
                                         <vw:CargasView/>
                                     </Setter.Value>
                                 </Setter>
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding TabActivo.Slug}" Value="Niveles">
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding ModoActivo}" Value="Calculos"/>
+                                    <Condition Binding="{Binding TabActivo.Slug}" Value="Niveles"/>
+                                </MultiDataTrigger.Conditions>
                                 <Setter Property="Content">
                                     <Setter.Value>
                                         <vw:NivelesView/>
                                     </Setter.Value>
                                 </Setter>
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding TabActivo.Slug}" Value="Generar">
+                            </MultiDataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding ModoActivo}" Value="Calculos"/>
+                                    <Condition Binding="{Binding TabActivo.Slug}" Value="Generar"/>
+                                </MultiDataTrigger.Conditions>
                                 <Setter Property="Content">
                                     <Setter.Value>
                                         <vw:GenerarView/>
+                                    </Setter.Value>
+                                </Setter>
+                            </MultiDataTrigger>
+
+                            <!-- ====== Modos sin top bar ====== -->
+                            <DataTrigger Binding="{Binding ModoActivo}" Value="Explorador">
+                                <Setter Property="Content">
+                                    <Setter.Value>
+                                        <vw:ExploradorView/>
+                                    </Setter.Value>
+                                </Setter>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ModoActivo}" Value="Busqueda">
+                                <Setter Property="Content">
+                                    <Setter.Value>
+                                        <vw:ComingSoonView Tag="Búsqueda global"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ModoActivo}" Value="Plantillas">
+                                <Setter Property="Content">
+                                    <Setter.Value>
+                                        <vw:ComingSoonView Tag="Gestión de plantillas .docx"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ModoActivo}" Value="Configuracion">
+                                <Setter Property="Content">
+                                    <Setter.Value>
+                                        <vw:ComingSoonView Tag="Configuración general"/>
                                     </Setter.Value>
                                 </Setter>
                             </DataTrigger>

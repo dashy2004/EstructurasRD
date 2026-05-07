@@ -52,6 +52,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         // ---- Proyecto activo (semilla de ejemplo Torre Residencial) ----
         ProyectoActivo = SeedProyectoEjemplo();
+
+        // ---- Modo de la sidebar (default Calculos para preservar el flujo) ----
+        ModoActivo = ResolverModoInicialDesdeArgs();
+
+        // ---- Selección visible en la lista de proyectos recientes ----
+        ProyectoRecienteSeleccionado = ProyectosRecientes.FirstOrDefault();
     }
 
     public ObservableCollection<ProyectoResumen> ProyectosRecientes { get; }
@@ -80,6 +86,40 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         get => _proyectoActivo;
         set { _proyectoActivo = value; OnPropertyChanged(); }
+    }
+
+    private ModoSidebar _modoActivo;
+    /// <summary>
+    /// Modo de la sidebar: determina qué contenido muestra el área principal.
+    /// Default <see cref="ModoSidebar.Calculos"/> (las 4 pestañas del flujo de
+    /// edición).
+    /// </summary>
+    public ModoSidebar ModoActivo
+    {
+        get => _modoActivo;
+        set
+        {
+            if (_modoActivo != value)
+            {
+                _modoActivo = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(MostrarTopBarTabs));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Solo el modo Cálculos muestra los tabs Datos/Cargas/Niveles/Generar
+    /// y los botones Guardar/Continuar del top bar.
+    /// </summary>
+    public bool MostrarTopBarTabs => _modoActivo == ModoSidebar.Calculos;
+
+    private ProyectoResumen? _proyectoRecienteSeleccionado;
+    /// <summary>Proyecto seleccionado en el panel lateral derecho del Explorador.</summary>
+    public ProyectoResumen? ProyectoRecienteSeleccionado
+    {
+        get => _proyectoRecienteSeleccionado;
+        set { _proyectoRecienteSeleccionado = value; OnPropertyChanged(); }
     }
 
     public RelayCommand ContinuarCommand         { get; }
@@ -173,6 +213,29 @@ public sealed class MainViewModel : INotifyPropertyChanged
         return Tabs[0];
     }
 
+    /// <summary>
+    /// Análogo a <see cref="ResolverTabInicialDesdeArgs"/> para el modo de la
+    /// sidebar: <c>--modo=explorador|calculos|busqueda|plantillas|configuracion</c>.
+    /// </summary>
+    private ModoSidebar ResolverModoInicialDesdeArgs()
+    {
+        try
+        {
+            var args = System.Environment.GetCommandLineArgs();
+            foreach (var arg in args)
+            {
+                if (arg.StartsWith("--modo=", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    var slug = arg.Substring(7).Trim();
+                    if (System.Enum.TryParse<ModoSidebar>(slug, ignoreCase: true, out var modo))
+                        return modo;
+                }
+            }
+        }
+        catch { /* fallback abajo */ }
+        return ModoSidebar.Calculos;
+    }
+
     private void GuardarBorrador()
     {
         // TODO: persistir <c>ProyectoActivo</c> a <c>proyecto.lpx.json</c> via
@@ -251,3 +314,23 @@ public sealed record ProyectoResumen(
 
 /// <summary>Una pestaña del flujo principal (Datos/Cargas/Niveles/Generar).</summary>
 public sealed record TabPage(string Titulo, string Slug);
+
+/// <summary>
+/// Modos de navegación de la sidebar. Cada uno define el contenido del área
+/// principal:
+/// <list type="bullet">
+///   <item><see cref="Explorador"/>: hub de proyectos (lista + detalle).</item>
+///   <item><see cref="Busqueda"/>: búsqueda global (placeholder).</item>
+///   <item><see cref="Calculos"/>: flujo de 4 tabs Datos/Cargas/Niveles/Generar.</item>
+///   <item><see cref="Plantillas"/>: gestión de plantillas .docx (placeholder).</item>
+///   <item><see cref="Configuracion"/>: ajustes globales (placeholder).</item>
+/// </list>
+/// </summary>
+public enum ModoSidebar
+{
+    Explorador,
+    Busqueda,
+    Calculos,
+    Plantillas,
+    Configuracion,
+}
