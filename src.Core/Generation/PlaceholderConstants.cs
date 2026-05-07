@@ -97,9 +97,36 @@ public static class PlaceholderConstants
     /// </summary>
     public const string TablaLosas = "{{TABLA_LOSAS}}";
 
+    /// <summary>
+    /// Tabla de momentos flectores parseados del .txt F. Perdomo.
+    /// Columnas: LOSA, TIPO, CARGA, H, Lx, Ly, Mfx, Mfy, -Msx, -Msy.
+    /// Si no hay <c>SalidaPerdomo</c> asociada al sistema, el parrafo se
+    /// reemplaza por una nota informativa.
+    /// </summary>
+    public const string TablaMomentos = "{{TABLA_MOMENTOS}}";
+
+    /// <summary>
+    /// Tabla de armaduras de vano según X (centro de losa).
+    /// Columnas: LOSA, d, Mu, As, Disponer, As (provisto).
+    /// </summary>
+    public const string TablaArmadurasX = "{{TABLA_ARMADURAS_X}}";
+
+    /// <summary>
+    /// Tabla de armaduras de vano según Y (centro de losa).
+    /// Mismas columnas que <see cref="TablaArmadurasX"/>.
+    /// </summary>
+    public const string TablaArmadurasY = "{{TABLA_ARMADURAS_Y}}";
+
+    /// <summary>
+    /// Tabla de armaduras sobre apoyos (X e Y combinadas, con columna Dir).
+    /// Columnas: Dir, I, J, MuI, MuJ, MuI-J, d, As, AsI, AsJ, DAs, Disponer.
+    /// </summary>
+    public const string TablaApoyos = "{{TABLA_APOYOS}}";
+
     /// <summary>Lista cerrada de placeholders interiores al bloque NIVEL.</summary>
     public static readonly string[] TodosNivel = new[]
     {
-        NivelNombre, NivelNumero, NivelUso, NivelCota, NivelNumeroLosas, TablaLosas,
+        NivelNombre, NivelNumero, NivelUso, NivelCota, NivelNumeroLosas,
+        TablaLosas, TablaMomentos, TablaArmadurasX, TablaArmadurasY, TablaApoyos,
     };
 }

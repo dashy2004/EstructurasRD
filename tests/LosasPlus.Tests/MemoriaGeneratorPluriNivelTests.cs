@@ -9,6 +9,7 @@ using DocumentFormat.OpenXml.Wordprocessing;
 using LosasPlus.Calculo;
 using LosasPlus.Generation;
 using LosasPlus.Models;
+using LosasPlus.Services;
 using Xunit;
 
 namespace LosasPlus.Tests;
@@ -485,6 +486,219 @@ public class MemoriaGeneratorPluriNivelTests : IDisposable
         Assert.Contains("qd",       header);
         Assert.Contains("ql",       header);
         Assert.Contains("qu",       header);
+    }
+
+    // =================================================================
+    // {{TABLA_MOMENTOS}} / {{TABLA_ARMADURAS_X}} / Y / {{TABLA_APOYOS}}
+    // =================================================================
+
+    /// <summary>
+    /// Plantilla minimal con bloque NIVEL que incluye los 4 placeholders de
+    /// salida F. Perdomo (cada uno en su propio párrafo).
+    /// </summary>
+    private string ConstruirPlantillaConSalidaPerdomo()
+    {
+        var path = TempFile("docx");
+        using var doc = WordprocessingDocument.Create(path, WordprocessingDocumentType.Document);
+        var main = doc.AddMainDocumentPart();
+        main.Document = new Document(new Body(
+            new Paragraph(new Run(new Text("Proyecto: {{NOMBRE_PROYECTO}}"))),
+            new Paragraph(new Run(new Text("{{NIVEL_BLOQUE_INICIO}}"))),
+            new Paragraph(new Run(new Text("Nivel: {{NIVEL_NOMBRE}}"))),
+            new Paragraph(new Run(new Text("Momentos:"))),
+            new Paragraph(new Run(new Text("{{TABLA_MOMENTOS}}"))),
+            new Paragraph(new Run(new Text("Armaduras X:"))),
+            new Paragraph(new Run(new Text("{{TABLA_ARMADURAS_X}}"))),
+            new Paragraph(new Run(new Text("Armaduras Y:"))),
+            new Paragraph(new Run(new Text("{{TABLA_ARMADURAS_Y}}"))),
+            new Paragraph(new Run(new Text("Apoyos:"))),
+            new Paragraph(new Run(new Text("{{TABLA_APOYOS}}"))),
+            new Paragraph(new Run(new Text("{{NIVEL_BLOQUE_FIN}}"))),
+            new Paragraph(new Run(new Text("Cierre")))
+        ));
+        main.Document.Save();
+        return path;
+    }
+
+    private static Sistema SistemaConSalidaReal()
+    {
+        var s = new Sistema { Nombre = "E1", Uso = SistemaUso.Entrepiso };
+        // Para cubrir las 27 losas del fixture real:
+        for (int i = 1; i <= 27; i++) s.Losas.Add(new Losa { Id = i });
+        s.SalidaPerdomo = SalidaPerdomoAdapter.FromFile(
+            "fixtures/ADN_TORRE_PS2_S_SEMISOTANO.TXT",
+            s.Losas.Select(l => l.Id));
+        return s;
+    }
+
+    [Fact]
+    public void TablaMomentos_se_inserta_con_27_losas_del_fixture_real()
+    {
+        var plantilla = ConstruirPlantillaConSalidaPerdomo();
+        var output = TempFile("docx");
+        var p = new Proyecto { Nombre = "Test" };
+        p.Sistemas.Add(SistemaConSalidaReal());
+
+        new MemoriaGenerator().Generar(p, plantilla, output);
+
+        using var doc = WordprocessingDocument.Open(output, isEditable: false);
+        var tablas = doc.MainDocumentPart!.Document.Body!.Descendants<Table>().ToList();
+        // 4 tablas (momentos + armaduras X + armaduras Y + apoyos) — TABLA_LOSAS
+        // no esta en esta plantilla.
+        Assert.Equal(4, tablas.Count);
+
+        // La primera tabla es de momentos: 1 header + 27 losas = 28 filas.
+        var tablaMomentos = tablas[0];
+        Assert.Equal(1 + 27, tablaMomentos.Elements<TableRow>().Count());
+
+        // Header tiene "LOSA TIPO CARGA H Lx Ly Mfx Mfy".
+        var header = string.Concat(tablaMomentos.Elements<TableRow>().First()
+                                                .Descendants<Text>().Select(t => t.Text ?? ""));
+        Assert.Contains("LOSA",   header);
+        Assert.Contains("TIPO",   header);
+        Assert.Contains("CARGA",  header);
+        Assert.Contains("Mfx",    header);
+        Assert.Contains("Msx",    header);
+    }
+
+    [Fact]
+    public void TablaMomentos_inyecta_los_valores_de_la_losa_1_del_fixture()
+    {
+        var plantilla = ConstruirPlantillaConSalidaPerdomo();
+        var output = TempFile("docx");
+        var p = new Proyecto { Nombre = "Test" };
+        p.Sistemas.Add(SistemaConSalidaReal());
+
+        new MemoriaGenerator().Generar(p, plantilla, output);
+
+        using var doc = WordprocessingDocument.Open(output, isEditable: false);
+        var tablaMomentos = doc.MainDocumentPart!.Document.Body!.Descendants<Table>().First();
+
+        // Fila 1 (datos primera losa) debe contener los valores conocidos del .txt.
+        var fila1 = string.Concat(tablaMomentos.Elements<TableRow>().ElementAt(1)
+                                               .Descendants<Text>().Select(t => t.Text ?? ""));
+        Assert.Contains("60",    fila1);   // TIPO
+        Assert.Contains("1.550", fila1);   // CARGA
+        Assert.Contains("4.000", fila1);   // Lx
+        Assert.Contains("7.800", fila1);   // Ly
+        Assert.Contains("1.603", fila1);   // Mfx
+        Assert.Contains("1.933", fila1);   // -Msx
+    }
+
+    [Fact]
+    public void TablaArmadurasX_y_Y_se_pueblan_independientes()
+    {
+        var plantilla = ConstruirPlantillaConSalidaPerdomo();
+        var output = TempFile("docx");
+        var p = new Proyecto { Nombre = "Test" };
+        var s = SistemaConSalidaReal();
+        p.Sistemas.Add(s);
+
+        new MemoriaGenerator().Generar(p, plantilla, output);
+
+        using var doc = WordprocessingDocument.Open(output, isEditable: false);
+        var tablas = doc.MainDocumentPart!.Document.Body!.Descendants<Table>().ToList();
+
+        var armX = tablas[1];
+        var armY = tablas[2];
+
+        Assert.Equal(1 + s.SalidaPerdomo!.ArmadurasXCentro.Count, armX.Elements<TableRow>().Count());
+        Assert.Equal(1 + s.SalidaPerdomo!.ArmadurasYCentro.Count, armY.Elements<TableRow>().Count());
+
+        // Headers tienen "dX" / "MuX" para X y "dY" / "MuY" para Y.
+        var headerX = string.Concat(armX.Elements<TableRow>().First().Descendants<Text>().Select(t => t.Text ?? ""));
+        var headerY = string.Concat(armY.Elements<TableRow>().First().Descendants<Text>().Select(t => t.Text ?? ""));
+        Assert.Contains("dX", headerX);
+        Assert.Contains("MuX", headerX);
+        Assert.Contains("dY", headerY);
+        Assert.Contains("MuY", headerY);
+    }
+
+    [Fact]
+    public void TablaApoyos_combina_apoyos_X_y_Y_en_una_sola_tabla_con_columna_Dir()
+    {
+        var plantilla = ConstruirPlantillaConSalidaPerdomo();
+        var output = TempFile("docx");
+        var p = new Proyecto { Nombre = "Test" };
+        var s = SistemaConSalidaReal();
+        p.Sistemas.Add(s);
+
+        new MemoriaGenerator().Generar(p, plantilla, output);
+
+        using var doc = WordprocessingDocument.Open(output, isEditable: false);
+        var tablas = doc.MainDocumentPart!.Document.Body!.Descendants<Table>().ToList();
+        var tablaApoyos = tablas[3];
+
+        var totalApoyos = s.SalidaPerdomo!.ArmadurasXApoyos.Count + s.SalidaPerdomo!.ArmadurasYApoyos.Count;
+        Assert.Equal(1 + totalApoyos, tablaApoyos.Elements<TableRow>().Count());
+
+        // Header debe tener "Dir.".
+        var header = string.Concat(tablaApoyos.Elements<TableRow>().First().Descendants<Text>().Select(t => t.Text ?? ""));
+        Assert.Contains("Dir", header);
+        Assert.Contains("MuI", header);
+
+        // Las primeras filas son de dirección X, las últimas de Y.
+        var primeraDataRow = string.Concat(tablaApoyos.Elements<TableRow>().ElementAt(1).Descendants<Text>().Select(t => t.Text ?? ""));
+        Assert.StartsWith("X", primeraDataRow.TrimStart());
+
+        var ultimaDataRow = string.Concat(tablaApoyos.Elements<TableRow>().Last().Descendants<Text>().Select(t => t.Text ?? ""));
+        Assert.StartsWith("Y", ultimaDataRow.TrimStart());
+    }
+
+    [Fact]
+    public void Sin_SalidaPerdomo_los_4_placeholders_se_reemplazan_por_nota_informativa()
+    {
+        var plantilla = ConstruirPlantillaConSalidaPerdomo();
+        var output = TempFile("docx");
+        var p = new Proyecto { Nombre = "Sin txt" };
+        var s = new Sistema { Nombre = "E1" };
+        s.Losas.Add(new Losa { Id = 1, Lx = 4, Ly = 4 });
+        p.Sistemas.Add(s);
+        // SalidaPerdomo queda en null (no se importó .txt).
+
+        new MemoriaGenerator().Generar(p, plantilla, output);
+
+        // No debe haber tablas (los placeholders se reemplazan por parrafos
+        // informativos, no por Table).
+        using var doc = WordprocessingDocument.Open(output, isEditable: false);
+        var tablas = doc.MainDocumentPart!.Document.Body!.Descendants<Table>().ToList();
+        Assert.Empty(tablas);
+
+        var texto = ExtraerTexto(output);
+        Assert.DoesNotContain("{{TABLA_MOMENTOS}}",    texto);
+        Assert.DoesNotContain("{{TABLA_ARMADURAS_X}}", texto);
+        Assert.DoesNotContain("{{TABLA_ARMADURAS_Y}}", texto);
+        Assert.DoesNotContain("{{TABLA_APOYOS}}",      texto);
+
+        // 4 menciones de la nota informativa.
+        var matches = System.Text.RegularExpressions.Regex.Matches(
+            texto, @"\(\.txt no importado para este nivel\)").Count;
+        Assert.Equal(4, matches);
+    }
+
+    [Fact]
+    public void Plurinivel_con_solo_un_sistema_que_tiene_txt_y_otro_que_no()
+    {
+        var plantilla = ConstruirPlantillaConSalidaPerdomo();
+        var output = TempFile("docx");
+        var p = new Proyecto { Nombre = "Mixto" };
+        // Sistema 1 con .txt importado.
+        p.Sistemas.Add(SistemaConSalidaReal());
+        // Sistema 2 sin .txt.
+        var s2 = new Sistema { Nombre = "E2" };
+        s2.Losas.Add(new Losa { Id = 1, Lx = 4, Ly = 4 });
+        p.Sistemas.Add(s2);
+
+        new MemoriaGenerator().Generar(p, plantilla, output);
+
+        // Sistema 1: 4 tablas reales. Sistema 2: 4 párrafos informativos.
+        using var doc = WordprocessingDocument.Open(output, isEditable: false);
+        var tablas = doc.MainDocumentPart!.Document.Body!.Descendants<Table>().ToList();
+        Assert.Equal(4, tablas.Count);  // Solo del sistema 1.
+
+        var notas = System.Text.RegularExpressions.Regex.Matches(
+            ExtraerTexto(output), @"\(\.txt no importado para este nivel\)").Count;
+        Assert.Equal(4, notas);  // Sistema 2 → 4 placeholders sin datos.
     }
 
     [Fact]

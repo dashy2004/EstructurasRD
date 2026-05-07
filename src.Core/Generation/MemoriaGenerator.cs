@@ -181,9 +181,13 @@ public sealed class MemoriaGenerator
                 clonesEsteSistema.Add(clone);
             }
 
-            // Reemplazar {{TABLA_LOSAS}} por una Table real con las losas del sistema.
+            // Reemplazar placeholders de tabla por Tables reales (todos los
+            // {{TABLA_*}} dentro del bloque NIVEL).
             foreach (var c in clonesEsteSistema)
+            {
                 RenderearTablaLosas(c, sistema);
+                RenderearTablaSalidaPerdomo(c, sistema);
+            }
         }
 
         // 5. Remover los markers (ya cumplieron su función).
@@ -230,23 +234,8 @@ public sealed class MemoriaGenerator
     private static Table ConstruirTablaLosas(Sistema sistema)
     {
         var inv = CultureInfo.InvariantCulture;
+        var tabla = NuevaTablaConBordes();
 
-        var tabla = new Table();
-
-        // Borders 1pt (8 = 1pt en eighths-of-a-point) en todas las cells.
-        var props = new TableProperties(
-            new TableBorders(
-                new TopBorder    { Val = BorderValues.Single, Size = 4 },
-                new BottomBorder { Val = BorderValues.Single, Size = 4 },
-                new LeftBorder   { Val = BorderValues.Single, Size = 4 },
-                new RightBorder  { Val = BorderValues.Single, Size = 4 },
-                new InsideHorizontalBorder { Val = BorderValues.Single, Size = 4 },
-                new InsideVerticalBorder   { Val = BorderValues.Single, Size = 4 }
-            )
-        );
-        tabla.AppendChild(props);
-
-        // Header.
         tabla.AppendChild(FilaHeader(new[]
         {
             "ID", "Lx (m)", "Ly (m)", "Cond.", "h (m)",
@@ -270,6 +259,189 @@ public sealed class MemoriaGenerator
         }
 
         return tabla;
+    }
+
+    // =====================================================================
+    // RENDER DE TABLAS DE SALIDA F. PERDOMO
+    //   {{TABLA_MOMENTOS}}, {{TABLA_ARMADURAS_X}}, {{TABLA_ARMADURAS_Y}},
+    //   {{TABLA_APOYOS}} — leen de sistema.SalidaPerdomo.
+    // =====================================================================
+
+    /// <summary>
+    /// Reemplaza los placeholders <c>{{TABLA_MOMENTOS}}</c>,
+    /// <c>{{TABLA_ARMADURAS_X}}</c>, <c>{{TABLA_ARMADURAS_Y}}</c> y
+    /// <c>{{TABLA_APOYOS}}</c> por tablas OpenXml generadas a partir de
+    /// <see cref="Sistema.SalidaPerdomo"/>.
+    ///
+    /// <para>
+    /// Si el sistema no tiene <c>SalidaPerdomo</c> asociada (el ingeniero aún
+    /// no importó el <c>.txt</c>), cada placeholder se reemplaza por un
+    /// párrafo informativo "(.txt no importado para este nivel)" — la memoria
+    /// se genera de todos modos pero queda evidente la información faltante.
+    /// </para>
+    /// </summary>
+    private static void RenderearTablaSalidaPerdomo(OpenXmlElement root, Sistema sistema)
+    {
+        var salida = sistema.SalidaPerdomo;
+
+        ReemplazarPlaceholderConTabla(root, PlaceholderConstants.TablaMomentos,
+            salida is null
+                ? null
+                : ConstruirTablaMomentos(salida));
+
+        ReemplazarPlaceholderConTabla(root, PlaceholderConstants.TablaArmadurasX,
+            salida is null
+                ? null
+                : ConstruirTablaArmaduras(salida.ArmadurasXCentro, "X"));
+
+        ReemplazarPlaceholderConTabla(root, PlaceholderConstants.TablaArmadurasY,
+            salida is null
+                ? null
+                : ConstruirTablaArmaduras(salida.ArmadurasYCentro, "Y"));
+
+        ReemplazarPlaceholderConTabla(root, PlaceholderConstants.TablaApoyos,
+            salida is null
+                ? null
+                : ConstruirTablaApoyos(salida));
+    }
+
+    /// <summary>
+    /// Localiza los párrafos con <paramref name="placeholder"/> dentro de
+    /// <paramref name="root"/>. Si <paramref name="tabla"/> no es null, los
+    /// reemplaza por la tabla; si es null (no hay datos), los reemplaza por
+    /// una nota informativa.
+    /// </summary>
+    private static void ReemplazarPlaceholderConTabla(
+        OpenXmlElement root, string placeholder, Table? tabla)
+    {
+        var candidatos = EnumerarParrafos(root)
+            .Where(p => string.Concat(p.Descendants<Text>().Select(t => t.Text ?? ""))
+                              .Contains(placeholder, StringComparison.Ordinal))
+            .ToList();
+
+        foreach (var ph in candidatos)
+        {
+            if (tabla is not null)
+            {
+                ph.Parent?.InsertAfter(tabla.CloneNode(deep: true), ph);
+            }
+            else
+            {
+                ph.Parent?.InsertAfter(
+                    new Paragraph(new Run(new Text("(.txt no importado para este nivel)"))),
+                    ph);
+            }
+            ph.Remove();
+        }
+    }
+
+    private static Table ConstruirTablaMomentos(SalidaPerdomo s)
+    {
+        var inv = CultureInfo.InvariantCulture;
+        var tabla = NuevaTablaConBordes();
+
+        tabla.AppendChild(FilaHeader(new[]
+        {
+            "LOSA", "TIPO", "CARGA (t/m²)", "H (cm)", "Lx (m)", "Ly (m)",
+            "Mfx", "Mfy", "-Msx", "-Msy"
+        }));
+
+        foreach (var m in s.Momentos)
+        {
+            tabla.AppendChild(FilaDatos(new[]
+            {
+                m.LosaId.ToString(inv),
+                m.Tipo.ToString(inv),
+                m.Carga.ToString("0.000", inv),
+                m.H.ToString("0.0", inv),
+                m.Lx.ToString("0.000", inv),
+                m.Ly.ToString("0.000", inv),
+                m.Mfx.ToString("0.000", inv),
+                m.Mfy.ToString("0.000", inv),
+                m.NMSx.ToString("0.000", inv),
+                m.NMSy.ToString("0.000", inv),
+            }));
+        }
+
+        return tabla;
+    }
+
+    private static Table ConstruirTablaArmaduras(IList<ArmaduraLosa> armaduras, string direccion)
+    {
+        var inv = CultureInfo.InvariantCulture;
+        var tabla = NuevaTablaConBordes();
+
+        tabla.AppendChild(FilaHeader(new[]
+        {
+            "LOSA", $"d{direccion} (cm)", $"Mu{direccion} (t·m/m)",
+            $"As{direccion} req (cm²/m)", "Disponer", $"As{direccion} prov (cm²/m)"
+        }));
+
+        foreach (var a in armaduras)
+        {
+            tabla.AppendChild(FilaDatos(new[]
+            {
+                a.LosaId.ToString(inv),
+                a.D.ToString("0.0", inv),
+                a.Mu.ToString("0.000", inv),
+                a.As.ToString("0.000", inv),
+                a.Disponer ?? "",
+                a.AsReal.ToString("0.000", inv),
+            }));
+        }
+
+        return tabla;
+    }
+
+    private static Table ConstruirTablaApoyos(SalidaPerdomo s)
+    {
+        var inv = CultureInfo.InvariantCulture;
+        var tabla = NuevaTablaConBordes();
+
+        tabla.AppendChild(FilaHeader(new[]
+        {
+            "Dir.", "I", "J", "MuI", "MuJ", "MuI-J", "d (cm)", "As", "AsI", "AsJ", "ΔAs", "Disponer"
+        }));
+
+        foreach (var a in s.ArmadurasXApoyos)
+            tabla.AppendChild(FilaApoyo("X", a, inv));
+        foreach (var a in s.ArmadurasYApoyos)
+            tabla.AppendChild(FilaApoyo("Y", a, inv));
+
+        return tabla;
+    }
+
+    private static TableRow FilaApoyo(string dir, ArmaduraApoyo a, CultureInfo inv) => FilaDatos(new[]
+    {
+        dir,
+        a.BordeI.ToString(inv),
+        a.BordeJ.ToString(inv),
+        a.MuI.ToString("0.000", inv),
+        a.MuJ.ToString("0.000", inv),
+        a.MuIJ.ToString("0.000", inv),
+        a.D.ToString("0.0", inv),
+        a.As.ToString("0.000", inv),
+        a.AsI.ToString("0.000", inv),
+        a.AsJ.ToString("0.000", inv),
+        a.DAs.ToString("0.000", inv),
+        a.Disponer ?? "",
+    });
+
+    /// <summary>Crea una <see cref="Table"/> con bordes 1pt en todas las celdas.</summary>
+    private static Table NuevaTablaConBordes()
+    {
+        var t = new Table();
+        t.AppendChild(new TableProperties(
+            new TableBorders(
+                new TopBorder    { Val = BorderValues.Single, Size = 4 },
+                new BottomBorder { Val = BorderValues.Single, Size = 4 },
+                new LeftBorder   { Val = BorderValues.Single, Size = 4 },
+                new RightBorder  { Val = BorderValues.Single, Size = 4 },
+                new InsideHorizontalBorder { Val = BorderValues.Single, Size = 4 },
+                new InsideVerticalBorder   { Val = BorderValues.Single, Size = 4 }
+            )
+        ));
+        return t;
     }
 
     /// <summary>Crea un <see cref="TableRow"/> con celdas de cabecera (texto en bold).</summary>
