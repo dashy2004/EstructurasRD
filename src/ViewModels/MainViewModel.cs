@@ -139,7 +139,9 @@ public class MainViewModel : INotifyPropertyChanged
         // El proyecto arranca con el sistema demo activo.
         _proyecto.Sistemas.Add(_sistemaActivo);
 
-        var dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? "";
+        // AppContext.BaseDirectory funciona también en single-file publish (donde
+        // Assembly.Location devuelve string vacío y rompía el constructor).
+        var dir = AppContext.BaseDirectory;
 
         // Buscar carpeta /plugins: 1) junto al ejecutable, 2) raíz del proyecto en dev (.../LosasPlus/plugins)
         string? pluginsDir = Path.Combine(dir, "plugins");

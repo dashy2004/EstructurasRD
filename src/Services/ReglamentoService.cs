@@ -112,8 +112,10 @@ public static class ReglamentoService
         }
         catch { /* fallback abajo */ }
 
+        // AppContext.BaseDirectory funciona también en single-file publish (donde
+        // Assembly.Location devuelve string vacío).
         var local = Path.Combine(
-            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? "",
+            AppContext.BaseDirectory,
             "Resources", "Reglamento.json");
         return File.Exists(local) ? File.ReadAllText(local) : "{\"normas\":[]}";
     }

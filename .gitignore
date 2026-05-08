@@ -8,6 +8,10 @@
 **/log/
 **/logs/
 
+# Carpeta de releases empaquetados (tamaño grande, generados por publish.ps1
+# o el comando dotnet publish, no deberian commitearse al repo).
+releases/
+
 # Build artefacts
 *.user
 *.userosscache
