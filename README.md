@@ -1,15 +1,30 @@
-# LosasPlus / MemoriaPlus
+<h1 align="center">LosasPlus &nbsp;/&nbsp; MemoriaPlus</h1>
 
-Suite de herramientas de diseño estructural en .NET 8 / WPF, pensadas para
-ingenieros civiles de la **República Dominicana** que trabajan bajo R-001,
-R-024 y ACI 318. El objetivo es automatizar el flujo desde el cálculo de
-losas hasta la generación de la memoria de cálculo en formato Word, sin
-fricción.
+<p align="center">
+  <b>Suite de diseño estructural en .NET 8 / WPF para ingenieros civiles dominicanos.</b><br/>
+  Editor de losas con cálculo en vivo + generación automática de memoria de cálculo en formato <code>.docx</code>.<br/>
+  Conforme a R-001, R-024 y ACI 318.
+</p>
 
-[![build](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/dashy2004/LosasPlus/actions)
-[![tests](https://img.shields.io/badge/tests-271%20passing-brightgreen)](https://github.com/dashy2004/LosasPlus/actions)
-[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![dotnet](https://img.shields.io/badge/.NET-8.0-512BD4)](https://dotnet.microsoft.com/)
+<p align="center">
+  <a href="https://github.com/dashy2004/LosasPlus/actions/workflows/ci.yml"><img alt="ci" src="https://github.com/dashy2004/LosasPlus/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/dashy2004/LosasPlus/actions/workflows/release.yml"><img alt="release" src="https://github.com/dashy2004/LosasPlus/actions/workflows/release.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="license MIT" src="https://img.shields.io/github/license/dashy2004/LosasPlus?color=blue"></a>
+  <a href="https://dotnet.microsoft.com/download/dotnet/8.0"><img alt=".NET 8" src="https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white"></a>
+  <a href="https://github.com/dashy2004/LosasPlus/releases"><img alt="latest release" src="https://img.shields.io/github/v/release/dashy2004/LosasPlus?include_prereleases&label=release&color=brightgreen"></a>
+  <img alt="platform" src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6?logo=windows&logoColor=white">
+</p>
+
+<p align="center">
+  <a href="#instalación-rápida-usuario-final">Instalación</a> •
+  <a href="#qué-hay-adentro">Estructura</a> •
+  <a href="#capacidades-end-to-end-v04">Capacidades</a> •
+  <a href="#roadmap">Roadmap</a> •
+  <a href="#contribuir">Contribuir</a> •
+  <a href="#licencia">Licencia</a>
+</p>
+
+---
 
 > **Autor:** Emil Guillén De la Cruz · emilgdc@gmail.com ·
 > GitHub [@dashy2004](https://github.com/dashy2004) ·
