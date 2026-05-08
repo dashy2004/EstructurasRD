@@ -45,7 +45,7 @@ public class TxtLineClassifierTests
     [Fact]
     public void Linea_meta_archivo_de_datos()
     {
-        var line = "   Archivo de datos: ADN TORRE PS2 S SEMISOTANO.DL";
+        var line = "   Archivo de datos: SISTEMA DEMO 27 LOSAS.DL";
         Assert.Equal(Meta, TxtLineClassifier.Classify(line));
     }
 
@@ -75,7 +75,7 @@ public class TxtLineClassifierTests
     {
         // Smoke test contra el .TXT real: clasifica todas sus líneas y verifica que
         // detecta las secciones esperadas al menos una vez.
-        var path = Path.Combine(System.AppContext.BaseDirectory, "fixtures", "ADN_TORRE_PS2_S_SEMISOTANO.TXT");
+        var path = Path.Combine(System.AppContext.BaseDirectory, "fixtures", "sistema_demo_27_losas.TXT");
         Assert.True(File.Exists(path), "Fixture no disponible");
         var lines = File.ReadAllLines(path, System.Text.Encoding.GetEncoding(1252));
 

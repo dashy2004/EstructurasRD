@@ -9,11 +9,11 @@ namespace LosasPlus.Tests;
 
 /// <summary>
 /// Tests del <see cref="CargasGlobalesXlsxImporter"/> contra el archivo real
-/// del ingeniero (<c>ARCHIVO_ESTRUCTURAL_2025.xlsx</c>) copiado a fixtures.
+/// del ingeniero (<c>cargas_estructurales_demo.xlsx</c>) copiado a fixtures.
 /// </summary>
 public class CargasGlobalesXlsxImporterTests
 {
-    private const string XlsxReal = "fixtures/ARCHIVO_ESTRUCTURAL_2025.xlsx";
+    private const string XlsxReal = "fixtures/cargas_estructurales_demo.xlsx";
 
     // =================================================================
     // Smoke / archivo real del ingeniero

@@ -7,7 +7,7 @@ namespace LosasPlus.Tests;
 /// <summary>
 /// Tests del <see cref="CalculoEngine"/> validando cada función pura por separado
 /// y el pipeline orquestador completo, contra valores extraídos de la hoja
-/// <c>Carga EARLLETTE</c> del libro <c>ARCHIVO_ESTRUCTURAL_2025.xlsx</c>.
+/// <c>Carga EARLLETTE</c> del libro <c>cargas_estructurales_demo.xlsx</c>.
 ///
 /// <para>
 /// Goldens documentados (proyecto Neapolis IV, Ing. Oliver Guillén Rosa, CODIA 18139):

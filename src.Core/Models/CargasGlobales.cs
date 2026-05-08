@@ -15,7 +15,7 @@ namespace LosasPlus.Models;
 ///
 /// <para>
 /// El esqueleto refleja la estructura de la hoja <c>Cargas</c> del libro
-/// <c>ARCHIVO_ESTRUCTURAL_2025.xlsx</c> (ver <c>docs/referencia/</c>):
+/// <c>cargas_estructurales_demo.xlsx</c> (ver <c>docs/referencia/</c>):
 /// </para>
 /// <list type="bullet">
 ///   <item>Tabla de carga muerta por espesor (h = 0.06 → 0.20 m, paso 0.01).</item>
@@ -52,7 +52,7 @@ public class CargasGlobales : INotifyPropertyChanged
 
     /// <summary>
     /// Construye una <see cref="CargasGlobales"/> con los valores semilla extraídos
-    /// del libro <c>ARCHIVO_ESTRUCTURAL_2025.xlsx</c> (hoja <c>Cargas</c>).
+    /// del libro <c>cargas_estructurales_demo.xlsx</c> (hoja <c>Cargas</c>).
     /// </summary>
     public static CargasGlobales SemillaPorDefecto()
     {

@@ -15,7 +15,7 @@ namespace LosasPlus.Tests;
 /// </summary>
 public class TipoLosaCatalogTests
 {
-    private const string FIX_ADN = "fixtures/ADN_TORRE_PS2_S_SEMISOTANO.TXT";
+    private const string FIX_ADN = "fixtures/sistema_demo_27_losas.TXT";
 
     private static ParsedOutput LoadFixture(string relPath)
     {

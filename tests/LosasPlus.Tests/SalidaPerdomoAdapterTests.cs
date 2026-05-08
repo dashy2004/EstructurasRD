@@ -15,7 +15,7 @@ namespace LosasPlus.Tests;
 /// </summary>
 public class SalidaPerdomoAdapterTests
 {
-    private const string TxtFixture = "fixtures/ADN_TORRE_PS2_S_SEMISOTANO.TXT";
+    private const string TxtFixture = "fixtures/sistema_demo_27_losas.TXT";
 
     // =================================================================
     // Smoke

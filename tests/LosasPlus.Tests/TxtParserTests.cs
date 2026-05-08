@@ -12,7 +12,7 @@ namespace LosasPlus.Tests;
 /// </summary>
 public class TxtParserTests
 {
-    private const string FIX_ADN = "fixtures/ADN_TORRE_PS2_S_SEMISOTANO.TXT";
+    private const string FIX_ADN = "fixtures/sistema_demo_27_losas.TXT";
 
     private static ParsedOutput LoadFixture(string relPath)
     {
@@ -27,8 +27,8 @@ public class TxtParserTests
     public void Encabezado_extrae_sistema_y_metadatos()
     {
         var p = LoadFixture(FIX_ADN);
-        Assert.Equal("ADN TORRE PS2 S SEMISOTANO", p.Sistema);
-        Assert.Equal("ADN TORRE PS2 S SEMISOTANO.DL", p.Archivo);
+        Assert.Equal("SISTEMA DEMO 27 LOSAS", p.Sistema);
+        Assert.Equal("SISTEMA DEMO 27 LOSAS.DL", p.Archivo);
         Assert.Equal("Apr 29, 2026", p.Fecha);
         Assert.Equal("5.20", p.Version);
         Assert.Equal("ACI 318-08", p.Reglamento);

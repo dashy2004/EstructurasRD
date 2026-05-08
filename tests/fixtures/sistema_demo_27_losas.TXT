@@ -2,9 +2,9 @@
    DISEÑO DE SISTEMAS DE LOSAS                                Apr 29, 2026
    F. Perdomo   Ver. 5.20
 
-   SISTEMA DE LOSAS : ADN TORRE PS2 S SEMISOTANO
+   SISTEMA DE LOSAS : SISTEMA DEMO 27 LOSAS
    ================
-   Archivo de datos: ADN TORRE PS2 S SEMISOTANO.DL
+   Archivo de datos: SISTEMA DEMO 27 LOSAS.DL
 
    CÁLCULO DE MOMENTOS
 

@@ -77,8 +77,8 @@ public class MultiSistemaTests
     [Fact]
     public void Sistema_unico_sigue_funcionando_via_Read_legacy()
     {
-        var s = DLFileService.Read(FixturePath("ADN_TORRE_PS2_S_SEMISOTANO.DL"));
-        Assert.Equal("ADN TORRE PS2 S SEMISOTANO", s.Nombre);
+        var s = DLFileService.Read(FixturePath("sistema_demo_27_losas.DL"));
+        Assert.Equal("SISTEMA DEMO 27 LOSAS", s.Nombre);
         Assert.Equal(27, s.Losas.Count);
     }
 

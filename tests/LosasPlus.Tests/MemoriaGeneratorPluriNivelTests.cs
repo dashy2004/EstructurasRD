@@ -526,7 +526,7 @@ public class MemoriaGeneratorPluriNivelTests : IDisposable
         // Para cubrir las 27 losas del fixture real:
         for (int i = 1; i <= 27; i++) s.Losas.Add(new Losa { Id = i });
         s.SalidaPerdomo = SalidaPerdomoAdapter.FromFile(
-            "fixtures/ADN_TORRE_PS2_S_SEMISOTANO.TXT",
+            "fixtures/sistema_demo_27_losas.TXT",
             s.Losas.Select(l => l.Id));
         return s;
     }

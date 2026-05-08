@@ -6,7 +6,7 @@ namespace LosasPlus.Calculo;
 /// <summary>
 /// Motor de cálculo de Memoria Plus. Funciones puras estáticas que aplican
 /// las fórmulas extraídas de la hoja <c>Cargas</c> y <c>Espesor *</c> del libro
-/// <c>ARCHIVO_ESTRUCTURAL_2025.xlsx</c> (ver <c>docs/referencia/README.md</c>
+/// <c>cargas_estructurales_demo.xlsx</c> (ver <c>docs/referencia/README.md</c>
 /// para la equivalencia formulas ↔ ACI 318).
 ///
 /// <para>

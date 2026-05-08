@@ -21,7 +21,7 @@ public class DLFileServiceTests
     public void Lee_DL_con_nombre_de_sistema_que_contiene_espacios()
     {
         var s = DLFileService.Read(FixturePath("sample_simple.DL"));
-        Assert.Equal("ADN TORRE PS2 S SEMISOTANO", s.Nombre);
+        Assert.Equal("SISTEMA DEMO 27 LOSAS", s.Nombre);
         Assert.Equal(0.210, s.Fc);
         Assert.Equal(4.200, s.Fy);
         Assert.Equal(0, s.Adicionales);
@@ -162,12 +162,12 @@ public class DLFileServiceTests
     // ---------- Edge cases ----------
 
     [Fact]
-    public void Lee_DL_real_ADN_TORRE_con_27_losas_y_22_bordes()
+    public void Lee_DL_real_sistema_demo_con_27_losas_y_22_bordes()
     {
-        // El .DL "ADN TORRE PS2 S SEMISOTANO.DL" es del usuario y abre correctamente
+        // El .DL "SISTEMA DEMO 27 LOSAS.DL" es del usuario y abre correctamente
         // en Losas.exe; este test garantiza que LosasPlus también lo lee bien.
-        var s = DLFileService.Read(FixturePath("ADN_TORRE_PS2_S_SEMISOTANO.DL"));
-        Assert.Equal("ADN TORRE PS2 S SEMISOTANO", s.Nombre);
+        var s = DLFileService.Read(FixturePath("sistema_demo_27_losas.DL"));
+        Assert.Equal("SISTEMA DEMO 27 LOSAS", s.Nombre);
         Assert.Equal(0.210, s.Fc);
         Assert.Equal(4.200, s.Fy);
         Assert.Equal(0, s.Adicionales);
@@ -189,9 +189,9 @@ public class DLFileServiceTests
     }
 
     [Fact]
-    public void Roundtrip_DL_real_ADN_TORRE_preserva_todo()
+    public void Roundtrip_DL_real_sistema_demo_preserva_todo()
     {
-        var s1 = DLFileService.Read(FixturePath("ADN_TORRE_PS2_S_SEMISOTANO.DL"));
+        var s1 = DLFileService.Read(FixturePath("sistema_demo_27_losas.DL"));
         var tmp = Path.Combine(Path.GetTempPath(), $"adn_rt_{System.Guid.NewGuid():N}.DL");
         try
         {

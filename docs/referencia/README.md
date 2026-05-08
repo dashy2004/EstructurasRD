@@ -6,9 +6,8 @@ Material fuente del módulo Memoria Plus (generador de memorias de cálculo estr
 
 | Archivo | Origen | Uso |
 |---|---|---|
-| `Memoria_Losas_PLANTILLA.docx` | Plantilla del ingeniero | Base sobre la que `MemoriaPlus.App` reemplaza placeholders y rellena tablas. **No modificar** — copia de trabajo se vive en `MemoriaPlus.App/Resources/templates/`. |
-| `Memoria_Referencia_LuisSamboy.docx` | Memoria real ejecutada (proyecto Luis Samboy) | Golden de referencia para diff visual y validación de plurinivel. Convertido desde `.doc` legacy. |
-| `ARCHIVO_ESTRUCTURAL_2025.xlsx` | Libro Excel de cálculo del ingeniero | Fuente de las fórmulas (espesor, espesor equivalente, cargas) y tablas semilla para `Cargas globales`. Convertido desde `.xls` binario. |
+| `Memoria_Losas_PLANTILLA.docx` | Plantilla genérica de ejemplo | Plantilla mínima con todos los placeholders (`{{NOMBRE_PROYECTO}}`, `{{NIVEL_BLOQUE_INICIO}}`, `{{TABLA_LOSAS}}`, etc.) que `MemoriaPlus.App` consume. El usuario debería reemplazarla por su propia plantilla con el branding de su oficina. |
+| `cargas_estructurales_demo.xlsx` | Libro Excel demo | Fuente de las fórmulas (espesor, espesor equivalente, cargas) y tablas semilla para `Cargas globales`. Demo sintético — replicar la estructura para usar el importador con tu propio xls. |
 | `ui-design/` | Stitch — Google Labs | Wireframes de las 7 pantallas de `MemoriaPlus.App` + tokens de diseño (`DESIGN.md`). |
 
 ## Hojas relevantes del .xlsx
@@ -113,4 +112,9 @@ Para validar sin tocar la plantilla original, los tests usan plantillas program�
 
 ## Aviso
 
-Estos archivos contienen información de proyectos reales (Neapolis IV, ingeniero Oliver Guillén Rosa CODIA 18139; proyecto Luis Samboy). Se mantienen en este repo solo para servir de golden de tests y referencia de plantilla. **No redistribuir** sin consentimiento del autor.
+Los archivos de referencia (plantilla `.docx` genérica, libro Excel demo) son ejemplos sintéticos diseñados para que el sistema funcione fuera de la caja. **Para uso real**, los ingenieros deben reemplazarlos con su propia plantilla y datos:
+
+1. **Plantilla**: editar `Memoria_Losas_PLANTILLA.docx` en Word con el formato y branding de tu oficina, conservando los placeholders `{{...}}` documentados arriba.
+2. **Cargas globales**: importar tu propio `.xlsx` desde la pestaña Cargas (botón "Importar de .xls"). La estructura esperada está documentada en `CargasGlobalesXlsxImporter.cs`.
+
+Datos extraídos (`xls_dump/` si existiera) son útiles para entender la estructura interna del .xlsx y replicarla en tu propio archivo.

@@ -30,7 +30,7 @@ Esto fuerza una decisión arquitectónica.
 
 ### Experimento 1 — `Losas.exe <ruta.DL>` como argumento
 
-Setup: copié `ADN TORRE PS2 S SEMISOTANO.DL` al directorio de Losas.exe como `test_runner.DL`, lancé `Losas.exe "test_runner.DL"` desde esa carpeta, esperé 8 s.
+Setup: copié `SISTEMA DEMO 27 LOSAS.DL` al directorio de Losas.exe como `test_runner.DL`, lancé `Losas.exe "test_runner.DL"` desde esa carpeta, esperé 8 s.
 
 Resultado:
 - Proceso vivo, sin salir, GUI abierta titulada `"Losas"`.

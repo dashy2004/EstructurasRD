@@ -8,7 +8,7 @@ namespace LosasPlus.Importers;
 
 /// <summary>
 /// Importa una <see cref="CargasGlobales"/> desde un libro Excel con la
-/// estructura de <c>ARCHIVO_ESTRUCTURAL_2025.xlsx</c> del ingeniero
+/// estructura de <c>cargas_estructurales_demo.xlsx</c> del ingeniero
 /// (hoja <c>Cargas</c>).
 ///
 /// <para>
