@@ -1,0 +1,214 @@
+<UserControl x:Class="MemoriaPlus.Views.AtajosView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             Background="{StaticResource SurfaceBrush}">
+
+    <UserControl.Resources>
+        <!-- Estilo local para las "teclas" tipo keycap -->
+        <Style x:Key="KeyCapStyle" TargetType="{x:Type Border}">
+            <Setter Property="Background" Value="{StaticResource SurfaceContainerLowBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource OutlineVariantBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,2"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="KeyCapTextStyle" TargetType="{x:Type TextBlock}">
+            <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="32,24">
+        <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+
+            <TextBlock Style="{StaticResource H1Style}" Text="Atajos de teclado"/>
+            <TextBlock Margin="0,4,0,20"
+                       Foreground="{StaticResource OnSurfaceVariantBrush}"
+                       FontSize="13"
+                       Text="Lista de referencia. La personalización de atajos llegará en v0.6."/>
+
+            <!-- ============================================================
+                 SECCIÓN: GESTIÓN DE PROYECTO
+                 ============================================================ -->
+            <Border Style="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource LabelCapsStyle}" Text="📂  GESTIÓN DE PROYECTO"/>
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="180"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,4"
+                                   Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"
+                                   Text="Nuevo proyecto"/>
+                        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
+                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="N"/></Border>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,4"
+                                   Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"
+                                   Text="Abrir proyecto…"/>
+                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
+                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="O"/></Border>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,4"
+                                   Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"
+                                   Text="Guardar borrador (.lpx.json)"/>
+                        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
+                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="S"/></Border>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,4"
+                                   Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"
+                                   Text="Guardar como…"/>
+                        <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
+                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Shift"/></Border>
+                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="S"/></Border>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- ============================================================
+                 SECCIÓN: GENERACIÓN DE MEMORIA
+                 ============================================================ -->
+            <Border Style="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource LabelCapsStyle}" Text="📄  GENERACIÓN DE MEMORIA"/>
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="180"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,4"
+                                   Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"
+                                   Text="Generar memoria (.docx)"/>
+                        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
+                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="G"/></Border>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- ============================================================
+                 SECCIÓN: NAVEGACIÓN (próximamente)
+                 ============================================================ -->
+            <Border Style="{StaticResource SectionCardStyle}" Margin="0,0,0,12"
+                    Opacity="0.7">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Style="{StaticResource LabelCapsStyle}"
+                                   Text="⌨  NAVEGACIÓN (PRÓXIMAMENTE — v0.6)"/>
+                        <Border Grid.Column="1" Background="{StaticResource OutlineVariantBrush}"
+                                CornerRadius="4" Padding="6,2">
+                            <TextBlock Text="ROADMAP"
+                                       FontFamily="{StaticResource FontFamilyMono}" FontSize="10"
+                                       Foreground="{StaticResource OnSurfaceBrush}"/>
+                        </Border>
+                    </Grid>
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="180"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,4"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}" FontSize="13"
+                                   Text="Siguiente pestaña"/>
+                        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
+                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Tab"/></Border>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,4"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}" FontSize="13"
+                                   Text="Pestaña anterior"/>
+                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
+                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Shift"/></Border>
+                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Tab"/></Border>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,4"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}" FontSize="13"
+                                   Text="Búsqueda rápida"/>
+                        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
+                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="F"/></Border>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,4"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}" FontSize="13"
+                                   Text="Agregar losa al sistema"/>
+                        <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
+                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="L"/></Border>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Margin="0,8,0,0"
+                       Foreground="{StaticResource OnSurfaceVariantBrush}"
+                       FontSize="11" TextWrapping="Wrap"
+                       Text="Los atajos se aplican mientras la ventana principal tenga foco. En campos de texto, las teclas de letras se interpretan como entrada normal."/>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

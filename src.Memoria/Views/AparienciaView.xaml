@@ -1,0 +1,198 @@
+<UserControl x:Class="MemoriaPlus.Views.AparienciaView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DataContext="{d:DesignInstance Type=vm:ConfiguracionViewModel}"
+             mc:Ignorable="d"
+             Background="{StaticResource SurfaceBrush}">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="32,24">
+        <StackPanel>
+
+            <TextBlock Style="{StaticResource H1Style}" Text="Apariencia"/>
+            <TextBlock Margin="0,4,0,24"
+                       Foreground="{StaticResource OnSurfaceVariantBrush}"
+                       FontSize="13"
+                       Text="Personaliza el aspecto de Memoria Plus."/>
+
+            <!-- 3 cards horizontales -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- CARD 1: TEMA -->
+                <Border Grid.Column="0" Style="{StaticResource SectionCardStyle}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource LabelCapsStyle}" Text="🎨  TEMA"/>
+                        <TextBlock Margin="0,4,0,16"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                   FontSize="11" TextWrapping="Wrap"
+                                   Text="Selecciona el modo de color de la interfaz."/>
+                        <UniformGrid Rows="1" Columns="2">
+                            <RadioButton GroupName="Tema"
+                                         IsChecked="{Binding Apariencia.Tema, ConverterParameter=Claro,
+                                                     Converter={StaticResource EnumToBoolConverter}}"
+                                         Margin="0,0,4,0">
+                                <RadioButton.Template>
+                                    <ControlTemplate TargetType="RadioButton">
+                                        <Border x:Name="bd" Padding="0,18"
+                                                Background="{StaticResource SurfaceContainerLowestBrush}"
+                                                BorderBrush="{StaticResource OutlineVariantBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="{StaticResource CornerRadiusDefault}">
+                                            <StackPanel HorizontalAlignment="Center">
+                                                <TextBlock Text="☀" FontSize="28" HorizontalAlignment="Center"
+                                                           Foreground="{StaticResource OnSurfaceBrush}"/>
+                                                <TextBlock Text="Claro" HorizontalAlignment="Center" Margin="0,6,0,0"
+                                                           FontFamily="{StaticResource FontFamilyUI}" FontSize="12"
+                                                           Foreground="{StaticResource OnSurfaceBrush}"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                                                <Setter TargetName="bd" Property="BorderThickness" Value="2"/>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="bd" Property="Background" Value="{StaticResource SurfaceContainerLowBrush}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </RadioButton.Template>
+                            </RadioButton>
+
+                            <RadioButton GroupName="Tema"
+                                         IsChecked="{Binding Apariencia.Tema, ConverterParameter=Oscuro,
+                                                     Converter={StaticResource EnumToBoolConverter}}"
+                                         Margin="4,0,0,0">
+                                <RadioButton.Template>
+                                    <ControlTemplate TargetType="RadioButton">
+                                        <Border x:Name="bd" Padding="0,18"
+                                                Background="{StaticResource SurfaceContainerLowestBrush}"
+                                                BorderBrush="{StaticResource OutlineVariantBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="{StaticResource CornerRadiusDefault}">
+                                            <StackPanel HorizontalAlignment="Center">
+                                                <TextBlock Text="☾" FontSize="28" HorizontalAlignment="Center"
+                                                           Foreground="{StaticResource OnSurfaceBrush}"/>
+                                                <TextBlock Text="Oscuro" HorizontalAlignment="Center" Margin="0,6,0,0"
+                                                           FontFamily="{StaticResource FontFamilyUI}" FontSize="12"
+                                                           Foreground="{StaticResource OnSurfaceBrush}"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                                                <Setter TargetName="bd" Property="BorderThickness" Value="2"/>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="bd" Property="Background" Value="{StaticResource SurfaceContainerLowBrush}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </RadioButton.Template>
+                            </RadioButton>
+                        </UniformGrid>
+                    </StackPanel>
+                </Border>
+
+                <!-- CARD 2: TIPOGRAFÍA -->
+                <Border Grid.Column="2" Style="{StaticResource SectionCardStyle}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource LabelCapsStyle}" Text="🔤  TIPOGRAFÍA (DATOS)"/>
+                        <TextBlock Margin="0,4,0,16"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                   FontSize="11" TextWrapping="Wrap"
+                                   Text="Fuente monoespaciada para tablas de cálculo."/>
+                        <StackPanel>
+                            <RadioButton GroupName="Tipografia" Margin="0,0,0,6"
+                                         IsChecked="{Binding Apariencia.TipografiaDatos, ConverterParameter=JetBrains Mono,
+                                                     Converter={StaticResource EnumToBoolConverter}}"
+                                         Content="JetBrains Mono — 0123456789"
+                                         FontFamily="JetBrains Mono, Consolas"/>
+                            <RadioButton GroupName="Tipografia" Margin="0,0,0,6"
+                                         IsChecked="{Binding Apariencia.TipografiaDatos, ConverterParameter=Iosevka,
+                                                     Converter={StaticResource EnumToBoolConverter}}"
+                                         Content="Iosevka — 0123456789"
+                                         FontFamily="Iosevka, Consolas"/>
+                            <RadioButton GroupName="Tipografia"
+                                         IsChecked="{Binding Apariencia.TipografiaDatos, ConverterParameter=Consolas,
+                                                     Converter={StaticResource EnumToBoolConverter}}"
+                                         Content="Consolas — 0123456789"
+                                         FontFamily="Consolas"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- CARD 3: DENSIDAD -->
+                <Border Grid.Column="4" Style="{StaticResource SectionCardStyle}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource LabelCapsStyle}" Text="📏  DENSIDAD"/>
+                        <TextBlock Margin="0,4,0,16"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                   FontSize="11" TextWrapping="Wrap"
+                                   Text="Ajuste de altura de filas en tablas de datos."/>
+                        <StackPanel>
+                            <RadioButton GroupName="Densidad" Margin="0,0,0,6"
+                                         IsChecked="{Binding Apariencia.Densidad, ConverterParameter=Compacto,
+                                                     Converter={StaticResource EnumToBoolConverter}}">
+                                <Grid HorizontalAlignment="Stretch">
+                                    <TextBlock Text="Compacto" HorizontalAlignment="Left"/>
+                                    <TextBlock Text="24 px" HorizontalAlignment="Right"
+                                               FontFamily="{StaticResource FontFamilyMono}"
+                                               Foreground="{StaticResource OnSurfaceVariantBrush}"/>
+                                </Grid>
+                            </RadioButton>
+                            <RadioButton GroupName="Densidad" Margin="0,0,0,6"
+                                         IsChecked="{Binding Apariencia.Densidad, ConverterParameter=Medio,
+                                                     Converter={StaticResource EnumToBoolConverter}}">
+                                <Grid HorizontalAlignment="Stretch">
+                                    <TextBlock Text="Medio" HorizontalAlignment="Left"/>
+                                    <TextBlock Text="28 px" HorizontalAlignment="Right"
+                                               FontFamily="{StaticResource FontFamilyMono}"
+                                               Foreground="{StaticResource PrimaryBrush}"
+                                               FontWeight="SemiBold"/>
+                                </Grid>
+                            </RadioButton>
+                            <RadioButton GroupName="Densidad"
+                                         IsChecked="{Binding Apariencia.Densidad, ConverterParameter=Cómodo,
+                                                     Converter={StaticResource EnumToBoolConverter}}">
+                                <Grid HorizontalAlignment="Stretch">
+                                    <TextBlock Text="Cómodo" HorizontalAlignment="Left"/>
+                                    <TextBlock Text="32 px" HorizontalAlignment="Right"
+                                               FontFamily="{StaticResource FontFamilyMono}"
+                                               Foreground="{StaticResource OnSurfaceVariantBrush}"/>
+                                </Grid>
+                            </RadioButton>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- FOOTER: Acciones -->
+            <StackPanel Orientation="Horizontal" Margin="0,24,0,0" HorizontalAlignment="Right">
+                <Button Style="{StaticResource SecondaryButtonStyle}"
+                        Content="↺ Restaurar defaults"
+                        Padding="14,0" Margin="0,0,8,0"
+                        Command="{Binding RestaurarAparienciaCommand}"/>
+                <Button Style="{StaticResource PrimaryButtonStyle}"
+                        Content="💾 Aplicar y guardar"
+                        Padding="16,0"
+                        Command="{Binding GuardarAparienciaCommand}"/>
+            </StackPanel>
+
+            <TextBlock Margin="0,16,0,0"
+                       Foreground="{StaticResource OnSurfaceVariantBrush}"
+                       FontSize="11" TextWrapping="Wrap"
+                       Text="Algunos cambios (tema oscuro completo, fuentes) requieren reiniciar la app para aplicarse al ResourceDictionary global. La densidad sí aplica en vivo."/>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

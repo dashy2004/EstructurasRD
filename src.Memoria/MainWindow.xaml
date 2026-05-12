@@ -317,7 +317,7 @@
                             <DataTrigger Binding="{Binding ModoActivo}" Value="Configuracion">
                                 <Setter Property="Content">
                                     <Setter.Value>
-                                        <vw:ComingSoonView Tag="Configuración general"/>
+                                        <vw:ConfiguracionView/>
                                     </Setter.Value>
                                 </Setter>
                             </DataTrigger>

@@ -1,0 +1,107 @@
+<UserControl x:Class="MemoriaPlus.Views.ConfiguracionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
+             xmlns:vw="clr-namespace:MemoriaPlus.Views"
+             xmlns:cmn="clr-namespace:MemoriaPlus.Common"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DataContext="{d:DesignInstance Type=vm:ConfiguracionViewModel}"
+             mc:Ignorable="d"
+             Background="{StaticResource SurfaceBrush}">
+
+    <UserControl.DataContext>
+        <vm:ConfiguracionViewModel/>
+    </UserControl.DataContext>
+
+    <UserControl.Resources>
+        <cmn:EnumToBoolConverter x:Key="EnumToBoolConverter"/>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="260"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ============================================================
+             Sub-sidebar interno de Configuración
+             ============================================================ -->
+        <Border Grid.Column="0" Padding="16,20"
+                BorderBrush="{StaticResource OutlineVariantBrush}"
+                BorderThickness="0,0,1,0">
+            <StackPanel>
+                <TextBlock Style="{StaticResource LabelCapsStyle}" Text="CONFIGURACIÓN"
+                           Margin="0,0,0,12"/>
+
+                <RadioButton Style="{StaticResource SidebarNavItemStyle}"
+                             GroupName="ConfigSubTab"
+                             IsChecked="{Binding SubTabActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DatosIngeniero}"
+                             Content="👤  Datos del ingeniero"/>
+                <RadioButton Style="{StaticResource SidebarNavItemStyle}"
+                             GroupName="ConfigSubTab"
+                             IsChecked="{Binding SubTabActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Apariencia}"
+                             Content="🎨  Apariencia"/>
+                <RadioButton Style="{StaticResource SidebarNavItemStyle}"
+                             GroupName="ConfigSubTab"
+                             IsChecked="{Binding SubTabActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Atajos}"
+                             Content="⌨  Atajos de teclado"/>
+
+                <!-- Status del último guardado -->
+                <Border Margin="0,24,0,0" Padding="10,8"
+                        Background="{StaticResource SuccessBrush}"
+                        Opacity="0.12"
+                        CornerRadius="{StaticResource CornerRadiusDefault}">
+                    <Border.Style>
+                        <Style TargetType="{x:Type Border}">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding MostrarStatus}" Value="False">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Text="{Binding StatusGuardado}"
+                               FontFamily="{StaticResource FontFamilyMono}"
+                               FontSize="11"
+                               Foreground="{StaticResource OnSurfaceBrush}"
+                               TextWrapping="Wrap"/>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- ============================================================
+             Contenido del sub-tab activo
+             ============================================================ -->
+        <ContentControl Grid.Column="1">
+            <ContentControl.Style>
+                <Style TargetType="{x:Type ContentControl}">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding SubTabActivo}" Value="DatosIngeniero">
+                            <Setter Property="Content">
+                                <Setter.Value>
+                                    <vw:DatosIngenieroView/>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding SubTabActivo}" Value="Apariencia">
+                            <Setter Property="Content">
+                                <Setter.Value>
+                                    <vw:AparienciaView/>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding SubTabActivo}" Value="Atajos">
+                            <Setter Property="Content">
+                                <Setter.Value>
+                                    <vw:AtajosView/>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ContentControl.Style>
+        </ContentControl>
+    </Grid>
+</UserControl>

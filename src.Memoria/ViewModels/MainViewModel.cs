@@ -451,11 +451,28 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    /// <summary>Crea un Proyecto vacío con cargas semilla. Reemplaza el ProyectoActivo.</summary>
+    /// <summary>
+    /// Crea un Proyecto vacío con cargas semilla y precarga los campos de autor
+    /// con el <see cref="PerfilIngeniero"/> guardado por el usuario (si existe).
+    /// Reemplaza el ProyectoActivo.
+    /// </summary>
     private void NuevoProyecto()
     {
         var p = ProyectoFactory.NuevoProyectoSeedeado();
         p.Nombre = "Proyecto sin título";
+
+        // Precarga del perfil del ingeniero (commit 19): si el usuario configuró
+        // sus datos en Configuración → Datos del ingeniero, se aplican aquí.
+        if (PerfilIngenieroService.Existe())
+        {
+            var perfil = PerfilIngenieroService.Load();
+            if (!string.IsNullOrWhiteSpace(perfil.Nombre))           p.Autor = perfil.Nombre;
+            if (!string.IsNullOrWhiteSpace(perfil.Codia))            p.Codia = perfil.Codia;
+            if (!string.IsNullOrWhiteSpace(perfil.TelefonoFijo))     p.TelefonoFijo = perfil.TelefonoFijo;
+            if (!string.IsNullOrWhiteSpace(perfil.TelefonoCelular))  p.TelefonoCelular = perfil.TelefonoCelular;
+            if (!string.IsNullOrWhiteSpace(perfil.Ciudad))           p.Ciudad = perfil.Ciudad;
+        }
+
         ProyectoActivo = p;
         AdjuntarRecalculoEnVivo(p);
         SistemaActivo = null;  // proyecto nuevo sin sistemas
