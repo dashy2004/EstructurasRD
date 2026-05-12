@@ -21,6 +21,7 @@
         <KeyBinding Modifiers="Ctrl+Shift" Key="S" Command="{Binding GuardarComoCommand}"/>
         <KeyBinding Modifiers="Ctrl"       Key="G" Command="{Binding GenerarMemoriaCommand}"/>
         <KeyBinding Modifiers="Ctrl"       Key="L" Command="{Binding AgregarLosaCommand}"/>
+        <KeyBinding Modifiers="Ctrl"       Key="F" Command="{Binding IrABusquedaCommand}"/>
     </Window.InputBindings>
 
     <Grid>
@@ -349,7 +350,7 @@
                             <DataTrigger Binding="{Binding ModoActivo}" Value="Busqueda">
                                 <Setter Property="Content">
                                     <Setter.Value>
-                                        <vw:ComingSoonView Tag="Búsqueda global"/>
+                                        <vw:BusquedaView/>
                                     </Setter.Value>
                                 </Setter>
                             </DataTrigger>

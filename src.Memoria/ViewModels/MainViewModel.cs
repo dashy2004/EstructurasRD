@@ -58,9 +58,21 @@ public sealed class MainViewModel : INotifyPropertyChanged
         AbrirEnCalculosCommand = new RelayCommand(AbrirEnCalculos,
             () => ProyectoRecienteSeleccionado != null
                   && !string.IsNullOrEmpty(ProyectoRecienteSeleccionado.Path));
+        IrABusquedaCommand = new RelayCommand(() => ModoActivo = ModoSidebar.Busqueda);
 
         // ---- Validación normativa (commit 21) ----
         Validacion = new ValidacionViewModel();
+
+        // ---- Búsqueda global (commit 26) ----
+        // Lambdas con suppress (!) — ProyectosRecientes y _proyectoActivo se
+        // inicializan más abajo en este mismo ctor; las lambdas sólo se
+        // ejecutan en respuesta a interacción del usuario, mucho después.
+        Busqueda = new BusquedaViewModel(
+            getProyectosRecientes: () => ProyectosRecientes!,
+            getProyectoActivo:     () => _proyectoActivo!,
+            abrirProyectoPorPath:  path => { AbrirProyectoReciente(path); ModoActivo = ModoSidebar.Calculos; },
+            irASistema:            BuscarYActivarSistema,
+            irALosa:               BuscarYActivarLosa);
         // Refresca IssuesEnSistemaActivo cuando el reporte se renueva (commit 22).
         Validacion.PropertyChanged += (s, e) =>
         {
@@ -69,6 +81,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 OnPropertyChanged(nameof(IssuesEnSistemaActivo));
                 OnPropertyChanged(nameof(HayIssuesEnSistemaActivo));
             }
+        };
+
+        // Refresca resultados de búsqueda cuando cambia el proyecto activo (commit 26).
+        PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(ProyectoActivo)) Busqueda?.Refrescar();
         };
 
         // ---- Sidebar: lista de proyectos recientes (carga desde el registry real) ----
@@ -293,6 +311,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand AgregarLosaCommand    { get; }
     public RelayCommand AgregarSistemaCommand { get; }
     public RelayCommand AbrirEnCalculosCommand { get; }
+    public RelayCommand IrABusquedaCommand    { get; }
 
     /// <summary>
     /// Sub-VM que mantiene el reporte de validación normativa y los conteos
@@ -300,6 +319,41 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// las losas (sin debounce — el engine es trivial).
     /// </summary>
     public ValidacionViewModel Validacion { get; }
+
+    /// <summary>
+    /// Sub-VM del modo Búsqueda Global (commit 26). Filtra simultáneamente
+    /// sobre proyectos recientes, sistemas y losas del proyecto activo. Sus
+    /// callbacks de navegación delegan en este MainViewModel.
+    /// </summary>
+    public BusquedaViewModel Busqueda { get; }
+
+    /// <summary>
+    /// Cambia el SistemaActivo al sistema con el nombre dado y entra al modo
+    /// Cálculos en la pestaña Niveles. Usado por la navegación desde
+    /// Búsqueda Global cuando el usuario clickea un resultado tipo "Nivel".
+    /// </summary>
+    private void BuscarYActivarSistema(string nombreSistema)
+    {
+        if (ProyectoActivo is null) return;
+        var sistema = ProyectoActivo.Sistemas.FirstOrDefault(s => s.Nombre == nombreSistema);
+        if (sistema is null) return;
+        SistemaActivo = sistema;
+        ModoActivo = ModoSidebar.Calculos;
+        var tabNiveles = Tabs.FirstOrDefault(t => t.Slug == "Niveles");
+        if (tabNiveles is not null) TabActivo = tabNiveles;
+    }
+
+    /// <summary>
+    /// Análogo a <see cref="BuscarYActivarSistema"/> pero también guarda el
+    /// id de la losa como contexto. La selección visual del DataGrid en
+    /// Niveles no se mueve automáticamente — un futuro commit puede agregar
+    /// scroll-to-row.
+    /// </summary>
+    private void BuscarYActivarLosa(string nombreSistema, int losaId)
+    {
+        BuscarYActivarSistema(nombreSistema);
+        // TODO: cuando exista LosaSeleccionada en SistemaActivo, asignarla aquí.
+    }
 
     /// <summary>
     /// Conteo de issues que afectan al SistemaActivo. Usado por el banner
@@ -681,6 +735,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 || p.Codia.Contains(q, StringComparison.OrdinalIgnoreCase));
         }
         foreach (var p in resultados) ProyectosRecientesFiltrados.Add(p);
+        Busqueda?.Refrescar();
     }
 
     /// <summary>

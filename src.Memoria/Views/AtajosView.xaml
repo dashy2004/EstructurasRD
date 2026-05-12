@@ -127,6 +127,34 @@
             </Border>
 
             <!-- ============================================================
+                 SECCIÓN: BÚSQUEDA
+                 ============================================================ -->
+            <Border Style="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource LabelCapsStyle}" Text="🔍  BÚSQUEDA"/>
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="180"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,4"
+                                   Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"
+                                   Text="Búsqueda global (proyectos / niveles / losas)"/>
+                        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
+                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
+                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="F"/></Border>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- ============================================================
                  SECCIÓN: GENERACIÓN DE MEMORIA
                  ============================================================ -->
             <Border Style="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
@@ -182,7 +210,6 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,4"
@@ -206,16 +233,6 @@
                             <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
                                        Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
                             <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Tab"/></Border>
-                        </StackPanel>
-
-                        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,4"
-                                   Foreground="{StaticResource OnSurfaceVariantBrush}" FontSize="13"
-                                   Text="Búsqueda rápida"/>
-                        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
-                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
-                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="F"/></Border>
                         </StackPanel>
                     </Grid>
                 </StackPanel>

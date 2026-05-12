@@ -1,0 +1,310 @@
+<UserControl x:Class="MemoriaPlus.Views.BusquedaView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+             mc:Ignorable="d"
+             Background="{StaticResource SurfaceBrush}">
+
+    <UserControl.Resources>
+        <!-- Card de resultado: usado por las 3 secciones (Proyectos / Sistemas / Losas). -->
+        <Style x:Key="ResultadoCardStyle" TargetType="{x:Type ListBoxItem}">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                        <Border x:Name="bd" Padding="12,8"
+                                Background="{StaticResource SurfaceContainerLowestBrush}"
+                                BorderBrush="{StaticResource OutlineVariantBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource CornerRadiusDefault}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <!-- Icono por tipo -->
+                                <Border Grid.Column="0" Margin="0,0,10,0"
+                                        Background="{StaticResource SurfaceContainerBrush}"
+                                        CornerRadius="{StaticResource CornerRadiusSm}"
+                                        Padding="6,2" VerticalAlignment="Center">
+                                    <TextBlock FontFamily="{StaticResource FontFamilyMono}"
+                                               FontSize="10" FontWeight="SemiBold"
+                                               Foreground="{StaticResource OnSurfaceBrush}"
+                                               Text="{Binding Tipo}"/>
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Titulo}"
+                                               FontFamily="{StaticResource FontFamilyUI}"
+                                               FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{StaticResource OnSurfaceBrush}"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding Subtitulo}"
+                                               FontFamily="{StaticResource FontFamilyMono}"
+                                               FontSize="11"
+                                               Margin="0,2,0,0"
+                                               Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                                <TextBlock Grid.Column="2" VerticalAlignment="Center"
+                                           FontSize="14"
+                                           Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                           Text="→"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource SurfaceContainerLowBrush}"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="32,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>  <!-- header + search box -->
+            <RowDefinition Height="Auto"/>  <!-- conteo total -->
+            <RowDefinition Height="*"/>     <!-- resultados -->
+        </Grid.RowDefinitions>
+
+        <!-- HEADER -->
+        <StackPanel Grid.Row="0">
+            <TextBlock Style="{StaticResource H1Style}" Text="Búsqueda global"/>
+            <TextBlock Margin="0,4,0,16"
+                       Foreground="{StaticResource OnSurfaceVariantBrush}"
+                       FontSize="13"
+                       Text="Busca simultáneamente en proyectos recientes, niveles y losas del proyecto activo."/>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="SearchBox"
+                         Grid.Column="0"
+                         FontSize="14"
+                         Padding="12,8"
+                         VerticalContentAlignment="Center"
+                         Text="{Binding Busqueda.TextoBusqueda, UpdateSourceTrigger=PropertyChanged}"
+                         ToolTip="Tipea para filtrar — Esc limpia"
+                         IsVisibleChanged="SearchBox_IsVisibleChanged">
+                    <TextBox.InputBindings>
+                        <KeyBinding Key="Escape" Command="{Binding Busqueda.LimpiarCommand}"/>
+                    </TextBox.InputBindings>
+                </TextBox>
+                <Button Grid.Column="1" Margin="8,0,0,0"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Padding="14,0"
+                        Content="✕ Limpiar"
+                        Command="{Binding Busqueda.LimpiarCommand}"/>
+            </Grid>
+        </StackPanel>
+
+        <!-- CONTEO TOTAL -->
+        <TextBlock Grid.Row="1" Margin="0,12,0,12"
+                   FontFamily="{StaticResource FontFamilyMono}"
+                   FontSize="11"
+                   Foreground="{StaticResource OnSurfaceVariantBrush}">
+            <TextBlock.Style>
+                <Style TargetType="{x:Type TextBlock}">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Busqueda.BusquedaVacia}" Value="False">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+            <Run Text="Resultados: "/>
+            <Run Text="{Binding Busqueda.ConteoTotal, Mode=OneWay}"
+                 Foreground="{StaticResource OnSurfaceBrush}"
+                 FontWeight="SemiBold"/>
+            <Run Text=" ("/>
+            <Run Text="{Binding Busqueda.ConteoProyectos, Mode=OneWay}"/>
+            <Run Text=" proyectos · "/>
+            <Run Text="{Binding Busqueda.ConteoSistemas, Mode=OneWay}"/>
+            <Run Text=" niveles · "/>
+            <Run Text="{Binding Busqueda.ConteoLosas, Mode=OneWay}"/>
+            <Run Text=" losas)"/>
+        </TextBlock>
+
+        <!-- RESULTADOS -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <Grid>
+                <!-- Empty state: cuando texto está vacío (no se ha empezado a buscar) -->
+                <Border Padding="32" CornerRadius="{StaticResource CornerRadiusDefault}"
+                        Background="{StaticResource SurfaceContainerLowestBrush}"
+                        BorderBrush="{StaticResource OutlineVariantBrush}"
+                        BorderThickness="1"
+                        MaxWidth="480"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Top">
+                    <Border.Style>
+                        <Style TargetType="{x:Type Border}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Busqueda.BusquedaVacia}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="🔍" FontSize="40" HorizontalAlignment="Center"
+                                   Foreground="{StaticResource OutlineBrush}"/>
+                        <TextBlock Text="Empieza a buscar"
+                                   FontFamily="{StaticResource FontFamilyUI}"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Margin="0,12,0,4" HorizontalAlignment="Center"
+                                   Foreground="{StaticResource OnSurfaceBrush}"/>
+                        <TextBlock TextAlignment="Center" TextWrapping="Wrap"
+                                   FontSize="12"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                   Text="Tipea cualquier término para buscar en proyectos recientes (nombre / ingeniero / CODIA), niveles (nombre) y losas (id) del proyecto activo. Atajo Ctrl+F."/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Empty state: cuando hay texto pero 0 resultados -->
+                <Border Padding="32" CornerRadius="{StaticResource CornerRadiusDefault}"
+                        Background="{StaticResource SurfaceContainerLowestBrush}"
+                        BorderBrush="{StaticResource OutlineVariantBrush}"
+                        BorderThickness="1"
+                        MaxWidth="480"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Top">
+                    <Border.Style>
+                        <Style TargetType="{x:Type Border}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding Busqueda.BusquedaVacia}" Value="False"/>
+                                        <Condition Binding="{Binding Busqueda.HayResultados}" Value="False"/>
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="⊘" FontSize="40" HorizontalAlignment="Center"
+                                   Foreground="{StaticResource OutlineBrush}"/>
+                        <TextBlock Text="Sin resultados"
+                                   FontFamily="{StaticResource FontFamilyUI}"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Margin="0,12,0,4" HorizontalAlignment="Center"
+                                   Foreground="{StaticResource OnSurfaceBrush}"/>
+                        <TextBlock TextAlignment="Center" TextWrapping="Wrap"
+                                   FontSize="12"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                   Text="Ningún proyecto, nivel o losa coincide con el término actual."/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 3 secciones con resultados -->
+                <StackPanel>
+                    <StackPanel.Style>
+                        <Style TargetType="{x:Type StackPanel}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Busqueda.HayResultados}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+
+                    <!-- Sección Proyectos -->
+                    <StackPanel Margin="0,0,0,16">
+                        <StackPanel.Style>
+                            <Style TargetType="{x:Type StackPanel}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Busqueda.ConteoProyectos, Converter={x:Null}}" Value="0">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource LabelCapsStyle}" Text="📂  PROYECTOS"/>
+                            <TextBlock Grid.Column="1" HorizontalAlignment="Right"
+                                       FontFamily="{StaticResource FontFamilyMono}"
+                                       FontSize="11"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                       Text="{Binding Busqueda.ConteoProyectos, StringFormat={}{0} resultados, Mode=OneWay}"/>
+                        </Grid>
+                        <ListBox ItemsSource="{Binding Busqueda.ResultadosProyectos}"
+                                 ItemContainerStyle="{StaticResource ResultadoCardStyle}"
+                                 BorderThickness="0" Background="Transparent"
+                                 HorizontalContentAlignment="Stretch"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                 MouseDoubleClick="Resultados_OnMouseDoubleClick"/>
+                    </StackPanel>
+
+                    <!-- Sección Niveles -->
+                    <StackPanel Margin="0,0,0,16">
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource LabelCapsStyle}" Text="🏗  NIVELES"/>
+                            <TextBlock Grid.Column="1" HorizontalAlignment="Right"
+                                       FontFamily="{StaticResource FontFamilyMono}"
+                                       FontSize="11"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                       Text="{Binding Busqueda.ConteoSistemas, StringFormat={}{0} resultados, Mode=OneWay}"/>
+                        </Grid>
+                        <ListBox ItemsSource="{Binding Busqueda.ResultadosSistemas}"
+                                 ItemContainerStyle="{StaticResource ResultadoCardStyle}"
+                                 BorderThickness="0" Background="Transparent"
+                                 HorizontalContentAlignment="Stretch"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                 MouseDoubleClick="Resultados_OnMouseDoubleClick"/>
+                    </StackPanel>
+
+                    <!-- Sección Losas -->
+                    <StackPanel Margin="0,0,0,16">
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource LabelCapsStyle}" Text="📐  LOSAS"/>
+                            <TextBlock Grid.Column="1" HorizontalAlignment="Right"
+                                       FontFamily="{StaticResource FontFamilyMono}"
+                                       FontSize="11"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                       Text="{Binding Busqueda.ConteoLosas, StringFormat={}{0} resultados, Mode=OneWay}"/>
+                        </Grid>
+                        <ListBox ItemsSource="{Binding Busqueda.ResultadosLosas}"
+                                 ItemContainerStyle="{StaticResource ResultadoCardStyle}"
+                                 BorderThickness="0" Background="Transparent"
+                                 HorizontalContentAlignment="Stretch"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                 MouseDoubleClick="Resultados_OnMouseDoubleClick"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+    </Grid>
+</UserControl>
