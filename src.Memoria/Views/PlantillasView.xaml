@@ -1,0 +1,282 @@
+<UserControl x:Class="MemoriaPlus.Views.PlantillasView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DataContext="{d:DesignInstance Type=vm:PlantillasViewModel}"
+             mc:Ignorable="d"
+             Background="{StaticResource SurfaceBrush}">
+
+    <UserControl.DataContext>
+        <vm:PlantillasViewModel/>
+    </UserControl.DataContext>
+
+    <UserControl.Resources>
+        <!-- Card de plantilla: thumb + nombre + fecha + badge PREDETERMINADA -->
+        <Style x:Key="PlantillaCardStyle" TargetType="{x:Type ListBoxItem}">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,16,16"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ListBoxItem}">
+                        <Border x:Name="bd" Width="240" Height="200"
+                                Background="{StaticResource SurfaceContainerLowestBrush}"
+                                BorderBrush="{StaticResource OutlineVariantBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource CornerRadiusDefault}">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>     <!-- thumb -->
+                                    <RowDefinition Height="Auto"/>  <!-- info -->
+                                </Grid.RowDefinitions>
+
+                                <!-- Thumb fake (rectangulo gris con líneas) -->
+                                <Border Grid.Row="0" Margin="20,20,20,12"
+                                        Background="{StaticResource SurfaceContainerBrush}"
+                                        BorderBrush="{StaticResource OutlineVariantBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="{StaticResource CornerRadiusSm}">
+                                    <Grid Margin="14">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="6"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="4"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <Border Grid.Row="0" Height="10" HorizontalAlignment="Left" Width="120"
+                                                Background="{StaticResource OutlineVariantBrush}"/>
+                                        <Border Grid.Row="2" Height="6" HorizontalAlignment="Stretch"
+                                                Background="{StaticResource OutlineVariantBrush}"/>
+                                        <Border Grid.Row="4" Height="6" HorizontalAlignment="Stretch"
+                                                Background="{StaticResource OutlineVariantBrush}"/>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Badge PREDETERMINADA: top-left, visible solo si flag -->
+                                <Border Grid.Row="0" Margin="10"
+                                        VerticalAlignment="Top" HorizontalAlignment="Left"
+                                        Background="{StaticResource PrimaryBrush}"
+                                        CornerRadius="{StaticResource CornerRadiusSm}"
+                                        Padding="6,1">
+                                    <Border.Style>
+                                        <Style TargetType="{x:Type Border}">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding EsPredeterminada}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <TextBlock Text="PREDETERMINADA"
+                                               FontFamily="{StaticResource FontFamilyMono}"
+                                               FontSize="9" FontWeight="SemiBold"
+                                               Foreground="White"/>
+                                </Border>
+
+                                <!-- Info (nombre + fecha) -->
+                                <StackPanel Grid.Row="1" Margin="14,0,14,14">
+                                    <TextBlock Text="{Binding Nombre}"
+                                               FontFamily="{StaticResource FontFamilyUI}"
+                                               FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{StaticResource OnSurfaceBrush}"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip="{Binding Nombre}"/>
+                                    <TextBlock Margin="0,4,0,0"
+                                               FontFamily="{StaticResource FontFamilyMono}"
+                                               FontSize="10"
+                                               Foreground="{StaticResource OnSurfaceVariantBrush}">
+                                        <Run Text="Actualizado: "/>
+                                        <Run Text="{Binding Actualizado, StringFormat=dd/MM/yy}"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                                <Setter TargetName="bd" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource SurfaceContainerLowBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="32,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>  <!-- header -->
+            <RowDefinition Height="Auto"/>  <!-- status -->
+            <RowDefinition Height="*"/>     <!-- grid de cards -->
+            <RowDefinition Height="Auto"/>  <!-- footer con acciones -->
+        </Grid.RowDefinitions>
+
+        <!-- HEADER -->
+        <Grid Grid.Row="0" Margin="0,0,0,20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock Style="{StaticResource H1Style}" Text="Plantillas de Documentos"/>
+                <TextBlock Margin="0,4,0,0"
+                           Foreground="{StaticResource OnSurfaceVariantBrush}"
+                           FontSize="13"
+                           Text="Gestiona los formatos base para la generación de memorias de cálculo."/>
+            </StackPanel>
+            <Button Grid.Column="1" VerticalAlignment="Center"
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    Padding="14,0"
+                    Command="{Binding ImportarCommand}">
+                <TextBlock>
+                    <Run Text="📄+ Importar plantilla .docx"/>
+                </TextBlock>
+            </Button>
+        </Grid>
+
+        <!-- STATUS -->
+        <Border Grid.Row="1" Margin="0,0,0,12" Padding="10,6"
+                Background="{StaticResource SurfaceContainerLowestBrush}"
+                BorderBrush="{StaticResource OutlineVariantBrush}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource CornerRadiusDefault}">
+            <Border.Style>
+                <Style TargetType="{x:Type Border}">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding MostrarStatus}" Value="True">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <TextBlock Text="{Binding StatusGuardado}"
+                       FontFamily="{StaticResource FontFamilyMono}"
+                       FontSize="11"
+                       Foreground="{StaticResource OnSurfaceBrush}"
+                       TextWrapping="Wrap"/>
+        </Border>
+
+        <!-- GRID DE CARDS -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <Grid>
+                <!-- Empty state -->
+                <Border Padding="32" CornerRadius="{StaticResource CornerRadiusDefault}"
+                        Background="{StaticResource SurfaceContainerLowestBrush}"
+                        BorderBrush="{StaticResource OutlineVariantBrush}"
+                        BorderThickness="1"
+                        MaxWidth="480"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Top">
+                    <Border.Style>
+                        <Style TargetType="{x:Type Border}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Plantillas.Count}" Value="0">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="📄" FontSize="40" HorizontalAlignment="Center"
+                                   Foreground="{StaticResource OutlineBrush}"/>
+                        <TextBlock Text="Sin plantillas registradas"
+                                   FontFamily="{StaticResource FontFamilyUI}"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Margin="0,12,0,4" HorizontalAlignment="Center"
+                                   Foreground="{StaticResource OnSurfaceBrush}"/>
+                        <TextBlock TextAlignment="Center" TextWrapping="Wrap"
+                                   FontSize="12"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                   Text="Importa un archivo .docx para usarlo como plantilla base de tus memorias de cálculo. La app aplicará tus datos sobre los placeholders del archivo."/>
+                    </StackPanel>
+                </Border>
+
+                <!-- ListBox real -->
+                <ListBox ItemsSource="{Binding Plantillas}"
+                         SelectedItem="{Binding PlantillaSeleccionada}"
+                         ItemContainerStyle="{StaticResource PlantillaCardStyle}"
+                         BorderThickness="0"
+                         Background="Transparent"
+                         HorizontalContentAlignment="Stretch"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                </ListBox>
+            </Grid>
+        </ScrollViewer>
+
+        <!-- FOOTER con acciones sobre la selección -->
+        <Border Grid.Row="3" Margin="0,16,0,0" Padding="16,12"
+                Background="{StaticResource SurfaceContainerLowBrush}"
+                BorderBrush="{StaticResource OutlineVariantBrush}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource CornerRadiusDefault}">
+            <Border.Style>
+                <Style TargetType="{x:Type Border}">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding PlantillaSeleccionada, Converter={x:Null}}" Value="{x:Null}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <Border.Resources>
+                <Style TargetType="{x:Type Border}">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </Style>
+            </Border.Resources>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock FontFamily="{StaticResource FontFamilyUI}"
+                               FontSize="13" FontWeight="SemiBold"
+                               Foreground="{StaticResource OnSurfaceBrush}"
+                               Text="{Binding PlantillaSeleccionada.Nombre, TargetNullValue='Selecciona una plantilla'}"/>
+                    <TextBlock Margin="0,2,0,0"
+                               FontFamily="{StaticResource FontFamilyMono}"
+                               FontSize="11"
+                               Foreground="{StaticResource OnSurfaceVariantBrush}"
+                               TextTrimming="CharacterEllipsis"
+                               Text="{Binding PlantillaSeleccionada.Path, TargetNullValue=''}"
+                               ToolTip="{Binding PlantillaSeleccionada.Path}"/>
+                </StackPanel>
+                <Button Grid.Column="1" Margin="8,0,0,0"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Padding="12,0"
+                        Content="📂 Abrir en Word"
+                        Command="{Binding AbrirArchivoCommand}"/>
+                <Button Grid.Column="2" Margin="8,0,0,0"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Padding="12,0"
+                        Content="★ Marcar predeterminada"
+                        Command="{Binding MarcarComoPredeterminadaCommand}"/>
+                <Button Grid.Column="3" Margin="8,0,0,0"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Padding="12,0"
+                        Content="✕ Quitar"
+                        Command="{Binding QuitarCommand}"
+                        ToolTip="Eliminar la entrada del registry (el archivo .docx en disco no se borra)"/>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

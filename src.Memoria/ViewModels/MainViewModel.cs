@@ -34,6 +34,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
 {
     public MainViewModel()
     {
+        // ---- Bootstrap del registry de plantillas (commit 25) ----
+        // Si es el primer arranque, registra la plantilla bundleada como
+        // predeterminada para que el flujo de Generar no quede sin template.
+        BootstrapPlantillaPredeterminada();
+
         // ---- Commands del top bar (se inicializan PRIMERO porque el setter de
         //      TabActivo invoca ContinuarCommand.RaiseCanExecuteChanged) ----
         ContinuarCommand          = new RelayCommand(Continuar,        PuedeContinuar);
@@ -907,15 +912,35 @@ public sealed class MainViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Encuentra la plantilla bundleada con la app. Default:
-    /// <c>{AppBaseDir}/Resources/templates/Memoria_Losas_PLANTILLA.docx</c>.
+    /// Encuentra la plantilla a usar para generar la memoria. Prioriza la
+    /// predeterminada del <see cref="PlantillaRegistry"/>; si el registry está
+    /// vacío o la entrada apunta a un archivo inexistente, cae a la plantilla
+    /// bundleada con la app
+    /// (<c>{AppBaseDir}/Resources/templates/Memoria_Losas_PLANTILLA.docx</c>).
     /// </summary>
     private static string? ResolverPlantillaPath()
     {
-        var path = Path.Combine(
+        var pred = PlantillaRegistry.GetPredeterminada();
+        if (pred is not null && File.Exists(pred.Path)) return pred.Path;
+
+        var bundled = Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory,
             "Resources", "templates", "Memoria_Losas_PLANTILLA.docx");
-        return File.Exists(path) ? path : null;
+        return File.Exists(bundled) ? bundled : null;
+    }
+
+    /// <summary>
+    /// Si el registry de plantillas está vacío al primer arranque, registra la
+    /// plantilla bundleada como predeterminada. Idempotente — no hace nada en
+    /// arranques posteriores. Llamado desde el constructor de MainViewModel
+    /// (commit 25).
+    /// </summary>
+    private static void BootstrapPlantillaPredeterminada()
+    {
+        var bundled = Path.Combine(
+            AppDomain.CurrentDomain.BaseDirectory,
+            "Resources", "templates", "Memoria_Losas_PLANTILLA.docx");
+        try { PlantillaRegistry.BootstrapIfNeeded(bundled); } catch { /* no bloqueante */ }
     }
 
     /// <summary>Sugiere un nombre tipo <c>Torre_Sol_Memoria_07-05-2026.docx</c>.</summary>

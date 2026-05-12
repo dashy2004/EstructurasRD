@@ -356,7 +356,7 @@
                             <DataTrigger Binding="{Binding ModoActivo}" Value="Plantillas">
                                 <Setter Property="Content">
                                     <Setter.Value>
-                                        <vw:ComingSoonView Tag="Gestión de plantillas .docx"/>
+                                        <vw:PlantillasView/>
                                     </Setter.Value>
                                 </Setter>
                             </DataTrigger>
