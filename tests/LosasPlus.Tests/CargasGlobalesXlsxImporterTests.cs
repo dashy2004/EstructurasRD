@@ -168,10 +168,11 @@ public class CargasGlobalesXlsxImporterTests
     [Fact]
     public void Cargas_importadas_pueden_reemplazar_la_semilla_default()
     {
-        // El use case real: un Proyecto arranca con SemillaPorDefecto, el usuario
-        // hace click en "Importar de .xls" y la semilla se reemplaza con los
-        // valores del xls del ingeniero. Probamos que el reemplazo es total.
-        var p = new Proyecto { Nombre = "Test" };
+        // El use case real: un Proyecto arranca con SemillaPorDefecto (via
+        // ProyectoFactory), el usuario hace click en "Importar de .xls" y
+        // la semilla se reemplaza con los valores del xls del ingeniero.
+        // Probamos que el reemplazo es total.
+        var p = ProyectoFactory.NuevoProyectoSeedeado();
         var totalSemilla = p.Cargas.PesosPropiosEntrepiso.Total;
 
         var importadas = new CargasGlobalesXlsxImporter().Importar(XlsxReal);

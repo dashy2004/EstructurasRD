@@ -38,3 +38,40 @@ public sealed class RelayCommand : ICommand
     /// <summary>Notifica a WPF que reevalúe <see cref="CanExecute"/>.</summary>
     public void RaiseCanExecuteChanged() => CommandManager.InvalidateRequerySuggested();
 }
+
+/// <summary>
+/// Variante genérica de <see cref="RelayCommand"/> que recibe un parámetro
+/// tipado al ejecutar — útil para bindings tipo <c>Command="..." CommandParameter="..."</c>
+/// donde el parámetro tiene que llegar al handler.
+/// </summary>
+public sealed class RelayCommand<T> : ICommand
+{
+    private readonly Action<T?> _execute;
+    private readonly Func<T?, bool>? _canExecute;
+
+    public RelayCommand(Action<T?> execute, Func<T?, bool>? canExecute = null)
+    {
+        _execute    = execute    ?? throw new ArgumentNullException(nameof(execute));
+        _canExecute = canExecute;
+    }
+
+    public bool CanExecute(object? parameter)
+    {
+        var typed = parameter is T t ? t : default;
+        return _canExecute?.Invoke(typed) ?? true;
+    }
+
+    public void Execute(object? parameter)
+    {
+        var typed = parameter is T t ? t : default;
+        _execute(typed);
+    }
+
+    public event EventHandler? CanExecuteChanged
+    {
+        add    => CommandManager.RequerySuggested += value;
+        remove => CommandManager.RequerySuggested -= value;
+    }
+
+    public void RaiseCanExecuteChanged() => CommandManager.InvalidateRequerySuggested();
+}

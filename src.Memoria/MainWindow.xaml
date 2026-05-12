@@ -4,7 +4,7 @@
         xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
         xmlns:vw="clr-namespace:MemoriaPlus.Views"
         xmlns:cmn="clr-namespace:MemoriaPlus.Common"
-        Title="Memoria Plus"
+        Title="{Binding TituloVentana}"
         Height="900" Width="1440"
         MinHeight="640" MinWidth="1100"
         Style="{StaticResource MemoriaWindowStyle}"
@@ -17,6 +17,15 @@
     <Window.Resources>
         <cmn:EnumToBoolConverter x:Key="EnumToBoolConverter"/>
     </Window.Resources>
+
+    <Window.InputBindings>
+        <!-- Atajos de teclado globales (commit 18: persistencia). -->
+        <KeyBinding Modifiers="Ctrl"       Key="N" Command="{Binding NuevoProyectoCommand}"/>
+        <KeyBinding Modifiers="Ctrl"       Key="O" Command="{Binding AbrirProyectoCommand}"/>
+        <KeyBinding Modifiers="Ctrl"       Key="S" Command="{Binding GuardarBorradorCommand}"/>
+        <KeyBinding Modifiers="Ctrl+Shift" Key="S" Command="{Binding GuardarComoCommand}"/>
+        <KeyBinding Modifiers="Ctrl"       Key="G" Command="{Binding GenerarMemoriaCommand}"/>
+    </Window.InputBindings>
 
     <Grid>
         <Grid.ColumnDefinitions>
@@ -51,10 +60,16 @@
                                Margin="0,2,0,0"/>
                 </StackPanel>
 
-                <!-- Nuevo proyecto -->
-                <Button Grid.Row="1" Margin="16,4,16,12"
-                        Style="{StaticResource PrimaryButtonStyle}"
-                        Content="+ Nuevo proyecto"/>
+                <!-- Nuevo proyecto / Abrir -->
+                <StackPanel Grid.Row="1" Margin="16,4,16,12">
+                    <Button Style="{StaticResource PrimaryButtonStyle}"
+                            Content="+ Nuevo proyecto"
+                            Command="{Binding NuevoProyectoCommand}"/>
+                    <Button Margin="0,6,0,0"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Content="📂 Abrir proyecto…"
+                            Command="{Binding AbrirProyectoCommand}"/>
+                </StackPanel>
 
                 <!-- =================== Navegación primaria ===================
                      Cada RadioButton enlaza IsChecked al enum ModoActivo via
@@ -96,14 +111,38 @@
                         <ItemsControl ItemsSource="{Binding ProyectosRecientes}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Padding="8,6" Margin="0,1"
+                                    <!-- Button con Command bind al ViewModel pasando el Path como
+                                         parametro. Sin Button no hay click. Styled invisible para
+                                         que se vea como el card original. -->
+                                    <Button Margin="0,1" Padding="8,6" Cursor="Hand"
+                                            HorizontalContentAlignment="Stretch"
+                                            BorderThickness="0"
                                             Background="Transparent"
-                                            CornerRadius="{StaticResource CornerRadiusDefault}">
-                                        <StackPanel>
+                                            ToolTip="{Binding Path}"
+                                            Command="{Binding DataContext.AbrirProyectoRecienteCommand,
+                                                              RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                            CommandParameter="{Binding Path}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="{x:Type Button}">
+                                                <Border x:Name="bd" Padding="{TemplateBinding Padding}"
+                                                        Background="{TemplateBinding Background}"
+                                                        CornerRadius="{StaticResource CornerRadiusDefault}">
+                                                    <ContentPresenter HorizontalAlignment="Stretch"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="bd" Property="Background"
+                                                                Value="{StaticResource SurfaceContainerHighBrush}"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                        <StackPanel HorizontalAlignment="Stretch">
                                             <TextBlock Text="{Binding Nombre}"
                                                        FontFamily="{StaticResource FontFamilyUI}"
                                                        FontSize="13" FontWeight="Medium"
-                                                       Foreground="{StaticResource OnSurfaceBrush}"/>
+                                                       Foreground="{StaticResource OnSurfaceBrush}"
+                                                       TextTrimming="CharacterEllipsis"/>
                                             <TextBlock FontFamily="{StaticResource FontFamilyMono}"
                                                        FontSize="11"
                                                        Foreground="{StaticResource OnSurfaceVariantBrush}"
@@ -113,7 +152,7 @@
                                                 <Run Text="{Binding UltimaEdicion, Mode=OneWay}"/>
                                             </TextBlock>
                                         </StackPanel>
-                                    </Border>
+                                    </Button>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

@@ -208,8 +208,12 @@ public class CalculoEngineTests
     /// </summary>
     private static (Proyecto, Sistema) BuildContextoEntrepiso()
     {
-        var p = new Proyecto { Nombre = "Test Neapolis IV", FyKgCm2 = 4200 };
-        var s = new Sistema  { Nombre = "Earlette",         Uso = SistemaUso.Entrepiso };
+        // Usa el factory porque CalculoEngine necesita Cargas.SemillaPorDefecto
+        // para hacer el LookupQd en la tabla h↔qd (15 filas) y los pesos propios.
+        var p = ProyectoFactory.NuevoProyectoSeedeado();
+        p.Nombre  = "Test Neapolis IV";
+        p.FyKgCm2 = 4200;
+        var s = new Sistema { Nombre = "Earlette", Uso = SistemaUso.Entrepiso };
         p.Sistemas.Add(s);
         return (p, s);
     }
@@ -350,7 +354,9 @@ public class CalculoEngineTests
     [Fact]
     public void RecalcularProyecto_corre_engine_sobre_todos_los_sistemas()
     {
-        var p = new Proyecto { Nombre = "Multinivel", FyKgCm2 = 4200 };
+        var p = ProyectoFactory.NuevoProyectoSeedeado();
+        p.Nombre  = "Multinivel";
+        p.FyKgCm2 = 4200;
         var e1 = new Sistema { Nombre = "E1",    Uso = SistemaUso.Entrepiso };
         var t  = new Sistema { Nombre = "Techo", Uso = SistemaUso.Techo };
         e1.Losas.Add(new Losa { Id = 1, Lx = 4, Ly = 4 });

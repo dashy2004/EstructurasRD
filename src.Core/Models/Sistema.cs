@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
 
 namespace LosasPlus.Models;
 
@@ -51,6 +52,7 @@ public partial class Proyecto : INotifyPropertyChanged
     public DateTime FechaCreacion { get => _fechaCreacion; set { _fechaCreacion = value; OnPropertyChanged(); } }
 
     /// <summary>Carpeta del proyecto cuando está guardado como manifest. Vacía si es legacy mono-archivo.</summary>
+    [JsonIgnore]
     public string? CarpetaProyecto
     {
         get
@@ -199,13 +201,17 @@ public partial class Losa : INotifyPropertyChanged, IDataErrorInfo
         set { _rec = value; OnPropertyChanged(); }
     }
 
+    [JsonIgnore]
     public double Aspecto => _lx > 0 ? Math.Round(_ly / _lx, 3) : 0;
+    [JsonIgnore]
     public string TipoDescripcion => TipoLosa.Catalogo.TryGetValue(_tipo, out var t) ? t.Descripcion : "(no estándar)";
 
     /// <summary>True cuando Ly/Lx queda fuera del rango Pieper-Martens. Warning, no error.</summary>
+    [JsonIgnore]
     public bool AspectoFueraDeRango => _lx > 0 && (Aspecto < AspectoMin || Aspecto > AspectoMax);
 
     /// <summary>Mensaje del warning de aspecto (vacío si está en rango).</summary>
+    [JsonIgnore]
     public string AspectoMensaje => AspectoFueraDeRango
         ? string.Format(CultureInfo.InvariantCulture,
             "Ly/Lx = {0:0.00} está fuera del rango Pieper-Martens [{1:0.0}, {2:0.0}]. " +
@@ -253,6 +259,7 @@ public partial class Losa : INotifyPropertyChanged, IDataErrorInfo
     }
 
     /// <summary>Conveniencia para tests y plugins: ¿la losa pasa todas las validaciones duras?</summary>
+    [JsonIgnore]
     public bool EsValida => string.IsNullOrEmpty(((IDataErrorInfo)this).Error);
 
     public event PropertyChangedEventHandler? PropertyChanged;

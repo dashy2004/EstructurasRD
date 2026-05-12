@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
 
 namespace LosasPlus.Models;
 
@@ -157,6 +158,7 @@ public class FilaCargaMuerta : INotifyPropertyChanged
     public double Densidad { get => _densidad; set { _densidad = value; OnPropertyChanged(); OnPropertyChanged(nameof(WPropio)); } }
 
     /// <summary>Peso propio del hormigón = H · Densidad (ton/m²).</summary>
+    [JsonIgnore]
     public double WPropio => Math.Round(_h * _densidad, 4);
 
     /// <summary>
@@ -181,14 +183,19 @@ public class FilaCargaMuerta : INotifyPropertyChanged
 /// </summary>
 public class PesosPropiosUso : INotifyPropertyChanged
 {
+    /// <summary>Constructor sin parámetros — solo para deserialización JSON.</summary>
+    [JsonConstructor]
+    public PesosPropiosUso() { NombreUso = ""; }
+
     public PesosPropiosUso(string nombreUso) { NombreUso = nombreUso; }
 
     /// <summary>Nombre del uso (Entrepiso, Techo, Balcón, ...).</summary>
-    public string NombreUso { get; }
+    public string NombreUso { get; set; }
 
     public ObservableCollection<PesoPropio> Items { get; } = new();
 
     /// <summary>Suma de e·d de todos los items (ton/m²).</summary>
+    [JsonIgnore]
     public double Total => Math.Round(Items.Sum(p => p.W), 4);
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -211,6 +218,7 @@ public class PesoPropio : INotifyPropertyChanged
     public double Densidad { get => _densidad; set { _densidad = value; OnPropertyChanged(); OnPropertyChanged(nameof(W)); } }
 
     /// <summary>Peso por unidad de área (ton/m²) = Espesor · Densidad.</summary>
+    [JsonIgnore]
     public double W => Math.Round(_espesor * _densidad, 4);
 
     public event PropertyChangedEventHandler? PropertyChanged;

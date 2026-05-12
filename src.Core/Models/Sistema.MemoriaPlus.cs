@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text.Json.Serialization;
 
 namespace LosasPlus.Models;
 
@@ -38,7 +39,13 @@ public partial class Proyecto
     private string _otrosParametros = "";
     private double _fcKgCm2 = 280;           // kg/cm² (default residencial)
     private double _fyKgCm2 = 4200;          // kg/cm²
-    private CargasGlobales _cargas = CargasGlobales.SemillaPorDefecto();
+    // Nota: NO se seedea con SemillaPorDefecto en el constructor — eso duplicaría
+    // las 15 filas y los items al deserializar JSON (System.Text.Json en modo
+    // Populate sumaría a la colección pre-seedeada). La UI llama
+    // ProyectoFactory.NuevoProyectoSeedeado() para construir un Proyecto con
+    // cargas pre-pobladas. Los archivos cargados con ProyectoSerializer ya traen
+    // sus cargas del JSON.
+    private CargasGlobales _cargas = new CargasGlobales();
 
     /// <summary>Código del Colegio Dominicano de Ingenieros, Arquitectos y Agrimensores.</summary>
     public string Codia
@@ -158,6 +165,34 @@ public partial class Proyecto
     }
 }
 
+/// <summary>
+/// Factory para construir un <see cref="Proyecto"/> con cargas semilla y otros
+/// defaults sensatos. Separado del constructor para no interferir con la
+/// deserialización JSON (que necesita un constructor "limpio" para no duplicar
+/// colecciones pre-seedadas).
+/// </summary>
+public static class ProyectoFactory
+{
+    /// <summary>
+    /// Crea un <see cref="Proyecto"/> nuevo con:
+    /// - <see cref="CargasGlobales.SemillaPorDefecto"/> ya cargada
+    ///   (15 filas tabla h, 3 pesos propios entrepiso, 3 pesos propios techo,
+    ///    cargas vivas R-001 y factores ACI 318-05).
+    /// - Materiales default (f'c 280 kg/cm², fy 4200 kg/cm²).
+    /// </summary>
+    /// <remarks>
+    /// Para UI: usar este factory al hacer "Nuevo proyecto". Para cargar desde
+    /// disco: <c>ProyectoSerializer.Load</c> ya entrega el proyecto con sus
+    /// cargas del JSON, sin necesidad de seedear.
+    /// </remarks>
+    public static Proyecto NuevoProyectoSeedeado()
+    {
+        var p = new Proyecto();
+        p.Cargas = CargasGlobales.SemillaPorDefecto();
+        return p;
+    }
+}
+
 public partial class Sistema
 {
     private SistemaUso _uso = SistemaUso.Entrepiso;
@@ -189,6 +224,7 @@ public partial class Sistema
     }
 
     /// <summary>True si el nivel tiene un .txt parseado asociado.</summary>
+    [JsonIgnore]
     public bool TieneSalidaPerdomo => _salidaPerdomo != null;
 }
 
@@ -292,12 +328,15 @@ public partial class Losa
     /// Condición 1D / 2D según relación max/min de luces (>2 → 1D). Calculada
     /// directamente sin engine porque solo depende de Lx/Ly.
     /// </summary>
+    [JsonIgnore]
     public string Cond => Math.Max(Lx, Ly) / Math.Max(Math.Min(Lx, Ly), 1e-9) > 2 ? "1D" : "2D";
 
     /// <summary>Luz de cálculo: Ln = MIN(Lx,Ly) si 1D, MAX(Lx,Ly) si 2D.</summary>
+    [JsonIgnore]
     public double Ln => Cond == "1D" ? Math.Min(Lx, Ly) : Math.Max(Lx, Ly);
 
     /// <summary>Razón max/min de luces (relación de aspecto cruda).</summary>
+    [JsonIgnore]
     public double Ratio => Math.Min(Lx, Ly) > 0 ? Math.Max(Lx, Ly) / Math.Min(Lx, Ly) : 0;
 
     /// <summary>Espesor calculado (m) — null hasta que CalculoEngine corra.</summary>
@@ -322,11 +361,14 @@ public partial class Losa
     public double? Qu { get => _qu; set { _qu = value; OnPropertyChanged(); } }
 
     /// <summary>Área de la losa (m²) — Lx · Ly.</summary>
+    [JsonIgnore]
     public double Area => Math.Round(Lx * Ly, 4);
 
     /// <summary>True si <see cref="Espesor"/> &lt; <see cref="HCalc"/> (espesor insuficiente).</summary>
+    [JsonIgnore]
     public bool EspesorInsuficiente => _hCalc.HasValue && Espesor + 1e-9 < _hCalc.Value;
 
     /// <summary>True si Ln &gt; 8.0 m (revisar manualmente — fuera de rango usual).</summary>
+    [JsonIgnore]
     public bool LnExcedeRango => Ln > 8.0;
 }

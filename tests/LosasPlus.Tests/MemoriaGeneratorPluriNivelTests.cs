@@ -345,7 +345,11 @@ public class MemoriaGeneratorPluriNivelTests : IDisposable
 
     private static (Proyecto proyecto, Sistema sistema) ProyectoConLosasReales()
     {
-        var p = new Proyecto { Nombre = "Tabla Test", FyKgCm2 = 4200 };
+        // ProyectoFactory porque luego se hace RecalcularProyecto y necesita
+        // Cargas.SemillaPorDefecto() poblada.
+        var p = ProyectoFactory.NuevoProyectoSeedeado();
+        p.Nombre  = "Tabla Test";
+        p.FyKgCm2 = 4200;
         var s = new Sistema { Nombre = "E1", Uso = SistemaUso.Entrepiso };
         s.Losas.Add(new Losa { Id = 1, Lx = 6.45, Ly = 5.40, MampO = 1.78 });
         s.Losas.Add(new Losa { Id = 2, Lx = 4.90, Ly = 4.45, MampO = 7.67 });
@@ -422,7 +426,9 @@ public class MemoriaGeneratorPluriNivelTests : IDisposable
     {
         var plantilla = ConstruirPlantillaConTablaLosas();
         var output = TempFile("docx");
-        var p = new Proyecto { Nombre = "Multi", FyKgCm2 = 4200 };
+        var p = ProyectoFactory.NuevoProyectoSeedeado();
+        p.Nombre  = "Multi";
+        p.FyKgCm2 = 4200;
         var e1 = new Sistema { Nombre = "E1", Uso = SistemaUso.Entrepiso };
         e1.Losas.Add(new Losa { Id = 1, Lx = 4, Ly = 4 });
         e1.Losas.Add(new Losa { Id = 2, Lx = 5, Ly = 4 });

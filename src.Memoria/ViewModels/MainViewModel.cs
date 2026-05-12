@@ -9,6 +9,7 @@ using LosasPlus.Calculo;
 using LosasPlus.Generation;
 using LosasPlus.Importers;
 using LosasPlus.Models;
+using LosasPlus.Persistence;
 using LosasPlus.Services;
 using MemoriaPlus.Common;
 
@@ -35,21 +36,21 @@ public sealed class MainViewModel : INotifyPropertyChanged
         //      TabActivo invoca ContinuarCommand.RaiseCanExecuteChanged) ----
         ContinuarCommand          = new RelayCommand(Continuar,        PuedeContinuar);
         GuardarBorradorCommand    = new RelayCommand(GuardarBorrador);
+        GuardarComoCommand        = new RelayCommand(GuardarComo);
+        AbrirProyectoCommand      = new RelayCommand(AbrirProyecto);
+        NuevoProyectoCommand      = new RelayCommand(NuevoProyecto);
         RestaurarCargasCommand    = new RelayCommand(RestaurarCargas);
         ImportarCargasXlsCommand  = new RelayCommand(ImportarCargasXls);
         ImportarTxtPerdomoCommand = new RelayCommand(ImportarTxtPerdomo, () => SistemaActivo != null);
         QuitarTxtPerdomoCommand   = new RelayCommand(QuitarTxtPerdomo,   () => SistemaActivo?.TieneSalidaPerdomo == true);
         GenerarMemoriaCommand     = new RelayCommand(GenerarMemoria);
         AbrirUltimaMemoriaCommand = new RelayCommand(AbrirUltimaMemoria, () => UltimoArchivoGenerado != null);
+        AbrirProyectoRecienteCommand = new RelayCommand<string>(AbrirProyectoReciente);
 
-        // ---- Datos placeholder para sidebar (lista de proyectos recientes) ----
-        ProyectosRecientes = new ObservableCollection<ProyectoResumen>
-        {
-            new("Torre Sol",         "R. Martínez", "45892", 12, "24/10/24", "Borrador"),
-            new("Edif. La Trinitaria","C. Gómez",   "33104",  4, "22/10/24", "Lista"),
-            new("Vivienda Santiago", "A. Pérez",    "19022",  3, "15/10/24", "Generada"),
-            new("Galpón Industrial", "R. Martínez", "45892",  1, "10/10/24", "Generada"),
-        };
+        // ---- Sidebar: lista de proyectos recientes (carga desde el registry real) ----
+        ProyectosRecientes = new ObservableCollection<ProyectoResumen>();
+        // RecargarProyectosRecientes() se llama abajo después de inicializar
+        // los commands para evitar NRE en ObservableCollection.
 
         // ---- Tabs principales ----
         Tabs = new ObservableCollection<TabPage>
@@ -73,6 +74,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         // ---- Modo de la sidebar (default Calculos para preservar el flujo) ----
         ModoActivo = ResolverModoInicialDesdeArgs();
+
+        // ---- Cargar lista real de proyectos recientes desde el registry ----
+        RecargarProyectosRecientes();
 
         // ---- Selección visible en la lista de proyectos recientes ----
         ProyectoRecienteSeleccionado = ProyectosRecientes.FirstOrDefault();
@@ -145,7 +149,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public Proyecto ProyectoActivo
     {
         get => _proyectoActivo;
-        set { _proyectoActivo = value; OnPropertyChanged(); }
+        set
+        {
+            _proyectoActivo = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(TituloVentana));
+        }
     }
 
     private Sistema? _sistemaActivo;
@@ -202,12 +211,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public RelayCommand ContinuarCommand          { get; }
     public RelayCommand GuardarBorradorCommand    { get; }
+    public RelayCommand GuardarComoCommand        { get; }
+    public RelayCommand AbrirProyectoCommand      { get; }
+    public RelayCommand NuevoProyectoCommand      { get; }
     public RelayCommand RestaurarCargasCommand    { get; }
     public RelayCommand ImportarCargasXlsCommand  { get; }
     public RelayCommand ImportarTxtPerdomoCommand { get; }
     public RelayCommand QuitarTxtPerdomoCommand   { get; }
     public RelayCommand GenerarMemoriaCommand     { get; }
     public RelayCommand AbrirUltimaMemoriaCommand { get; }
+    public RelayCommand<string> AbrirProyectoRecienteCommand { get; }
 
     // ----- Estado de la pestaña Generar -----
 
@@ -352,12 +365,168 @@ public sealed class MainViewModel : INotifyPropertyChanged
         return ModoSidebar.Calculos;
     }
 
+    /// <summary>
+    /// Guarda el <see cref="ProyectoActivo"/> en <see cref="Proyecto.Archivo"/>
+    /// si está set; si no, delega en <see cref="GuardarComo"/>.
+    /// </summary>
     private void GuardarBorrador()
     {
-        // TODO: persistir <c>ProyectoActivo</c> a <c>proyecto.lpx.json</c> via
-        // ProyectoService extendido para Memoria Plus. Por ahora no-op para
-        // que el botón sea clickeable sin romper.
+        if (string.IsNullOrEmpty(ProyectoActivo?.Archivo))
+        {
+            GuardarComo();
+            return;
+        }
+        try
+        {
+            ProyectoSerializer.Save(ProyectoActivo, ProyectoActivo.Archivo);
+            ActualizarRecents();
+            StatusPersistencia = $"Guardado: {Path.GetFileName(ProyectoActivo.Archivo)}";
+        }
+        catch (Exception ex)
+        {
+            StatusPersistencia = $"Error al guardar: {ex.Message}";
+        }
     }
+
+    /// <summary>Pregunta destino y guarda. Si el usuario cancela, no-op.</summary>
+    private void GuardarComo()
+    {
+        if (ProyectoActivo is null) return;
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Title    = "Guardar proyecto Memoria Plus",
+            Filter   = "Proyecto Memoria Plus (*.lpx.json)|*.lpx.json|JSON (*.json)|*.json",
+            FileName = SugerirNombreProyecto(),
+            AddExtension = true,
+            DefaultExt   = ProyectoSerializer.Extension,
+            OverwritePrompt = true,
+        };
+        if (dlg.ShowDialog() != true) return;
+
+        try
+        {
+            ProyectoSerializer.Save(ProyectoActivo, dlg.FileName);
+            ProyectoActivo.Archivo = dlg.FileName;
+            ActualizarRecents();
+            StatusPersistencia = $"Guardado: {Path.GetFileName(dlg.FileName)}";
+            OnPropertyChanged(nameof(TituloVentana));
+        }
+        catch (Exception ex)
+        {
+            StatusPersistencia = $"Error al guardar: {ex.Message}";
+        }
+    }
+
+    /// <summary>Abre un OpenFileDialog y carga el .lpx.json elegido.</summary>
+    private void AbrirProyecto()
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Title  = "Abrir proyecto Memoria Plus",
+            Filter = "Proyecto Memoria Plus (*.lpx.json)|*.lpx.json|JSON (*.json)|*.json|Todos|*.*",
+            CheckFileExists = true,
+        };
+        if (dlg.ShowDialog() != true) return;
+        CargarProyectoDesdeArchivo(dlg.FileName);
+    }
+
+    /// <summary>Carga un proyecto desde un path (usado por Abrir y por proyectos recientes).</summary>
+    private void CargarProyectoDesdeArchivo(string path)
+    {
+        try
+        {
+            var p = ProyectoSerializer.Load(path);
+            ProyectoActivo = p;
+            // Re-suscribir el handler de recálculo en vivo a las losas nuevas.
+            AdjuntarRecalculoEnVivo(p);
+            // Sistema activo: primero por defecto.
+            SistemaActivo = p.Sistemas.FirstOrDefault();
+            ActualizarRecents();
+            StatusPersistencia = $"Cargado: {Path.GetFileName(path)}";
+            OnPropertyChanged(nameof(TituloVentana));
+        }
+        catch (Exception ex)
+        {
+            StatusPersistencia = $"Error al abrir: {ex.Message}";
+        }
+    }
+
+    /// <summary>Crea un Proyecto vacío con cargas semilla. Reemplaza el ProyectoActivo.</summary>
+    private void NuevoProyecto()
+    {
+        var p = ProyectoFactory.NuevoProyectoSeedeado();
+        p.Nombre = "Proyecto sin título";
+        ProyectoActivo = p;
+        AdjuntarRecalculoEnVivo(p);
+        SistemaActivo = null;  // proyecto nuevo sin sistemas
+        StatusPersistencia = "Nuevo proyecto creado.";
+        OnPropertyChanged(nameof(TituloVentana));
+    }
+
+    /// <summary>Abre un proyecto desde el sidebar de recientes (click en una entry).</summary>
+    private void AbrirProyectoReciente(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        if (!File.Exists(path))
+        {
+            ProyectoRegistry.Remove(path);
+            RecargarProyectosRecientes();
+            StatusPersistencia = $"El archivo ya no existe: {Path.GetFileName(path)}";
+            return;
+        }
+        CargarProyectoDesdeArchivo(path);
+    }
+
+    private void ActualizarRecents()
+    {
+        if (ProyectoActivo is null || string.IsNullOrEmpty(ProyectoActivo.Archivo)) return;
+        ProyectoRegistry.AddOrUpdate(
+            ProyectoActivo.Archivo,
+            ProyectoActivo.Nombre,
+            ProyectoActivo.Autor,
+            ProyectoActivo.Codia,
+            ProyectoActivo.Sistemas.Count);
+        RecargarProyectosRecientes();
+    }
+
+    private void RecargarProyectosRecientes()
+    {
+        ProyectosRecientes.Clear();
+        foreach (var e in ProyectoRegistry.Load())
+        {
+            ProyectosRecientes.Add(new ProyectoResumen(
+                e.NombreProyecto,
+                e.Ingeniero,
+                e.Codia,
+                e.CantidadNiveles,
+                e.UltimoAccesoUtc.ToLocalTime().ToString("dd/MM/yy"),
+                "Guardado",
+                e.Path));
+        }
+    }
+
+    private string SugerirNombreProyecto()
+    {
+        var slug = (ProyectoActivo?.Nombre ?? "Proyecto")
+            .Replace(' ', '_').Replace('/', '-').Replace('\\', '-');
+        return $"{slug}{ProyectoSerializer.Extension}";
+    }
+
+    private string _statusPersistencia = "";
+    /// <summary>Mensaje breve del último resultado de persistencia (guardado/cargado/error).</summary>
+    public string StatusPersistencia
+    {
+        get => _statusPersistencia;
+        private set { _statusPersistencia = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Título del Window — incluye el path del archivo si está guardado.</summary>
+    public string TituloVentana =>
+        ProyectoActivo is null
+            ? "Memoria Plus"
+            : string.IsNullOrEmpty(ProyectoActivo.Archivo)
+                ? $"Memoria Plus — {ProyectoActivo.Nombre} (sin guardar)"
+                : $"Memoria Plus — {Path.GetFileName(ProyectoActivo.Archivo)}";
 
     /// <summary>
     /// Reemplaza <see cref="Proyecto.Cargas"/> por una nueva instancia con la
@@ -579,27 +748,27 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private static Proyecto SeedProyectoEjemplo()
     {
-        var p = new Proyecto
-        {
-            Nombre                     = "Torre Residencial Ensanche Piantini",
-            UbicacionCompleta          = "Av. Abraham Lincoln esq. Lope de Vega",
-            Ciudad                     = "Santo Domingo",
-            MesAno                     = "10/2023",
-            Uso                        = "Residencial",
-            CantidadNiveles            = 12,
-            SistemaEstructural         = "Aporticado",
-            Autor                      = "Ing. Rafael Gómez",
-            Codia                      = "15428",
-            TelefonoFijo               = "(809) 555-0123",
-            TelefonoCelular            = "(809) 555-4567",
-            DisenadorArquitectonico    = "Arq. Luis Sánchez",
-            TipoFundaciones            = "Zapatas aisladas",
-            EsfuerzoAdmisible          = 2.5,
-            ProfundidadDesplante       = 1.5,
-            FcKgCm2                    = 280,
-            FyKgCm2                    = 4200,
-            OtrosParametros            = "Suelo tipo C según R-001. Capacidad portante verificada por estudio geotécnico de junio 2023."
-        };
+        // ProyectoFactory para que Cargas arranque seedeada
+        // (SemillaPorDefecto: 15 filas h, 3 pesos propios entrepiso, etc.).
+        var p = ProyectoFactory.NuevoProyectoSeedeado();
+        p.Nombre                     = "Torre Residencial Ensanche Piantini";
+        p.UbicacionCompleta          = "Av. Abraham Lincoln esq. Lope de Vega";
+        p.Ciudad                     = "Santo Domingo";
+        p.MesAno                     = "10/2023";
+        p.Uso                        = "Residencial";
+        p.CantidadNiveles            = 12;
+        p.SistemaEstructural         = "Aporticado";
+        p.Autor                      = "Ing. Rafael Gómez";
+        p.Codia                      = "15428";
+        p.TelefonoFijo               = "(809) 555-0123";
+        p.TelefonoCelular            = "(809) 555-4567";
+        p.DisenadorArquitectonico    = "Arq. Luis Sánchez";
+        p.TipoFundaciones            = "Zapatas aisladas";
+        p.EsfuerzoAdmisible          = 2.5;
+        p.ProfundidadDesplante       = 1.5;
+        p.FcKgCm2                    = 280;
+        p.FyKgCm2                    = 4200;
+        p.OtrosParametros            = "Suelo tipo C según R-001. Capacidad portante verificada por estudio geotécnico de junio 2023.";
         p.Normas.Add("ACI 318-05");
         p.Normas.Add("R-001");
 
@@ -659,7 +828,8 @@ public sealed record ProyectoResumen(
     string Codia,
     int    Niveles,
     string UltimaEdicion,
-    string Estado);
+    string Estado,
+    string Path = "");
 
 /// <summary>Una pestaña del flujo principal (Datos/Cargas/Niveles/Generar).</summary>
 public sealed record TabPage(string Titulo, string Slug);

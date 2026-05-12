@@ -70,9 +70,13 @@ public class ModeloMemoriaPlusTests
     }
 
     [Fact]
-    public void Proyecto_default_arranca_con_cargas_sembradas()
+    public void ProyectoFactory_NuevoProyectoSeedeado_carga_los_defaults()
     {
-        var p = new Proyecto { Nombre = "Test" };
+        // Tras commit 18 (persistencia), el constructor `new Proyecto()` no
+        // seedea Cargas — evita que System.Text.Json en modo Populate
+        // duplique las 15 filas al deserializar. El seedeo vive en el factory
+        // que la UI llama cuando hace "Nuevo proyecto".
+        var p = ProyectoFactory.NuevoProyectoSeedeado();
 
         Assert.NotNull(p.Cargas);
         Assert.NotNull(p.Cargas.CargaMuertaPorEspesor);
@@ -82,6 +86,18 @@ public class ModeloMemoriaPlusTests
         Assert.Equal(280,  p.FcKgCm2);
         Assert.Equal(4200, p.FyKgCm2);
         Assert.Empty(p.Normas);
+    }
+
+    [Fact]
+    public void Proyecto_default_arranca_con_Cargas_vacias()
+    {
+        // El constructor por defecto produce un Proyecto "limpio" para
+        // deserialización JSON sin duplicar collections pre-seedeadas.
+        var p = new Proyecto();
+        Assert.NotNull(p.Cargas);
+        Assert.Empty(p.Cargas.CargaMuertaPorEspesor.Filas);
+        Assert.Empty(p.Cargas.PesosPropiosEntrepiso.Items);
+        Assert.Empty(p.Cargas.PesosPropiosTecho.Items);
     }
 
     // =================================================================
