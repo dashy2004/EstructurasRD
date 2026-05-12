@@ -225,6 +225,56 @@
                     </TabControl>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- ============================================================
+                             Chip indicador de Validación Normativa (commit 21)
+                             Click → abre el panel lateral. Color cambia según severidad.
+                             ============================================================ -->
+                        <Button Margin="0,0,12,0"
+                                Padding="10,4"
+                                Cursor="Hand"
+                                BorderThickness="1"
+                                Command="{Binding Validacion.AbrirPanelCommand}"
+                                ToolTip="Abrir panel de validación normativa">
+                            <Button.Template>
+                                <ControlTemplate TargetType="{x:Type Button}">
+                                    <Border x:Name="bd" Padding="{TemplateBinding Padding}"
+                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                            Background="{TemplateBinding Background}"
+                                            CornerRadius="{StaticResource CornerRadiusDefault}">
+                                        <ContentPresenter VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="bd" Property="Opacity" Value="0.85"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                            <Button.Style>
+                                <Style TargetType="{x:Type Button}">
+                                    <!-- Default: Success (limpio) -->
+                                    <Setter Property="Background" Value="#1F4CAF50"/>  <!-- ~12% verde -->
+                                    <Setter Property="BorderBrush" Value="{StaticResource SuccessBrush}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Validacion.ColorIndicador}" Value="Error">
+                                            <Setter Property="Background" Value="#1FD32F2F"/>  <!-- ~12% rojo -->
+                                            <Setter Property="BorderBrush" Value="{StaticResource ErrorBrush}"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Validacion.ColorIndicador}" Value="Warning">
+                                            <Setter Property="Background" Value="#1FFFA000"/>  <!-- ~12% naranja -->
+                                            <Setter Property="BorderBrush" Value="{StaticResource WarningBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                            <TextBlock VerticalAlignment="Center"
+                                       FontFamily="{StaticResource FontFamilyMono}"
+                                       FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{StaticResource OnSurfaceBrush}"
+                                       Text="{Binding Validacion.ResumenIndicador}"/>
+                        </Button>
+
                         <Button Style="{StaticResource SecondaryButtonStyle}"
                                 Content="Guardar borrador" Margin="0,0,8,0"
                                 Command="{Binding GuardarBorradorCommand}"/>
@@ -348,6 +398,34 @@
                     </StackPanel>
                 </Grid>
             </Border>
+        </Grid>
+
+        <!-- ============================================================
+             Panel lateral de Validación Normativa (commit 21)
+             Overlay sobre toda la ventana. Click en backdrop cierra.
+             Visibility controlada por Validacion.PanelAbierto.
+             ============================================================ -->
+        <Grid Grid.Column="0" Grid.ColumnSpan="2">
+            <Grid.Style>
+                <Style TargetType="{x:Type Grid}">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Validacion.PanelAbierto}" Value="True">
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
+            <!-- Backdrop (click cierra el panel) -->
+            <Button Background="#40000000" BorderThickness="0"
+                    Command="{Binding Validacion.CerrarPanelCommand}">
+                <Button.Template>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border Background="{TemplateBinding Background}"/>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+            <vw:ValidacionView HorizontalAlignment="Right" DataContext="{Binding Validacion}"/>
         </Grid>
     </Grid>
 </Window>

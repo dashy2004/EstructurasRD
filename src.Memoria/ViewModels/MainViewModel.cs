@@ -11,6 +11,7 @@ using LosasPlus.Importers;
 using LosasPlus.Models;
 using LosasPlus.Persistence;
 using LosasPlus.Services;
+using LosasPlus.Validation;
 using MemoriaPlus.Common;
 
 namespace MemoriaPlus.ViewModels;
@@ -49,6 +50,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
         AgregarLosaCommand    = new RelayCommand(AgregarLosa,    () => SistemaActivo != null);
         AgregarSistemaCommand = new RelayCommand(AgregarSistema, () => ProyectoActivo != null);
 
+        // ---- Validación normativa (commit 21) ----
+        Validacion = new ValidacionViewModel();
+
         // ---- Sidebar: lista de proyectos recientes (carga desde el registry real) ----
         ProyectosRecientes = new ObservableCollection<ProyectoResumen>();
         // RecargarProyectosRecientes() se llama abajo después de inicializar
@@ -73,6 +77,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         // ---- Suscripcion al PropertyChanged de cada losa para recalcular en vivo ----
         AdjuntarRecalculoEnVivo(ProyectoActivo);
+
+        // ---- Primera validación normativa (commit 21) ----
+        Validacion.RevalidarPara(ProyectoActivo);
 
         // ---- Modo de la sidebar (default Calculos para preservar el flujo) ----
         ModoActivo = ResolverModoInicialDesdeArgs();
@@ -130,6 +137,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             if (e.PropertyName != null && _propsRecalcLosa.Contains(e.PropertyName))
             {
                 CalculoEngine.RecalcularLosa(losa, sistema, proyecto);
+                Validacion?.Revalidar();
             }
         };
     }
@@ -234,6 +242,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand<string> AbrirProyectoRecienteCommand { get; }
     public RelayCommand AgregarLosaCommand    { get; }
     public RelayCommand AgregarSistemaCommand { get; }
+
+    /// <summary>
+    /// Sub-VM que mantiene el reporte de validación normativa y los conteos
+    /// del chip indicador. Se re-valida en cada cambio del proyecto o de
+    /// las losas (sin debounce — el engine es trivial).
+    /// </summary>
+    public ValidacionViewModel Validacion { get; }
 
     // ----- Estado de la pestaña Generar -----
 
@@ -454,6 +469,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             AdjuntarRecalculoEnVivo(p);
             // Sistema activo: primero por defecto.
             SistemaActivo = p.Sistemas.FirstOrDefault();
+            Validacion.RevalidarPara(p);
             ActualizarRecents();
             StatusPersistencia = $"Cargado: {Path.GetFileName(path)}";
             OnPropertyChanged(nameof(TituloVentana));
@@ -489,6 +505,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         ProyectoActivo = p;
         AdjuntarRecalculoEnVivo(p);
         SistemaActivo = null;  // proyecto nuevo sin sistemas
+        Validacion.RevalidarPara(p);
         StatusPersistencia = "Nuevo proyecto creado.";
         OnPropertyChanged(nameof(TituloVentana));
     }
@@ -511,6 +528,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         SistemaActivo.Losas.Add(nueva);
         AdjuntarRecalculoLosa(nueva, SistemaActivo, ProyectoActivo);
         CalculoEngine.RecalcularLosa(nueva, SistemaActivo, ProyectoActivo);
+        Validacion.Revalidar();
         StatusPersistencia = $"Losa L{siguienteId} agregada al nivel {SistemaActivo.Nombre}.";
     }
 
