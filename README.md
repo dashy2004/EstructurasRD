@@ -33,8 +33,7 @@
 >
 > **Motor de cálculo `Losas.exe`** (usado opcionalmente por `LosasPlus.App`):
 > propiedad de Ing. Francisco Eludino Perdomo (programa Losas v5.20, método
-> Pieper-Martens). NO se redistribuye en este repo — ver
-> [`CARTA_AL_AUTOR.md`](CARTA_AL_AUTOR.md).
+> Pieper-Martens). NO se redistribuye en este repo 
 
 ---
 
