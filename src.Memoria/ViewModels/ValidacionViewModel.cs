@@ -39,6 +39,7 @@ public sealed class ValidacionViewModel : INotifyPropertyChanged
     private ValidationReport _reporte;
     private ValidacionFiltro _filtroActivo = ValidacionFiltro.Todas;
     private bool _panelAbierto;
+    private ValidationIssue? _issueSeleccionado;
 
     public ValidacionViewModel() : this(ValidationEngine.Default()) { }
 
@@ -52,8 +53,11 @@ public sealed class ValidacionViewModel : INotifyPropertyChanged
         RevalidarCommand    = new RelayCommand(Revalidar,    () => _proyecto != null);
         CopiarReporteCommand = new RelayCommand(CopiarReporte, () => Issues.Count > 0);
         AbrirPanelCommand   = new RelayCommand(() => PanelAbierto = true);
-        CerrarPanelCommand  = new RelayCommand(() => PanelAbierto = false);
+        CerrarPanelCommand  = new RelayCommand(() => { PanelAbierto = false; IssueSeleccionado = null; });
         FiltrarCommand      = new RelayCommand<string>(SetFiltroDesdeString);
+        SeleccionarIssueCommand = new RelayCommand<ValidationIssue>(i => IssueSeleccionado = i);
+        VolverALaListaCommand   = new RelayCommand(() => IssueSeleccionado = null);
+        AplicarMinimoCommand    = new RelayCommand(AplicarMinimo, PuedeAplicarMinimo);
     }
 
     /// <summary>Re-apunta el VM al proyecto dado y dispara una validación.</summary>
@@ -159,6 +163,59 @@ public sealed class ValidacionViewModel : INotifyPropertyChanged
     public RelayCommand AbrirPanelCommand   { get; }
     public RelayCommand CerrarPanelCommand  { get; }
     public RelayCommand<string> FiltrarCommand { get; }
+    public RelayCommand<ValidationIssue> SeleccionarIssueCommand { get; }
+    public RelayCommand VolverALaListaCommand { get; }
+    public RelayCommand AplicarMinimoCommand  { get; }
+
+    /// <summary>
+    /// Issue actualmente seleccionado en el panel. Cuando es no-null, la
+    /// vista del panel cambia de "lista" a "detalle" via DataTrigger. Null
+    /// indica que el usuario está viendo la lista o cerró el panel.
+    /// </summary>
+    public ValidationIssue? IssueSeleccionado
+    {
+        get => _issueSeleccionado;
+        set
+        {
+            _issueSeleccionado = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(EnModoDetalle));
+            OnPropertyChanged(nameof(EnModoLista));
+            OnPropertyChanged(nameof(IssueSeleccionadoTieneAutoFix));
+            OnPropertyChanged(nameof(IssueSeleccionadoDeficit));
+            AplicarMinimoCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    public bool EnModoDetalle => _issueSeleccionado is not null;
+    public bool EnModoLista   => _issueSeleccionado is null;
+
+    /// <summary>
+    /// True si el issue seleccionado tiene un auto-fix conocido (botón "Aplicar
+    /// mínimo R-001"). Solo issues con ValorActual + ValorRequerido sobre la
+    /// propiedad Espesor son auto-fixables en esta versión.
+    /// </summary>
+    public bool IssueSeleccionadoTieneAutoFix
+    {
+        get
+        {
+            if (_issueSeleccionado is null) return false;
+            if (_issueSeleccionado.LosaId is null) return false;
+            if (_issueSeleccionado.ValorRequerido is null) return false;
+            return _issueSeleccionado.Codigo.StartsWith("R-001-3.2.1-espesor")
+                || _issueSeleccionado.Codigo.StartsWith("ACI-9.5.3.3");
+        }
+    }
+
+    /// <summary>
+    /// Déficit numérico del issue seleccionado (ValorActual − ValorRequerido).
+    /// Negativo cuando el valor actual es menor al mínimo. Null cuando los
+    /// valores no aplican.
+    /// </summary>
+    public double? IssueSeleccionadoDeficit =>
+        _issueSeleccionado?.ValorActual is double va && _issueSeleccionado?.ValorRequerido is double vr
+            ? va - vr
+            : (double?)null;
 
     /// <summary>
     /// Corre el engine sobre el proyecto activo y refresca observables. Es
@@ -213,6 +270,49 @@ public sealed class ValidacionViewModel : INotifyPropertyChanged
         {
             // Clipboard puede fallar en headless / smoke runs; ignorar.
         }
+    }
+
+    /// <summary>
+    /// Aplica el auto-fix al issue seleccionado. Setea
+    /// <c>Losa.Espesor = ValorRequerido</c> sobre la losa identificada por
+    /// NombreSistema + LosaId, luego re-valida. Tras correr, vuelve a la
+    /// lista para que el usuario vea el cambio reflejado.
+    /// </summary>
+    public void AplicarMinimo()
+    {
+        if (!PuedeAplicarMinimo()) return;
+        var issue = _issueSeleccionado!;
+        var losa = LocalizarLosa(issue.NombreSistema, issue.LosaId);
+        if (losa is null) return;
+        losa.Espesor = issue.ValorRequerido!.Value;
+        Revalidar();
+        IssueSeleccionado = null;  // vuelve a la lista; el issue debe haber desaparecido
+    }
+
+    private bool PuedeAplicarMinimo() => IssueSeleccionadoTieneAutoFix && _proyecto != null;
+
+    private Losa? LocalizarLosa(string? nombreSistema, int? losaId)
+    {
+        if (_proyecto is null || nombreSistema is null || losaId is null) return null;
+        foreach (var s in _proyecto.Sistemas)
+            if (s.Nombre == nombreSistema)
+                foreach (var l in s.Losas)
+                    if (l.Id == losaId.Value) return l;
+        return null;
+    }
+
+    /// <summary>
+    /// Devuelve la cantidad de issues que afectan al sistema dado. Usado por
+    /// el banner de NivelesView cuando se quiere mostrar "X observaciones en
+    /// este nivel". Si <paramref name="sistemaNombre"/> es null devuelve 0.
+    /// </summary>
+    public int ContarIssuesDeSistema(string? sistemaNombre)
+    {
+        if (string.IsNullOrEmpty(sistemaNombre)) return 0;
+        var n = 0;
+        foreach (var i in Issues)
+            if (i.NombreSistema == sistemaNombre) n++;
+        return n;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

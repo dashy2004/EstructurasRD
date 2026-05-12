@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\LosasPlus.csproj" />
+    <ProjectReference Include="..\..\src.Memoria\MemoriaPlus.App.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -52,6 +52,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         // ---- Validación normativa (commit 21) ----
         Validacion = new ValidacionViewModel();
+        // Refresca IssuesEnSistemaActivo cuando el reporte se renueva (commit 22).
+        Validacion.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(ValidacionViewModel.Reporte))
+            {
+                OnPropertyChanged(nameof(IssuesEnSistemaActivo));
+                OnPropertyChanged(nameof(HayIssuesEnSistemaActivo));
+            }
+        };
 
         // ---- Sidebar: lista de proyectos recientes (carga desde el registry real) ----
         ProyectosRecientes = new ObservableCollection<ProyectoResumen>();
@@ -191,6 +200,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
             ImportarTxtPerdomoCommand?.RaiseCanExecuteChanged();
             QuitarTxtPerdomoCommand?.RaiseCanExecuteChanged();
             AgregarLosaCommand?.RaiseCanExecuteChanged();
+            OnPropertyChanged(nameof(IssuesEnSistemaActivo));
+            OnPropertyChanged(nameof(HayIssuesEnSistemaActivo));
         }
     }
 
@@ -249,6 +260,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// las losas (sin debounce — el engine es trivial).
     /// </summary>
     public ValidacionViewModel Validacion { get; }
+
+    /// <summary>
+    /// Conteo de issues que afectan al SistemaActivo. Usado por el banner
+    /// amarillo arriba del DataGrid en NivelesView (commit 22).
+    /// </summary>
+    public int IssuesEnSistemaActivo => Validacion.ContarIssuesDeSistema(SistemaActivo?.Nombre);
+    public bool HayIssuesEnSistemaActivo => IssuesEnSistemaActivo > 0;
 
     // ----- Estado de la pestaña Generar -----
 

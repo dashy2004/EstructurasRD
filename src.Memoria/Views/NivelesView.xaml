@@ -156,7 +156,58 @@
                     </Border>
                 </Grid>
 
-                <!-- DataGrid principal -->
+                <!-- DataGrid principal con banner de validación arriba -->
+                <Grid Grid.Row="1">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Banner de validación per-sistema (commit 22).
+                         Solo visible si SistemaActivo tiene >=1 issue. -->
+                    <Border Grid.Row="0" Margin="16,8,16,4" Padding="12,8"
+                            Background="#26FFA000"
+                            BorderBrush="{StaticResource WarningBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource CornerRadiusDefault}">
+                        <Border.Style>
+                            <Style TargetType="{x:Type Border}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HayIssuesEnSistemaActivo}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                                       Margin="0,0,10,0"
+                                       FontSize="18"
+                                       Foreground="{StaticResource WarningBrush}"
+                                       Text="⚠"/>
+                            <TextBlock Grid.Column="1" VerticalAlignment="Center"
+                                       FontFamily="{StaticResource FontFamilyUI}"
+                                       FontSize="12" TextWrapping="Wrap"
+                                       Foreground="{StaticResource OnSurfaceBrush}">
+                                <Run Text="Este nivel tiene "/>
+                                <Run Text="{Binding IssuesEnSistemaActivo, Mode=OneWay}"
+                                     FontWeight="SemiBold"/>
+                                <Run Text=" observación(es) que pueden afectar la memoria final. Revisa antes de generar."/>
+                            </TextBlock>
+                            <Button Grid.Column="2"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    Content="Ver detalle →"
+                                    Padding="10,4"
+                                    Command="{Binding Validacion.AbrirPanelCommand}"/>
+                        </Grid>
+                    </Border>
+
                 <DataGrid Grid.Row="1"
                           ItemsSource="{Binding SistemaActivo.Losas}"
                           BorderThickness="0">
@@ -198,7 +249,66 @@
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="H USAR (m)"  Width="80"  Binding="{Binding Espesor, StringFormat=0.000, UpdateSourceTrigger=LostFocus}"/>
+                        <!-- H USAR (m): TextColumn editable + chip "⚠ Insuf." in-row cuando EspesorInsuficiente.
+                             Implementado como TemplateColumn para combinar TextBox y badge sin perder edición inline. -->
+                        <DataGridTemplateColumn Header="H USAR (m)" Width="120">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                                                   Margin="6,0,0,0"
+                                                   FontFamily="{StaticResource FontFamilyMono}"
+                                                   Text="{Binding Espesor, StringFormat=0.000}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="{x:Type TextBlock}">
+                                                    <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding EspesorInsuficiente}" Value="True">
+                                                            <Setter Property="Foreground" Value="{StaticResource ErrorBrush}"/>
+                                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <Border Grid.Column="1" Margin="4,2"
+                                                Padding="4,1"
+                                                CornerRadius="{StaticResource CornerRadiusSm}"
+                                                Background="#26D32F2F"
+                                                BorderBrush="{StaticResource ErrorBrush}"
+                                                BorderThickness="1"
+                                                VerticalAlignment="Center"
+                                                ToolTip="Espesor insuficiente — ver Validación normativa">
+                                            <Border.Style>
+                                                <Style TargetType="{x:Type Border}">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding EspesorInsuficiente}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="⚠ Insuf."
+                                                       FontFamily="{StaticResource FontFamilyMono}"
+                                                       FontSize="9"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{StaticResource ErrorBrush}"/>
+                                        </Border>
+                                    </Grid>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                            <DataGridTemplateColumn.CellEditingTemplate>
+                                <DataTemplate>
+                                    <TextBox Text="{Binding Espesor, StringFormat=0.000, UpdateSourceTrigger=LostFocus}"
+                                             FontFamily="{StaticResource FontFamilyMono}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellEditingTemplate>
+                        </DataGridTemplateColumn>
                         <!-- Mampostería -->
                         <DataGridTextColumn Header="MAMP 0.20"   Width="75"  Binding="{Binding MampN, StringFormat=0.00, UpdateSourceTrigger=LostFocus}"/>
                         <DataGridTextColumn Header="MAMP 0.15"   Width="75"  Binding="{Binding MampO, StringFormat=0.00, UpdateSourceTrigger=LostFocus}"/>
@@ -239,6 +349,7 @@
                         </DataGridTextColumn>
                     </DataGrid.Columns>
                 </DataGrid>
+                </Grid>
 
                 <!-- Summary footer -->
                 <Border Grid.Row="2" Padding="16,10"
