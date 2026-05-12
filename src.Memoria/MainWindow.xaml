@@ -3,7 +3,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
         xmlns:vw="clr-namespace:MemoriaPlus.Views"
-        xmlns:cmn="clr-namespace:MemoriaPlus.Common"
         Title="{Binding TituloVentana}"
         Height="900" Width="1440"
         MinHeight="640" MinWidth="1100"
@@ -13,10 +12,6 @@
     <Window.DataContext>
         <vm:MainViewModel/>
     </Window.DataContext>
-
-    <Window.Resources>
-        <cmn:EnumToBoolConverter x:Key="EnumToBoolConverter"/>
-    </Window.Resources>
 
     <Window.InputBindings>
         <!-- Atajos de teclado globales (commit 18: persistencia). -->
