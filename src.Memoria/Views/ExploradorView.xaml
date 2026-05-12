@@ -27,19 +27,22 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBox Grid.Column="0" Margin="0,0,12,0"
-                     ToolTip="Buscar proyecto, ingeniero, o CODIA"
-                     Text="" />
+                     ToolTip="Buscar por nombre, ingeniero o CODIA"
+                     Text="{Binding BusquedaTexto, UpdateSourceTrigger=PropertyChanged}"/>
             <Button Grid.Column="1" Style="{StaticResource PrimaryButtonStyle}"
-                    Content="+ Nuevo proyecto"/>
+                    Content="+ Nuevo proyecto"
+                    Command="{Binding NuevoProyectoCommand}"/>
         </Grid>
 
         <!-- Tabla de proyectos -->
         <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource SectionCardStyle}" Padding="0">
-            <DataGrid ItemsSource="{Binding ProyectosRecientes}"
+            <DataGrid x:Name="ProyectosGrid"
+                      ItemsSource="{Binding ProyectosRecientesFiltrados}"
                       SelectedItem="{Binding ProyectoRecienteSeleccionado}"
                       SelectionUnit="FullRow"
                       IsReadOnly="True"
-                      BorderThickness="0">
+                      BorderThickness="0"
+                      MouseDoubleClick="ProyectosGrid_OnDoubleClick">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="NOMBRE"          Width="2*"  Binding="{Binding Nombre}"/>
                     <DataGridTextColumn Header="INGENIERO"       Width="*"   Binding="{Binding Ingeniero}"/>
@@ -116,7 +119,9 @@
                 </StackPanel>
 
                 <Button Grid.Row="2" Style="{StaticResource PrimaryButtonStyle}"
-                        Content="📂 Abrir en Cálculos" HorizontalAlignment="Stretch"/>
+                        Content="📂 Abrir en Cálculos" HorizontalAlignment="Stretch"
+                        Command="{Binding AbrirEnCalculosCommand}"
+                        ToolTip="Abrir el proyecto seleccionado en la pestaña Cálculos (doble-click en la fila también funciona)"/>
             </Grid>
         </Border>
 
@@ -125,7 +130,9 @@
                    Margin="0,0,0,12"
                    Foreground="{StaticResource OnSurfaceVariantBrush}"
                    FontFamily="{StaticResource FontFamilyMono}" FontSize="11">
-            <Run Text="Total: "/>
+            <Run Text="Mostrando "/>
+            <Run Text="{Binding ProyectosRecientesFiltrados.Count, Mode=OneWay}"/>
+            <Run Text=" de "/>
             <Run Text="{Binding ProyectosRecientes.Count, Mode=OneWay}"/>
             <Run Text=" proyectos"/>
         </TextBlock>

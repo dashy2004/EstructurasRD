@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -49,6 +50,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
         AbrirProyectoRecienteCommand = new RelayCommand<string>(AbrirProyectoReciente);
         AgregarLosaCommand    = new RelayCommand(AgregarLosa,    () => SistemaActivo != null);
         AgregarSistemaCommand = new RelayCommand(AgregarSistema, () => ProyectoActivo != null);
+        AbrirEnCalculosCommand = new RelayCommand(AbrirEnCalculos,
+            () => ProyectoRecienteSeleccionado != null
+                  && !string.IsNullOrEmpty(ProyectoRecienteSeleccionado.Path));
 
         // ---- Validación normativa (commit 21) ----
         Validacion = new ValidacionViewModel();
@@ -64,6 +68,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         // ---- Sidebar: lista de proyectos recientes (carga desde el registry real) ----
         ProyectosRecientes = new ObservableCollection<ProyectoResumen>();
+        ProyectosRecientesFiltrados = new ObservableCollection<ProyectoResumen>();
         // RecargarProyectosRecientes() se llama abajo después de inicializar
         // los commands para evitar NRE en ObservableCollection.
 
@@ -153,6 +158,30 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public ObservableCollection<ProyectoResumen> ProyectosRecientes { get; }
 
+    /// <summary>
+    /// Vista filtrada de <see cref="ProyectosRecientes"/> usada por el DataGrid
+    /// del Explorador. Se re-genera al cambiar <see cref="BusquedaTexto"/> o
+    /// al recargar el registry. La sidebar siempre muestra la lista completa.
+    /// </summary>
+    public ObservableCollection<ProyectoResumen> ProyectosRecientesFiltrados { get; }
+
+    private string _busquedaTexto = "";
+    /// <summary>
+    /// Texto del filtro del Explorador. Filtra contra Nombre / Ingeniero / Codia
+    /// (case-insensitive). Vacío = sin filtro.
+    /// </summary>
+    public string BusquedaTexto
+    {
+        get => _busquedaTexto;
+        set
+        {
+            if (_busquedaTexto == value) return;
+            _busquedaTexto = value ?? "";
+            OnPropertyChanged();
+            AplicarFiltroExplorador();
+        }
+    }
+
     public ObservableCollection<TabPage> Tabs { get; }
 
     private TabPage _tabActivo = null!;
@@ -236,7 +265,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ProyectoResumen? ProyectoRecienteSeleccionado
     {
         get => _proyectoRecienteSeleccionado;
-        set { _proyectoRecienteSeleccionado = value; OnPropertyChanged(); }
+        set
+        {
+            _proyectoRecienteSeleccionado = value;
+            OnPropertyChanged();
+            AbrirEnCalculosCommand?.RaiseCanExecuteChanged();
+        }
     }
 
     public RelayCommand ContinuarCommand          { get; }
@@ -253,6 +287,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand<string> AbrirProyectoRecienteCommand { get; }
     public RelayCommand AgregarLosaCommand    { get; }
     public RelayCommand AgregarSistemaCommand { get; }
+    public RelayCommand AbrirEnCalculosCommand { get; }
 
     /// <summary>
     /// Sub-VM que mantiene el reporte de validación normativa y los conteos
@@ -317,7 +352,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    public string Version => "v0.1.0 — Memoria Plus";
+    public string Version => "v0.5.0 — Memoria Plus";
+
+    /// <summary>
+    /// Copyright dinámico: usa el año en curso para que el footer no quede
+    /// desfasado con el paso del tiempo. Si en el futuro la app pasa a un año
+    /// nuevo, el statusbar se actualiza solo al próximo arranque.
+    /// </summary>
+    public string CopyrightTexto => $"© {DateTime.Now.Year} Memoria Plus Engineering";
 
     // -------------------------------------------------------------
     // Listas estáticas para los dropdowns del formulario
@@ -613,6 +655,40 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 "Guardado",
                 e.Path));
         }
+        AplicarFiltroExplorador();
+    }
+
+    /// <summary>
+    /// Re-puebla <see cref="ProyectosRecientesFiltrados"/> aplicando el texto
+    /// de <see cref="BusquedaTexto"/> sobre los campos Nombre / Ingeniero /
+    /// Codia (case-insensitive). Vacío = lista completa.
+    /// </summary>
+    private void AplicarFiltroExplorador()
+    {
+        ProyectosRecientesFiltrados.Clear();
+        var q = _busquedaTexto.Trim();
+        IEnumerable<ProyectoResumen> resultados = ProyectosRecientes;
+        if (!string.IsNullOrEmpty(q))
+        {
+            resultados = ProyectosRecientes.Where(p =>
+                p.Nombre.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || p.Ingeniero.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || p.Codia.Contains(q, StringComparison.OrdinalIgnoreCase));
+        }
+        foreach (var p in resultados) ProyectosRecientesFiltrados.Add(p);
+    }
+
+    /// <summary>
+    /// Abre el proyecto seleccionado del Explorador y cambia el modo a Cálculos
+    /// para entrar al flujo de edición. Usado por el botón "📂 Abrir en
+    /// Cálculos" del panel detalle y por doble-click en una fila.
+    /// </summary>
+    private void AbrirEnCalculos()
+    {
+        var resumen = ProyectoRecienteSeleccionado;
+        if (resumen is null || string.IsNullOrEmpty(resumen.Path)) return;
+        AbrirProyectoReciente(resumen.Path);
+        ModoActivo = ModoSidebar.Calculos;
     }
 
     private string SugerirNombreProyecto()

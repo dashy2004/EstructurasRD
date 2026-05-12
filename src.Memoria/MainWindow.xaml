@@ -386,7 +386,7 @@
                                FontFamily="{StaticResource FontFamilyMono}"
                                FontSize="11"
                                Foreground="{StaticResource OnSurfaceVariantBrush}"
-                               Text="© 2026 Memoria Plus Engineering"/>
+                               Text="{Binding CopyrightTexto}"/>
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
                         <TextBlock FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
                                    Foreground="{StaticResource OnSurfaceVariantBrush}"

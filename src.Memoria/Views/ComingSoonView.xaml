@@ -33,8 +33,10 @@
                             Padding="12,8">
                         <TextBlock FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
                                    Foreground="{StaticResource OnSurfaceVariantBrush}"
-                                   TextAlignment="Center"
-                                   Text="🚧  Próximamente en Memoria Plus v0.2"/>
+                                   TextAlignment="Center">
+                            <Run Text="🚧  Próximamente en "/>
+                            <Run Text="{Binding Version, RelativeSource={RelativeSource AncestorType=Window}, Mode=OneWay}"/>
+                        </TextBlock>
                     </Border>
                 </StackPanel>
             </Border>
