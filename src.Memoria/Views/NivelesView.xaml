@@ -118,7 +118,8 @@
 
                 <Button Grid.Row="2" Margin="8,4,8,8"
                         Style="{StaticResource SecondaryButtonStyle}"
-                        Content="+ Agregar nivel"/>
+                        Content="+ Agregar nivel"
+                        Command="{Binding AgregarSistemaCommand}"/>
             </Grid>
         </Border>
 
@@ -148,7 +149,9 @@
                                            Foreground="{StaticResource PrimaryBrush}"/>
                             </StackPanel>
                             <Button Grid.Column="1" Style="{StaticResource SecondaryButtonStyle}"
-                                    Content="+ Losa"/>
+                                    Content="+ Losa"
+                                    Command="{Binding AgregarLosaCommand}"
+                                    ToolTip="Agregar losa al nivel activo (Ctrl+L)"/>
                         </Grid>
                     </Border>
                 </Grid>

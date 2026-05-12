@@ -46,6 +46,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         GenerarMemoriaCommand     = new RelayCommand(GenerarMemoria);
         AbrirUltimaMemoriaCommand = new RelayCommand(AbrirUltimaMemoria, () => UltimoArchivoGenerado != null);
         AbrirProyectoRecienteCommand = new RelayCommand<string>(AbrirProyectoReciente);
+        AgregarLosaCommand    = new RelayCommand(AgregarLosa,    () => SistemaActivo != null);
+        AgregarSistemaCommand = new RelayCommand(AgregarSistema, () => ProyectoActivo != null);
 
         // ---- Sidebar: lista de proyectos recientes (carga desde el registry real) ----
         ProyectosRecientes = new ObservableCollection<ProyectoResumen>();
@@ -112,16 +114,24 @@ public sealed class MainViewModel : INotifyPropertyChanged
         foreach (var sistema in p.Sistemas)
         {
             foreach (var losa in sistema.Losas)
-            {
-                losa.PropertyChanged += (s, e) =>
-                {
-                    if (e.PropertyName != null && _propsRecalcLosa.Contains(e.PropertyName))
-                    {
-                        CalculoEngine.RecalcularLosa(losa, sistema, p);
-                    }
-                };
-            }
+                AdjuntarRecalculoLosa(losa, sistema, p);
         }
+    }
+
+    /// <summary>
+    /// Suscribe el handler de recálculo a una losa individual. Extraído de
+    /// <see cref="AdjuntarRecalculoEnVivo"/> para que el commando "+ Losa" pueda
+    /// engancharlo sobre las losas recién creadas sin volver a recorrer todo.
+    /// </summary>
+    private void AdjuntarRecalculoLosa(Losa losa, Sistema sistema, Proyecto proyecto)
+    {
+        losa.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName != null && _propsRecalcLosa.Contains(e.PropertyName))
+            {
+                CalculoEngine.RecalcularLosa(losa, sistema, proyecto);
+            }
+        };
     }
 
     public ObservableCollection<ProyectoResumen> ProyectosRecientes { get; }
@@ -172,6 +182,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             OnPropertyChanged();
             ImportarTxtPerdomoCommand?.RaiseCanExecuteChanged();
             QuitarTxtPerdomoCommand?.RaiseCanExecuteChanged();
+            AgregarLosaCommand?.RaiseCanExecuteChanged();
         }
     }
 
@@ -221,6 +232,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand GenerarMemoriaCommand     { get; }
     public RelayCommand AbrirUltimaMemoriaCommand { get; }
     public RelayCommand<string> AbrirProyectoRecienteCommand { get; }
+    public RelayCommand AgregarLosaCommand    { get; }
+    public RelayCommand AgregarSistemaCommand { get; }
 
     // ----- Estado de la pestaña Generar -----
 
@@ -478,6 +491,50 @@ public sealed class MainViewModel : INotifyPropertyChanged
         SistemaActivo = null;  // proyecto nuevo sin sistemas
         StatusPersistencia = "Nuevo proyecto creado.";
         OnPropertyChanged(nameof(TituloVentana));
+    }
+
+    /// <summary>
+    /// Agrega una nueva <see cref="Losa"/> al <see cref="SistemaActivo"/>. El Id
+    /// se calcula como <c>max(Losas.Id) + 1</c> para no chocar con existentes.
+    /// La losa se crea con los defaults del modelo (Tipo=10, Lx=Ly=4.000 m) y
+    /// se le adjunta el handler de recálculo en vivo. Inmediatamente se corre
+    /// el engine sobre ella para rellenar HCalc/Qd/Qu antes de que el usuario
+    /// edite nada.
+    /// </summary>
+    private void AgregarLosa()
+    {
+        if (SistemaActivo is null || ProyectoActivo is null) return;
+        var siguienteId = SistemaActivo.Losas.Count == 0
+            ? 1
+            : SistemaActivo.Losas.Max(l => l.Id) + 1;
+        var nueva = new Losa { Id = siguienteId };
+        SistemaActivo.Losas.Add(nueva);
+        AdjuntarRecalculoLosa(nueva, SistemaActivo, ProyectoActivo);
+        CalculoEngine.RecalcularLosa(nueva, SistemaActivo, ProyectoActivo);
+        StatusPersistencia = $"Losa L{siguienteId} agregada al nivel {SistemaActivo.Nombre}.";
+    }
+
+    /// <summary>
+    /// Agrega un nuevo <see cref="Sistema"/> al proyecto. Nombre auto-generado
+    /// como <c>E{n+1}</c> donde n es el count actual; cota = última cota +
+    /// 2.80 m (un nivel típico) y uso = Entrepiso. El usuario puede editar
+    /// estos defaults en la pestaña.
+    /// </summary>
+    private void AgregarSistema()
+    {
+        if (ProyectoActivo is null) return;
+        var n = ProyectoActivo.Sistemas.Count;
+        var nuevoNombre = $"E{n + 1}";
+        var ultimaCota = ProyectoActivo.Sistemas.LastOrDefault()?.CotaMetros ?? 0.0;
+        var nuevo = new Sistema
+        {
+            Nombre = nuevoNombre,
+            Uso = SistemaUso.Entrepiso,
+            CotaMetros = ultimaCota + 2.80,
+        };
+        ProyectoActivo.Sistemas.Add(nuevo);
+        SistemaActivo = nuevo;  // foco automático al nuevo nivel
+        StatusPersistencia = $"Nivel {nuevoNombre} agregado.";
     }
 
     /// <summary>Abre un proyecto desde el sidebar de recientes (click en una entry).</summary>
