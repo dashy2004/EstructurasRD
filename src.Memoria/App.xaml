@@ -9,6 +9,10 @@
                 <ResourceDictionary Source="Resources/Theme.xaml"/>
             </ResourceDictionary.MergedDictionaries>
             <cmn:EnumToBoolConverter x:Key="EnumToBoolConverter"/>
+            <cmn:BordeKindToStrokeDashConverter       x:Key="BordeKindToStrokeDashConverter"/>
+            <cmn:BordeKindToThicknessConverter        x:Key="BordeKindToThicknessConverter"/>
+            <cmn:TipoLosaBordeStrokeDashConverter     x:Key="TipoLosaBordeStrokeDashConverter"/>
+            <cmn:TipoLosaBordeThicknessConverter      x:Key="TipoLosaBordeThicknessConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
