@@ -89,12 +89,73 @@ public class CalculoEngineTests
     }
 
     [Fact]
-    public void HEq_devuelve_h_usar_aunque_haya_bw_y_HBloque_temporariamente()
+    public void HEq_vigueta_y_bloque_aplica_modelo_paramétrico_T_section()
     {
-        // TODO: cuando se implementen las formulas αfm, este test cambiara para
-        // exigir un h_eq distinto a h_usar.
+        // Cross-section T: Bw=0.10, HBloque=0.20, B=0.50, hCapeta=0.05.
+        // Por la fórmula del T-section: h_eq ≈ 0.1806 m.
         var l = new Losa { Lx = 4, Ly = 4, Bw = 0.10, HBloque = 0.20 };
-        Assert.Equal(0.15, CalculoEngine.ComputeHEq(l, hUsar: 0.15, fyKgCm2: 4200));
+        var h = CalculoEngine.ComputeHEq(l, hUsar: 0.25, fyKgCm2: 4200);
+        Assert.InRange(h, 0.179, 0.182);
+    }
+
+    [Fact]
+    public void HEq_vigueta_caída_a_capeta_por_default_si_hUsar_no_excede_hBloque()
+    {
+        // hUsar=0.15 < hBloque=0.20 → hCapeta default 0.05 (no negativo).
+        var l = new Losa { Lx = 4, Ly = 4, Bw = 0.10, HBloque = 0.20 };
+        var h = CalculoEngine.ComputeHEq(l, hUsar: 0.15, fyKgCm2: 4200);
+        // h_eq calculado con hCapeta=0.05 da el mismo valor que el test anterior.
+        Assert.InRange(h, 0.179, 0.182);
+    }
+
+    [Fact]
+    public void HEq_vigueta_bloque_es_menor_que_altura_total_pero_mayor_que_capeta()
+    {
+        // Sanity: h_eq cae entre la capeta sola (0.05) y la altura total
+        // (h_bloque + h_capeta = 0.25). Modelo razonable para losa nervada.
+        var l = new Losa { Lx = 4, Ly = 4, Bw = 0.12, HBloque = 0.20 };
+        var h = CalculoEngine.ComputeHEq(l, hUsar: 0.25, fyKgCm2: 4200);
+        Assert.True(h > 0.05);
+        Assert.True(h < 0.25);
+    }
+
+    [Fact]
+    public void HEq_aumenta_con_nervio_mas_ancho()
+    {
+        var lDelgado = new Losa { Lx = 4, Ly = 4, Bw = 0.08, HBloque = 0.20 };
+        var lGrueso  = new Losa { Lx = 4, Ly = 4, Bw = 0.15, HBloque = 0.20 };
+        var hDelg = CalculoEngine.ComputeHEq(lDelgado, hUsar: 0.25, fyKgCm2: 4200);
+        var hGrue = CalculoEngine.ComputeHEq(lGrueso,  hUsar: 0.25, fyKgCm2: 4200);
+        Assert.True(hGrue > hDelg, $"Esperado {hGrue} > {hDelg}: más nervio = más rigidez = más h_eq");
+    }
+
+    [Fact]
+    public void HEq_aumenta_con_bloque_mas_alto()
+    {
+        var lCorto = new Losa { Lx = 4, Ly = 4, Bw = 0.10, HBloque = 0.15 };
+        var lLargo = new Losa { Lx = 4, Ly = 4, Bw = 0.10, HBloque = 0.25 };
+        var hC = CalculoEngine.ComputeHEq(lCorto, hUsar: 0.20, fyKgCm2: 4200);
+        var hL = CalculoEngine.ComputeHEq(lLargo, hUsar: 0.30, fyKgCm2: 4200);
+        Assert.True(hL > hC, $"Esperado {hL} > {hC}: bloque más alto = más altura útil del T");
+    }
+
+    [Fact]
+    public void ComputeHEqViguetaBloque_rechaza_bw_que_excede_panel()
+    {
+        // bw >= bPanel rompe la geometría (nervio ocuparía todo el panel).
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            CalculoEngine.ComputeHEqViguetaBloque(bw: 0.60, hBloque: 0.20, hCapeta: 0.05, bPanel: 0.50));
+    }
+
+    [Theory]
+    [InlineData(0,    0.20, 0.05, 0.50)]  // bw=0 inválido
+    [InlineData(0.10, 0,    0.05, 0.50)]  // hBloque=0 inválido
+    [InlineData(0.10, 0.20, 0,    0.50)]  // hCapeta=0 inválido
+    [InlineData(0.10, 0.20, 0.05, 0)]     // bPanel=0 inválido
+    public void ComputeHEqViguetaBloque_rechaza_dimensiones_no_positivas(double bw, double hBloque, double hCapeta, double bPanel)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            CalculoEngine.ComputeHEqViguetaBloque(bw, hBloque, hCapeta, bPanel));
     }
 
     // =================================================================

@@ -78,26 +78,119 @@ public static class CalculoEngine
         => Math.Max(0.12, Math.Round(hCalc, 2));
 
     // =====================================================================
-    // ESPESOR EQUIVALENTE (h_eq)
+    // ESPESOR EQUIVALENTE (h_eq) — ACI 318 §9.5.3.3 / vigueta+bloque
     // =====================================================================
+
+    /// <summary>
+    /// Ancho típico de panel (separación entre centros de viguetas) en losas
+    /// vigueta+bloque dominicanas: <c>0.50 m</c> (bloque hueco de 0.40 m +
+    /// nervio de 0.10 m). Usado como default cuando
+    /// <see cref="Losa"/> no expone un campo explícito de ancho de panel.
+    /// </summary>
+    public const double BPanelDefault = 0.50;
+
+    /// <summary>
+    /// Espesor de la capeta (capa superior maciza) por defecto en losas
+    /// vigueta+bloque: <c>0.05 m</c>. Si el espesor total
+    /// <c>hUsar</c> entregado a <see cref="ComputeHEqViguetaBloque"/> no excede
+    /// <see cref="HBloque"/>, se asume este valor para mantener positivos los
+    /// términos de la T-section.
+    /// </summary>
+    public const double HCapetaDefault = 0.05;
 
     /// <summary>
     /// Espesor equivalente para una losa.
     /// <list type="bullet">
-    ///   <item>Si la losa NO tiene vigueta+bloque (<see cref="Losa.Bw"/> y
-    ///         <see cref="Losa.HBloque"/> nulos o ≤ 0), <c>h_eq = h_usar</c>.</item>
-    ///   <item>Si tiene vigueta+bloque, se aplica el cálculo paramétrico
-    ///         αfm de ACI 318 9.5.3.3. <b>TODO</b>: implementar fórmulas N9..R9
-    ///         del .xlsx (Is, B, yt, Ib, αfm) en commit posterior. Por ahora
-    ///         se devuelve <c>h_usar</c> como placeholder seguro.</item>
+    ///   <item>Losa <b>maciza</b> (sin <see cref="Losa.Bw"/> o
+    ///         <see cref="Losa.HBloque"/>): <c>h_eq = h_usar</c>.</item>
+    ///   <item>Losa <b>vigueta+bloque</b>: aplica
+    ///         <see cref="ComputeHEqViguetaBloque(double, double, double, double)"/>
+    ///         con <c>B = </c><see cref="BPanelDefault"/> y
+    ///         <c>h_capeta = hUsar − HBloque</c> (con piso
+    ///         <see cref="HCapetaDefault"/>).</item>
     /// </list>
+    /// <para>
+    /// El parámetro <paramref name="fyKgCm2"/> se mantiene en la firma por
+    /// compatibilidad — el modelo paramétrico de I-equivalente no depende del
+    /// acero. Reservado para futuras correcciones αfm de borde (ACI 9.5.3.3)
+    /// donde la rigidez de las vigas perimetrales modifica el espesor mínimo.
+    /// </para>
     /// </summary>
     public static double ComputeHEq(Losa losa, double hUsar, double fyKgCm2)
     {
         if (!losa.Bw.HasValue || !losa.HBloque.HasValue) return hUsar;
-        if (losa.Bw.Value <= 0 || losa.HBloque.Value <= 0) return hUsar;
-        // Placeholder: ver TODO en doc.
-        return hUsar;
+        var bw = losa.Bw.Value;
+        var hBloque = losa.HBloque.Value;
+        if (bw <= 0 || hBloque <= 0) return hUsar;
+
+        var hCapeta = Math.Max(HCapetaDefault, hUsar - hBloque);
+        return ComputeHEqViguetaBloque(bw, hBloque, hCapeta, BPanelDefault);
+    }
+
+    /// <summary>
+    /// Convierte la sección transversal de una losa <b>vigueta+bloque</b> en el
+    /// espesor de una losa maciza equivalente que tiene el mismo momento de
+    /// inercia por unidad de ancho de panel.
+    ///
+    /// <para>
+    /// Modelo geométrico (T-section por panel de ancho <paramref name="bPanel"/>):
+    /// </para>
+    /// <code>
+    ///       ←———— B ————→
+    ///      ┌──────────────┐  ↑ h_capeta (capeta superior maciza)
+    ///      ├──┐        ┌──┤  ↓
+    ///         │        │
+    ///         │ Bw     │      ↑ h_bloque (altura del bloque hueco
+    ///         │        │      │           = altura del nervio bajo capeta)
+    ///         └────────┘      ↓
+    /// </code>
+    ///
+    /// <para>
+    /// Procedimiento:
+    /// </para>
+    /// <list type="number">
+    ///   <item>Áreas:
+    ///       <c>A_cap = B·h_cap</c>,
+    ///       <c>A_ner = Bw·h_blo</c>.</item>
+    ///   <item>Centroide desde la fibra inferior:
+    ///       <c>y_bar = (A_cap·(h_blo + h_cap/2) + A_ner·(h_blo/2)) / (A_cap + A_ner)</c>.</item>
+    ///   <item>Momento de inercia de cada componente respecto al centroide
+    ///       (Steiner):
+    ///       <c>I_cap = B·h_cap³/12 + A_cap·(y_cap − y_bar)²</c>,
+    ///       <c>I_ner = Bw·h_blo³/12 + A_ner·(y_ner − y_bar)²</c>.</item>
+    ///   <item><c>I_total = I_cap + I_ner</c>.</item>
+    ///   <item><c>h_eq = ∛(12·I_total / B)</c>.</item>
+    /// </list>
+    ///
+    /// <para>
+    /// Referencia: ACI 318-05 §9.5.3.3 / 13.6.1.6 (ribbed slabs). Excel
+    /// equivalente: fórmulas N9..R9 de <c>cargas_estructurales_demo.xlsx</c>
+    /// (hojas <c>Espesor *</c>).
+    /// </para>
+    /// </summary>
+    public static double ComputeHEqViguetaBloque(double bw, double hBloque, double hCapeta, double bPanel)
+    {
+        if (bw     <= 0) throw new ArgumentOutOfRangeException(nameof(bw),     "bw debe ser > 0");
+        if (hBloque<= 0) throw new ArgumentOutOfRangeException(nameof(hBloque), "hBloque debe ser > 0");
+        if (hCapeta<= 0) throw new ArgumentOutOfRangeException(nameof(hCapeta), "hCapeta debe ser > 0");
+        if (bPanel <= 0) throw new ArgumentOutOfRangeException(nameof(bPanel),  "bPanel debe ser > 0");
+        if (bw >= bPanel)
+            throw new ArgumentOutOfRangeException(nameof(bw),
+                $"bw ({bw}) debe ser < bPanel ({bPanel}); el nervio no puede ocupar todo el ancho.");
+
+        var aCapeta = bPanel * hCapeta;
+        var aNervio = bw     * hBloque;
+        var aTotal  = aCapeta + aNervio;
+
+        var yCapeta = hBloque + hCapeta / 2.0;
+        var yNervio = hBloque / 2.0;
+        var yBar    = (aCapeta * yCapeta + aNervio * yNervio) / aTotal;
+
+        var iCapeta = bPanel * Math.Pow(hCapeta, 3) / 12.0 + aCapeta * Math.Pow(yCapeta - yBar, 2);
+        var iNervio = bw     * Math.Pow(hBloque, 3) / 12.0 + aNervio * Math.Pow(yNervio - yBar, 2);
+        var iTotal  = iCapeta + iNervio;
+
+        return Math.Pow(12.0 * iTotal / bPanel, 1.0 / 3.0);
     }
 
     // =====================================================================
