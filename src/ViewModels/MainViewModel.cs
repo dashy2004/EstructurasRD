@@ -13,11 +13,12 @@ using System.Windows.Input;
 using LosasPlus.Models;
 using LosasPlus.Persistence;
 using LosasPlus.Services;
+using LosasPlus.Validation;
 using MemoriaPlusVm = MemoriaPlus.ViewModels;  // ProyectoResumen vive en src.UI.Shared
 
 namespace LosasPlus.ViewModels;
 
-public class MainViewModel : INotifyPropertyChanged
+public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHost, MemoriaPlusVm.IBusquedaHost
 {
     private readonly Proyecto _proyecto = new();
     private Sistema _sistemaActivo = NuevoSistemaDemo();
@@ -133,6 +134,19 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand? RedoCommand               { get; private set; }
     public ICommand? AbrirShortcutsCommand     { get; private set; }
     public ICommand? AplicarBulkCommand        { get; private set; }
+
+    // ---- Validación normativa (commit 33) ----
+    /// <summary>
+    /// Sub-VM compartido con MemoriaPlus.App vía src.UI.Shared. Consume el
+    /// ValidationEngine de Core (4 reglas R-001 / ACI 318) y mantiene un
+    /// reporte vivo bound al chip indicador del toolbar y al panel lateral.
+    /// </summary>
+    public MemoriaPlusVm.ValidacionViewModel Validacion { get; } = new();
+
+    // ---- Búsqueda global (commit 35) ----
+    public MemoriaPlusVm.BusquedaViewModel Busqueda { get; private set; } = null!;
+
+    public ICommand? IrABusquedaCommand { get; private set; }
 
     // ---- Undo/Redo infraestructura (snapshots de ProyectoSerializer) ----
 
@@ -421,6 +435,21 @@ public class MainViewModel : INotifyPropertyChanged
         RedoCommand          = new RelayCommand(_ => Redo(), _ => PuedeRedo);
         AbrirShortcutsCommand = new RelayCommand(_ => AbrirShortcutsModal());
         AplicarBulkCommand   = new RelayCommand(_ => AplicarBulk(), _ => MostrarBulkPanel);
+
+        // ---- Búsqueda global (commit 35) ----
+        Busqueda = new MemoriaPlusVm.BusquedaViewModel(
+            getProyectosRecientes: () => ProyectosRecientes,
+            getProyectoActivo:     () => _proyecto,
+            abrirProyectoPorPath:  path => { AbrirProyectoLpxPorPath(path); ModoActivo = ModoSidebar.Editor; },
+            irASistema:            BuscarYActivarSistema,
+            irALosa:               (s, id) => BuscarYActivarSistema(s));
+        IrABusquedaCommand = new RelayCommand(_ => ModoActivo = ModoSidebar.Busqueda);
+
+        // ---- Validación normativa (commit 33) ----
+        // Primera validación + re-validación en cada cambio del modelo.
+        Validacion.RevalidarPara(_proyecto);
+        _proyecto.Sistemas.CollectionChanged += (_, _) => Validacion.Revalidar();
+        SuscribirRevalidacionEnSistemas();
 
         // Cargar lista de proyectos recientes al arrancar.
         RecargarProyectosRecientes();
@@ -911,6 +940,58 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// Suscribe el handler de re-validación a las losas existentes y a futuras
+    /// adiciones, de cada sistema. Disparado en arranque y cuando cambia la
+    /// lista de sistemas. Asegura que el chip / panel de validación refleje
+    /// los cambios live mientras el usuario edita.
+    /// </summary>
+    private void SuscribirRevalidacionEnSistemas()
+    {
+        foreach (var s in _proyecto.Sistemas)
+        {
+            s.Losas.CollectionChanged -= OnLosasOfSistemaChanged;
+            s.Losas.CollectionChanged += OnLosasOfSistemaChanged;
+            foreach (var l in s.Losas)
+            {
+                l.PropertyChanged -= OnLosaPropChangedForRevalidacion;
+                l.PropertyChanged += OnLosaPropChangedForRevalidacion;
+            }
+        }
+    }
+
+    private void OnLosasOfSistemaChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems is not null)
+            foreach (Losa l in e.NewItems) l.PropertyChanged += OnLosaPropChangedForRevalidacion;
+        if (e.OldItems is not null)
+            foreach (Losa l in e.OldItems) l.PropertyChanged -= OnLosaPropChangedForRevalidacion;
+        Validacion.Revalidar();
+        Busqueda?.Refrescar();
+    }
+
+    private void OnLosaPropChangedForRevalidacion(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(Losa.Lx) or nameof(Losa.Ly)
+                           or nameof(Losa.Espesor) or nameof(Losa.Tipo)
+                           or nameof(Losa.Carga))
+        {
+            Validacion.Revalidar();
+        }
+    }
+
+    /// <summary>
+    /// Cambia el SistemaActivo al sistema con nombre dado y entra al modo
+    /// Editor. Llamado por el callback de búsqueda global.
+    /// </summary>
+    private void BuscarYActivarSistema(string nombreSistema)
+    {
+        var s = _proyecto.Sistemas.FirstOrDefault(s => s.Nombre == nombreSistema);
+        if (s is null) return;
+        SistemaActivo = s;
+        ModoActivo = ModoSidebar.Editor;
+    }
+
     private string SugerirNombreLpx()
     {
         var slug = (_proyecto.Nombre ?? "Proyecto")
@@ -949,6 +1030,10 @@ public enum ModoSidebar
     Diagrama,
     DLEditor,
     Salida,
+    Validacion,
+    Busqueda,
+    Configuracion,
+    Plantillas,
     Reglamento,
     Plugins,
     Acerca,

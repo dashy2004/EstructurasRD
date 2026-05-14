@@ -6,6 +6,7 @@
         xmlns:v="clr-namespace:LosasPlus.Views"
         xmlns:s="clr-namespace:LosasPlus.Services"
         xmlns:cmn="clr-namespace:MemoriaPlus.Common;assembly=MemoriaPlus.UI.Shared"
+        xmlns:vws="clr-namespace:MemoriaPlus.Views;assembly=MemoriaPlus.UI.Shared"
         xmlns:svgc="http://sharpvectors.codeplex.com/svgc/"
         xmlns:sys="clr-namespace:System;assembly=System.Runtime"
         Title="{Binding TituloVentana}"
@@ -23,6 +24,7 @@
         <KeyBinding Modifiers="Ctrl"       Key="Z" Command="{Binding UndoCommand}"/>
         <KeyBinding Modifiers="Ctrl"       Key="Y" Command="{Binding RedoCommand}"/>
         <KeyBinding Modifiers="Ctrl"       Key="OemQuestion" Command="{Binding AbrirShortcutsCommand}"/>
+        <KeyBinding Modifiers="Ctrl"       Key="F" Command="{Binding IrABusquedaCommand}"/>
     </Window.InputBindings>
 
     <Window.DataContext>
@@ -112,6 +114,8 @@
                     </StackPanel.Resources>
                     <RadioButton GroupName="SidebarNav" Content="📂  Explorador"
                                  IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Explorador}"/>
+                    <RadioButton GroupName="SidebarNav" Content="🔍  Búsqueda"
+                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Busqueda}"/>
                     <RadioButton GroupName="SidebarNav" Content="✎  Editor"
                                  IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Editor}"/>
                     <RadioButton GroupName="SidebarNav" Content="⛶  Diagrama"
@@ -120,8 +124,14 @@
                                  IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DLEditor}"/>
                     <RadioButton GroupName="SidebarNav" Content="⇲  Salida .TXT"
                                  IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Salida}"/>
+                    <RadioButton GroupName="SidebarNav" Content="🛡  Validación"
+                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}"/>
                     <RadioButton GroupName="SidebarNav" Content="⚖  Reglamento"
                                  IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Reglamento}"/>
+                    <RadioButton GroupName="SidebarNav" Content="📚  Plantillas"
+                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Plantillas}"/>
+                    <RadioButton GroupName="SidebarNav" Content="⚙  Configuración"
+                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Configuracion}"/>
                     <RadioButton GroupName="SidebarNav" Content="◆  Plugins"
                                  IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Plugins}"/>
                     <RadioButton GroupName="SidebarNav" Content="ℹ  Acerca de"
@@ -262,6 +272,36 @@
                             Content="▶ Lanzar motor" Padding="14,4" Margin="6,0,0,0"
                             Click="OnLaunchLosasExeClick"
                             ToolTip="Abre Losas.exe. Cargá el .DL desde su menú File y ejecutá el cálculo, luego volvé acá e Importá el .TXT."/>
+
+                    <!-- Chip indicador de Validación normativa (commit 33). Click lleva al modo Validación.
+                         Color de fondo varía según severidad (verde / naranja / rojo). -->
+                    <Button DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,4"
+                            Cursor="Hand" BorderThickness="1"
+                            Command="{Binding Validacion.AbrirPanelCommand}"
+                            Click="OnChipValidacionClick"
+                            ToolTip="Abrir panel de validación normativa">
+                        <Button.Style>
+                            <Style TargetType="{x:Type Button}">
+                                <Setter Property="Background" Value="#1F4CAF50"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource Ok}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Validacion.ColorIndicador}" Value="Error">
+                                        <Setter Property="Background" Value="#1FD32F2F"/>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource Err}"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Validacion.ColorIndicador}" Value="Warning">
+                                        <Setter Property="Background" Value="#1FFFA000"/>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource Warn}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <TextBlock VerticalAlignment="Center"
+                                   FontFamily="JetBrains Mono, Consolas"
+                                   FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource FgPrimary}"
+                                   Text="{Binding Validacion.ResumenIndicador}"/>
+                    </Button>
 
                     <!-- Path Losas.exe -->
                     <TextBlock DockPanel.Dock="Left" Text="Losas.exe:" VerticalAlignment="Center"
@@ -900,6 +940,70 @@
                         </ItemsControl.Template>
                     </ItemsControl>
                 </Grid>
+
+                <!-- MODO Validación normativa (commit 33) — consume ValidacionView del shared.
+                     El MainViewModel implementa IValidacionHost, así que DataContext del shared view
+                     puede ser el MainViewModel completo y resolverá vía vm.Validacion. -->
+                <ContentControl>
+                    <ContentControl.Style>
+                        <Style TargetType="{x:Type ContentControl}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ModoActivo}" Value="Validacion">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ContentControl.Style>
+                    <vws:ValidacionView DataContext="{Binding Validacion}"
+                                        HorizontalAlignment="Stretch"/>
+                </ContentControl>
+
+                <!-- MODO Búsqueda global (commit 35) — consume BusquedaView del shared. -->
+                <ContentControl>
+                    <ContentControl.Style>
+                        <Style TargetType="{x:Type ContentControl}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ModoActivo}" Value="Busqueda">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ContentControl.Style>
+                    <vws:BusquedaView/>
+                </ContentControl>
+
+                <!-- MODO Plantillas (commit 36) — consume PlantillasView del shared. -->
+                <ContentControl>
+                    <ContentControl.Style>
+                        <Style TargetType="{x:Type ContentControl}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ModoActivo}" Value="Plantillas">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ContentControl.Style>
+                    <vws:PlantillasView/>
+                </ContentControl>
+
+                <!-- MODO Configuración (commit 34) — consume ConfiguracionView del shared
+                     (Perfil ingeniero + Apariencia + Atajos editables). -->
+                <ContentControl>
+                    <ContentControl.Style>
+                        <Style TargetType="{x:Type ContentControl}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ModoActivo}" Value="Configuracion">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ContentControl.Style>
+                    <vws:ConfiguracionView/>
+                </ContentControl>
 
                 <!-- MODO Acerca de -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto">

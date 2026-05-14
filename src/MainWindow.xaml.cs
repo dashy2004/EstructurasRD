@@ -71,6 +71,16 @@ public partial class MainWindow : Window
             Vm.ActualizarLosasSeleccionadas(dg.SelectedItems);
     }
 
+    /// <summary>
+    /// Click en el chip de validación: además de abrir el panel lateral via
+    /// command, switch al modo Validación full-screen para que el usuario vea
+    /// los detalles. Si la app crece, se puede mantener solo el panel lateral.
+    /// </summary>
+    private void OnChipValidacionClick(object sender, RoutedEventArgs e)
+    {
+        Vm.ModoActivo = LosasPlus.ViewModels.ModoSidebar.Validacion;
+    }
+
     private void OnBrowseLosasExe(object sender, RoutedEventArgs e)
     {
         var dlg = new OpenFileDialog
