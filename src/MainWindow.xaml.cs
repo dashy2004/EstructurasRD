@@ -283,4 +283,16 @@ public partial class MainWindow : Window
         catch { /* ignore */ }
         e.Handled = true;
     }
+
+    /// <summary>
+    /// Doble-click en una fila de proyectos recientes (Explorador): abre el
+    /// proyecto y cambia a modo Editor. Equivalente al AbrirEnEditorCommand
+    /// pero disparado por la interacción nativa del DataGrid.
+    /// </summary>
+    private void OnAbrirRecienteDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (Vm.ProyectoRecienteSeleccionado is null) return;
+        if (Vm.AbrirEnEditorCommand is { } cmd && cmd.CanExecute(null))
+            cmd.Execute(null);
+    }
 }

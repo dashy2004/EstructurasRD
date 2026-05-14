@@ -11,7 +11,9 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using LosasPlus.Models;
+using LosasPlus.Persistence;
 using LosasPlus.Services;
+using MemoriaPlusVm = MemoriaPlus.ViewModels;  // ProyectoResumen vive en src.UI.Shared
 
 namespace LosasPlus.ViewModels;
 
@@ -62,6 +64,58 @@ public class MainViewModel : INotifyPropertyChanged
 
     /// <summary>Copyright dinámico (año en curso) — bound al statusbar.</summary>
     public string CopyrightTexto => $"© {DateTime.Now.Year} LosasPlus · motor: F. Perdomo (Pieper-Martens)";
+
+    /// <summary>
+    /// Título dinámico del Window. Refleja el nombre del proyecto activo y
+    /// si está guardado o no. Bound a Window.Title via {Binding TituloVentana}.
+    /// </summary>
+    public string TituloVentana
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(_proyecto.Archivo))
+                return "LosasPlus · proyecto sin guardar";
+            return $"LosasPlus · {Path.GetFileName(_proyecto.Archivo)}";
+        }
+    }
+
+    // ---- Persistencia .lpx.json + proyectos recientes (commit 32) -------
+
+    /// <summary>
+    /// Colección de proyectos recientes leídos de <see cref="ProyectoRegistry"/>.
+    /// Compartida con MemoriaPlus.App: ambos clientes leen/escriben el mismo
+    /// JSON en <c>%APPDATA%/MemoriaPlus/recents.json</c>, así un proyecto
+    /// abierto en una app aparece en la otra.
+    /// </summary>
+    public ObservableCollection<MemoriaPlusVm.ProyectoResumen> ProyectosRecientes { get; } = new();
+
+    private MemoriaPlusVm.ProyectoResumen? _proyectoRecienteSeleccionado;
+    public MemoriaPlusVm.ProyectoResumen? ProyectoRecienteSeleccionado
+    {
+        get => _proyectoRecienteSeleccionado;
+        set
+        {
+            _proyectoRecienteSeleccionado = value;
+            OnPropertyChanged();
+            (AbrirEnEditorCommand as RelayCommand)?.Execute(null);  // no-op si null
+        }
+    }
+
+    private string _statusPersistencia = "";
+    /// <summary>Mensaje breve del último resultado de persistencia .lpx.json.</summary>
+    public string StatusPersistencia
+    {
+        get => _statusPersistencia;
+        private set { _statusPersistencia = value; OnPropertyChanged(); }
+    }
+
+    public ICommand? NuevoProyectoLpxCommand   { get; private set; }
+    public ICommand? AbrirProyectoLpxCommand   { get; private set; }
+    public ICommand? GuardarProyectoLpxCommand { get; private set; }
+    public ICommand? GuardarComoLpxCommand     { get; private set; }
+    public ICommand? AbrirProyectoRecienteCommand { get; private set; }
+    public ICommand? AbrirEnEditorCommand      { get; private set; }
+    public ICommand? IrAExploradorCommand      { get; private set; }
 
     public Proyecto Proyecto => _proyecto;
 
@@ -173,6 +227,28 @@ public class MainViewModel : INotifyPropertyChanged
     {
         // El proyecto arranca con el sistema demo activo.
         _proyecto.Sistemas.Add(_sistemaActivo);
+
+        // ---- Commands de persistencia .lpx.json (commit 32) ----
+        NuevoProyectoLpxCommand   = new RelayCommand(_ => NuevoProyectoLpx());
+        AbrirProyectoLpxCommand   = new RelayCommand(_ => AbrirProyectoLpxDialog());
+        GuardarProyectoLpxCommand = new RelayCommand(_ => GuardarProyectoLpx());
+        GuardarComoLpxCommand     = new RelayCommand(_ => GuardarComoLpx());
+        AbrirProyectoRecienteCommand = new RelayCommand(p =>
+        {
+            if (p is string path) AbrirProyectoLpxPorPath(path);
+        });
+        AbrirEnEditorCommand = new RelayCommand(_ =>
+        {
+            var sel = _proyectoRecienteSeleccionado;
+            if (sel is null || string.IsNullOrEmpty(sel.Path)) return;
+            AbrirProyectoLpxPorPath(sel.Path);
+            ModoActivo = ModoSidebar.Editor;
+        }, _ => _proyectoRecienteSeleccionado is not null
+                && !string.IsNullOrEmpty(_proyectoRecienteSeleccionado.Path));
+        IrAExploradorCommand = new RelayCommand(_ => ModoActivo = ModoSidebar.Explorador);
+
+        // Cargar lista de proyectos recientes al arrancar.
+        RecargarProyectosRecientes();
 
         // AppContext.BaseDirectory funciona también en single-file publish (donde
         // Assembly.Location devuelve string vacío y rompía el constructor).
@@ -498,6 +574,171 @@ public class MainViewModel : INotifyPropertyChanged
         return s;
     }
 
+    // =====================================================================
+    // PERSISTENCIA .lpx.json (commit 32) — formato single-file compartido
+    // con MemoriaPlus.App vía ProyectoSerializer + ProyectoRegistry de Core.
+    // =====================================================================
+
+    /// <summary>
+    /// Crea un proyecto vacío con un sistema demo. Reemplaza el activo.
+    /// El proyecto queda en memoria sin path hasta que el usuario Guarde.
+    /// </summary>
+    public void NuevoProyectoLpx()
+    {
+        _proyecto.Sistemas.Clear();
+        _proyecto.Archivo = "";
+        _proyecto.Nombre = "Proyecto sin título";
+        var demo = NuevoSistemaDemo();
+        _proyecto.Sistemas.Add(demo);
+        SistemaActivo = demo;
+        StatusPersistencia = "Nuevo proyecto creado.";
+        Log("Nuevo proyecto .lpx en memoria.");
+        OnPropertyChanged(nameof(TituloVentana));
+        OnPropertyChanged(nameof(Proyecto));
+    }
+
+    /// <summary>
+    /// Abre un OpenFileDialog filtrado a <c>*.lpx.json</c> y carga el archivo
+    /// elegido. Cancelar = no-op. Errores se loggean y se reflejan en
+    /// <see cref="StatusPersistencia"/>.
+    /// </summary>
+    public void AbrirProyectoLpxDialog()
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Title  = "Abrir proyecto LosasPlus",
+            Filter = "Proyecto LosasPlus (*.lpx.json)|*.lpx.json|JSON (*.json)|*.json|Todos|*.*",
+            CheckFileExists = true,
+        };
+        if (dlg.ShowDialog() == true) AbrirProyectoLpxPorPath(dlg.FileName);
+    }
+
+    /// <summary>
+    /// Carga el .lpx.json desde el path dado vía <see cref="ProyectoSerializer"/>.
+    /// Reemplaza el proyecto activo, actualiza el registry de recientes y
+    /// dispara los OnPropertyChanged necesarios para refrescar la UI.
+    /// </summary>
+    public void AbrirProyectoLpxPorPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        if (!File.Exists(path))
+        {
+            ProyectoRegistry.Remove(path);
+            RecargarProyectosRecientes();
+            StatusPersistencia = $"Archivo no existe: {Path.GetFileName(path)}";
+            return;
+        }
+        try
+        {
+            var p = ProyectoSerializer.Load(path);
+            _proyecto.Sistemas.Clear();
+            foreach (var s in p.Sistemas) _proyecto.Sistemas.Add(s);
+            _proyecto.Archivo     = p.Archivo;
+            _proyecto.Nombre      = p.Nombre;
+            _proyecto.Autor       = p.Autor;
+            _proyecto.CodigoObra  = p.CodigoObra;
+            _proyecto.Ubicacion   = p.Ubicacion;
+            _proyecto.Descripcion = p.Descripcion;
+            SistemaActivo = _proyecto.Sistemas.FirstOrDefault() ?? NuevoSistemaDemo();
+
+            ActualizarRecents();
+            StatusPersistencia = $"Cargado: {Path.GetFileName(path)}";
+            Log($"Proyecto .lpx cargado: {path} ({_proyecto.Sistemas.Count} sistema(s)).");
+            OnPropertyChanged(nameof(TituloVentana));
+            OnPropertyChanged(nameof(Proyecto));
+        }
+        catch (Exception ex)
+        {
+            StatusPersistencia = $"Error al abrir: {ex.Message}";
+            Log("Error abriendo .lpx: " + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Guarda al path actual (Proyecto.Archivo); si no hay, delega en
+    /// <see cref="GuardarComoLpx"/>. Bound a Ctrl+S.
+    /// </summary>
+    public void GuardarProyectoLpx()
+    {
+        if (string.IsNullOrEmpty(_proyecto.Archivo)) { GuardarComoLpx(); return; }
+        try
+        {
+            ProyectoSerializer.Save(_proyecto, _proyecto.Archivo);
+            ActualizarRecents();
+            StatusPersistencia = $"Guardado: {Path.GetFileName(_proyecto.Archivo)}";
+            Log($"Proyecto .lpx guardado en {_proyecto.Archivo}.");
+        }
+        catch (Exception ex)
+        {
+            StatusPersistencia = $"Error al guardar: {ex.Message}";
+            Log("Error guardando .lpx: " + ex.Message);
+        }
+    }
+
+    /// <summary>Pregunta destino con SaveFileDialog y guarda. Bound a Ctrl+Shift+S.</summary>
+    public void GuardarComoLpx()
+    {
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Title    = "Guardar proyecto LosasPlus",
+            Filter   = "Proyecto LosasPlus (*.lpx.json)|*.lpx.json|JSON (*.json)|*.json",
+            FileName = SugerirNombreLpx(),
+            AddExtension = true,
+            DefaultExt   = ProyectoSerializer.Extension,
+            OverwritePrompt = true,
+        };
+        if (dlg.ShowDialog() != true) return;
+        try
+        {
+            ProyectoSerializer.Save(_proyecto, dlg.FileName);
+            _proyecto.Archivo = dlg.FileName;
+            ActualizarRecents();
+            StatusPersistencia = $"Guardado: {Path.GetFileName(dlg.FileName)}";
+            Log($"Proyecto .lpx guardado en {dlg.FileName}.");
+            OnPropertyChanged(nameof(TituloVentana));
+        }
+        catch (Exception ex)
+        {
+            StatusPersistencia = $"Error al guardar: {ex.Message}";
+            Log("Error guardando .lpx: " + ex.Message);
+        }
+    }
+
+    private void ActualizarRecents()
+    {
+        if (string.IsNullOrEmpty(_proyecto.Archivo)) return;
+        ProyectoRegistry.AddOrUpdate(
+            _proyecto.Archivo,
+            string.IsNullOrEmpty(_proyecto.Nombre) ? Path.GetFileNameWithoutExtension(_proyecto.Archivo) : _proyecto.Nombre,
+            _proyecto.Autor ?? "",
+            _proyecto.CodigoObra ?? "",
+            _proyecto.Sistemas.Count);
+        RecargarProyectosRecientes();
+    }
+
+    private void RecargarProyectosRecientes()
+    {
+        ProyectosRecientes.Clear();
+        foreach (var e in ProyectoRegistry.Load())
+        {
+            ProyectosRecientes.Add(new MemoriaPlusVm.ProyectoResumen(
+                e.NombreProyecto,
+                e.Ingeniero,
+                e.Codia,
+                e.CantidadNiveles,
+                e.UltimoAccesoUtc.ToLocalTime().ToString("dd/MM/yy"),
+                "Guardado",
+                e.Path));
+        }
+    }
+
+    private string SugerirNombreLpx()
+    {
+        var slug = (_proyecto.Nombre ?? "Proyecto")
+            .Replace(' ', '_').Replace('/', '-').Replace('\\', '-');
+        return $"{slug}{ProyectoSerializer.Extension}";
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? n = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
@@ -524,6 +765,7 @@ public sealed class RelayCommand : ICommand
 /// </summary>
 public enum ModoSidebar
 {
+    Explorador,
     Editor,
     Diagrama,
     DLEditor,

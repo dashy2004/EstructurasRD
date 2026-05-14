@@ -7,10 +7,20 @@
         xmlns:s="clr-namespace:LosasPlus.Services"
         xmlns:cmn="clr-namespace:MemoriaPlus.Common;assembly=MemoriaPlus.UI.Shared"
         xmlns:sys="clr-namespace:System;assembly=System.Runtime"
-        Title="{Binding Version, StringFormat=LosasPlus  ·  {0}}"
+        Title="{Binding TituloVentana}"
         Height="900" Width="1440" MinHeight="640" MinWidth="1100"
         Background="{DynamicResource BgPrimary}"
         WindowStartupLocation="CenterScreen">
+
+    <!-- Atajos de teclado .lpx.json (commit 32) — alineados con MemoriaPlus. -->
+    <Window.InputBindings>
+        <KeyBinding Modifiers="Ctrl"       Key="N" Command="{Binding NuevoProyectoLpxCommand}"/>
+        <KeyBinding Modifiers="Ctrl"       Key="O" Command="{Binding AbrirProyectoLpxCommand}"/>
+        <KeyBinding Modifiers="Ctrl"       Key="S" Command="{Binding GuardarProyectoLpxCommand}"/>
+        <KeyBinding Modifiers="Ctrl+Shift" Key="S" Command="{Binding GuardarComoLpxCommand}"/>
+        <KeyBinding Modifiers="Ctrl"       Key="E" Command="{Binding IrAExploradorCommand}"/>
+    </Window.InputBindings>
+
     <Window.DataContext>
         <vm:MainViewModel/>
     </Window.DataContext>
@@ -96,6 +106,8 @@
                             </Setter>
                         </Style>
                     </StackPanel.Resources>
+                    <RadioButton GroupName="SidebarNav" Content="📂  Explorador"
+                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Explorador}"/>
                     <RadioButton GroupName="SidebarNav" Content="✎  Editor"
                                  IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Editor}"/>
                     <RadioButton GroupName="SidebarNav" Content="⛶  Diagrama"
@@ -262,6 +274,102 @@
                  está activo (DataTrigger).
                  ========================================================= -->
             <Grid Grid.Row="1">
+
+                <!-- MODO Explorador (commit 32): hub de proyectos recientes (.lpx.json) -->
+                <Grid Margin="32,24">
+                    <Grid.Style>
+                        <Style TargetType="{x:Type Grid}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ModoActivo}" Value="Explorador">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>  <!-- header -->
+                        <RowDefinition Height="Auto"/>  <!-- status -->
+                        <RowDefinition Height="*"/>     <!-- tabla -->
+                        <RowDefinition Height="Auto"/>  <!-- footer info -->
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Proyectos recientes"
+                                       FontSize="22" FontWeight="Bold"
+                                       Foreground="{DynamicResource FgPrimary}"/>
+                            <TextBlock Margin="0,4,0,0"
+                                       Foreground="{DynamicResource FgMuted}"
+                                       FontSize="13"
+                                       Text="Archivos .lpx.json compartidos con MemoriaPlus.App. Doble-click para abrir en Editor."/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Margin="8,0,0,0" Padding="14,6"
+                                Content="+ Nuevo proyecto"
+                                Command="{Binding NuevoProyectoLpxCommand}"
+                                Style="{StaticResource PrimaryButton}"/>
+                        <Button Grid.Column="2" Margin="8,0,0,0" Padding="14,6"
+                                Content="📂 Abrir .lpx.json…"
+                                Command="{Binding AbrirProyectoLpxCommand}"/>
+                    </Grid>
+
+                    <Border Grid.Row="1" Margin="0,0,0,12" Padding="10,6"
+                            Background="{DynamicResource BgInput}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1">
+                        <Border.Style>
+                            <Style TargetType="{x:Type Border}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding StatusPersistencia, Converter={StaticResource NullToCollapsed}}" Value="Visible">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <TextBlock Text="{Binding StatusPersistencia}"
+                                   FontFamily="JetBrains Mono, Consolas"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource FgSecondary}"
+                                   TextWrapping="Wrap"/>
+                    </Border>
+
+                    <Border Grid.Row="2" Background="{DynamicResource BgSecondary}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1">
+                        <DataGrid x:Name="ProyectosRecientesGrid"
+                                  ItemsSource="{Binding ProyectosRecientes}"
+                                  SelectedItem="{Binding ProyectoRecienteSeleccionado}"
+                                  SelectionUnit="FullRow"
+                                  IsReadOnly="True"
+                                  AutoGenerateColumns="False"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="None"
+                                  Background="Transparent"
+                                  BorderThickness="0"
+                                  MouseDoubleClick="OnAbrirRecienteDoubleClick">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="NOMBRE"      Width="2*"  Binding="{Binding Nombre}"/>
+                                <DataGridTextColumn Header="INGENIERO"   Width="*"   Binding="{Binding Ingeniero}"/>
+                                <DataGridTextColumn Header="CÓDIGO OBRA" Width="120" Binding="{Binding Codia}"/>
+                                <DataGridTextColumn Header="SISTEMAS"    Width="80"  Binding="{Binding Niveles}"/>
+                                <DataGridTextColumn Header="ÚLT. EDICIÓN" Width="140" Binding="{Binding UltimaEdicion}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+
+                    <TextBlock Grid.Row="3" Margin="0,8,0,0"
+                               HorizontalAlignment="Right"
+                               Foreground="{DynamicResource FgMuted}"
+                               FontFamily="JetBrains Mono, Consolas" FontSize="11">
+                        <Run Text="Total: "/>
+                        <Run Text="{Binding ProyectosRecientes.Count, Mode=OneWay}"/>
+                        <Run Text=" proyectos · registry compartido con MemoriaPlus"/>
+                    </TextBlock>
+                </Grid>
 
                 <!-- MODO Editor: DataGrid de losas + tipos panel + sistema settings -->
                 <Grid Margin="16">
