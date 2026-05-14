@@ -25,6 +25,7 @@
         <KeyBinding Modifiers="Ctrl"       Key="Y" Command="{Binding RedoCommand}"/>
         <KeyBinding Modifiers="Ctrl"       Key="OemQuestion" Command="{Binding AbrirShortcutsCommand}"/>
         <KeyBinding Modifiers="Ctrl"       Key="F" Command="{Binding IrABusquedaCommand}"/>
+        <KeyBinding Modifiers="Ctrl"       Key="G" Command="{Binding GenerarMemoriaCommand}"/>
     </Window.InputBindings>
 
     <Window.DataContext>
@@ -262,6 +263,8 @@
                             <MenuItem Header="Importar .TXT..." Click="OnImportTxtClick"/>
                         </MenuItem>
                         <MenuItem Header="Export">
+                            <MenuItem Header="Generar memoria .docx... (Ctrl+G)" Command="{Binding GenerarMemoriaCommand}"/>
+                            <Separator/>
                             <MenuItem Header="Exportar CSV..." Click="OnExportCsvClick"/>
                             <MenuItem Header="Exportar XLSX..." Click="OnExportXlsxClick"/>
                         </MenuItem>

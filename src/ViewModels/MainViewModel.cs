@@ -10,6 +10,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using LosasPlus.Generation;
 using LosasPlus.Models;
 using LosasPlus.Persistence;
 using LosasPlus.Services;
@@ -147,6 +148,15 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     public MemoriaPlusVm.BusquedaViewModel Busqueda { get; private set; } = null!;
 
     public ICommand? IrABusquedaCommand { get; private set; }
+    public ICommand? GenerarMemoriaCommand { get; private set; }
+
+    private string _statusGeneracion = "";
+    /// <summary>Mensaje del último intento de generación de memoria .docx.</summary>
+    public string StatusGeneracion
+    {
+        get => _statusGeneracion;
+        private set { _statusGeneracion = value; OnPropertyChanged(); }
+    }
 
     // ---- Undo/Redo infraestructura (snapshots de ProyectoSerializer) ----
 
@@ -444,6 +454,10 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             irASistema:            BuscarYActivarSistema,
             irALosa:               (s, id) => BuscarYActivarSistema(s));
         IrABusquedaCommand = new RelayCommand(_ => ModoActivo = ModoSidebar.Busqueda);
+        GenerarMemoriaCommand = new RelayCommand(_ => GenerarMemoria());
+
+        // Bootstrap registry de plantillas con la bundleada (commit 36).
+        BootstrapPlantillaPredeterminada();
 
         // ---- Validación normativa (commit 33) ----
         // Primera validación + re-validación en cada cambio del modelo.
@@ -990,6 +1004,95 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         if (s is null) return;
         SistemaActivo = s;
         ModoActivo = ModoSidebar.Editor;
+    }
+
+    // =====================================================================
+    // GENERACIÓN DE MEMORIA .docx (commit 36)
+    // =====================================================================
+
+    /// <summary>
+    /// Genera la memoria de cálculo .docx para el proyecto activo. Usa la
+    /// plantilla predeterminada del PlantillaRegistry (commit 25, compartida
+    /// con MemoriaPlus.App) o cae a la bundleada bajo
+    /// Resources/templates/Memoria_Losas_PLANTILLA.docx si no hay registry.
+    /// Atajo Ctrl+G.
+    /// </summary>
+    public void GenerarMemoria()
+    {
+        try
+        {
+            var plantilla = ResolverPlantillaPath();
+            if (plantilla is null)
+            {
+                StatusGeneracion = "Plantilla no encontrada — agregá una en el modo Plantillas.";
+                Log("Error: no hay plantilla .docx disponible.");
+                return;
+            }
+
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                Title    = "Guardar memoria de cálculo (.docx)",
+                Filter   = "Documento Word (*.docx)|*.docx",
+                FileName = SugerirNombreMemoria(),
+                AddExtension = true,
+                DefaultExt   = ".docx",
+                OverwritePrompt = true,
+            };
+            if (dlg.ShowDialog() != true) { StatusGeneracion = ""; return; }
+
+            var gen = new MemoriaGenerator();
+            var reporte = gen.Generar(_proyecto, plantilla, dlg.FileName);
+            if (reporte.Exito)
+            {
+                StatusGeneracion = $"✓ Memoria generada con {reporte.SustitucionesAplicadas} sustituciones.";
+                Log($"Memoria generada: {dlg.FileName}");
+                // Abrir el .docx en su app default (Word).
+                try
+                {
+                    Process.Start(new ProcessStartInfo(dlg.FileName) { UseShellExecute = true });
+                }
+                catch { /* no es crítico */ }
+            }
+            else
+            {
+                StatusGeneracion = $"⚠ Generada con {reporte.PlaceholdersNoSustituidos.Count} placeholder(s) sin sustituir.";
+                Log($"Memoria con warnings: {string.Join(", ", reporte.PlaceholdersNoSustituidos)}");
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusGeneracion = $"✕ Error: {ex.Message}";
+            Log("Error generando memoria: " + ex.Message);
+        }
+    }
+
+    private static string? ResolverPlantillaPath()
+    {
+        var pred = PlantillaRegistry.GetPredeterminada();
+        if (pred is not null && File.Exists(pred.Path)) return pred.Path;
+
+        var bundled = Path.Combine(
+            AppContext.BaseDirectory,
+            "Resources", "templates", "Memoria_Losas_PLANTILLA.docx");
+        return File.Exists(bundled) ? bundled : null;
+    }
+
+    private static void BootstrapPlantillaPredeterminada()
+    {
+        // Plantilla bundleada con MemoriaPlus.App — ambos exes pueden compartirla
+        // si están en la misma instalación. Si no, el bootstrap no encuentra nada
+        // y el registry queda vacío hasta que el usuario importe una.
+        var bundled = Path.Combine(
+            AppContext.BaseDirectory,
+            "Resources", "templates", "Memoria_Losas_PLANTILLA.docx");
+        try { PlantillaRegistry.BootstrapIfNeeded(bundled); } catch { /* no bloqueante */ }
+    }
+
+    private string SugerirNombreMemoria()
+    {
+        var nombre = string.IsNullOrEmpty(_proyecto.Nombre) ? "Memoria" : _proyecto.Nombre;
+        var slug = nombre.Replace(' ', '_').Replace('/', '-').Replace('\\', '-');
+        return $"{slug}_Memoria_{DateTime.Now:dd-MM-yyyy}.docx";
     }
 
     private string SugerirNombreLpx()
