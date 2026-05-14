@@ -13,16 +13,9 @@
         <vm:MainViewModel/>
     </Window.DataContext>
 
-    <Window.InputBindings>
-        <!-- Atajos de teclado globales (commit 18: persistencia + commit 20: +Losa). -->
-        <KeyBinding Modifiers="Ctrl"       Key="N" Command="{Binding NuevoProyectoCommand}"/>
-        <KeyBinding Modifiers="Ctrl"       Key="O" Command="{Binding AbrirProyectoCommand}"/>
-        <KeyBinding Modifiers="Ctrl"       Key="S" Command="{Binding GuardarBorradorCommand}"/>
-        <KeyBinding Modifiers="Ctrl+Shift" Key="S" Command="{Binding GuardarComoCommand}"/>
-        <KeyBinding Modifiers="Ctrl"       Key="G" Command="{Binding GenerarMemoriaCommand}"/>
-        <KeyBinding Modifiers="Ctrl"       Key="L" Command="{Binding AgregarLosaCommand}"/>
-        <KeyBinding Modifiers="Ctrl"       Key="F" Command="{Binding IrABusquedaCommand}"/>
-    </Window.InputBindings>
+    <!-- Window.InputBindings se construyen dinámicamente en code-behind a
+         partir de AtajosService.Load() (commit 29). Eso permite que el
+         usuario reasigne las teclas en Configuración → Atajos sin restart. -->
 
     <Grid>
         <Grid.ColumnDefinitions>

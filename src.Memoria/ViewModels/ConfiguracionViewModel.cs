@@ -16,20 +16,33 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
     {
         Perfil     = PerfilIngenieroService.Load();
         Apariencia = AparienciaService.Load();
+        Atajos     = AtajosService.Load();
 
         GuardarPerfilCommand     = new RelayCommand(GuardarPerfil);
         GuardarAparienciaCommand = new RelayCommand(GuardarApariencia);
         RestaurarAparienciaCommand = new RelayCommand(RestaurarApariencia);
+        GuardarAtajosCommand     = new RelayCommand(GuardarAtajos);
+        RestaurarAtajosCommand   = new RelayCommand(RestaurarAtajos);
 
         SubTabActivo = SubTabConfig.DatosIngeniero;
     }
 
     public PerfilIngeniero  Perfil     { get; private set; }
     public AparienciaConfig Apariencia { get; private set; }
+    public AtajosConfig     Atajos     { get; private set; }
 
     public RelayCommand GuardarPerfilCommand       { get; }
     public RelayCommand GuardarAparienciaCommand   { get; }
     public RelayCommand RestaurarAparienciaCommand { get; }
+    public RelayCommand GuardarAtajosCommand       { get; }
+    public RelayCommand RestaurarAtajosCommand     { get; }
+
+    /// <summary>
+    /// Disparado después de un Guardar exitoso de los atajos. El MainViewModel
+    /// se suscribe para rebuildar las InputBindings de la ventana principal
+    /// con el nuevo mapa, sin requerir restart.
+    /// </summary>
+    public event System.EventHandler? AtajosGuardados;
 
     private SubTabConfig _subTabActivo;
     /// <summary>Sub-pestaña activa dentro de Configuración (DatosIngeniero / Apariencia / Atajos).</summary>
@@ -81,6 +94,28 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
         Apariencia = new AparienciaConfig();
         OnPropertyChanged(nameof(Apariencia));
         StatusGuardado = "✓ Apariencia restaurada a defaults.";
+    }
+
+    private void GuardarAtajos()
+    {
+        try
+        {
+            AtajosService.Save(Atajos);
+            StatusGuardado = "✓ Atajos guardados. Cambios aplicados en vivo.";
+            AtajosGuardados?.Invoke(this, System.EventArgs.Empty);
+        }
+        catch (System.Exception ex)
+        {
+            StatusGuardado = $"✕ Error al guardar atajos: {ex.Message}";
+        }
+    }
+
+    private void RestaurarAtajos()
+    {
+        Atajos.RestaurarDefaults();
+        // Notificar a la UI que el config completo cambió.
+        OnPropertyChanged(nameof(Atajos));
+        StatusGuardado = "✓ Atajos restaurados a defaults. No olvides Guardar.";
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

@@ -1,27 +1,62 @@
 <UserControl x:Class="MemoriaPlus.Views.AtajosView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DataContext="{d:DesignInstance Type=vm:ConfiguracionViewModel}"
              mc:Ignorable="d"
              Background="{StaticResource SurfaceBrush}">
 
     <UserControl.Resources>
-        <!-- Estilo local para las "teclas" tipo keycap -->
-        <Style x:Key="KeyCapStyle" TargetType="{x:Type Border}">
+        <!-- Botón con apariencia de "tecla" editable: muestra el gesture y al
+             click abre el KeyCaptureWindow para reasignarlo. -->
+        <Style x:Key="EditableKeyCapStyle" TargetType="{x:Type Button}">
             <Setter Property="Background" Value="{StaticResource SurfaceContainerLowBrush}"/>
             <Setter Property="BorderBrush" Value="{StaticResource OutlineVariantBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Padding" Value="8,2"/>
-            <Setter Property="Margin" Value="0,0,4,0"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-        </Style>
-
-        <Style x:Key="KeyCapTextStyle" TargetType="{x:Type TextBlock}">
+            <Setter Property="Padding" Value="10,3"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="ToolTip" Value="Click para reasignar"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter Grid.Column="0" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Margin="6,0,0,0"
+                                           VerticalAlignment="Center"
+                                           Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                           Text="✎"
+                                           FontSize="10"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                                <Setter TargetName="bd" Property="Background" Value="{StaticResource SurfaceContainerHighBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="AtajoRowStyle" TargetType="{x:Type Grid}">
+            <Setter Property="Margin" Value="0,4"/>
         </Style>
     </UserControl.Resources>
 
@@ -32,7 +67,7 @@
             <TextBlock Margin="0,4,0,20"
                        Foreground="{StaticResource OnSurfaceVariantBrush}"
                        FontSize="13"
-                       Text="Lista de referencia. La personalización de atajos llegará en v0.6."/>
+                       Text="Click en cualquier tecla para reasignarla. Esc cancela la captura. No olvides Guardar."/>
 
             <!-- ============================================================
                  SECCIÓN: GESTIÓN DE PROYECTO
@@ -40,61 +75,60 @@
             <Border Style="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
                 <StackPanel>
                     <TextBlock Style="{StaticResource LabelCapsStyle}" Text="📂  GESTIÓN DE PROYECTO"/>
-                    <Grid Margin="0,12,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="180"/>
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,4"
-                                   Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"
-                                   Text="Nuevo proyecto"/>
-                        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
-                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
-                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="N"/></Border>
-                        </StackPanel>
-
-                        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,4"
-                                   Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"
-                                   Text="Abrir proyecto…"/>
-                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
-                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
-                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="O"/></Border>
-                        </StackPanel>
-
-                        <TextBlock Grid.Row="2" Grid.Column="0" Margin="0,4"
-                                   Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"
-                                   Text="Guardar borrador (.lpx.json)"/>
-                        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
-                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
-                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="S"/></Border>
-                        </StackPanel>
-
-                        <TextBlock Grid.Row="3" Grid.Column="0" Margin="0,4"
-                                   Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"
-                                   Text="Guardar como…"/>
-                        <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
-                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
-                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Shift"/></Border>
-                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
-                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="S"/></Border>
-                        </StackPanel>
-                    </Grid>
+                    <StackPanel Margin="0,12,0,0">
+                        <Grid Style="{StaticResource AtajoRowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="200"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                                       Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"
+                                       Text="Nuevo proyecto"/>
+                            <Button Grid.Column="1" Style="{StaticResource EditableKeyCapStyle}"
+                                    Content="{Binding Atajos.NuevoProyecto}"
+                                    Tag="NuevoProyecto"
+                                    Click="EditableKeyCap_Click"/>
+                        </Grid>
+                        <Grid Style="{StaticResource AtajoRowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="200"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                                       Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"
+                                       Text="Abrir proyecto…"/>
+                            <Button Grid.Column="1" Style="{StaticResource EditableKeyCapStyle}"
+                                    Content="{Binding Atajos.Abrir}"
+                                    Tag="Abrir"
+                                    Click="EditableKeyCap_Click"/>
+                        </Grid>
+                        <Grid Style="{StaticResource AtajoRowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="200"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                                       Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"
+                                       Text="Guardar borrador (.lpx.json)"/>
+                            <Button Grid.Column="1" Style="{StaticResource EditableKeyCapStyle}"
+                                    Content="{Binding Atajos.Guardar}"
+                                    Tag="Guardar"
+                                    Click="EditableKeyCap_Click"/>
+                        </Grid>
+                        <Grid Style="{StaticResource AtajoRowStyle}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="200"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                                       Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"
+                                       Text="Guardar como…"/>
+                            <Button Grid.Column="1" Style="{StaticResource EditableKeyCapStyle}"
+                                    Content="{Binding Atajos.GuardarComo}"
+                                    Tag="GuardarComo"
+                                    Click="EditableKeyCap_Click"/>
+                        </Grid>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
@@ -104,24 +138,18 @@
             <Border Style="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
                 <StackPanel>
                     <TextBlock Style="{StaticResource LabelCapsStyle}" Text="✏  EDICIÓN"/>
-                    <Grid Margin="0,12,0,0">
+                    <Grid Margin="0,12,0,0" Style="{StaticResource AtajoRowStyle}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="200"/>
                         </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,4"
+                        <TextBlock Grid.Column="0" VerticalAlignment="Center"
                                    Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"
                                    Text="Agregar losa al nivel activo"/>
-                        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
-                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
-                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="L"/></Border>
-                        </StackPanel>
+                        <Button Grid.Column="1" Style="{StaticResource EditableKeyCapStyle}"
+                                Content="{Binding Atajos.AgregarLosa}"
+                                Tag="AgregarLosa"
+                                Click="EditableKeyCap_Click"/>
                     </Grid>
                 </StackPanel>
             </Border>
@@ -132,24 +160,18 @@
             <Border Style="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
                 <StackPanel>
                     <TextBlock Style="{StaticResource LabelCapsStyle}" Text="🔍  BÚSQUEDA"/>
-                    <Grid Margin="0,12,0,0">
+                    <Grid Margin="0,12,0,0" Style="{StaticResource AtajoRowStyle}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="200"/>
                         </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,4"
+                        <TextBlock Grid.Column="0" VerticalAlignment="Center"
                                    Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"
-                                   Text="Búsqueda global (proyectos / niveles / losas)"/>
-                        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
-                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
-                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="F"/></Border>
-                        </StackPanel>
+                                   Text="Búsqueda global"/>
+                        <Button Grid.Column="1" Style="{StaticResource EditableKeyCapStyle}"
+                                Content="{Binding Atajos.Busqueda}"
+                                Tag="Busqueda"
+                                Click="EditableKeyCap_Click"/>
                     </Grid>
                 </StackPanel>
             </Border>
@@ -160,88 +182,40 @@
             <Border Style="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
                 <StackPanel>
                     <TextBlock Style="{StaticResource LabelCapsStyle}" Text="📄  GENERACIÓN DE MEMORIA"/>
-                    <Grid Margin="0,12,0,0">
+                    <Grid Margin="0,12,0,0" Style="{StaticResource AtajoRowStyle}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="180"/>
+                            <ColumnDefinition Width="200"/>
                         </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,4"
+                        <TextBlock Grid.Column="0" VerticalAlignment="Center"
                                    Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"
                                    Text="Generar memoria (.docx)"/>
-                        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
-                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
-                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="G"/></Border>
-                        </StackPanel>
+                        <Button Grid.Column="1" Style="{StaticResource EditableKeyCapStyle}"
+                                Content="{Binding Atajos.Generar}"
+                                Tag="Generar"
+                                Click="EditableKeyCap_Click"/>
                     </Grid>
                 </StackPanel>
             </Border>
 
             <!-- ============================================================
-                 SECCIÓN: NAVEGACIÓN (próximamente)
+                 FOOTER: Restaurar + Guardar
                  ============================================================ -->
-            <Border Style="{StaticResource SectionCardStyle}" Margin="0,0,0,12"
-                    Opacity="0.7">
-                <StackPanel>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Style="{StaticResource LabelCapsStyle}"
-                                   Text="⌨  NAVEGACIÓN (PRÓXIMAMENTE — v0.6)"/>
-                        <Border Grid.Column="1" Background="{StaticResource OutlineVariantBrush}"
-                                CornerRadius="4" Padding="6,2">
-                            <TextBlock Text="ROADMAP"
-                                       FontFamily="{StaticResource FontFamilyMono}" FontSize="10"
-                                       Foreground="{StaticResource OnSurfaceBrush}"/>
-                        </Border>
-                    </Grid>
-                    <Grid Margin="0,12,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="180"/>
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <TextBlock Grid.Row="0" Grid.Column="0" Margin="0,4"
-                                   Foreground="{StaticResource OnSurfaceVariantBrush}" FontSize="13"
-                                   Text="Siguiente pestaña"/>
-                        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
-                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
-                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Tab"/></Border>
-                        </StackPanel>
-
-                        <TextBlock Grid.Row="1" Grid.Column="0" Margin="0,4"
-                                   Foreground="{StaticResource OnSurfaceVariantBrush}" FontSize="13"
-                                   Text="Pestaña anterior"/>
-                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
-                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
-                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Shift"/></Border>
-                            <TextBlock VerticalAlignment="Center" Margin="0,0,4,0"
-                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="+"/>
-                            <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Tab"/></Border>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </Border>
+            <StackPanel Orientation="Horizontal" Margin="0,16,0,8" HorizontalAlignment="Right">
+                <Button Style="{StaticResource SecondaryButtonStyle}"
+                        Content="↺ Restaurar defaults"
+                        Padding="14,0" Margin="0,0,8,0"
+                        Command="{Binding RestaurarAtajosCommand}"/>
+                <Button Style="{StaticResource PrimaryButtonStyle}"
+                        Content="💾 Guardar atajos"
+                        Padding="16,0"
+                        Command="{Binding GuardarAtajosCommand}"/>
+            </StackPanel>
 
             <TextBlock Margin="0,8,0,0"
                        Foreground="{StaticResource OnSurfaceVariantBrush}"
                        FontSize="11" TextWrapping="Wrap"
-                       Text="Los atajos se aplican mientras la ventana principal tenga foco. En campos de texto, las teclas de letras se interpretan como entrada normal."/>
+                       Text="Las combinaciones se aplican mientras la ventana principal tenga foco. Esc en el modal de captura cancela. Algunas combinaciones reservadas por Windows pueden no funcionar."/>
 
         </StackPanel>
     </ScrollViewer>

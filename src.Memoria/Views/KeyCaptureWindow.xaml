@@ -1,0 +1,71 @@
+<Window x:Class="MemoriaPlus.Views.KeyCaptureWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Capturar atajo"
+        Width="420" Height="240"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource SurfaceBrush}"
+        AllowsTransparency="False"
+        FocusManager.FocusedElement="{Binding ElementName=Self}">
+
+    <Border BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
+            x:Name="Self" Focusable="True">
+        <Grid Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0">
+                <TextBlock Text="Presiona la combinación deseada"
+                           FontFamily="{StaticResource FontFamilyUI}"
+                           FontSize="14" FontWeight="SemiBold"
+                           Foreground="{StaticResource OnSurfaceBrush}"/>
+                <TextBlock Margin="0,4,0,0"
+                           x:Name="EtiquetaContexto"
+                           FontFamily="{StaticResource FontFamilyMono}"
+                           FontSize="11"
+                           Foreground="{StaticResource OnSurfaceVariantBrush}"
+                           TextWrapping="Wrap"
+                           Text="Atajo para: …"/>
+            </StackPanel>
+
+            <Border Grid.Row="1" Margin="0,16,0,0"
+                    Background="{StaticResource SurfaceContainerLowestBrush}"
+                    BorderBrush="{StaticResource OutlineVariantBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource CornerRadiusDefault}"
+                    Padding="12">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock x:Name="VistaPreviewGesture"
+                               FontFamily="{StaticResource FontFamilyMono}"
+                               FontSize="20" FontWeight="SemiBold"
+                               HorizontalAlignment="Center"
+                               Foreground="{StaticResource PrimaryBrush}"
+                               Text="(esperando keystroke…)"/>
+                    <TextBlock Margin="0,8,0,0"
+                               FontSize="11"
+                               HorizontalAlignment="Center"
+                               Foreground="{StaticResource OnSurfaceVariantBrush}"
+                               Text="Esc cancela · Enter confirma"/>
+                </StackPanel>
+            </Border>
+
+            <StackPanel Grid.Row="2" Orientation="Horizontal"
+                        HorizontalAlignment="Right" Margin="0,16,0,0">
+                <Button Style="{StaticResource SecondaryButtonStyle}"
+                        Content="Cancelar" Padding="16,0" Margin="0,0,8,0"
+                        Click="Cancelar_Click"/>
+                <Button x:Name="BotonConfirmar"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Content="Confirmar" Padding="16,0"
+                        IsEnabled="False"
+                        Click="Confirmar_Click"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>
