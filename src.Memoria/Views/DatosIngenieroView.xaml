@@ -96,27 +96,162 @@
                 </StackPanel>
             </Border>
 
-            <!-- SECCIÓN: FIRMA Y SELLO (placeholder: paths a imágenes) -->
+            <!-- SECCIÓN: FIRMA Y SELLO con drag-drop + preview (commit 28) -->
             <Border Style="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
                 <StackPanel>
                     <TextBlock Style="{StaticResource LabelCapsStyle}" Text="✍  FIRMA Y SELLO"/>
                     <TextBlock Margin="0,4,0,12"
                                Foreground="{StaticResource OnSurfaceVariantBrush}"
                                FontSize="11" TextWrapping="Wrap"
-                               Text="Indica el path absoluto a las imágenes PNG. El drag-and-drop con preview se agregará en v0.6."/>
+                               Text="Arrastra los archivos PNG/JPG aquí o usa el botón Examinar. La firma se imprime sobre las hojas finales de la memoria; el sello identifica tu oficina."/>
                     <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="8"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        <StackPanel Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- DROP ZONE: FIRMA -->
+                        <StackPanel Grid.Column="0">
                             <TextBlock Style="{StaticResource FieldLabelStyle}" Text="Firma (PNG con fondo transparente)"/>
-                            <TextBox Text="{Binding Perfil.FirmaPath, UpdateSourceTrigger=PropertyChanged}"/>
+                            <Border x:Name="FirmaDropZone"
+                                    Height="180"
+                                    AllowDrop="True"
+                                    Background="{StaticResource SurfaceContainerLowestBrush}"
+                                    BorderBrush="{StaticResource OutlineVariantBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="{StaticResource CornerRadiusDefault}"
+                                    Drop="FirmaDropZone_Drop"
+                                    DragEnter="DropZone_DragEnter"
+                                    DragOver="DropZone_DragOver"
+                                    DragLeave="DropZone_DragLeave"
+                                    Tag="Firma">
+                                <Grid>
+                                    <!-- Empty state: instrucciones -->
+                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                Margin="16">
+                                        <StackPanel.Style>
+                                            <Style TargetType="{x:Type StackPanel}">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Perfil.FirmaPath, Converter={x:Null}}" Value="{x:Null}">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
+                                        <TextBlock Text="📥" FontSize="28" HorizontalAlignment="Center"
+                                                   Foreground="{StaticResource OutlineBrush}"/>
+                                        <TextBlock Margin="0,8,0,0"
+                                                   TextAlignment="Center" TextWrapping="Wrap"
+                                                   FontSize="11"
+                                                   Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                                   Text="Arrastra un PNG aquí o usa Examinar"/>
+                                    </StackPanel>
+
+                                    <!-- Preview cuando hay path set -->
+                                    <Border Padding="8">
+                                        <Border.Style>
+                                            <Style TargetType="{x:Type Border}">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Perfil.FirmaPath, Converter={StaticResource StringNotEmptyToBoolConverter}}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Image Source="{Binding Perfil.FirmaPath, Converter={StaticResource PathToImageConverter}}"
+                                               Stretch="Uniform"
+                                               StretchDirection="DownOnly"/>
+                                    </Border>
+                                </Grid>
+                            </Border>
+                            <TextBlock Margin="0,4,0,0"
+                                       FontFamily="{StaticResource FontFamilyMono}"
+                                       FontSize="10"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip="{Binding Perfil.FirmaPath}"
+                                       Text="{Binding Perfil.FirmaPath, TargetNullValue='(sin firma)'}"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <Button Style="{StaticResource SecondaryButtonStyle}"
+                                        Content="📂 Examinar…" Padding="10,2"
+                                        Click="ExaminarFirma_Click"/>
+                                <Button Style="{StaticResource SecondaryButtonStyle}"
+                                        Content="✕ Quitar" Padding="10,2" Margin="6,0,0,0"
+                                        Click="QuitarFirma_Click"/>
+                            </StackPanel>
                         </StackPanel>
-                        <StackPanel Grid.Row="2">
+
+                        <!-- DROP ZONE: SELLO -->
+                        <StackPanel Grid.Column="2">
                             <TextBlock Style="{StaticResource FieldLabelStyle}" Text="Sello / logo de oficina"/>
-                            <TextBox Text="{Binding Perfil.SelloPath, UpdateSourceTrigger=PropertyChanged}"/>
+                            <Border x:Name="SelloDropZone"
+                                    Height="180"
+                                    AllowDrop="True"
+                                    Background="{StaticResource SurfaceContainerLowestBrush}"
+                                    BorderBrush="{StaticResource OutlineVariantBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="{StaticResource CornerRadiusDefault}"
+                                    Drop="SelloDropZone_Drop"
+                                    DragEnter="DropZone_DragEnter"
+                                    DragOver="DropZone_DragOver"
+                                    DragLeave="DropZone_DragLeave"
+                                    Tag="Sello">
+                                <Grid>
+                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                Margin="16">
+                                        <StackPanel.Style>
+                                            <Style TargetType="{x:Type StackPanel}">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Perfil.SelloPath, Converter={x:Null}}" Value="{x:Null}">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
+                                        <TextBlock Text="📥" FontSize="28" HorizontalAlignment="Center"
+                                                   Foreground="{StaticResource OutlineBrush}"/>
+                                        <TextBlock Margin="0,8,0,0"
+                                                   TextAlignment="Center" TextWrapping="Wrap"
+                                                   FontSize="11"
+                                                   Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                                   Text="Arrastra un PNG/JPG aquí o usa Examinar"/>
+                                    </StackPanel>
+                                    <Border Padding="8">
+                                        <Border.Style>
+                                            <Style TargetType="{x:Type Border}">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Perfil.SelloPath, Converter={StaticResource StringNotEmptyToBoolConverter}}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Image Source="{Binding Perfil.SelloPath, Converter={StaticResource PathToImageConverter}}"
+                                               Stretch="Uniform"
+                                               StretchDirection="DownOnly"/>
+                                    </Border>
+                                </Grid>
+                            </Border>
+                            <TextBlock Margin="0,4,0,0"
+                                       FontFamily="{StaticResource FontFamilyMono}"
+                                       FontSize="10"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip="{Binding Perfil.SelloPath}"
+                                       Text="{Binding Perfil.SelloPath, TargetNullValue='(sin sello)'}"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <Button Style="{StaticResource SecondaryButtonStyle}"
+                                        Content="📂 Examinar…" Padding="10,2"
+                                        Click="ExaminarSello_Click"/>
+                                <Button Style="{StaticResource SecondaryButtonStyle}"
+                                        Content="✕ Quitar" Padding="10,2" Margin="6,0,0,0"
+                                        Click="QuitarSello_Click"/>
+                            </StackPanel>
                         </StackPanel>
                     </Grid>
                 </StackPanel>

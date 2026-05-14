@@ -13,6 +13,8 @@
             <cmn:BordeKindToThicknessConverter        x:Key="BordeKindToThicknessConverter"/>
             <cmn:TipoLosaBordeStrokeDashConverter     x:Key="TipoLosaBordeStrokeDashConverter"/>
             <cmn:TipoLosaBordeThicknessConverter      x:Key="TipoLosaBordeThicknessConverter"/>
+            <cmn:PathToImageConverter                 x:Key="PathToImageConverter"/>
+            <cmn:StringNotEmptyToBoolConverter        x:Key="StringNotEmptyToBoolConverter"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

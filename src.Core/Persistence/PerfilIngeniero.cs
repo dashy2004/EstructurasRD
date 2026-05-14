@@ -1,5 +1,7 @@
 using System;
+using System.ComponentModel;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 
 namespace LosasPlus.Persistence;
@@ -10,28 +12,54 @@ namespace LosasPlus.Persistence;
 /// "Nuevo proyecto", la app precarga los campos del proyecto con este
 /// perfil para que no tenga que reescribir nombre, CODIA, teléfonos, etc.
 /// en cada memoria.
+///
+/// <para>
+/// Implementa <see cref="INotifyPropertyChanged"/> para que la UI (Datos
+/// del ingeniero) refleje cambios en vivo — necesario para el preview de
+/// firma/sello cuando el usuario arrastra un PNG nuevo al drop-zone.
+/// </para>
 /// </summary>
-public class PerfilIngeniero
+public class PerfilIngeniero : INotifyPropertyChanged
 {
     // IDENTIDAD
-    public string Nombre        { get; set; } = "";
-    public string Codia         { get; set; } = "";
-    public string Especialidad  { get; set; } = "Estructural";
+    private string _nombre = "";
+    private string _codia = "";
+    private string _especialidad = "Estructural";
+
+    public string Nombre        { get => _nombre;        set { _nombre = value;        OnPropertyChanged(); } }
+    public string Codia         { get => _codia;         set { _codia = value;         OnPropertyChanged(); } }
+    public string Especialidad  { get => _especialidad;  set { _especialidad = value;  OnPropertyChanged(); } }
 
     // CONTACTO
-    public string TelefonoFijo    { get; set; } = "";
-    public string TelefonoCelular { get; set; } = "";
-    public string Email           { get; set; } = "";
-    public string Ciudad          { get; set; } = "";
+    private string _telefonoFijo = "";
+    private string _telefonoCelular = "";
+    private string _email = "";
+    private string _ciudad = "";
+
+    public string TelefonoFijo    { get => _telefonoFijo;    set { _telefonoFijo = value;    OnPropertyChanged(); } }
+    public string TelefonoCelular { get => _telefonoCelular; set { _telefonoCelular = value; OnPropertyChanged(); } }
+    public string Email           { get => _email;           set { _email = value;           OnPropertyChanged(); } }
+    public string Ciudad          { get => _ciudad;          set { _ciudad = value;          OnPropertyChanged(); } }
 
     // FIRMA Y SELLO (paths absolutos a las imágenes en disco)
-    public string FirmaPath { get; set; } = "";
-    public string SelloPath { get; set; } = "";
+    private string _firmaPath = "";
+    private string _selloPath = "";
+
+    public string FirmaPath { get => _firmaPath; set { _firmaPath = value; OnPropertyChanged(); } }
+    public string SelloPath { get => _selloPath; set { _selloPath = value; OnPropertyChanged(); } }
 
     // FORMACIÓN (opcional, colapsable en UI)
-    public string Universidad       { get; set; } = "";
-    public string AnoGraduacion     { get; set; } = "";
-    public string PostGrado         { get; set; } = "";
+    private string _universidad = "";
+    private string _anoGraduacion = "";
+    private string _postGrado = "";
+
+    public string Universidad   { get => _universidad;   set { _universidad = value;   OnPropertyChanged(); } }
+    public string AnoGraduacion { get => _anoGraduacion; set { _anoGraduacion = value; OnPropertyChanged(); } }
+    public string PostGrado     { get => _postGrado;     set { _postGrado = value;     OnPropertyChanged(); } }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 
 /// <summary>
