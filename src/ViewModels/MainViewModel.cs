@@ -27,6 +27,41 @@ public class MainViewModel : INotifyPropertyChanged
     private string _logText = "";
     private string _filtroTipo = "";
     private bool _ocupado;
+    private ModoSidebar _modoActivo = ModoSidebar.Editor;
+
+    // ---- Shell moderno (commit 31) -------------------------------------
+
+    /// <summary>
+    /// Modo activo de la sidebar principal. Determina qué contenido muestra
+    /// el área principal: Editor (tabla de losas), Diagrama, DLEditor crudo,
+    /// Salida del .TXT, Reglamento R-001, Plugins, Acerca.
+    ///
+    /// <para>
+    /// Antes del commit 31 estos modos vivían como TabItems del TabControl
+    /// vertical. La modernización los promueve a "modos" tipo MemoriaPlus
+    /// para alinear el shell de ambas apps.
+    /// </para>
+    /// </summary>
+    public ModoSidebar ModoActivo
+    {
+        get => _modoActivo;
+        set
+        {
+            if (_modoActivo == value) return;
+            _modoActivo = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(EsModoEditor));
+        }
+    }
+
+    /// <summary>Conveniencia para DataTriggers que muestran el top bar de acciones solo en Editor.</summary>
+    public bool EsModoEditor => _modoActivo == ModoSidebar.Editor;
+
+    /// <summary>Texto de versión mostrado en el branding de la sidebar.</summary>
+    public string Version => "v0.5.0 — LosasPlus";
+
+    /// <summary>Copyright dinámico (año en curso) — bound al statusbar.</summary>
+    public string CopyrightTexto => $"© {DateTime.Now.Year} LosasPlus · motor: F. Perdomo (Pieper-Martens)";
 
     public Proyecto Proyecto => _proyecto;
 
@@ -480,4 +515,20 @@ public sealed class RelayCommand : ICommand
         add { CommandManager.RequerySuggested += value; }
         remove { CommandManager.RequerySuggested -= value; }
     }
+}
+
+/// <summary>
+/// Modos de navegación de la sidebar principal de LosasPlus. Antes del
+/// commit 31 estos eran TabItems verticales; ahora son modos top-level
+/// alineados con MemoriaPlus.
+/// </summary>
+public enum ModoSidebar
+{
+    Editor,
+    Diagrama,
+    DLEditor,
+    Salida,
+    Reglamento,
+    Plugins,
+    Acerca,
 }
