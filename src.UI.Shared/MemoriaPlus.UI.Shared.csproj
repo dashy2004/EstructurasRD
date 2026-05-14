@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>MemoriaPlus.UI.Shared</AssemblyName>
+    <!-- Namespace raíz mantenido como MemoriaPlus.* para no tocar los
+         using/xmlns existentes en src.Memoria. La librería es consumida
+         tanto por src.Memoria como por src/ (LosasPlus app) para
+         compartir VMs, Views y converters introducidos en commits 21-29. -->
+    <RootNamespace>MemoriaPlus</RootNamespace>
+    <Version>0.5.0</Version>
+    <Authors>Emil Guillen De la Cruz</Authors>
+    <Product>Memoria Plus UI Shared</Product>
+    <Description>
+      Componentes WPF compartidos entre LosasPlus.App y MemoriaPlus.App:
+      Validación normativa, Búsqueda global, Plantillas .docx,
+      Configuración (perfil + apariencia + atajos), Selector visual de
+      tipo de losa, converters y commands base.
+    </Description>
+    <Copyright>(c) 2026 Emil Guillen De la Cruz.</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\src.Core\LosasPlus.Core.csproj" />
+  </ItemGroup>
+
+</Project>

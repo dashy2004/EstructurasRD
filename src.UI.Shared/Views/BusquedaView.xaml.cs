@@ -31,13 +31,33 @@ public partial class BusquedaView : UserControl
     /// Doble-click en una card de resultado: dispara <see cref="BusquedaViewModel.IrAResultadoCommand"/>
     /// con el item seleccionado. Funciona para las 3 secciones (proyectos /
     /// sistemas / losas).
+    ///
+    /// <para>
+    /// Resuelve el <see cref="BusquedaViewModel"/> en 2 saltos para soportar
+    /// los dos modos de uso:
+    /// </para>
+    /// <list type="bullet">
+    ///   <item>Cuando DataContext = BusquedaViewModel directo (LosasPlus.App
+    ///         setea el ContentControl.DataContext al sub-VM).</item>
+    ///   <item>Cuando DataContext expone una property <c>Busqueda</c> via
+    ///         <see cref="IBusquedaHost"/> (MemoriaPlus.App, donde el
+    ///         MainViewModel agrupa varios sub-VMs).</item>
+    /// </list>
     /// </summary>
     private void Resultados_OnMouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (sender is not ListBox lb) return;
         if (lb.SelectedItem is not BusquedaResultado resultado) return;
-        if (DataContext is not MainViewModel vm) return;
-        if (vm.Busqueda.IrAResultadoCommand.CanExecute(resultado))
-            vm.Busqueda.IrAResultadoCommand.Execute(resultado);
+        var vm = ResolverBusquedaVM();
+        if (vm is null) return;
+        if (vm.IrAResultadoCommand.CanExecute(resultado))
+            vm.IrAResultadoCommand.Execute(resultado);
     }
+
+    private BusquedaViewModel? ResolverBusquedaVM() => DataContext switch
+    {
+        BusquedaViewModel direct => direct,
+        IBusquedaHost host       => host.Busqueda,
+        _                        => null,
+    };
 }

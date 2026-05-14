@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
         xmlns:vw="clr-namespace:MemoriaPlus.Views"
+        xmlns:vws="clr-namespace:MemoriaPlus.Views;assembly=MemoriaPlus.UI.Shared"
         Title="{Binding TituloVentana}"
         Height="900" Width="1440"
         MinHeight="640" MinWidth="1100"
@@ -343,21 +344,21 @@
                             <DataTrigger Binding="{Binding ModoActivo}" Value="Busqueda">
                                 <Setter Property="Content">
                                     <Setter.Value>
-                                        <vw:BusquedaView/>
+                                        <vws:BusquedaView/>
                                     </Setter.Value>
                                 </Setter>
                             </DataTrigger>
                             <DataTrigger Binding="{Binding ModoActivo}" Value="Plantillas">
                                 <Setter Property="Content">
                                     <Setter.Value>
-                                        <vw:PlantillasView/>
+                                        <vws:PlantillasView/>
                                     </Setter.Value>
                                 </Setter>
                             </DataTrigger>
                             <DataTrigger Binding="{Binding ModoActivo}" Value="Configuracion">
                                 <Setter Property="Content">
                                     <Setter.Value>
-                                        <vw:ConfiguracionView/>
+                                        <vws:ConfiguracionView/>
                                     </Setter.Value>
                                 </Setter>
                             </DataTrigger>
@@ -419,7 +420,7 @@
                     </ControlTemplate>
                 </Button.Template>
             </Button>
-            <vw:ValidacionView HorizontalAlignment="Right" DataContext="{Binding Validacion}"/>
+            <vws:ValidacionView HorizontalAlignment="Right" DataContext="{Binding Validacion}"/>
         </Grid>
     </Grid>
 </Window>

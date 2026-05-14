@@ -1088,15 +1088,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
 }
 
 /// <summary>Resumen de un proyecto en la lista lateral / hub.</summary>
-public sealed record ProyectoResumen(
-    string Nombre,
-    string Ingeniero,
-    string Codia,
-    int    Niveles,
-    string UltimaEdicion,
-    string Estado,
-    string Path = "");
-
 /// <summary>Una pestaña del flujo principal (Datos/Cargas/Niveles/Generar).</summary>
 public sealed record TabPage(string Titulo, string Slug);
 
