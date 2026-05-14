@@ -44,28 +44,60 @@
 | [`src.Core/`](src.Core/) | Librería `net8.0` | Modelo de dominio (Proyecto, Sistema, Losa, Cargas), parsers `.DL`/`.TXT`, motor de cálculo (espesor 1D/2D, qd, qu), generador de memorias `.docx`, importador de cargas Excel. **Sin dependencia de WPF** — reusable desde cualquier consumidor .NET. |
 | [`src/`](src/) | App WPF (LosasPlus) | Editor + visor del archivo `.DL` que consume `Losas.exe` (Ing. F. Perdomo). Diagrama del sistema, importación del `.TXT` de salida, exportación a CSV/XLSX, sandbox de plugins en C# Script. |
 | [`src.Memoria/`](src.Memoria/) | App WPF (MemoriaPlus) | Generador de memorias de cálculo `.docx`. Captura datos del proyecto, edita cargas globales, parsea salidas F. Perdomo, y genera la memoria final con plurinivel automático y tablas de momentos/armaduras. **Standalone** — no necesita `Losas.exe`. |
-| [`tests/LosasPlus.Tests/`](tests/) | xUnit tests | 271 tests cubriendo modelo, motor de cálculo, generador de memorias y todos los importers. |
+| [`tests/LosasPlus.Tests/`](tests/) | xUnit tests | 419 tests cubriendo modelo, motor de cálculo, validación normativa, registries de proyectos/plantillas/atajos, configuración, generador de memorias y todos los importers. |
 
 ---
 
 ## Captura
 
+### Flujo principal — Cálculos (4 pestañas)
+
 | Datos generales | Niveles + losas |
 |---|---|
-| ![Datos generales](docs/referencia/ui-design/smoke_datos_generales_v0.png) | ![Niveles](docs/referencia/ui-design/smoke_niveles_v0.png) |
+| ![Datos generales](docs/referencia/ui-design/smoke_datos_generales_v1.png) | ![Niveles](docs/referencia/ui-design/smoke_niveles_v1.png) |
 
 | Cargas globales | Generación |
 |---|---|
-| ![Cargas](docs/referencia/ui-design/smoke_cargas_v0.png) | ![Generar](docs/referencia/ui-design/smoke_generar_v0.png) |
+| ![Cargas](docs/referencia/ui-design/smoke_cargas_v1.png) | ![Generar](docs/referencia/ui-design/smoke_generar_v1.png) |
+
+### Modos top-level
+
+| Explorador (hub de proyectos recientes) | Búsqueda global (proyectos / niveles / losas) |
+|---|---|
+| ![Explorador](docs/referencia/ui-design/smoke_explorador_v1.png) | ![Búsqueda](docs/referencia/ui-design/smoke_busqueda_v1.png) |
+
+| Plantillas (.docx CRUD) | Configuración (perfil + drag-drop firma/sello + atajos editables) |
+|---|---|
+| ![Plantillas](docs/referencia/ui-design/smoke_plantillas_v1.png) | ![Configuración](docs/referencia/ui-design/smoke_configuracion_v1.png) |
 
 ---
 
-## Capacidades end-to-end (v0.4)
+## Capacidades end-to-end (v0.5)
 
+**Edición del proyecto:**
 - ✅ Captura del proyecto con 17 placeholders documentados.
 - ✅ Cargas globales editables en UI o importables del `.xlsx` del ingeniero.
 - ✅ DataGrid de niveles con cálculo en vivo (Cond 1D/2D, h_calc, h_eq, q_d, q_l, q_u).
 - ✅ Importación de salida F. Perdomo (`.txt`) con parser de momentos y armaduras X/Y.
+- ✅ Espesor equivalente paramétrico vigueta+bloque vía T-section (ACI 318 §9.5.3.3).
+- ✅ Selector visual de tipo de losa Pieper-Martens (26 tipos con icono de bordes).
+
+**Persistencia y workflow:**
+- ✅ Guardar/Abrir proyectos en formato `.lpx.json` con Ctrl+N/O/S/Shift+S.
+- ✅ Lista de proyectos recientes con filtro por nombre / ingeniero / CODIA.
+- ✅ Búsqueda global Ctrl+F: filtra simultáneamente proyectos, niveles y losas.
+- ✅ Plantillas `.docx` registrables; la default se aplica al generar.
+- ✅ Perfil del ingeniero precarga campos en proyectos nuevos; firma/sello con drag-drop + preview.
+- ✅ Atajos de teclado totalmente reasignables en vivo (sin reiniciar).
+
+**Validación normativa (R-001 + ACI 318):**
+- ✅ Engine pluggable con 4 reglas: espesor mínimo R-001, carga viva mínima R-001, espesor vs cálculo ACI, aspecto Pieper-Martens.
+- ✅ Chip indicador en el top bar (verde/naranja/rojo según severidad) clickable a panel lateral.
+- ✅ Panel lateral con conteos + filtros + detalle de cada issue + auto-fix "Aplicar mínimo R-001".
+- ✅ Badges in-grid en la columna H USAR + banner per-sistema en NivelesView.
+- ✅ Copiar reporte plano al portapapeles.
+
+**Generación:**
 - ✅ Generación `.docx` con sustitución robusta de placeholders (incluso fragmentados entre runs).
 - ✅ Plurinivel: bloque NIVEL clonado por sistema vía markers `{{NIVEL_BLOQUE_INICIO/FIN}}`.
 - ✅ Tablas embebidas: `{{TABLA_LOSAS}}`, `{{TABLA_MOMENTOS}}`, `{{TABLA_ARMADURAS_X/Y}}`, `{{TABLA_APOYOS}}`.
