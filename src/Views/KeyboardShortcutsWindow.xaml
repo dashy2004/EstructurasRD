@@ -1,0 +1,227 @@
+<Window x:Class="LosasPlus.Views.KeyboardShortcutsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Atajos de teclado · LosasPlus"
+        Width="560" Height="620"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        ResizeMode="CanResize"
+        Background="{DynamicResource BgPrimary}">
+
+    <Window.InputBindings>
+        <KeyBinding Key="Escape" Command="ApplicationCommands.Close"/>
+    </Window.InputBindings>
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.Close" Executed="OnClose"/>
+    </Window.CommandBindings>
+
+    <Window.Resources>
+        <Style x:Key="KeyCapStyle" TargetType="{x:Type Border}">
+            <Setter Property="Background" Value="{DynamicResource BgInput}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,2"/>
+            <Setter Property="Margin" Value="0,0,4,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="KeyCapTextStyle" TargetType="{x:Type TextBlock}">
+            <Setter Property="FontFamily" Value="JetBrains Mono, Consolas"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+        </Style>
+        <Style x:Key="SectionHeader" TargetType="{x:Type TextBlock}">
+            <Setter Property="FontFamily" Value="Inter, Segoe UI"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}"/>
+            <Setter Property="Margin" Value="0,16,0,8"/>
+        </Style>
+        <Style x:Key="ShortcutRow" TargetType="{x:Type Grid}">
+            <Setter Property="Margin" Value="0,4"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="Atajos de teclado"
+                       FontFamily="Inter, Segoe UI"
+                       FontSize="20" FontWeight="SemiBold"
+                       Foreground="{DynamicResource FgPrimary}"/>
+            <TextBlock Margin="0,4,0,0"
+                       Foreground="{DynamicResource FgMuted}"
+                       FontSize="12"
+                       Text="Aplican mientras la ventana principal tenga foco. Esc cierra este panel."/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" Margin="0,12,0,12" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+
+                <TextBlock Style="{StaticResource SectionHeader}" Text="📂  GESTIÓN DE PROYECTO"/>
+                <Grid Style="{StaticResource ShortcutRow}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="180"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                               Foreground="{DynamicResource FgPrimary}" FontSize="13"
+                               Text="Nuevo proyecto .lpx.json"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
+                        <TextBlock VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource FgMuted}" Text="+"/>
+                        <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="N"/></Border>
+                    </StackPanel>
+                </Grid>
+                <Grid Style="{StaticResource ShortcutRow}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="180"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                               Foreground="{DynamicResource FgPrimary}" FontSize="13"
+                               Text="Abrir proyecto .lpx.json"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
+                        <TextBlock VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource FgMuted}" Text="+"/>
+                        <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="O"/></Border>
+                    </StackPanel>
+                </Grid>
+                <Grid Style="{StaticResource ShortcutRow}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="180"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                               Foreground="{DynamicResource FgPrimary}" FontSize="13"
+                               Text="Guardar"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
+                        <TextBlock VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource FgMuted}" Text="+"/>
+                        <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="S"/></Border>
+                    </StackPanel>
+                </Grid>
+                <Grid Style="{StaticResource ShortcutRow}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="180"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                               Foreground="{DynamicResource FgPrimary}" FontSize="13"
+                               Text="Guardar como…"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
+                        <TextBlock VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource FgMuted}" Text="+"/>
+                        <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Shift"/></Border>
+                        <TextBlock VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource FgMuted}" Text="+"/>
+                        <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="S"/></Border>
+                    </StackPanel>
+                </Grid>
+
+                <TextBlock Style="{StaticResource SectionHeader}" Text="↩  HISTORIAL (UNDO / REDO)"/>
+                <Grid Style="{StaticResource ShortcutRow}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="180"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                               Foreground="{DynamicResource FgPrimary}" FontSize="13"
+                               Text="Deshacer (Undo)"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
+                        <TextBlock VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource FgMuted}" Text="+"/>
+                        <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Z"/></Border>
+                    </StackPanel>
+                </Grid>
+                <Grid Style="{StaticResource ShortcutRow}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="180"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                               Foreground="{DynamicResource FgPrimary}" FontSize="13"
+                               Text="Rehacer (Redo)"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
+                        <TextBlock VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource FgMuted}" Text="+"/>
+                        <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Y"/></Border>
+                    </StackPanel>
+                </Grid>
+
+                <TextBlock Style="{StaticResource SectionHeader}" Text="✎  EDICIÓN"/>
+                <Grid Style="{StaticResource ShortcutRow}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="180"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                               Foreground="{DynamicResource FgPrimary}" FontSize="13"
+                               Text="Seleccionar todas las losas"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
+                        <TextBlock VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource FgMuted}" Text="+"/>
+                        <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="A"/></Border>
+                    </StackPanel>
+                </Grid>
+                <Grid Style="{StaticResource ShortcutRow}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="180"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                               Foreground="{DynamicResource FgPrimary}" FontSize="13"
+                               Text="Click + Shift / Ctrl en filas"/>
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center"
+                               Foreground="{DynamicResource FgMuted}" FontSize="11"
+                               Text="(selección múltiple)"/>
+                </Grid>
+
+                <TextBlock Style="{StaticResource SectionHeader}" Text="🧭  NAVEGACIÓN"/>
+                <Grid Style="{StaticResource ShortcutRow}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="180"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                               Foreground="{DynamicResource FgPrimary}" FontSize="13"
+                               Text="Ir al Explorador"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
+                        <TextBlock VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource FgMuted}" Text="+"/>
+                        <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="E"/></Border>
+                    </StackPanel>
+                </Grid>
+                <Grid Style="{StaticResource ShortcutRow}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="180"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                               Foreground="{DynamicResource FgPrimary}" FontSize="13"
+                               Text="Abrir este panel"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="Ctrl"/></Border>
+                        <TextBlock VerticalAlignment="Center" Margin="0,0,4,0" Foreground="{DynamicResource FgMuted}" Text="+"/>
+                        <Border Style="{StaticResource KeyCapStyle}"><TextBlock Style="{StaticResource KeyCapTextStyle}" Text="/"/></Border>
+                    </StackPanel>
+                </Grid>
+
+                <TextBlock Style="{StaticResource SectionHeader}" Text="ℹ  INFO"/>
+                <TextBlock Margin="0,4,0,0" TextWrapping="Wrap"
+                           Foreground="{DynamicResource FgMuted}"
+                           FontSize="12"
+                           Text="El registry de proyectos recientes (.lpx.json) se comparte con MemoriaPlus.App vía %APPDATA%/MemoriaPlus/recents.json — abrir un proyecto en una app lo expone en la otra."/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Grid.Row="2" HorizontalAlignment="Right"
+                Content="Cerrar (Esc)" Padding="16,6"
+                Click="OnClose"
+                IsCancel="True"/>
+    </Grid>
+</Window>

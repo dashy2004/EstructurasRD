@@ -129,6 +129,164 @@ public class MainViewModel : INotifyPropertyChanged
     public ICommand? AbrirProyectoRecienteCommand { get; private set; }
     public ICommand? AbrirEnEditorCommand      { get; private set; }
     public ICommand? IrAExploradorCommand      { get; private set; }
+    public ICommand? UndoCommand               { get; private set; }
+    public ICommand? RedoCommand               { get; private set; }
+    public ICommand? AbrirShortcutsCommand     { get; private set; }
+    public ICommand? AplicarBulkCommand        { get; private set; }
+
+    // ---- Undo/Redo infraestructura (snapshots de ProyectoSerializer) ----
+
+    private readonly Stack<string> _undoStack = new();
+    private readonly Stack<string> _redoStack = new();
+    private const int MaxUndoLevels = 50;
+    private bool _restoringSnapshot;
+
+    public bool PuedeUndo => _undoStack.Count > 0 && !_restoringSnapshot;
+    public bool PuedeRedo => _redoStack.Count > 0 && !_restoringSnapshot;
+
+    /// <summary>
+    /// Toma un snapshot del proyecto actual y lo apila como undo. Llamado
+    /// ANTES de cualquier mutación significativa (agregar losa, eliminar,
+    /// aplicar tipo, edit commit, bulk apply, etc.). Limita la pila a
+    /// <see cref="MaxUndoLevels"/> entries (drop el más viejo).
+    /// </summary>
+    public void PushUndoSnapshot()
+    {
+        if (_restoringSnapshot) return;  // no auto-record durante restore
+        try
+        {
+            var snapshot = ProyectoSerializer.ToJson(_proyecto);
+            _undoStack.Push(snapshot);
+            while (_undoStack.Count > MaxUndoLevels)
+            {
+                // Drop el más viejo: el Stack<T> no soporta RemoveAt, así que
+                // copiamos al revés sin el último.
+                var keep = _undoStack.ToArray().Take(MaxUndoLevels).Reverse().ToArray();
+                _undoStack.Clear();
+                foreach (var s in keep) _undoStack.Push(s);
+            }
+            _redoStack.Clear();
+            OnPropertyChanged(nameof(PuedeUndo));
+            OnPropertyChanged(nameof(PuedeRedo));
+        }
+        catch { /* snapshot best-effort */ }
+    }
+
+    private void Undo()
+    {
+        if (!PuedeUndo) return;
+        var current = ProyectoSerializer.ToJson(_proyecto);
+        var previous = _undoStack.Pop();
+        _redoStack.Push(current);
+        RestoreSnapshot(previous);
+        OnPropertyChanged(nameof(PuedeUndo));
+        OnPropertyChanged(nameof(PuedeRedo));
+        Log("Undo aplicado.");
+    }
+
+    private void Redo()
+    {
+        if (!PuedeRedo) return;
+        var current = ProyectoSerializer.ToJson(_proyecto);
+        var next = _redoStack.Pop();
+        _undoStack.Push(current);
+        RestoreSnapshot(next);
+        OnPropertyChanged(nameof(PuedeUndo));
+        OnPropertyChanged(nameof(PuedeRedo));
+        Log("Redo aplicado.");
+    }
+
+    private void RestoreSnapshot(string json)
+    {
+        try
+        {
+            _restoringSnapshot = true;
+            var restored = ProyectoSerializer.FromJson(json);
+            _proyecto.Sistemas.Clear();
+            foreach (var s in restored.Sistemas) _proyecto.Sistemas.Add(s);
+            _proyecto.Archivo     = restored.Archivo;
+            _proyecto.Nombre      = restored.Nombre;
+            _proyecto.Autor       = restored.Autor;
+            _proyecto.CodigoObra  = restored.CodigoObra;
+            _proyecto.Ubicacion   = restored.Ubicacion;
+            _proyecto.Descripcion = restored.Descripcion;
+            SistemaActivo = _proyecto.Sistemas.FirstOrDefault() ?? NuevoSistemaDemo();
+            OnPropertyChanged(nameof(Proyecto));
+            OnPropertyChanged(nameof(TituloVentana));
+            RefreshDLContent();
+        }
+        finally { _restoringSnapshot = false; }
+    }
+
+    // ---- Multi-select + bulk apply ----
+
+    /// <summary>
+    /// Losas seleccionadas en el DataGrid del Editor (multi-select). Se
+    /// actualiza desde code-behind via SelectionChanged.
+    /// </summary>
+    public ObservableCollection<Losa> LosasSeleccionadas { get; } = new();
+
+    private int _bulkSeleccionadasCount;
+    public int BulkSeleccionadasCount
+    {
+        get => _bulkSeleccionadasCount;
+        private set { _bulkSeleccionadasCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(MostrarBulkPanel)); }
+    }
+
+    public bool MostrarBulkPanel => _bulkSeleccionadasCount >= 2;
+
+    // Valores del bulk-apply (strings para permitir "" = no aplicar este campo).
+    private string _bulkLx = "", _bulkLy = "", _bulkEspesor = "", _bulkCarga = "", _bulkTipo = "";
+    public string BulkLx      { get => _bulkLx;      set { _bulkLx = value; OnPropertyChanged(); } }
+    public string BulkLy      { get => _bulkLy;      set { _bulkLy = value; OnPropertyChanged(); } }
+    public string BulkEspesor { get => _bulkEspesor; set { _bulkEspesor = value; OnPropertyChanged(); } }
+    public string BulkCarga   { get => _bulkCarga;   set { _bulkCarga = value; OnPropertyChanged(); } }
+    public string BulkTipo    { get => _bulkTipo;    set { _bulkTipo = value; OnPropertyChanged(); } }
+
+    /// <summary>Llamado desde el code-behind al cambiar SelectedItems del DataGrid.</summary>
+    public void ActualizarLosasSeleccionadas(System.Collections.IList selectedItems)
+    {
+        LosasSeleccionadas.Clear();
+        foreach (var item in selectedItems)
+            if (item is Losa l) LosasSeleccionadas.Add(l);
+        BulkSeleccionadasCount = LosasSeleccionadas.Count;
+    }
+
+    /// <summary>
+    /// Callback inyectado por MainWindow para abrir
+    /// <c>KeyboardShortcutsWindow</c> (que vive en Views/). Mantengo el VM
+    /// ignorante de la window concreta para que sea testable.
+    /// </summary>
+    public Action? OnAbrirShortcuts { get; set; }
+
+    private void AbrirShortcutsModal() => OnAbrirShortcuts?.Invoke();
+
+    private void AplicarBulk()
+    {
+        if (LosasSeleccionadas.Count < 2) return;
+        PushUndoSnapshot();
+
+        int aplicados = 0;
+        bool aplicarLx      = double.TryParse(_bulkLx,      out var lx);
+        bool aplicarLy      = double.TryParse(_bulkLy,      out var ly);
+        bool aplicarEspesor = double.TryParse(_bulkEspesor, out var esp);
+        bool aplicarCarga   = double.TryParse(_bulkCarga,   out var car);
+        bool aplicarTipo    = int.TryParse(_bulkTipo,       out var tipo);
+
+        foreach (var l in LosasSeleccionadas)
+        {
+            if (aplicarLx)      l.Lx      = lx;
+            if (aplicarLy)      l.Ly      = ly;
+            if (aplicarEspesor) l.Espesor = esp;
+            if (aplicarCarga)   l.Carga   = car;
+            if (aplicarTipo && TipoLosa.Catalogo.ContainsKey(tipo)) l.Tipo = tipo;
+            aplicados++;
+        }
+        // Reset campos para que la próxima vez no se queden con valores viejos.
+        BulkLx = BulkLy = BulkEspesor = BulkCarga = BulkTipo = "";
+        Log($"Bulk apply: {aplicados} losas modificadas.");
+        RefreshDLContent();
+    }
 
     public Proyecto Proyecto => _proyecto;
 
@@ -259,6 +417,10 @@ public class MainViewModel : INotifyPropertyChanged
         }, _ => _proyectoRecienteSeleccionado is not null
                 && !string.IsNullOrEmpty(_proyectoRecienteSeleccionado.Path));
         IrAExploradorCommand = new RelayCommand(_ => ModoActivo = ModoSidebar.Explorador);
+        UndoCommand          = new RelayCommand(_ => Undo(), _ => PuedeUndo);
+        RedoCommand          = new RelayCommand(_ => Redo(), _ => PuedeRedo);
+        AbrirShortcutsCommand = new RelayCommand(_ => AbrirShortcutsModal());
+        AplicarBulkCommand   = new RelayCommand(_ => AplicarBulk(), _ => MostrarBulkPanel);
 
         // Cargar lista de proyectos recientes al arrancar.
         RecargarProyectosRecientes();
@@ -498,6 +660,7 @@ public class MainViewModel : INotifyPropertyChanged
 
     public void AgregarLosa()
     {
+        PushUndoSnapshot();
         var nuevoId = Sistema.Losas.Count == 0 ? 1 : Sistema.Losas.Max(l => l.Id) + 1;
         Sistema.Losas.Add(new Losa { Id = nuevoId, Tipo = 11, Carga = 2.0, Espesor = 0.12, Lx = 4, Ly = 4, Rec = 0.02 });
         OnPropertyChanged(nameof(LosasFiltradas));
@@ -506,6 +669,7 @@ public class MainViewModel : INotifyPropertyChanged
 
     public void EliminarLosa(Losa l)
     {
+        PushUndoSnapshot();
         Sistema.Losas.Remove(l);
         OnPropertyChanged(nameof(LosasFiltradas));
         RefreshDLContent();
@@ -513,6 +677,7 @@ public class MainViewModel : INotifyPropertyChanged
 
     public void AgregarBorde(bool eje_X)
     {
+        PushUndoSnapshot();
         var coll = eje_X ? Sistema.BordesX : Sistema.BordesY;
         coll.Add(new BordeAdic { BI = 1, BJ = 2, Balanceo = "S" });
         RefreshDLContent();
@@ -520,6 +685,7 @@ public class MainViewModel : INotifyPropertyChanged
 
     public void EliminarBorde(BordeAdic b)
     {
+        PushUndoSnapshot();
         if (Sistema.BordesX.Remove(b)) { RefreshDLContent(); return; }
         if (Sistema.BordesY.Remove(b)) RefreshDLContent();
     }

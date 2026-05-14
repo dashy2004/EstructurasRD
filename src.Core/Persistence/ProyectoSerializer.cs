@@ -51,6 +51,40 @@ public static class ProyectoSerializer
     };
 
     /// <summary>
+    /// Serializa <paramref name="proyecto"/> a string JSON (sin escribir a
+    /// disco). Útil para snapshots en memoria — ver Undo/Redo en
+    /// LosasPlus.App. Misma envelope/opciones que <see cref="Save"/>.
+    /// </summary>
+    public static string ToJson(Proyecto proyecto)
+    {
+        if (proyecto is null) throw new ArgumentNullException(nameof(proyecto));
+        var envelope = new ProyectoEnvelope
+        {
+            Version       = FormatVersion,
+            CreadoUtc     = proyecto.FechaCreacion.ToUniversalTime(),
+            ModificadoUtc = DateTime.UtcNow,
+            AppVersion    = "LosasPlus 0.5.0",
+            Proyecto      = proyecto,
+        };
+        return JsonSerializer.Serialize(envelope, _opts);
+    }
+
+    /// <summary>
+    /// Deserializa un JSON producido por <see cref="ToJson"/> y devuelve el
+    /// <see cref="Proyecto"/> contenido. Lanza
+    /// <see cref="InvalidProyectoFileException"/> si el JSON es inválido.
+    /// </summary>
+    public static Proyecto FromJson(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            throw new InvalidProyectoFileException("JSON vacío");
+        var envelope = JsonSerializer.Deserialize<ProyectoEnvelope>(json, _opts);
+        if (envelope?.Proyecto is null)
+            throw new InvalidProyectoFileException("JSON sin proyecto válido");
+        return envelope.Proyecto;
+    }
+
+    /// <summary>
     /// Guarda <paramref name="proyecto"/> como JSON en <paramref name="path"/>.
     /// Si el directorio no existe, lo crea. Sobreescribe archivos existentes.
     /// </summary>

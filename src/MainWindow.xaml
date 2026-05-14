@@ -13,13 +13,16 @@
         Background="{DynamicResource BgPrimary}"
         WindowStartupLocation="CenterScreen">
 
-    <!-- Atajos de teclado .lpx.json (commit 32) — alineados con MemoriaPlus. -->
+    <!-- Atajos de teclado globales. Ctrl+/ abre el panel de atajos. -->
     <Window.InputBindings>
         <KeyBinding Modifiers="Ctrl"       Key="N" Command="{Binding NuevoProyectoLpxCommand}"/>
         <KeyBinding Modifiers="Ctrl"       Key="O" Command="{Binding AbrirProyectoLpxCommand}"/>
         <KeyBinding Modifiers="Ctrl"       Key="S" Command="{Binding GuardarProyectoLpxCommand}"/>
         <KeyBinding Modifiers="Ctrl+Shift" Key="S" Command="{Binding GuardarComoLpxCommand}"/>
         <KeyBinding Modifiers="Ctrl"       Key="E" Command="{Binding IrAExploradorCommand}"/>
+        <KeyBinding Modifiers="Ctrl"       Key="Z" Command="{Binding UndoCommand}"/>
+        <KeyBinding Modifiers="Ctrl"       Key="Y" Command="{Binding RedoCommand}"/>
+        <KeyBinding Modifiers="Ctrl"       Key="OemQuestion" Command="{Binding AbrirShortcutsCommand}"/>
     </Window.InputBindings>
 
     <Window.DataContext>
@@ -431,6 +434,16 @@
                             <Button Content="Pegar de Excel..." Width="140" Margin="8,0,0,0"
                                     Click="OnPasteFromExcelClick"
                                     ToolTip="Pegar (Ctrl+V) una tabla con columnas Lx, Ly, Espesor, Carga (opcionalmente Tipo y Rec) y crear las losas."/>
+                            <!-- Undo / Redo (Ctrl+Z / Ctrl+Y) -->
+                            <Button Content="↶ Undo" Width="80" Margin="8,0,0,0"
+                                    Command="{Binding UndoCommand}"
+                                    ToolTip="Deshacer último cambio (Ctrl+Z). Max 50 niveles."/>
+                            <Button Content="↷ Redo" Width="80" Margin="4,0,0,0"
+                                    Command="{Binding RedoCommand}"
+                                    ToolTip="Rehacer el último undo (Ctrl+Y)."/>
+                            <Button Content="⌨  Atajos" Width="100" Margin="8,0,0,0"
+                                    Command="{Binding AbrirShortcutsCommand}"
+                                    ToolTip="Ver todos los atajos de teclado (Ctrl+/)."/>
                             <!-- Esquema en vivo: split-view con el diagrama. -->
                             <ToggleButton DockPanel.Dock="Right" Margin="8,0,0,0"
                                           IsChecked="{Binding EsquemaEnVivo, Mode=TwoWay}"
@@ -443,6 +456,68 @@
                             <TextBlock Text="(seleccioná una fila para eliminar / aplicar tipo)" VerticalAlignment="Center" Margin="8,0,0,0"
                                        Foreground="{DynamicResource FgMuted}"/>
                         </DockPanel>
+
+                        <!-- BULK APPLY PANEL (visible cuando ≥2 losas seleccionadas).
+                             Aplica los valores ingresados a todas las losas seleccionadas.
+                             Campos vacíos = no aplicar ese atributo. -->
+                        <Border DockPanel.Dock="Top"
+                                Background="{DynamicResource BgSecondary}"
+                                BorderBrush="{DynamicResource Accent}" BorderThickness="2"
+                                CornerRadius="4"
+                                Margin="0,4,0,4" Padding="10,6">
+                            <Border.Style>
+                                <Style TargetType="{x:Type Border}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding MostrarBulkPanel}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <DockPanel LastChildFill="False">
+                                <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
+                                           FontWeight="SemiBold" FontSize="13"
+                                           Foreground="{DynamicResource FgPrimary}"
+                                           Margin="0,0,8,0">
+                                    <Run Text="✎"/>
+                                    <Run Text="{Binding BulkSeleccionadasCount, Mode=OneWay}"/>
+                                    <Run Text=" seleccionadas · aplicar:"/>
+                                </TextBlock>
+                                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="Lx" VerticalAlignment="Center" Margin="6,0,2,0"
+                                               Foreground="{DynamicResource FgMuted}" FontSize="11"/>
+                                    <TextBox Width="55" Text="{Binding BulkLx, UpdateSourceTrigger=PropertyChanged}"
+                                             VerticalContentAlignment="Center" FontFamily="JetBrains Mono"
+                                             ToolTip="Lx en metros (vacío = no aplicar)"/>
+                                    <TextBlock Text="Ly" VerticalAlignment="Center" Margin="8,0,2,0"
+                                               Foreground="{DynamicResource FgMuted}" FontSize="11"/>
+                                    <TextBox Width="55" Text="{Binding BulkLy, UpdateSourceTrigger=PropertyChanged}"
+                                             VerticalContentAlignment="Center" FontFamily="JetBrains Mono"
+                                             ToolTip="Ly en metros (vacío = no aplicar)"/>
+                                    <TextBlock Text="H" VerticalAlignment="Center" Margin="8,0,2,0"
+                                               Foreground="{DynamicResource FgMuted}" FontSize="11"/>
+                                    <TextBox Width="55" Text="{Binding BulkEspesor, UpdateSourceTrigger=PropertyChanged}"
+                                             VerticalContentAlignment="Center" FontFamily="JetBrains Mono"
+                                             ToolTip="Espesor en metros (vacío = no aplicar)"/>
+                                    <TextBlock Text="Carga" VerticalAlignment="Center" Margin="8,0,2,0"
+                                               Foreground="{DynamicResource FgMuted}" FontSize="11"/>
+                                    <TextBox Width="55" Text="{Binding BulkCarga, UpdateSourceTrigger=PropertyChanged}"
+                                             VerticalContentAlignment="Center" FontFamily="JetBrains Mono"
+                                             ToolTip="Carga en t/m² (vacío = no aplicar)"/>
+                                    <TextBlock Text="Tipo" VerticalAlignment="Center" Margin="8,0,2,0"
+                                               Foreground="{DynamicResource FgMuted}" FontSize="11"/>
+                                    <TextBox Width="50" Text="{Binding BulkTipo, UpdateSourceTrigger=PropertyChanged}"
+                                             VerticalContentAlignment="Center" FontFamily="JetBrains Mono"
+                                             ToolTip="Código del tipo Pieper-Martens (vacío = no aplicar)"/>
+                                </StackPanel>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}"
+                                        Content="✓ Confirmar"
+                                        Padding="14,4" Margin="12,0,0,0"
+                                        Command="{Binding AplicarBulkCommand}"
+                                        ToolTip="Aplicar los valores no vacíos a todas las losas seleccionadas"/>
+                            </DockPanel>
+                        </Border>
 
                         <!-- Tipos panel abajo -->
                         <Border DockPanel.Dock="Bottom"
@@ -462,22 +537,31 @@
                         <DataGrid x:Name="LosasGrid"
                                   ItemsSource="{Binding LosasFiltradas}"
                                   AutoGenerateColumns="False"
-                                  SelectionMode="Single"
+                                  SelectionMode="Extended"
+                                  SelectionUnit="FullRow"
                                   CanUserAddRows="False"
                                   HeadersVisibility="Column"
-                                  CellEditEnding="OnLosasCellEdited">
+                                  CellEditEnding="OnLosasCellEdited"
+                                  SelectionChanged="OnLosasSelectionChanged">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="40"/>
                                 <!-- Columna DIR: indicador 1D/2D según Losa.Cond (Lx/Ly aspect ratio).
                                      Live: cambia al editar Lx o Ly. -->
+                                <!-- DIR: indicador 2D / 1D-V (losa ancha, refuerzo vertical) /
+                                     1D-H (losa alta, refuerzo horizontal). El SVG de "una
+                                     dirección" se rota según DireccionAnguloGrados (0°
+                                     wide / 90° tall). Live: se actualiza al editar Lx o Ly. -->
                                 <DataGridTemplateColumn Header="DIR" Width="44" IsReadOnly="True"
-                                                        SortMemberPath="Cond">
+                                                        SortMemberPath="DireccionTrabajo">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Grid>
+                                            <Grid ToolTip="{Binding DireccionTrabajoTexto}">
                                                 <svgc:SvgViewbox HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                  Width="28" Height="28"
-                                                                 ToolTip="Una dirección (relación Ly/Lx &gt; 2)">
+                                                                 RenderTransformOrigin="0.5,0.5">
+                                                    <svgc:SvgViewbox.RenderTransform>
+                                                        <RotateTransform Angle="{Binding DireccionAnguloGrados}"/>
+                                                    </svgc:SvgViewbox.RenderTransform>
                                                     <svgc:SvgViewbox.Style>
                                                         <Style TargetType="{x:Type svgc:SvgViewbox}">
                                                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -491,8 +575,7 @@
                                                     </svgc:SvgViewbox.Style>
                                                 </svgc:SvgViewbox>
                                                 <svgc:SvgViewbox HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                 Width="28" Height="28"
-                                                                 ToolTip="Dos direcciones (relación Ly/Lx ≤ 2 — bidireccional Pieper-Martens)">
+                                                                 Width="28" Height="28">
                                                     <svgc:SvgViewbox.Style>
                                                         <Style TargetType="{x:Type svgc:SvgViewbox}">
                                                             <Setter Property="Visibility" Value="Collapsed"/>

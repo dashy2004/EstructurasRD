@@ -339,6 +339,45 @@ public partial class Losa
     [JsonIgnore]
     public double Ratio => Math.Min(Lx, Ly) > 0 ? Math.Max(Lx, Ly) / Math.Min(Lx, Ly) : 0;
 
+    /// <summary>
+    /// Dirección de trabajo extendida:
+    /// <list type="bullet">
+    ///   <item><c>"2D"</c> — bidireccional (ratio ≤ 2, Pieper-Martens).</item>
+    ///   <item><c>"1D-V"</c> — una dirección, losa <b>ancha</b> (Lx &gt; Ly):
+    ///         flexa en Y, refuerzo principal vertical (strips verticales).</item>
+    ///   <item><c>"1D-H"</c> — una dirección, losa <b>alta</b> (Ly &gt; Lx):
+    ///         flexa en X, refuerzo principal horizontal (strips horizontales).</item>
+    /// </list>
+    /// </summary>
+    [JsonIgnore]
+    public string DireccionTrabajo
+    {
+        get
+        {
+            if (Cond == "2D") return "2D";
+            return Lx > Ly ? "1D-V" : "1D-H";
+        }
+    }
+
+    /// <summary>
+    /// Ángulo de rotación (grados) para renderizar el icono de "1 dirección"
+    /// en la orientación correcta. 0° = strips verticales (losa ancha),
+    /// 90° = strips horizontales (losa alta). Para losas 2D el valor no
+    /// aplica (la UI usa otro icono).
+    /// </summary>
+    [JsonIgnore]
+    public double DireccionAnguloGrados => Lx > Ly ? 0.0 : 90.0;
+
+    /// <summary>Texto legible para tooltips/UI describiendo la dirección.</summary>
+    [JsonIgnore]
+    public string DireccionTrabajoTexto => DireccionTrabajo switch
+    {
+        "2D"   => "Dos direcciones (bidireccional Pieper-Martens)",
+        "1D-V" => "Una dirección — losa ancha, refuerzo principal vertical",
+        "1D-H" => "Una dirección — losa alta, refuerzo principal horizontal",
+        _      => "(indeterminado)",
+    };
+
     /// <summary>Espesor calculado (m) — null hasta que CalculoEngine corra.</summary>
     public double? HCalc { get => _hCalc; set { _hCalc = value; OnPropertyChanged(); OnPropertyChanged(nameof(EspesorInsuficiente)); } }
 

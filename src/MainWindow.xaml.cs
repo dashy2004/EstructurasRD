@@ -20,8 +20,21 @@ public partial class MainWindow : Window
         // Cuando el usuario clickea un icono del catálogo, aplicar el tipo a la fila seleccionada.
         TiposPanel.TipoSelected = codigo =>
         {
-            if (LosasGrid.SelectedItem is Losa l)
+            // Si hay multi-selección, aplicar a TODAS las seleccionadas.
+            if (LosasGrid.SelectedItems.Count > 1)
             {
+                Vm.PushUndoSnapshot();
+                int n = 0;
+                foreach (var item in LosasGrid.SelectedItems)
+                {
+                    if (item is Losa l) { l.Tipo = codigo; n++; }
+                }
+                Vm.Log($"Tipo {codigo} aplicado a {n} losas seleccionadas.");
+                Vm.RefreshDLContent();
+            }
+            else if (LosasGrid.SelectedItem is Losa l)
+            {
+                Vm.PushUndoSnapshot();
                 l.Tipo = codigo;
                 Vm.Log($"Tipo de losa #{l.Id} cambiado a {codigo} ({TipoLosa.Catalogo[codigo].Descripcion})");
                 Vm.RefreshDLContent();
@@ -31,6 +44,31 @@ public partial class MainWindow : Window
                 Vm.Log("Seleccioná primero una fila en la grilla para aplicarle el tipo.");
             }
         };
+
+        // Hook para abrir el panel de atajos modalmente.
+        Loaded += (_, __) =>
+        {
+            if (DataContext is MainViewModel vm)
+                vm.OnAbrirShortcuts = AbrirShortcutsPanel;
+        };
+    }
+
+    /// <summary>Abre el modal <see cref="LosasPlus.Views.KeyboardShortcutsWindow"/>.</summary>
+    private void AbrirShortcutsPanel()
+    {
+        var dlg = new LosasPlus.Views.KeyboardShortcutsWindow { Owner = this };
+        dlg.ShowDialog();
+    }
+
+    /// <summary>
+    /// Sincroniza <see cref="MainViewModel.LosasSeleccionadas"/> con el
+    /// SelectedItems del DataGrid de losas. El panel de bulk-apply se hace
+    /// visible (DataTrigger sobre MostrarBulkPanel) cuando hay ≥ 2 filas.
+    /// </summary>
+    private void OnLosasSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is DataGrid dg)
+            Vm.ActualizarLosasSeleccionadas(dg.SelectedItems);
     }
 
     private void OnBrowseLosasExe(object sender, RoutedEventArgs e)
