@@ -58,7 +58,7 @@ public partial class DiagramView : UserControl
         {
             if (DataContext is MainViewModel vm)
             {
-                vm.Sistema.Losas.CollectionChanged += (_, __) => Redraw();
+                vm.Sistema.Losas.CollectionChanged += OnLosasChanged;
                 vm.Sistema.BordesX.CollectionChanged += (_, __) => Redraw();
                 vm.Sistema.BordesY.CollectionChanged += (_, __) => Redraw();
                 vm.PropertyChanged += (_, e) =>
@@ -66,11 +66,48 @@ public partial class DiagramView : UserControl
                     if (e.PropertyName is nameof(MainViewModel.Sistema)
                                        or nameof(MainViewModel.LosasFiltradas)
                                        or nameof(MainViewModel.TxtContent))
+                    {
+                        AttachLosaListeners(vm.Sistema.Losas);
                         Redraw();
+                    }
                 };
+                AttachLosaListeners(vm.Sistema.Losas);
                 Redraw();
             }
         };
+    }
+
+    /// <summary>
+    /// Suscribe el listener de redibujo en vivo a cada <see cref="Losa"/> de
+    /// la colección. Re-suscribe al cambiar el Sistema activo. Sin esto, el
+    /// esquema solo se redibujaba al agregar/quitar losas, no al editar
+    /// Lx/Ly/Tipo de una losa existente — ahora sí refleja el cambio mientras
+    /// el usuario tipea (split-view del Editor con EsquemaEnVivo).
+    /// </summary>
+    private void AttachLosaListeners(System.Collections.ObjectModel.ObservableCollection<Losa> losas)
+    {
+        foreach (var l in losas)
+        {
+            l.PropertyChanged -= OnLosaPropertyChanged;
+            l.PropertyChanged += OnLosaPropertyChanged;
+        }
+    }
+
+    private void OnLosaPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(Losa.Lx) or nameof(Losa.Ly)
+                           or nameof(Losa.Tipo) or nameof(Losa.Espesor)
+                           or nameof(Losa.Id))
+            Redraw();
+    }
+
+    private void OnLosasChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems is not null)
+            foreach (Losa l in e.NewItems) l.PropertyChanged += OnLosaPropertyChanged;
+        if (e.OldItems is not null)
+            foreach (Losa l in e.OldItems) l.PropertyChanged -= OnLosaPropertyChanged;
+        Redraw();
     }
 
     private void OnRedraw(object sender, RoutedEventArgs e) => Redraw();

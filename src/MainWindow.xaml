@@ -6,6 +6,7 @@
         xmlns:v="clr-namespace:LosasPlus.Views"
         xmlns:s="clr-namespace:LosasPlus.Services"
         xmlns:cmn="clr-namespace:MemoriaPlus.Common;assembly=MemoriaPlus.UI.Shared"
+        xmlns:svgc="http://sharpvectors.codeplex.com/svgc/"
         xmlns:sys="clr-namespace:System;assembly=System.Runtime"
         Title="{Binding TituloVentana}"
         Height="900" Width="1440" MinHeight="640" MinWidth="1100"
@@ -385,8 +386,40 @@
                     </Grid.Style>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
+                        <!-- Columna del esquema en vivo: 0 si toggle OFF, *
+                             si toggle ON. Cambia via DataTrigger sobre
+                             EsquemaEnVivo. -->
+                        <ColumnDefinition>
+                            <ColumnDefinition.Style>
+                                <Style TargetType="{x:Type ColumnDefinition}">
+                                    <Setter Property="Width" Value="0"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding EsquemaEnVivo}" Value="True">
+                                            <Setter Property="Width" Value="*"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ColumnDefinition.Style>
+                        </ColumnDefinition>
                         <ColumnDefinition Width="320"/>
                     </Grid.ColumnDefinitions>
+
+                    <!-- Esquema en vivo (col 1) — visible solo con toggle ON -->
+                    <Border Grid.Column="1" Margin="6,0,6,0"
+                            Background="{DynamicResource BgSecondary}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1">
+                        <Border.Style>
+                            <Style TargetType="{x:Type Border}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding EsquemaEnVivo}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <v:DiagramView x:Name="DiagramLive" DataContext="{Binding}"/>
+                    </Border>
 
                     <!-- Tabla de losas + tipos panel abajo -->
                     <DockPanel Grid.Column="0">
@@ -398,6 +431,15 @@
                             <Button Content="Pegar de Excel..." Width="140" Margin="8,0,0,0"
                                     Click="OnPasteFromExcelClick"
                                     ToolTip="Pegar (Ctrl+V) una tabla con columnas Lx, Ly, Espesor, Carga (opcionalmente Tipo y Rec) y crear las losas."/>
+                            <!-- Esquema en vivo: split-view con el diagrama. -->
+                            <ToggleButton DockPanel.Dock="Right" Margin="8,0,0,0"
+                                          IsChecked="{Binding EsquemaEnVivo, Mode=TwoWay}"
+                                          Padding="10,4"
+                                          ToolTip="Mostrar el esquema 2D al lado de la tabla y redibujarlo en vivo a medida que editás Lx/Ly/Tipo.">
+                                <TextBlock>
+                                    <Run Text="👁  Esquema en vivo"/>
+                                </TextBlock>
+                            </ToggleButton>
                             <TextBlock Text="(seleccioná una fila para eliminar / aplicar tipo)" VerticalAlignment="Center" Margin="8,0,0,0"
                                        Foreground="{DynamicResource FgMuted}"/>
                         </DockPanel>
@@ -426,6 +468,47 @@
                                   CellEditEnding="OnLosasCellEdited">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="40"/>
+                                <!-- Columna DIR: indicador 1D/2D según Losa.Cond (Lx/Ly aspect ratio).
+                                     Live: cambia al editar Lx o Ly. -->
+                                <DataGridTemplateColumn Header="DIR" Width="44" IsReadOnly="True"
+                                                        SortMemberPath="Cond">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Grid>
+                                                <svgc:SvgViewbox HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                 Width="28" Height="28"
+                                                                 ToolTip="Una dirección (relación Ly/Lx &gt; 2)">
+                                                    <svgc:SvgViewbox.Style>
+                                                        <Style TargetType="{x:Type svgc:SvgViewbox}">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Cond}" Value="1D">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                    <Setter Property="Source" Value="pack://application:,,,/Resources/icons/direction_1d.svg"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </svgc:SvgViewbox.Style>
+                                                </svgc:SvgViewbox>
+                                                <svgc:SvgViewbox HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                 Width="28" Height="28"
+                                                                 ToolTip="Dos direcciones (relación Ly/Lx ≤ 2 — bidireccional Pieper-Martens)">
+                                                    <svgc:SvgViewbox.Style>
+                                                        <Style TargetType="{x:Type svgc:SvgViewbox}">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Cond}" Value="2D">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                    <Setter Property="Source" Value="pack://application:,,,/Resources/icons/direction_2d.svg"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </svgc:SvgViewbox.Style>
+                                                </svgc:SvgViewbox>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridTemplateColumn Header="" Width="50" IsReadOnly="True">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
@@ -494,7 +577,7 @@
                     </DockPanel>
 
                     <!-- Panel lateral: settings del sistema + bordes -->
-                    <Border Grid.Column="1" Background="{DynamicResource BgSecondary}" Margin="6,0,0,0" Padding="8">
+                    <Border Grid.Column="2" Background="{DynamicResource BgSecondary}" Margin="6,0,0,0" Padding="8">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel>
                                 <TextBlock Text="Sistema" FontWeight="Bold" FontSize="14"/>

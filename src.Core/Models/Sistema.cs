@@ -179,6 +179,9 @@ public partial class Losa : INotifyPropertyChanged, IDataErrorInfo
             OnPropertyChanged(nameof(Aspecto));
             OnPropertyChanged(nameof(AspectoFueraDeRango));
             OnPropertyChanged(nameof(AspectoMensaje));
+            OnPropertyChanged(nameof(Cond));
+            OnPropertyChanged(nameof(Ln));
+            OnPropertyChanged(nameof(Ratio));
         }
     }
 
@@ -192,6 +195,9 @@ public partial class Losa : INotifyPropertyChanged, IDataErrorInfo
             OnPropertyChanged(nameof(Aspecto));
             OnPropertyChanged(nameof(AspectoFueraDeRango));
             OnPropertyChanged(nameof(AspectoMensaje));
+            OnPropertyChanged(nameof(Cond));
+            OnPropertyChanged(nameof(Ln));
+            OnPropertyChanged(nameof(Ratio));
         }
     }
 
