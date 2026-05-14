@@ -81,6 +81,39 @@ public partial class MainWindow : Window
         Vm.ModoActivo = LosasPlus.ViewModels.ModoSidebar.Validacion;
     }
 
+    /// <summary>
+    /// Click en la columna TIPO de una losa: abre el modal
+    /// SelectorTipoLosaWindow (del src.UI.Shared) precargado con el tipo
+    /// actual. Al confirmar, asigna el nuevo tipo a la losa con snapshot
+    /// para undo. Si hay multi-selección, aplica a todas las seleccionadas.
+    /// </summary>
+    private void OnAbrirSelectorTipoLosaClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn) return;
+        if (btn.Tag is not Losa rowLosa) return;
+
+        var dlg = new MemoriaPlus.Views.SelectorTipoLosaWindow(rowLosa.Tipo)
+        {
+            Owner = this,
+        };
+        if (dlg.ShowDialog() != true || dlg.TipoConfirmado is not int nuevo) return;
+
+        Vm.PushUndoSnapshot();
+        if (LosasGrid.SelectedItems.Count > 1 && LosasGrid.SelectedItems.Contains(rowLosa))
+        {
+            int n = 0;
+            foreach (var item in LosasGrid.SelectedItems)
+                if (item is Losa l) { l.Tipo = nuevo; n++; }
+            Vm.Log($"Tipo {nuevo} aplicado a {n} losas seleccionadas.");
+        }
+        else
+        {
+            rowLosa.Tipo = nuevo;
+            Vm.Log($"Tipo de losa #{rowLosa.Id} cambiado a {nuevo}.");
+        }
+        Vm.RefreshDLContent();
+    }
+
     private void OnBrowseLosasExe(object sender, RoutedEventArgs e)
     {
         var dlg = new OpenFileDialog

@@ -2,18 +2,36 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:lp="clr-namespace:LosasPlus"
+             xmlns:cmn="clr-namespace:MemoriaPlus.Common;assembly=MemoriaPlus.UI.Shared"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <!-- Tema activo (Precision = Stitch light por default). App.SetTheme(...) lo reemplaza en runtime. -->
                 <ResourceDictionary Source="Resources/ThemePrecision.xaml"/>
+                <!-- Theme compartido con MemoriaPlus.App: define SurfaceBrush, OnSurfaceBrush,
+                     PrimaryBrush, etc. usados por las shared Views (ValidacionView,
+                     BusquedaView, PlantillasView, ConfiguracionView, SelectorTipoLosaWindow).
+                     Sin esto, esos views crashean buscando "SurfaceBrush". Coexiste con el
+                     theme propio de LosasPlus (BgPrimary, BgSecondary, etc.) porque las
+                     claves no chocan. -->
+                <ResourceDictionary Source="pack://application:,,,/MemoriaPlus.UI.Shared;component/Resources/Theme.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
             <!-- Converters globales -->
             <lp:NullToCollapsedConverter      x:Key="NullToCollapsed"/>
             <lp:BoolToCollapsedIfTrueConverter  x:Key="BoolToCollapsedIfTrue"/>
             <lp:BoolToCollapsedIfFalseConverter x:Key="BoolToCollapsedIfFalse"/>
+            <!-- Converters compartidos con MemoriaPlus.App (commit 33). Necesarios para que
+                 las shared views (Validacion, Busqueda, Plantillas, Configuracion +
+                 sub-tabs) resuelvan sus bindings sin crash. -->
+            <cmn:EnumToBoolConverter             x:Key="EnumToBoolConverter"/>
+            <cmn:BordeKindToStrokeDashConverter  x:Key="BordeKindToStrokeDashConverter"/>
+            <cmn:BordeKindToThicknessConverter   x:Key="BordeKindToThicknessConverter"/>
+            <cmn:TipoLosaBordeStrokeDashConverter x:Key="TipoLosaBordeStrokeDashConverter"/>
+            <cmn:TipoLosaBordeThicknessConverter  x:Key="TipoLosaBordeThicknessConverter"/>
+            <cmn:PathToImageConverter            x:Key="PathToImageConverter"/>
+            <cmn:StringNotEmptyToBoolConverter   x:Key="StringNotEmptyToBoolConverter"/>
 
             <!-- Estilos base. Los colores son siempre referencias a las claves del tema activo,
                  así un Theme switch refresca toda la UI sin tocar los estilos. -->
