@@ -657,7 +657,149 @@
                             </DockPanel>
                         </Border>
 
-                        <!-- Tipos panel abajo -->
+                        <!-- ====================================================================
+                             REFUERZO COMERCIAL — panel para la losa única seleccionada.
+                             Visible solo si HayUnaLosaSeleccionada == true. Inputs por
+                             diámetro ASTM (#3 a #8) en X y Y. Asx/Asy se recalculan en
+                             vivo vía RefuerzoX/Y → CalculoEngine.ComputeAsTotal.
+                             ==================================================================== -->
+                        <Border DockPanel.Dock="Bottom"
+                                Background="{DynamicResource BgSecondary}"
+                                BorderBrush="{DynamicResource Accent}" BorderThickness="1"
+                                Margin="0,6,0,0" Padding="10,8"
+                                DataContext="{Binding LosaActivaParaRefuerzo}">
+                            <Border.Style>
+                                <Style TargetType="{x:Type Border}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding DataContext.HayUnaLosaSeleccionada, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel>
+                                <TextBlock Margin="0,0,0,6"
+                                           Foreground="{DynamicResource FgPrimary}"
+                                           FontSize="13">
+                                    <Run Text="REFUERZO COMERCIAL (Losa " FontWeight="Bold"/>
+                                    <Run Text="{Binding Id, Mode=OneWay}" FontWeight="Bold"/>
+                                    <Run Text=") · "/>
+                                    <Run Foreground="{DynamicResource FgMuted}"
+                                         Text="cantidad de barras por diámetro ASTM A615"/>
+                                </TextBlock>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>  <!-- label -->
+                                        <ColumnDefinition Width="50"/>    <!-- #3 X -->
+                                        <ColumnDefinition Width="50"/>    <!-- #4 X -->
+                                        <ColumnDefinition Width="50"/>    <!-- #5 X -->
+                                        <ColumnDefinition Width="50"/>    <!-- #6 X -->
+                                        <ColumnDefinition Width="50"/>    <!-- #7 X -->
+                                        <ColumnDefinition Width="50"/>    <!-- #8 X -->
+                                        <ColumnDefinition Width="16"/>    <!-- gap -->
+                                        <ColumnDefinition Width="Auto"/>  <!-- As total -->
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>  <!-- header diámetros -->
+                                        <RowDefinition Height="Auto"/>  <!-- fila X -->
+                                        <RowDefinition Height="Auto"/>  <!-- fila Y -->
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Header: nombres de diámetros -->
+                                    <TextBlock Grid.Row="0" Grid.Column="0"
+                                               Text="Dirección"
+                                               FontSize="11" Foreground="{DynamicResource FgMuted}"
+                                               Margin="0,0,8,4" VerticalAlignment="Bottom"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="#3 (3/8&quot;)"
+                                               FontSize="11" Foreground="{DynamicResource FgMuted}"
+                                               HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="#4 (1/2&quot;)"
+                                               FontSize="11" Foreground="{DynamicResource FgMuted}"
+                                               HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="3" Text="#5 (5/8&quot;)"
+                                               FontSize="11" Foreground="{DynamicResource FgMuted}"
+                                               HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="4" Text="#6 (3/4&quot;)"
+                                               FontSize="11" Foreground="{DynamicResource FgMuted}"
+                                               HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="5" Text="#7 (7/8&quot;)"
+                                               FontSize="11" Foreground="{DynamicResource FgMuted}"
+                                               HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="6" Text="#8 (1&quot;)"
+                                               FontSize="11" Foreground="{DynamicResource FgMuted}"
+                                               HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="8" Text="As (cm²)"
+                                               FontSize="11" Foreground="{DynamicResource FgMuted}"
+                                               HorizontalAlignment="Center" Margin="0,0,0,4"
+                                               VerticalAlignment="Bottom"/>
+
+                                    <!-- Fila X -->
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Refuerzo X"
+                                               FontWeight="SemiBold" VerticalAlignment="Center"
+                                               Margin="0,2,8,2"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1" Margin="1,2,1,2"
+                                             Text="{Binding RefuerzoX.N3, UpdateSourceTrigger=PropertyChanged, FallbackValue=0, TargetNullValue=0}"
+                                             HorizontalContentAlignment="Center" FontFamily="JetBrains Mono"/>
+                                    <TextBox Grid.Row="1" Grid.Column="2" Margin="1,2,1,2"
+                                             Text="{Binding RefuerzoX.N4, UpdateSourceTrigger=PropertyChanged, FallbackValue=0, TargetNullValue=0}"
+                                             HorizontalContentAlignment="Center" FontFamily="JetBrains Mono"/>
+                                    <TextBox Grid.Row="1" Grid.Column="3" Margin="1,2,1,2"
+                                             Text="{Binding RefuerzoX.N5, UpdateSourceTrigger=PropertyChanged, FallbackValue=0, TargetNullValue=0}"
+                                             HorizontalContentAlignment="Center" FontFamily="JetBrains Mono"/>
+                                    <TextBox Grid.Row="1" Grid.Column="4" Margin="1,2,1,2"
+                                             Text="{Binding RefuerzoX.N6, UpdateSourceTrigger=PropertyChanged, FallbackValue=0, TargetNullValue=0}"
+                                             HorizontalContentAlignment="Center" FontFamily="JetBrains Mono"/>
+                                    <TextBox Grid.Row="1" Grid.Column="5" Margin="1,2,1,2"
+                                             Text="{Binding RefuerzoX.N7, UpdateSourceTrigger=PropertyChanged, FallbackValue=0, TargetNullValue=0}"
+                                             HorizontalContentAlignment="Center" FontFamily="JetBrains Mono"/>
+                                    <TextBox Grid.Row="1" Grid.Column="6" Margin="1,2,1,2"
+                                             Text="{Binding RefuerzoX.N8, UpdateSourceTrigger=PropertyChanged, FallbackValue=0, TargetNullValue=0}"
+                                             HorizontalContentAlignment="Center" FontFamily="JetBrains Mono"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="8"
+                                               Text="{Binding AsxCalc, StringFormat=0.00, FallbackValue=0.00, TargetNullValue=0.00}"
+                                               FontFamily="JetBrains Mono" FontWeight="Bold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource Accent}"/>
+
+                                    <!-- Fila Y -->
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Refuerzo Y"
+                                               FontWeight="SemiBold" VerticalAlignment="Center"
+                                               Margin="0,2,8,2"/>
+                                    <TextBox Grid.Row="2" Grid.Column="1" Margin="1,2,1,2"
+                                             Text="{Binding RefuerzoY.N3, UpdateSourceTrigger=PropertyChanged, FallbackValue=0, TargetNullValue=0}"
+                                             HorizontalContentAlignment="Center" FontFamily="JetBrains Mono"/>
+                                    <TextBox Grid.Row="2" Grid.Column="2" Margin="1,2,1,2"
+                                             Text="{Binding RefuerzoY.N4, UpdateSourceTrigger=PropertyChanged, FallbackValue=0, TargetNullValue=0}"
+                                             HorizontalContentAlignment="Center" FontFamily="JetBrains Mono"/>
+                                    <TextBox Grid.Row="2" Grid.Column="3" Margin="1,2,1,2"
+                                             Text="{Binding RefuerzoY.N5, UpdateSourceTrigger=PropertyChanged, FallbackValue=0, TargetNullValue=0}"
+                                             HorizontalContentAlignment="Center" FontFamily="JetBrains Mono"/>
+                                    <TextBox Grid.Row="2" Grid.Column="4" Margin="1,2,1,2"
+                                             Text="{Binding RefuerzoY.N6, UpdateSourceTrigger=PropertyChanged, FallbackValue=0, TargetNullValue=0}"
+                                             HorizontalContentAlignment="Center" FontFamily="JetBrains Mono"/>
+                                    <TextBox Grid.Row="2" Grid.Column="5" Margin="1,2,1,2"
+                                             Text="{Binding RefuerzoY.N7, UpdateSourceTrigger=PropertyChanged, FallbackValue=0, TargetNullValue=0}"
+                                             HorizontalContentAlignment="Center" FontFamily="JetBrains Mono"/>
+                                    <TextBox Grid.Row="2" Grid.Column="6" Margin="1,2,1,2"
+                                             Text="{Binding RefuerzoY.N8, UpdateSourceTrigger=PropertyChanged, FallbackValue=0, TargetNullValue=0}"
+                                             HorizontalContentAlignment="Center" FontFamily="JetBrains Mono"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="8"
+                                               Text="{Binding AsyCalc, StringFormat=0.00, FallbackValue=0.00, TargetNullValue=0.00}"
+                                               FontFamily="JetBrains Mono" FontWeight="Bold"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource Accent}"/>
+                                </Grid>
+
+                                <TextBlock Margin="0,8,0,0" FontSize="11"
+                                           Foreground="{DynamicResource FgMuted}"
+                                           TextWrapping="Wrap"
+                                           Text="Áreas nominales: #3=0.71, #4=1.27, #5=1.99, #6=2.85, #7=3.88, #8=5.07 cm². As total = Σ nᵢ·áreaᵢ. Cambios se refrescan al perder foco."/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Tipos panel abajo del refuerzo -->
                         <Border DockPanel.Dock="Bottom"
                                 Background="{DynamicResource BgSecondary}"
                                 BorderBrush="{DynamicResource Border}" BorderThickness="1"

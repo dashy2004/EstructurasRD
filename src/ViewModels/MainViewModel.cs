@@ -434,10 +434,70 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// <summary>Llamado desde el code-behind al cambiar SelectedItems del DataGrid.</summary>
     public void ActualizarLosasSeleccionadas(System.Collections.IList selectedItems)
     {
+        // Des-suscribirse del refuerzo de la losa previa (si había una activa)
+        DesuscribirRefuerzoActivo();
+
         LosasSeleccionadas.Clear();
         foreach (var item in selectedItems)
             if (item is Losa l) LosasSeleccionadas.Add(l);
         BulkSeleccionadasCount = LosasSeleccionadas.Count;
+
+        // Suscribirse a la nueva losa activa (si hay exactamente una)
+        SuscribirRefuerzoActivo();
+
+        OnPropertyChanged(nameof(LosaActivaParaRefuerzo));
+        OnPropertyChanged(nameof(HayUnaLosaSeleccionada));
+    }
+
+    /// <summary>
+    /// Losa única seleccionada en el DataGrid del Editor — para el panel
+    /// "Refuerzo comercial" que muestra los inputs por diámetro #3..#8 de la
+    /// losa activa. Si hay 0 o &gt;1 losas seleccionadas devuelve null y el
+    /// panel se oculta para no exponer estado inconsistente.
+    /// </summary>
+    public Losa? LosaActivaParaRefuerzo =>
+        LosasSeleccionadas.Count == 1 ? LosasSeleccionadas[0] : null;
+
+    /// <summary>True si exactamente una losa está seleccionada (oculta el panel cuando 0 o >1).</summary>
+    public bool HayUnaLosaSeleccionada => LosasSeleccionadas.Count == 1;
+
+    // Referencias a las que estamos suscritos actualmente para evitar fugas.
+    private RefuerzoBarras? _refuerzoXSubscrito;
+    private RefuerzoBarras? _refuerzoYSubscrito;
+
+    private void SuscribirRefuerzoActivo()
+    {
+        var l = LosaActivaParaRefuerzo;
+        if (l is null) return;
+        _refuerzoXSubscrito = l.RefuerzoX;
+        _refuerzoYSubscrito = l.RefuerzoY;
+        _refuerzoXSubscrito.PropertyChanged += OnRefuerzoChanged;
+        _refuerzoYSubscrito.PropertyChanged += OnRefuerzoChanged;
+    }
+
+    private void DesuscribirRefuerzoActivo()
+    {
+        if (_refuerzoXSubscrito is not null)
+        {
+            _refuerzoXSubscrito.PropertyChanged -= OnRefuerzoChanged;
+            _refuerzoXSubscrito = null;
+        }
+        if (_refuerzoYSubscrito is not null)
+        {
+            _refuerzoYSubscrito.PropertyChanged -= OnRefuerzoChanged;
+            _refuerzoYSubscrito = null;
+        }
+    }
+
+    private void OnRefuerzoChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        // El usuario editó una cantidad de barras — recalcular AsxCalc/AsyCalc
+        // (y el resto de outputs por si αfm o algo más depende). El recalc es
+        // barato y deja la UI consistente sin intervención manual.
+        var losa = LosaActivaParaRefuerzo;
+        if (losa is null) return;
+        try { LosasPlus.Calculo.CalculoEngine.RecalcularLosa(losa, Sistema, _proyecto); }
+        catch (Exception ex) { Log("Aviso recalc tras editar refuerzo: " + ex.Message); }
     }
 
     /// <summary>
