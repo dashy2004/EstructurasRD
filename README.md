@@ -44,7 +44,7 @@
 | [`src.Core/`](src.Core/) | Librería `net8.0` | Modelo de dominio (Proyecto, Sistema, Losa, Cargas), parsers `.DL`/`.TXT`, motor de cálculo (espesor 1D/2D, qd, qu), generador de memorias `.docx`, importador de cargas Excel. **Sin dependencia de WPF** — reusable desde cualquier consumidor .NET. |
 | [`src/`](src/) | App WPF (LosasPlus) | Editor + visor del archivo `.DL` que consume `Losas.exe` (Ing. F. Perdomo). Diagrama del sistema, importación del `.TXT` de salida, exportación a CSV/XLSX, sandbox de plugins en C# Script. |
 | [`src.Memoria/`](src.Memoria/) | App WPF (MemoriaPlus) | Generador de memorias de cálculo `.docx`. Captura datos del proyecto, edita cargas globales, parsea salidas F. Perdomo, y genera la memoria final con plurinivel automático y tablas de momentos/armaduras. **Standalone** — no necesita `Losas.exe`. |
-| [`tests/LosasPlus.Tests/`](tests/) | xUnit tests | 419 tests cubriendo modelo, motor de cálculo, validación normativa, registries de proyectos/plantillas/atajos, configuración, generador de memorias y todos los importers. |
+| [`tests/LosasPlus.Tests/`](tests/) | xUnit tests | **476 tests** cubriendo modelo, motor de cálculo (αfm ACI 9.5.3.3, espesor equivalente, cómputos, acero distribuido), validación normativa, registries de proyectos/plantillas/atajos/temas, configuración, generador de memorias, Doctor de archivos .DL, y todos los importers. |
 
 ---
 
@@ -72,23 +72,62 @@
 
 ---
 
-## Capacidades end-to-end (v0.5)
+## Capacidades end-to-end (v0.6)
+
+**Cálculo estructural (ACI 318 + R-001):**
+- ✅ Cond 1D / 2D automático según relación Ly/Lx; `h_calc` con fórmulas
+  separadas (ACI 9.5.2.1 para 1D, ACI 9.5.3.2 para 2D).
+- ✅ **αfm ACI 318 §9.5.3.3 completo**: `Iviga = b·h³/12`, `Ilosa` por
+  franja, `αx`/`αy`/`αm` y estado `OK`/`CHK` (αm > 2) — la "tabla de
+  espesor equivalente" del Excel del ingeniero portada y verificada.
+- ✅ **Espesor equivalente vigueta+bloque** vía T-section (commit 27)
+  con `VigaTipo` y `Bovedilla 1D/2D` configurables por proyecto.
+- ✅ **Cómputos métricos por losa**: cantidad de bovedillas en X/Y,
+  V_bovedilla, V_total, V_concreto. Listo para reportes de obra.
+- ✅ **Refuerzo distribuido** por diámetro ASTM A615 (`#3..#8`) con
+  áreas nominales (0.71, 1.27, 1.99, 2.85, 3.88, 5.07 cm²) y cálculo de
+  `As` total por franja. UI dedicada **próximamente** en pestaña
+  "Aceros" (Core listo + exportación operativa).
+- ✅ Cargas: `q_mamp`, `q_map`, `q_d`, `q_l`, `q_u` con combinación
+  factorizada ACI.
 
 **Edición del proyecto:**
 - ✅ Captura del proyecto con 17 placeholders documentados.
 - ✅ Cargas globales editables en UI o importables del `.xlsx` del ingeniero.
-- ✅ DataGrid de niveles con cálculo en vivo (Cond 1D/2D, h_calc, h_eq, q_d, q_l, q_u).
+- ✅ DataGrid de niveles con cálculo en vivo (todas las columnas anteriores).
 - ✅ Importación de salida F. Perdomo (`.txt`) con parser de momentos y armaduras X/Y.
-- ✅ Espesor equivalente paramétrico vigueta+bloque vía T-section (ACI 318 §9.5.3.3).
-- ✅ Selector visual de tipo de losa Pieper-Martens (26 tipos con icono de bordes).
+- ✅ **Salida `.txt` con dos vistas**: Texto con highlighting + Tabla editable
+  estilo Excel (Ctrl+C copia con tabs); exportación a `{stem}.modificado.txt`
+  sin pisar el archivo original.
+- ✅ Selector visual de tipo de losa Pieper-Martens (26 tipos con iconos
+  SVG del usuario + fallback programático).
+- ✅ Direccionalidad H/V indicada con icono rotable según `Lx > Ly`.
 
 **Persistencia y workflow:**
 - ✅ Guardar/Abrir proyectos en formato `.lpx.json` con Ctrl+N/O/S/Shift+S.
+- ✅ **Auto-backup**: cada save crea `{carpeta}/backups/{nombre}_{timestamp}.lpx.json`
+  sin pisar el principal, con prune a 20 copias.
+- ✅ Sección **"Proyecto activo"** en modo Explorador con TextBoxes
+  editables para Nombre/Autor/Código + lista de sistemas renombrables
+  in-place.
 - ✅ Lista de proyectos recientes con filtro por nombre / ingeniero / CODIA.
 - ✅ Búsqueda global Ctrl+F: filtra simultáneamente proyectos, niveles y losas.
-- ✅ Plantillas `.docx` registrables; la default se aplica al generar.
-- ✅ Perfil del ingeniero precarga campos en proyectos nuevos; firma/sello con drag-drop + preview.
-- ✅ Atajos de teclado totalmente reasignables en vivo (sin reiniciar).
+- ✅ Atajos de teclado totalmente reasignables en vivo.
+- ✅ Multi-select de losas (Ctrl/Shift + click) + panel bulk-apply
+  para editar Lx/Ly/H/Carga/Tipo en lote.
+- ✅ Undo/Redo (Ctrl+Z, Ctrl+Y) con snapshots JSON.
+
+**🩺 Doctor de archivos .DL:**
+- ✅ **Detecta 7 patrones de corrupción** típicos: JSON disfrazado de .DL
+  (caso real reportado), BOM UTF-8/16, decimal con coma (es-DO desde
+  Excel), IDs duplicados, geometría inválida, recubrimiento ≥ espesor,
+  bordes huérfanos, balanceo no normalizado.
+- ✅ **Auto-repara** los corregibles (decimal-coma, BOM) y exporta a
+  `{stem}.reparado.DL` sin pisar el original.
+- ✅ Modal con shading verde/amarillo/rojo por severidad + botón de
+  acción contextual (abrir como proyecto si es JSON, aplicar
+  reparación si hay fix, etc.).
+- ✅ Se dispara automáticamente al fallar `Abrir .DL legacy…`.
 
 **Validación normativa (R-001 + ACI 318):**
 - ✅ Engine pluggable con 4 reglas: espesor mínimo R-001, carga viva mínima R-001, espesor vs cálculo ACI, aspecto Pieper-Martens.
@@ -97,11 +136,33 @@
 - ✅ Badges in-grid en la columna H USAR + banner per-sistema en NivelesView.
 - ✅ Copiar reporte plano al portapapeles.
 
-**Generación:**
-- ✅ Generación `.docx` con sustitución robusta de placeholders (incluso fragmentados entre runs).
+**Configuración → Apariencia (aplica en vivo):**
+- ✅ Tema Claro / Oscuro / Precision con persistencia en `%APPDATA%`.
+- ✅ Tipografía monoespaciada seleccionable (JetBrains Mono, Iosevka,
+  Consolas) que mutea `FontFamilyMono` global sin reiniciar.
+- ✅ **8 swatches de color de acento** + entrada hex personalizada;
+  click directo aplica el color a `Accent` / `AccentHi` / `PrimaryBrush`.
+- ✅ **Presets nombrados** guardados en `%APPDATA%/LosasPlus/themes.json`
+  con CRUD completo (Guardar como, Cargar, Eliminar).
+- ✅ Sub-tab "Datos del ingeniero" oculto en LosasPlus (es responsabilidad
+  de MemoriaPlus).
+
+**Exportación de resultados (CSV / XLSX):**
+- ✅ **31 columnas por losa** en CSV: input + Mfx/Mfy/MSx/MSy/AsxVano/AsyVano
+  del motor + HCalc/HEq/Qd/Ql/Qu + αx/αy/αm/EstadoαFm + V_total/V_bov/V_con
+  + N bovedillas + Asx_calc/Asy_calc.
+- ✅ XLSX con hojas Resumen / Losas / **Verificación ACI** / Apoyos /
+  Espejo .TXT / Esquema / Combinaciones. Filas con shading verde
+  (αm OK) o rojo (CHK).
+- ✅ Recálculo automático antes de exportar (no quedan outputs viejos).
+
+**Generación de memoria:**
+- ✅ "Generar memoria" en LosasPlus lanza `MemoriaPlus.exe` con el
+  `.lpx.json` como argumento (handshake limpio sin duplicar lógica).
+- ✅ MemoriaPlus genera `.docx` con sustitución robusta de placeholders
+  (incluso fragmentados entre runs).
 - ✅ Plurinivel: bloque NIVEL clonado por sistema vía markers `{{NIVEL_BLOQUE_INICIO/FIN}}`.
 - ✅ Tablas embebidas: `{{TABLA_LOSAS}}`, `{{TABLA_MOMENTOS}}`, `{{TABLA_ARMADURAS_X/Y}}`, `{{TABLA_APOYOS}}`.
-- ✅ Fallback graceful sin `.txt` importado.
 
 Convención de placeholders documentada en [`docs/referencia/README.md`](docs/referencia/README.md).
 
@@ -169,7 +230,7 @@ LosasPlus/
 │   └── Services/                    # DLFileService, TxtParser, SalidaPerdomoAdapter, ...
 ├── src/                             # LosasPlus.App (WPF wrapper de Losas.exe)
 ├── src.Memoria/                     # MemoriaPlus.App (WPF generador de memorias)
-├── tests/LosasPlus.Tests/           # 271 tests xUnit
+├── tests/LosasPlus.Tests/           # 476 tests xUnit
 ├── tests/fixtures/                  # samples sintéticos para tests
 ├── docs/
 │   ├── referencia/                  # plantilla genérica, xlsx demo, wireframes
@@ -182,11 +243,27 @@ LosasPlus/
 
 ## Roadmap
 
-**v0.5 (próximas semanas):**
-- Persistencia de proyectos a `.lpx.json`.
-- Pestaña Configuración con perfil del ingeniero (autocompleta proyectos nuevos).
-- Pestaña Plantillas: gestión múltiple de `.docx` con preview.
-- Validación R-001 / ACI 318 automática (espesor mínimo, cargas vivas, recubrimientos).
+**v0.5 — Completado ✅:**
+- Persistencia de proyectos a `.lpx.json` + auto-backup.
+- Pestaña Configuración con perfil del ingeniero + apariencia + atajos.
+- Pestaña Plantillas (MemoriaPlus) con gestión múltiple de `.docx`.
+- Validación R-001 / ACI 318 automática.
+
+**v0.6 — Completado ✅:**
+- αfm ACI 318 §9.5.3.3 con `VigaTipo` + `Bovedilla` configurables.
+- Cómputos métricos por losa (volúmenes, cantidades de bovedilla).
+- Doctor de archivos .DL con auto-reparación.
+- Apariencia que aplica en vivo (tema, fuente, color de acento).
+- Salida .TXT con dos vistas (Texto + Tabla editable).
+- Exportador CSV/XLSX completo con hoja "Verificación ACI".
+
+**v0.7 (próximo):**
+- **UI de Aceros** dedicada en la pestaña sidebar (hoy "próximamente"):
+  As requerido vs As provisto en vivo, separación de barras adicionales
+  por empalmes (ACI 318 §25.5), reportes por franja.
+- Panel αfm visual en el Editor (chips OK/CHK + αx/αy/αm).
+- Editores globales de `VigaPrincipal`, `Bovedilla1D/2D` en el panel
+  lateral del Editor.
 
 **v1.0 (3-6 meses):**
 - Editor visual de losas (canvas tipo CAD para dibujar el sistema).
@@ -209,7 +286,7 @@ primero para discutir el diseño. La suite respeta convenciones .NET estándar
 (C# 12, `Nullable=enable`, xUnit) y mantiene **0 warnings** en build.
 
 ```bash
-dotnet test LosasPlus.sln  # debe quedar 271/271 verde antes de un PR
+dotnet test LosasPlus.sln  # debe quedar 476/476 verde antes de un PR
 ```
 
 ---

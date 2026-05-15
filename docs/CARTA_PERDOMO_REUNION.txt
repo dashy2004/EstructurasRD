@@ -1,0 +1,102 @@
+# Asunto sugerido para el email:
+# Reunión virtual sobre LosasPlus — confirmación de disponibilidad
+
+────────────────────────────────────────────────────────────────────────
+
+Estimado Ing. Francisco Eludino Perdomo:
+
+Le saludo cordialmente y le agradezco enormemente su disposición a
+reunirse para conversar sobre el proyecto.
+
+Como ya le compartí brevemente, "LosasPlus" es una capa moderna de
+interfaz construida sobre su programa Losas.exe (v5.20, método
+Pieper-Martens), sin modificar el binario original y reconociendo
+explícitamente su autoría tanto en la aplicación como en el repositorio
+público.
+
+
+DISPONIBILIDAD
+
+La reunión la puedo realizar de manera virtual (Zoom, Google Meet o
+Microsoft Teams — la plataforma que a usted le resulte más cómoda).
+
+Mi disponibilidad es la siguiente:
+
+  • Lunes a viernes: antes de las 4:00 PM y después de las 8:00 PM.
+  • Sábados y domingos: todo el día.
+
+En el rango de 4:00 PM a 8:00 PM de lunes a viernes estaré en la
+universidad y no me será posible conectarme.
+
+Por favor indíqueme la fecha y hora que mejor le convenga dentro de esos
+rangos y con gusto agendo la reunión.
+
+
+REPOSITORIO Y VERSIÓN PARA PROBAR
+
+Si antes de la reunión desea ver la aplicación en funcionamiento, le
+dejo el enlace al repositorio público con la versión más reciente:
+
+  Repositorio:  https://github.com/dashy2004/LosasPlus
+  Release v0.6: https://github.com/dashy2004/LosasPlus/releases/tag/v0.6.0
+
+Está publicada como ejecutable único (single-file self-contained) para
+Windows 10/11 de 64 bits, no requiere instalar .NET ni nada adicional.
+
+
+PASOS PARA PROBAR LA APLICACIÓN
+
+  1. En la página de la Release v0.6.0, descargar "LosasPlus.exe"
+     (aproximadamente 190 MB).
+
+  2. Ejecutarlo. La primera vez Windows mostrará el aviso azul
+     "Windows protegió tu PC" (porque el ejecutable aún no está
+     firmado): hacer clic en "Más información" y luego en "Ejecutar
+     de todas formas".
+
+  3. Dentro de la aplicación, ir al menú:
+        File → Engine → Examinar Losas.exe...
+     y apuntar a su copia local de Losas.exe. Solo se hace una vez —
+     la app recuerda la ubicación.
+
+  4. Abrir un archivo .DL existente con:
+        File → Abrir .DL legacy...
+     La aplicación cargará todas las losas, bordes adicionales y
+     parámetros del sistema en una interfaz tabular moderna.
+
+  5. (Opcional) Recorrer las pestañas del panel izquierdo:
+        • Explorador      — proyectos recientes.
+        • Editor          — DataGrid con cálculo en vivo (Cond 1D/2D,
+                            espesor h_calc, h_eq, αx/αy/αm, etc.).
+        • Diagrama        — esquema visual del sistema.
+        • Salida .TXT     — visor del .txt del motor (dos vistas:
+                            Texto resaltado y Tabla editable).
+        • Validación      — chequeos R-001 y ACI 318 automáticos.
+        • Configuración   — temas y atajos personalizables.
+
+Si en cualquier paso encuentra un detalle que no funciona como esperaba,
+no se preocupe — anótelo y lo conversamos en la reunión. La aplicación
+también incluye un "Doctor de archivos .DL" que detecta y repara
+automáticamente los formatos legacy más comunes.
+
+
+OFRECIMIENTO DE ACOMPAÑAMIENTO
+
+Si lo prefiere, antes de la reunión formal puedo guiarlo en una breve
+videollamada para que vea el flujo completo en mi pantalla. Estoy a su
+disposición para coordinarlo en cualquier momento dentro de los rangos
+mencionados arriba.
+
+Quedo atento a su confirmación de fecha y hora.
+
+Le reitero mi sincero agradecimiento por su tiempo y por la disposición
+a evaluar este proyecto.
+
+
+Cordialmente,
+
+
+Emil Guillén De la Cruz
+Email:   emilgdc@gmail.com
+GitHub:  https://github.com/dashy2004
+Repo:    https://github.com/dashy2004/LosasPlus
