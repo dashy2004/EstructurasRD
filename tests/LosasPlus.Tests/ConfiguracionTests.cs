@@ -14,21 +14,25 @@ public class ConfiguracionTests : IDisposable
 {
     private readonly string _perfilPath;
     private readonly string _aparienciaPath;
+    private readonly string _temasPath;
 
     public ConfiguracionTests()
     {
         _perfilPath     = Path.Combine(Path.GetTempPath(), $"perfil_test_{Guid.NewGuid():N}.json");
         _aparienciaPath = Path.Combine(Path.GetTempPath(), $"apariencia_test_{Guid.NewGuid():N}.json");
+        _temasPath      = Path.Combine(Path.GetTempPath(), $"themes_test_{Guid.NewGuid():N}.json");
         PerfilIngenieroService.PathOverride = _perfilPath;
         AparienciaService.PathOverride       = _aparienciaPath;
+        TemasPresetService.PathOverride      = _temasPath;
     }
 
     public void Dispose()
     {
-        foreach (var p in new[] { _perfilPath, _aparienciaPath })
+        foreach (var p in new[] { _perfilPath, _aparienciaPath, _temasPath })
             try { if (File.Exists(p)) File.Delete(p); } catch { }
         PerfilIngenieroService.PathOverride = null;
         AparienciaService.PathOverride      = null;
+        TemasPresetService.PathOverride     = null;
     }
 
     // =================================================================
@@ -206,5 +210,115 @@ public class ConfiguracionTests : IDisposable
         vm.EsCalculadora = true;
         // Como ya estaba en Atajos (no en DatosIngeniero), no debe cambiar.
         Assert.Equal(MemoriaPlus.ViewModels.SubTabConfig.Atajos, vm.SubTabActivo);
+    }
+
+    // =================================================================
+    // TemasPresetService — CRUD de presets nombrados
+    // =================================================================
+
+    [Fact]
+    public void Presets_LoadAll_devuelve_lista_vacia_si_no_existe_archivo()
+    {
+        var lista = TemasPresetService.LoadAll();
+        Assert.NotNull(lista);
+        Assert.Empty(lista);
+    }
+
+    [Fact]
+    public void Presets_AddOrUpdate_persiste_y_LoadAll_lo_recupera()
+    {
+        var config = new AparienciaConfig { Tema = "Oscuro", ColorAcentoHex = "#0E639C" };
+        TemasPresetService.AddOrUpdate("Estructural oscuro", config);
+
+        var lista = TemasPresetService.LoadAll();
+        Assert.Single(lista);
+        Assert.Equal("Estructural oscuro", lista[0].Nombre);
+        Assert.Equal("Oscuro",  lista[0].Apariencia.Tema);
+        Assert.Equal("#0E639C", lista[0].Apariencia.ColorAcentoHex);
+    }
+
+    [Fact]
+    public void Presets_AddOrUpdate_es_idempotente_por_nombre_case_insensitive()
+    {
+        TemasPresetService.AddOrUpdate("Oficina", new AparienciaConfig { Tema = "Claro" });
+        TemasPresetService.AddOrUpdate("OFICINA", new AparienciaConfig { Tema = "Oscuro" });
+
+        var lista = TemasPresetService.LoadAll();
+        Assert.Single(lista);
+        // El último gana — Oscuro reemplaza Claro
+        Assert.Equal("Oscuro", lista[0].Apariencia.Tema);
+    }
+
+    [Fact]
+    public void Presets_Remove_borra_por_nombre_case_insensitive()
+    {
+        TemasPresetService.AddOrUpdate("A", new AparienciaConfig());
+        TemasPresetService.AddOrUpdate("B", new AparienciaConfig());
+
+        Assert.True(TemasPresetService.Remove("a"));
+        var lista = TemasPresetService.LoadAll();
+        Assert.Single(lista);
+        Assert.Equal("B", lista[0].Nombre);
+    }
+
+    [Fact]
+    public void Presets_Remove_devuelve_false_si_no_existe()
+    {
+        Assert.False(TemasPresetService.Remove("inexistente"));
+    }
+
+    [Fact]
+    public void Presets_Get_devuelve_null_si_no_existe()
+    {
+        Assert.Null(TemasPresetService.Get("inexistente"));
+    }
+
+    [Fact]
+    public void Presets_Get_devuelve_el_preset_si_existe()
+    {
+        TemasPresetService.AddOrUpdate("Foo", new AparienciaConfig { Densidad = "Cómodo" });
+        var p = TemasPresetService.Get("foo");  // case insensitive
+        Assert.NotNull(p);
+        Assert.Equal("Cómodo", p!.Apariencia.Densidad);
+    }
+
+    // =================================================================
+    // ConfiguracionViewModel — commands de presets
+    // =================================================================
+
+    [Fact]
+    public void ConfiguracionVM_GuardarComoPreset_persiste_y_refresca_lista()
+    {
+        var vm = new MemoriaPlus.ViewModels.ConfiguracionViewModel();
+        vm.Apariencia.Tema = "Oscuro";
+        vm.NombrePresetNuevo = "Test1";
+
+        vm.GuardarComoPresetCommand.Execute(null);
+
+        Assert.Contains("Test1", vm.PresetsDisponibles);
+        Assert.Equal("Test1", vm.PresetSeleccionado);
+        // Tras guardar, el nombre del input se limpia para permitir guardar otro
+        Assert.Equal("", vm.NombrePresetNuevo);
+    }
+
+    [Fact]
+    public void ConfiguracionVM_GuardarComoPreset_rechaza_nombre_vacio()
+    {
+        var vm = new MemoriaPlus.ViewModels.ConfiguracionViewModel();
+        vm.NombrePresetNuevo = "   ";
+        vm.GuardarComoPresetCommand.Execute(null);
+        Assert.Empty(vm.PresetsDisponibles);
+        Assert.Contains("nombre", vm.StatusGuardado, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ConfiguracionVM_AplicarColorAcentoHex_setea_y_normaliza_hex()
+    {
+        var vm = new MemoriaPlus.ViewModels.ConfiguracionViewModel();
+        vm.AplicarColorAcentoHexCommand.Execute("0E639C");  // sin #
+        Assert.Equal("#0E639C", vm.Apariencia.ColorAcentoHex);
+
+        vm.AplicarColorAcentoHexCommand.Execute("");  // limpiar
+        Assert.Equal("", vm.Apariencia.ColorAcentoHex);
     }
 }

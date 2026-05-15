@@ -1,4 +1,6 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using LosasPlus.Persistence;
 using MemoriaPlus.Common;
@@ -24,6 +26,12 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
         GuardarAtajosCommand     = new RelayCommand(GuardarAtajos);
         RestaurarAtajosCommand   = new RelayCommand(RestaurarAtajos);
 
+        GuardarComoPresetCommand = new RelayCommand(GuardarComoPreset);
+        CargarPresetCommand      = new RelayCommand<string?>(CargarPreset);
+        EliminarPresetCommand    = new RelayCommand<string?>(EliminarPreset);
+        AplicarColorAcentoHexCommand = new RelayCommand<string?>(AplicarColorAcentoHex);
+
+        RecargarPresets();
         SubTabActivo = SubTabConfig.DatosIngeniero;
     }
 
@@ -62,6 +70,12 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
     public RelayCommand RestaurarAparienciaCommand { get; }
     public RelayCommand GuardarAtajosCommand       { get; }
     public RelayCommand RestaurarAtajosCommand     { get; }
+
+    // ----- Presets de apariencia (LosasPlus) -----
+    public RelayCommand               GuardarComoPresetCommand     { get; }
+    public RelayCommand<string?>      CargarPresetCommand          { get; }
+    public RelayCommand<string?>      EliminarPresetCommand        { get; }
+    public RelayCommand<string?>      AplicarColorAcentoHexCommand { get; }
 
     /// <summary>
     /// Disparado después de un Guardar exitoso de los atajos. El MainViewModel
@@ -142,6 +156,110 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
         // Notificar a la UI que el config completo cambió.
         OnPropertyChanged(nameof(Atajos));
         StatusGuardado = "✓ Atajos restaurados a defaults. No olvides Guardar.";
+    }
+
+    // =================================================================
+    // PRESETS DE APARIENCIA — guardar/cargar combinaciones nombradas
+    // =================================================================
+
+    /// <summary>Lista observable de nombres de presets disponibles. Refresca al editar.</summary>
+    public ObservableCollection<string> PresetsDisponibles { get; } = new();
+
+    private string _nombrePresetNuevo = "";
+    /// <summary>Texto del input para el nombre del nuevo preset (TextBox en la UI).</summary>
+    public string NombrePresetNuevo
+    {
+        get => _nombrePresetNuevo;
+        set { _nombrePresetNuevo = value; OnPropertyChanged(); }
+    }
+
+    private string? _presetSeleccionado;
+    /// <summary>Preset seleccionado actualmente en el ComboBox (puede ser null si nada seleccionado).</summary>
+    public string? PresetSeleccionado
+    {
+        get => _presetSeleccionado;
+        set { _presetSeleccionado = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Vuelve a leer la lista de presets del disco y refresca <see cref="PresetsDisponibles"/>.</summary>
+    public void RecargarPresets()
+    {
+        PresetsDisponibles.Clear();
+        foreach (var p in TemasPresetService.LoadAll().OrderBy(p => p.Nombre))
+            PresetsDisponibles.Add(p.Nombre);
+    }
+
+    private void GuardarComoPreset()
+    {
+        var nombre = (_nombrePresetNuevo ?? "").Trim();
+        if (string.IsNullOrEmpty(nombre))
+        {
+            StatusGuardado = "✕ Asignale un nombre al preset antes de guardar.";
+            return;
+        }
+        try
+        {
+            TemasPresetService.AddOrUpdate(nombre, Apariencia);
+            RecargarPresets();
+            PresetSeleccionado = nombre;
+            NombrePresetNuevo = "";
+            StatusGuardado = $"✓ Preset «{nombre}» guardado. Disponible en el combo.";
+        }
+        catch (System.Exception ex)
+        {
+            StatusGuardado = $"✕ Error al guardar preset: {ex.Message}";
+        }
+    }
+
+    private void CargarPreset(string? nombre)
+    {
+        if (string.IsNullOrWhiteSpace(nombre)) return;
+        var preset = TemasPresetService.Get(nombre);
+        if (preset is null)
+        {
+            StatusGuardado = $"✕ Preset «{nombre}» no encontrado.";
+            return;
+        }
+        // Reemplazar la apariencia activa y aplicar
+        Apariencia = preset.Apariencia;
+        OnPropertyChanged(nameof(Apariencia));
+        try { AparienciaService.Save(Apariencia); } catch { /* sigue, fallar silenciosamente */ }
+        StatusGuardado = $"✓ Preset «{nombre}» cargado. Reinicia la app para aplicar tema/fuente.";
+    }
+
+    private void EliminarPreset(string? nombre)
+    {
+        if (string.IsNullOrWhiteSpace(nombre)) return;
+        try
+        {
+            var ok = TemasPresetService.Remove(nombre);
+            if (ok)
+            {
+                RecargarPresets();
+                if (PresetSeleccionado == nombre) PresetSeleccionado = null;
+                StatusGuardado = $"✓ Preset «{nombre}» eliminado.";
+            }
+            else
+            {
+                StatusGuardado = $"✕ Preset «{nombre}» no existía.";
+            }
+        }
+        catch (System.Exception ex)
+        {
+            StatusGuardado = $"✕ Error al eliminar preset: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Setea el color de acento desde un hex string. Acepta <c>#RRGGBB</c> o
+    /// <c>#AARRGGBB</c>. Pasar string vacío o null lo restaura al default del tema.
+    /// </summary>
+    private void AplicarColorAcentoHex(string? hex)
+    {
+        var normalizado = (hex ?? "").Trim();
+        if (normalizado.Length > 0 && !normalizado.StartsWith("#")) normalizado = "#" + normalizado;
+        Apariencia.ColorAcentoHex = normalizado;
+        OnPropertyChanged(nameof(Apariencia));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

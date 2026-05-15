@@ -176,6 +176,142 @@
                 </Border>
             </Grid>
 
+            <!-- ====================================================================
+                 CARD 4: COLOR DE ACENTO — paleta visual + entrada hex personalizada
+                 ==================================================================== -->
+            <Border Style="{StaticResource SectionCardStyle}" Margin="0,12,0,0">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource LabelCapsStyle}" Text="🎯  COLOR DE ACENTO"/>
+                    <TextBlock Margin="0,4,0,12"
+                               Foreground="{StaticResource OnSurfaceVariantBrush}"
+                               FontSize="11" TextWrapping="Wrap"
+                               Text="Click en un color para usarlo como acento, o ingresa un hex personalizado."/>
+
+                    <!-- 8 swatches en grid horizontal -->
+                    <ItemsControl>
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <!-- Paleta default: 8 colores diseñados para legibilidad sobre claro/oscuro -->
+                        <Button Tag="#0E639C" Background="#0E639C" Width="36" Height="36" Margin="0,0,8,8"
+                                BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
+                                ToolTip="Azul VS Code (#0E639C)"
+                                Command="{Binding AplicarColorAcentoHexCommand}"
+                                CommandParameter="#0E639C"/>
+                        <Button Tag="#2E7D32" Background="#2E7D32" Width="36" Height="36" Margin="0,0,8,8"
+                                BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
+                                ToolTip="Verde estructural (#2E7D32)"
+                                Command="{Binding AplicarColorAcentoHexCommand}"
+                                CommandParameter="#2E7D32"/>
+                        <Button Tag="#C62828" Background="#C62828" Width="36" Height="36" Margin="0,0,8,8"
+                                BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
+                                ToolTip="Rojo alerta (#C62828)"
+                                Command="{Binding AplicarColorAcentoHexCommand}"
+                                CommandParameter="#C62828"/>
+                        <Button Tag="#EF6C00" Background="#EF6C00" Width="36" Height="36" Margin="0,0,8,8"
+                                BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
+                                ToolTip="Naranja construcción (#EF6C00)"
+                                Command="{Binding AplicarColorAcentoHexCommand}"
+                                CommandParameter="#EF6C00"/>
+                        <Button Tag="#6A1B9A" Background="#6A1B9A" Width="36" Height="36" Margin="0,0,8,8"
+                                BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
+                                ToolTip="Púrpura ingeniería (#6A1B9A)"
+                                Command="{Binding AplicarColorAcentoHexCommand}"
+                                CommandParameter="#6A1B9A"/>
+                        <Button Tag="#AD1457" Background="#AD1457" Width="36" Height="36" Margin="0,0,8,8"
+                                BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
+                                ToolTip="Magenta diseño (#AD1457)"
+                                Command="{Binding AplicarColorAcentoHexCommand}"
+                                CommandParameter="#AD1457"/>
+                        <Button Tag="#37474F" Background="#37474F" Width="36" Height="36" Margin="0,0,8,8"
+                                BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
+                                ToolTip="Gris hormigón (#37474F)"
+                                Command="{Binding AplicarColorAcentoHexCommand}"
+                                CommandParameter="#37474F"/>
+                        <Button Tag="#B8860B" Background="#B8860B" Width="36" Height="36" Margin="0,0,8,8"
+                                BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
+                                ToolTip="Dorado clásico (#B8860B)"
+                                Command="{Binding AplicarColorAcentoHexCommand}"
+                                CommandParameter="#B8860B"/>
+                    </ItemsControl>
+
+                    <!-- Entrada hex personalizada + chip preview del color actual -->
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                                   Text="Hex personalizado:"/>
+                        <TextBox Grid.Column="1" Margin="0,0,8,0"
+                                 Text="{Binding Apariencia.ColorAcentoHex, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Formato #RRGGBB (ej. #0E639C). Vacío = usar default del tema."
+                                 FontFamily="{StaticResource FontFamilyMono}"/>
+                        <Button Grid.Column="2" Content="Limpiar" Padding="10,4"
+                                Command="{Binding AplicarColorAcentoHexCommand}"
+                                CommandParameter=""/>
+                        <Border Grid.Column="3" Width="32" Height="32" Margin="8,0,0,0"
+                                BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
+                                CornerRadius="{StaticResource CornerRadiusDefault}">
+                            <Border.Background>
+                                <SolidColorBrush Color="{Binding Apariencia.ColorAcentoHex, FallbackValue=Transparent, TargetNullValue=Transparent}"/>
+                            </Border.Background>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- ====================================================================
+                 CARD 5: PRESETS — guardar combinaciones nombradas y alternar
+                 ==================================================================== -->
+            <Border Style="{StaticResource SectionCardStyle}" Margin="0,12,0,0">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource LabelCapsStyle}" Text="💾  PRESETS"/>
+                    <TextBlock Margin="0,4,0,12"
+                               Foreground="{StaticResource OnSurfaceVariantBrush}"
+                               FontSize="11" TextWrapping="Wrap"
+                               Text="Guarda esta combinación (tema + tipografía + densidad + color) con un nombre y alternalo después con un click."/>
+
+                    <!-- Guardar como nuevo preset -->
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Margin="0,0,8,0"
+                                 Text="{Binding NombrePresetNuevo, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Ej. 'Estructural oscuro', 'Daylight oficina'..."/>
+                        <Button Grid.Column="1" Content="Guardar como preset"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Padding="12,4"
+                                Command="{Binding GuardarComoPresetCommand}"/>
+                    </Grid>
+
+                    <!-- Cargar/eliminar preset existente -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ComboBox Grid.Column="0" Margin="0,0,8,0"
+                                  ItemsSource="{Binding PresetsDisponibles}"
+                                  SelectedItem="{Binding PresetSeleccionado, Mode=TwoWay}"
+                                  ToolTip="Presets guardados (se almacenan en %APPDATA%/LosasPlus/themes.json)"/>
+                        <Button Grid.Column="1" Content="Cargar" Padding="12,4" Margin="0,0,4,0"
+                                Command="{Binding CargarPresetCommand}"
+                                CommandParameter="{Binding PresetSeleccionado}"/>
+                        <Button Grid.Column="2" Content="Eliminar" Padding="12,4"
+                                Command="{Binding EliminarPresetCommand}"
+                                CommandParameter="{Binding PresetSeleccionado}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
             <!-- FOOTER: Acciones -->
             <StackPanel Orientation="Horizontal" Margin="0,24,0,0" HorizontalAlignment="Right">
                 <Button Style="{StaticResource SecondaryButtonStyle}"
@@ -191,7 +327,7 @@
             <TextBlock Margin="0,16,0,0"
                        Foreground="{StaticResource OnSurfaceVariantBrush}"
                        FontSize="11" TextWrapping="Wrap"
-                       Text="Algunos cambios (tema oscuro completo, fuentes) requieren reiniciar la app para aplicarse al ResourceDictionary global. La densidad sí aplica en vivo."/>
+                       Text="Algunos cambios (tema oscuro completo, fuentes) requieren reiniciar la app para aplicarse al ResourceDictionary global. La densidad y el color de acento aplican en vivo."/>
 
         </StackPanel>
     </ScrollViewer>
