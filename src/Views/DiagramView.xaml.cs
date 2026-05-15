@@ -668,6 +668,19 @@ public partial class DiagramView : UserControl
             Foreground = brush,
             FontWeight = weight ?? FontWeights.Normal,
             IsHitTestVisible = false,
+            // Drop shadow negra fuerte para contraste cross-background. Hace
+            // que el texto resalte tanto sobre el fondo oscuro del viewport
+            // como sobre los bordes de losa de cualquier color (incluyendo
+            // los empotrados rojos y los vuelos punteados). El resultado es
+            // un halo apenas perceptible visualmente pero crítico para que
+            // el texto siempre lea.
+            Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                Color = Colors.Black,
+                ShadowDepth = 0,
+                BlurRadius = 4,
+                Opacity = 0.85,
+            },
         };
         Canvas.SetLeft(t, x);
         Canvas.SetTop(t, y);

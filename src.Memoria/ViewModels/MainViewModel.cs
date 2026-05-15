@@ -126,6 +126,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         // ---- Selección visible en la lista de proyectos recientes ----
         ProyectoRecienteSeleccionado = ProyectosRecientes.FirstOrDefault();
+
+        // ---- Si se lanzó con un .lpx.json como arg (ej. desde LosasPlus
+        //      "Generar memoria → MemoriaPlus"), abrir ese proyecto al iniciar. ----
+        TryAbrirProyectoDesdeArgs();
     }
 
     /// <summary>
@@ -469,6 +473,35 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// específica via flag CLI: <c>--tab=cargas|niveles|generar|datos</c>. Útil
     /// para automatización; sin flag, default a Datos generales.
     /// </summary>
+    /// <summary>
+    /// Si se pasó un path posicional <c>.lpx.json</c> como argumento al
+    /// arrancar (ej. desde LosasPlus.exe vía "Generar memoria"), abre ese
+    /// proyecto automáticamente. Solo procesa argumentos que NO empiezan
+    /// con <c>--</c> (esos son flags) y que terminan en <c>.lpx.json</c>
+    /// o <c>.json</c>.
+    /// </summary>
+    private void TryAbrirProyectoDesdeArgs()
+    {
+        try
+        {
+            var args = System.Environment.GetCommandLineArgs();
+            for (int i = 1; i < args.Length; i++)  // skip [0] = exe path
+            {
+                var a = args[i];
+                if (string.IsNullOrWhiteSpace(a)) continue;
+                if (a.StartsWith("--")) continue;
+                if ((a.EndsWith(".lpx.json", System.StringComparison.OrdinalIgnoreCase)
+                     || a.EndsWith(".json", System.StringComparison.OrdinalIgnoreCase))
+                    && File.Exists(a))
+                {
+                    CargarProyectoDesdeArchivo(a);
+                    return;
+                }
+            }
+        }
+        catch { /* no bloqueante */ }
+    }
+
     private TabPage ResolverTabInicialDesdeArgs()
     {
         try

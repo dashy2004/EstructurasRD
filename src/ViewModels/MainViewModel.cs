@@ -88,9 +88,10 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     {
         get
         {
+            var nombre = string.IsNullOrWhiteSpace(_proyecto.Nombre) ? "(sin nombre)" : _proyecto.Nombre;
             if (string.IsNullOrEmpty(_proyecto.Archivo))
-                return "LosasPlus · proyecto sin guardar";
-            return $"LosasPlus · {Path.GetFileName(_proyecto.Archivo)}";
+                return $"LosasPlus · {nombre} · sin guardar";
+            return $"LosasPlus · {nombre} · {Path.GetFileName(_proyecto.Archivo)}";
         }
     }
 
@@ -260,6 +261,65 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     {
         get => _statusGeneracion;
         private set { _statusGeneracion = value; OnPropertyChanged(); }
+    }
+
+    // ---- Auto-backup (configurable) ----
+
+    private bool _autoBackupActivo = true;
+    /// <summary>
+    /// Si <c>true</c>, cada Guardar produce además un duplicado timestamped
+    /// en el subfolder <c>backups/</c> junto al .lpx.json (no reemplaza el
+    /// archivo principal, solo agrega). Se mantienen las últimas
+    /// <see cref="MaxBackups"/> copias por proyecto.
+    /// </summary>
+    public bool AutoBackupActivo
+    {
+        get => _autoBackupActivo;
+        set { _autoBackupActivo = value; OnPropertyChanged(); }
+    }
+
+    private const int MaxBackups = 20;
+
+    /// <summary>
+    /// Hace una copia timestamped del proyecto activo en
+    /// <c>{carpeta}/backups/{nombre}_{yyyyMMdd-HHmmss}.lpx.json</c>. No-op
+    /// si el proyecto no tiene path (no guardado todavía) o si
+    /// <see cref="AutoBackupActivo"/> es false. Best-effort: errores se
+    /// loggean pero no bloquean el Save principal.
+    /// </summary>
+    private void MaybeBackup()
+    {
+        if (!_autoBackupActivo) return;
+        if (string.IsNullOrEmpty(_proyecto.Archivo)) return;
+        if (!File.Exists(_proyecto.Archivo)) return;
+        try
+        {
+            var dir = Path.GetDirectoryName(_proyecto.Archivo);
+            if (string.IsNullOrEmpty(dir)) return;
+            var backupsDir = Path.Combine(dir, "backups");
+            Directory.CreateDirectory(backupsDir);
+            var nombre = Path.GetFileNameWithoutExtension(_proyecto.Archivo);
+            // .lpx.json es una doble-extensión; conservar el "stem" base.
+            if (nombre.EndsWith(".lpx", StringComparison.OrdinalIgnoreCase))
+                nombre = nombre[..^4];
+            var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            var backupPath = Path.Combine(backupsDir, $"{nombre}_{stamp}.lpx.json");
+            File.Copy(_proyecto.Archivo, backupPath, overwrite: false);
+
+            // Prune: mantener solo las últimas MaxBackups copias.
+            var copias = Directory.GetFiles(backupsDir, $"{nombre}_*.lpx.json")
+                                  .OrderByDescending(f => f)
+                                  .Skip(MaxBackups)
+                                  .ToList();
+            foreach (var old in copias)
+                try { File.Delete(old); } catch { /* ignorar */ }
+
+            Log($"Backup automático: {Path.GetFileName(backupPath)} ({copias.Count} viejas eliminadas).");
+        }
+        catch (Exception ex)
+        {
+            Log("Auto-backup falló (no bloqueante): " + ex.Message);
+        }
     }
 
     // ---- Undo/Redo infraestructura (snapshots de ProyectoSerializer) ----
@@ -561,8 +621,12 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         GenerarMemoriaCommand = new RelayCommand(_ => GenerarMemoria());
         AutoBalanceoCommand   = new RelayCommand(_ => AplicarAutoBalanceo());
 
-        // Bootstrap registry de plantillas con la bundleada (commit 36).
-        BootstrapPlantillaPredeterminada();
+        // Cambios al nombre del proyecto refrescan el título de la ventana.
+        _proyecto.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(Proyecto.Nombre) || e.PropertyName == nameof(Proyecto.Archivo))
+                OnPropertyChanged(nameof(TituloVentana));
+        };
 
         // ---- Validación normativa (commit 33) ----
         // Primera validación + re-validación en cada cambio del modelo.
@@ -990,6 +1054,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         if (string.IsNullOrEmpty(_proyecto.Archivo)) { GuardarComoLpx(); return; }
         try
         {
+            // Backup ANTES del Save, sobre el archivo existente (preserva
+            // el snapshot pre-save). Sin esto perderíamos la versión vieja.
+            MaybeBackup();
             ProyectoSerializer.Save(_proyecto, _proyecto.Archivo);
             ActualizarRecents();
             StatusPersistencia = $"Guardado: {Path.GetFileName(_proyecto.Archivo)}";
@@ -1116,88 +1183,90 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     // =====================================================================
 
     /// <summary>
-    /// Genera la memoria de cálculo .docx para el proyecto activo. Usa la
-    /// plantilla predeterminada del PlantillaRegistry (commit 25, compartida
-    /// con MemoriaPlus.App) o cae a la bundleada bajo
-    /// Resources/templates/Memoria_Losas_PLANTILLA.docx si no hay registry.
-    /// Atajo Ctrl+G.
+    /// Lanza MemoriaPlus.exe con el .lpx.json actual como argumento para que
+    /// el usuario continúe el flujo de generación en la app dedicada
+    /// (plantillas, perfil del ingeniero, generación, etc.).
+    ///
+    /// <para>
+    /// Diseño: LosasPlus se enfoca en el modelo del sistema de losas
+    /// (entrada al motor F. Perdomo). MemoriaPlus se enfoca en producir la
+    /// memoria .docx. Compartir el .lpx.json + el registry de proyectos
+    /// recientes en %APPDATA% mantiene a ambas apps en sync sin duplicar
+    /// la lógica de generación.
+    /// </para>
     /// </summary>
     public void GenerarMemoria()
     {
         try
         {
-            var plantilla = ResolverPlantillaPath();
-            if (plantilla is null)
+            // Si el proyecto no está guardado, forzar guardar como.
+            if (string.IsNullOrEmpty(_proyecto.Archivo))
             {
-                StatusGeneracion = "Plantilla no encontrada — agregá una en el modo Plantillas.";
-                Log("Error: no hay plantilla .docx disponible.");
-                return;
-            }
-
-            var dlg = new Microsoft.Win32.SaveFileDialog
-            {
-                Title    = "Guardar memoria de cálculo (.docx)",
-                Filter   = "Documento Word (*.docx)|*.docx",
-                FileName = SugerirNombreMemoria(),
-                AddExtension = true,
-                DefaultExt   = ".docx",
-                OverwritePrompt = true,
-            };
-            if (dlg.ShowDialog() != true) { StatusGeneracion = ""; return; }
-
-            var gen = new MemoriaGenerator();
-            var reporte = gen.Generar(_proyecto, plantilla, dlg.FileName);
-            if (reporte.Exito)
-            {
-                StatusGeneracion = $"✓ Memoria generada con {reporte.SustitucionesAplicadas} sustituciones.";
-                Log($"Memoria generada: {dlg.FileName}");
-                // Abrir el .docx en su app default (Word).
-                try
+                Log("Guardando proyecto antes de abrir MemoriaPlus...");
+                GuardarComoLpx();
+                if (string.IsNullOrEmpty(_proyecto.Archivo))
                 {
-                    Process.Start(new ProcessStartInfo(dlg.FileName) { UseShellExecute = true });
+                    StatusGeneracion = "Cancelado — necesitás guardar el proyecto primero.";
+                    return;
                 }
-                catch { /* no es crítico */ }
             }
             else
             {
-                StatusGeneracion = $"⚠ Generada con {reporte.PlaceholdersNoSustituidos.Count} placeholder(s) sin sustituir.";
-                Log($"Memoria con warnings: {string.Join(", ", reporte.PlaceholdersNoSustituidos)}");
+                // Auto-guardar antes de abrir.
+                GuardarProyectoLpx();
             }
+
+            var memoriaExe = ResolverMemoriaPlusExe();
+            if (memoriaExe is null)
+            {
+                StatusGeneracion = "✕ No se encontró MemoriaPlus.exe — instalalo o copialo junto a LosasPlus.exe.";
+                Log("Error: MemoriaPlus.exe no encontrado.");
+                return;
+            }
+
+            // Lanzar MemoriaPlus.exe con el path del .lpx.json. La otra app
+            // puede leerlo de Environment.GetCommandLineArgs() en su startup
+            // y abrir el proyecto directamente.
+            Process.Start(new ProcessStartInfo(memoriaExe)
+            {
+                Arguments = $"\"{_proyecto.Archivo}\"",
+                UseShellExecute = true,
+            });
+            StatusGeneracion = $"→ MemoriaPlus abierto con {Path.GetFileName(_proyecto.Archivo)}";
+            Log($"MemoriaPlus lanzado: {memoriaExe} con {_proyecto.Archivo}");
         }
         catch (Exception ex)
         {
             StatusGeneracion = $"✕ Error: {ex.Message}";
-            Log("Error generando memoria: " + ex.Message);
+            Log("Error abriendo MemoriaPlus: " + ex.Message);
         }
     }
 
-    private static string? ResolverPlantillaPath()
+    /// <summary>
+    /// Localiza MemoriaPlus.exe en las ubicaciones probables:
+    /// 1. Junto al LosasPlus.exe actual (instalación side-by-side).
+    /// 2. ../src.Memoria/bin/Debug/net8.0-windows/MemoriaPlus.exe (dev).
+    /// 3. ../src.Memoria/bin/Release/net8.0-windows/MemoriaPlus.exe (dev release).
+    /// Devuelve null si no la encuentra.
+    /// </summary>
+    private static string? ResolverMemoriaPlusExe()
     {
-        var pred = PlantillaRegistry.GetPredeterminada();
-        if (pred is not null && File.Exists(pred.Path)) return pred.Path;
+        var dir = AppContext.BaseDirectory;
+        // 1. Side-by-side (release packaged)
+        var sidebyside = Path.Combine(dir, "MemoriaPlus.exe");
+        if (File.Exists(sidebyside)) return sidebyside;
 
-        var bundled = Path.Combine(
-            AppContext.BaseDirectory,
-            "Resources", "templates", "Memoria_Losas_PLANTILLA.docx");
-        return File.Exists(bundled) ? bundled : null;
-    }
-
-    private static void BootstrapPlantillaPredeterminada()
-    {
-        // Plantilla bundleada con MemoriaPlus.App — ambos exes pueden compartirla
-        // si están en la misma instalación. Si no, el bootstrap no encuentra nada
-        // y el registry queda vacío hasta que el usuario importe una.
-        var bundled = Path.Combine(
-            AppContext.BaseDirectory,
-            "Resources", "templates", "Memoria_Losas_PLANTILLA.docx");
-        try { PlantillaRegistry.BootstrapIfNeeded(bundled); } catch { /* no bloqueante */ }
-    }
-
-    private string SugerirNombreMemoria()
-    {
-        var nombre = string.IsNullOrEmpty(_proyecto.Nombre) ? "Memoria" : _proyecto.Nombre;
-        var slug = nombre.Replace(' ', '_').Replace('/', '-').Replace('\\', '-');
-        return $"{slug}_Memoria_{DateTime.Now:dd-MM-yyyy}.docx";
+        // 2-3. Dev: subir hasta encontrar el sibling src.Memoria/
+        var probe = new DirectoryInfo(dir);
+        for (int i = 0; i < 6 && probe != null; i++)
+        {
+            var devDebug   = Path.Combine(probe.FullName, "src.Memoria", "bin", "Debug",   "net8.0-windows", "MemoriaPlus.exe");
+            var devRelease = Path.Combine(probe.FullName, "src.Memoria", "bin", "Release", "net8.0-windows", "MemoriaPlus.exe");
+            if (File.Exists(devDebug))   return devDebug;
+            if (File.Exists(devRelease)) return devRelease;
+            probe = probe.Parent;
+        }
+        return null;
     }
 
     private string SugerirNombreLpx()
@@ -1241,7 +1310,6 @@ public enum ModoSidebar
     Validacion,
     Busqueda,
     Configuracion,
-    Plantillas,
     Reglamento,
     Plugins,
     Acerca,

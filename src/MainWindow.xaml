@@ -129,8 +129,6 @@
                                  IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}"/>
                     <RadioButton GroupName="SidebarNav" Content="⚖  Reglamento"
                                  IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Reglamento}"/>
-                    <RadioButton GroupName="SidebarNav" Content="📚  Plantillas"
-                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Plantillas}"/>
                     <RadioButton GroupName="SidebarNav" Content="⚙  Configuración"
                                  IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Configuracion}"/>
                     <RadioButton GroupName="SidebarNav" Content="◆  Plugins"
@@ -263,7 +261,8 @@
                             <MenuItem Header="Importar .TXT..." Click="OnImportTxtClick"/>
                         </MenuItem>
                         <MenuItem Header="Export">
-                            <MenuItem Header="Generar memoria .docx... (Ctrl+G)" Command="{Binding GenerarMemoriaCommand}"/>
+                            <MenuItem Header="Generar memoria → abrir MemoriaPlus (Ctrl+G)" Command="{Binding GenerarMemoriaCommand}"
+                                      ToolTip="Guarda el proyecto y abre MemoriaPlus.exe con el .lpx.json cargado. Las plantillas y la generación final viven en MemoriaPlus."/>
                             <Separator/>
                             <MenuItem Header="Exportar CSV..." Click="OnExportCsvClick"/>
                             <MenuItem Header="Exportar XLSX..." Click="OnExportXlsxClick"/>
@@ -747,6 +746,24 @@
                     <Border Grid.Column="2" Background="{DynamicResource BgSecondary}" Margin="6,0,0,0" Padding="8">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel>
+                                <!-- PROYECTO: nombre + autor + código de obra. El Nombre se usa
+                                     como sugerencia al guardar y como label en el Explorador. -->
+                                <TextBlock Text="Proyecto" FontWeight="Bold" FontSize="14"
+                                           Foreground="{DynamicResource Accent}"/>
+                                <TextBlock Text="Nombre del proyecto" Margin="0,8,0,0"/>
+                                <TextBox Text="{Binding Proyecto.Nombre, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="Aparece en el título de la ventana y en el Explorador"/>
+                                <TextBlock Text="Autor (ingeniero)" Margin="0,8,0,0"/>
+                                <TextBox Text="{Binding Proyecto.Autor, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Text="Código de obra" Margin="0,8,0,0"/>
+                                <TextBox Text="{Binding Proyecto.CodigoObra, UpdateSourceTrigger=PropertyChanged}"/>
+                                <CheckBox Margin="0,10,0,0"
+                                          IsChecked="{Binding AutoBackupActivo, Mode=TwoWay}"
+                                          Content="Backups automáticos al guardar"
+                                          ToolTip="Crea una copia timestamped en {carpeta}/backups/ antes de sobreescribir el archivo principal. Conserva las últimas 20 copias por proyecto."/>
+
+                                <Separator Margin="0,12,0,12"/>
+
                                 <TextBlock Text="Sistema" FontWeight="Bold" FontSize="14"/>
                                 <TextBlock Text="Nombre" Margin="0,8,0,0"/>
                                 <TextBox Text="{Binding Sistema.Nombre, UpdateSourceTrigger=LostFocus}"/>
@@ -1041,21 +1058,6 @@
                         </Style>
                     </ContentControl.Style>
                     <vws:BusquedaView/>
-                </ContentControl>
-
-                <!-- MODO Plantillas (commit 36) — consume PlantillasView del shared. -->
-                <ContentControl>
-                    <ContentControl.Style>
-                        <Style TargetType="{x:Type ContentControl}">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding ModoActivo}" Value="Plantillas">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </ContentControl.Style>
-                    <vws:PlantillasView/>
                 </ContentControl>
 
                 <!-- MODO Configuración (commit 34) — consume ConfiguracionView del shared
