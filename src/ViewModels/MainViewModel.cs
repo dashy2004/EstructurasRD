@@ -698,6 +698,11 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             Log($"Cargado .DL: {path} ({sistemas.Count} sistema{(sistemas.Count == 1 ? "" : "s")})");
             OnPropertyChanged(nameof(LosasFiltradas));
             OnPropertyChanged(nameof(Proyecto));
+
+            // Sin esto el archivo se carga pero el usuario no lo ve si estaba en
+            // Explorador / Acerca / Salida — el grid de losas vive en Editor.
+            // Reportado como "el botón abrir .DL parece que no abre".
+            ModoActivo = ModoSidebar.Editor;
         }
         catch (Exception ex) { Log("Error abriendo .DL: " + ex.Message); }
     }
@@ -723,6 +728,10 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             OnPropertyChanged(nameof(Proyecto));
             OnPropertyChanged(nameof(LosasFiltradas));
             RefreshDLContent();
+
+            // Mismo motivo que AbrirDL: si el usuario abrió desde Explorador,
+            // nunca verá el contenido si no saltamos al Editor.
+            ModoActivo = ModoSidebar.Editor;
         }
         catch (Exception ex) { Log("Error abriendo proyecto: " + ex.Message); }
     }
