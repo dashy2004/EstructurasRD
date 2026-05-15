@@ -895,7 +895,7 @@
                              FontFamily="Consolas" FontSize="12"/>
                 </Grid>
 
-                <!-- MODO Salida .TXT -->
+                <!-- MODO Salida .TXT — dos vistas: Texto (resaltado) y Tabla (editable, copiable como Excel) -->
                 <Grid Margin="16">
                     <Grid.Style>
                         <Style TargetType="{x:Type Grid}">
@@ -914,7 +914,15 @@
                     <TextBlock Grid.Row="0"
                                Text="{Binding TxtPath, StringFormat={}Archivo: {0}}"
                                Foreground="{DynamicResource FgMuted}" Margin="0,0,0,8"/>
-                    <v:HighlightedTxtView Grid.Row="1" Text="{Binding TxtContent}"/>
+                    <TabControl Grid.Row="1">
+                        <TabItem Header="Texto">
+                            <v:HighlightedTxtView Text="{Binding TxtContent}"/>
+                        </TabItem>
+                        <TabItem Header="Tabla (editable)">
+                            <v:TxtTablaView Text="{Binding TxtContent}"
+                                            OriginalPath="{Binding TxtPath}"/>
+                        </TabItem>
+                    </TabControl>
                 </Grid>
 
                 <!-- MODO Reglamento -->
