@@ -587,7 +587,31 @@
                                   CellEditEnding="OnLosasCellEdited"
                                   SelectionChanged="OnLosasSelectionChanged">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="40"/>
+                                <!-- ID: en modo conexión, click crea bordes adicionales pareando IDs. -->
+                                <DataGridTemplateColumn Header="ID" Width="50" IsReadOnly="True" SortMemberPath="Id">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button BorderThickness="0" Background="Transparent"
+                                                    Padding="2" Cursor="Hand"
+                                                    HorizontalContentAlignment="Center"
+                                                    Click="OnLosaIdClick"
+                                                    Tag="{Binding}">
+                                                <Button.Style>
+                                                    <Style TargetType="{x:Type Button}">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding DataContext.ModoConectarBordes, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource AccentHi}"/>
+                                                                <Setter Property="Foreground" Value="{DynamicResource FgOnAccent}"/>
+                                                                <Setter Property="ToolTip" Value="Click para conectar bordes adicionales"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                                <TextBlock Text="{Binding Id}" FontWeight="SemiBold"/>
+                                            </Button>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <!-- Columna DIR: indicador 1D/2D según Losa.Cond (Lx/Ly aspect ratio).
                                      Live: cambia al editar Lx o Ly. -->
                                 <!-- DIR: indicador 2D / 1D-V (losa ancha, refuerzo vertical) /
@@ -734,15 +758,32 @@
                                 <TextBox Text="{Binding Sistema.Adicionales, UpdateSourceTrigger=LostFocus}"/>
 
                                 <Separator Margin="0,12,0,12"/>
-                                <TextBlock Text="Bordes adic. SEGÚN X" FontWeight="Bold"/>
-                                <DataGrid ItemsSource="{Binding Sistema.BordesX}" AutoGenerateColumns="False" Height="100" Margin="0,4,0,0" CanUserAddRows="False" SelectionMode="Single" Tag="X">
+                                <DockPanel LastChildFill="False" Margin="0,0,0,4">
+                                    <TextBlock DockPanel.Dock="Left" Text="Bordes adic. SEGÚN X" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <ToggleButton DockPanel.Dock="Right" Padding="6,2"
+                                                  IsChecked="{Binding ModoConectarBordes, Mode=TwoWay}"
+                                                  ToolTip="Activá y click en dos IDs de losas del grid para crear el borde automático."
+                                                  FontSize="11">
+                                        <TextBlock Text="🔗 Conectar"/>
+                                    </ToggleButton>
+                                </DockPanel>
+                                <!-- Altura dinámica: MinHeight=100 expande con el contenido. Se mantiene
+                                     dentro del ScrollViewer del panel lateral. -->
+                                <DataGrid ItemsSource="{Binding Sistema.BordesX}" AutoGenerateColumns="False"
+                                          MinHeight="100" MaxHeight="260"
+                                          Margin="0,4,0,0" CanUserAddRows="False" SelectionMode="Single" Tag="X"
+                                          VerticalScrollBarVisibility="Auto"
+                                          CellEditEnding="OnBordeCellEdited">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="B-I" Binding="{Binding BI}" Width="*"/>
                                         <DataGridTextColumn Header="B-J" Binding="{Binding BJ}" Width="*"/>
+                                        <!-- BAL: el SelectedValuePath=Content fija el bug donde la
+                                             ComboBox devolvía el ComboBoxItem en vez del string. -->
                                         <DataGridTemplateColumn Header="BAL" Width="60">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
-                                                    <ComboBox SelectedValue="{Binding Balanceo, UpdateSourceTrigger=PropertyChanged}">
+                                                    <ComboBox SelectedValue="{Binding Balanceo, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                              SelectedValuePath="Content">
                                                         <ComboBoxItem Content="S"/>
                                                         <ComboBoxItem Content="N"/>
                                                     </ComboBox>
@@ -754,18 +795,26 @@
                                 <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                     <Button Content="+ Borde X" Click="OnAddBordeX"/>
                                     <Button Content="– Borde X" Click="OnDelBordeX" Margin="4,0,0,0"/>
+                                    <Button Content="Auto BAL" Margin="8,0,0,0"
+                                            Command="{Binding AutoBalanceoCommand}"
+                                            ToolTip="Setea BAL=N en bordes donde al menos una losa tiene voladizo (Losas.exe convention)."/>
                                 </StackPanel>
 
                                 <Separator Margin="0,12,0,12"/>
                                 <TextBlock Text="Bordes adic. SEGÚN Y" FontWeight="Bold"/>
-                                <DataGrid ItemsSource="{Binding Sistema.BordesY}" AutoGenerateColumns="False" Height="100" Margin="0,4,0,0" CanUserAddRows="False" SelectionMode="Single" Tag="Y">
+                                <DataGrid ItemsSource="{Binding Sistema.BordesY}" AutoGenerateColumns="False"
+                                          MinHeight="100" MaxHeight="260"
+                                          Margin="0,4,0,0" CanUserAddRows="False" SelectionMode="Single" Tag="Y"
+                                          VerticalScrollBarVisibility="Auto"
+                                          CellEditEnding="OnBordeCellEdited">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn Header="B-I" Binding="{Binding BI}" Width="*"/>
                                         <DataGridTextColumn Header="B-J" Binding="{Binding BJ}" Width="*"/>
                                         <DataGridTemplateColumn Header="BAL" Width="60">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
-                                                    <ComboBox SelectedValue="{Binding Balanceo, UpdateSourceTrigger=PropertyChanged}">
+                                                    <ComboBox SelectedValue="{Binding Balanceo, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                              SelectedValuePath="Content">
                                                         <ComboBoxItem Content="S"/>
                                                         <ComboBoxItem Content="N"/>
                                                     </ComboBox>

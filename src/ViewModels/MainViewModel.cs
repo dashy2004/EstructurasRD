@@ -149,6 +149,110 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
 
     public ICommand? IrABusquedaCommand { get; private set; }
     public ICommand? GenerarMemoriaCommand { get; private set; }
+    public ICommand? AutoBalanceoCommand { get; private set; }
+
+    private bool _modoConectarBordes;
+    /// <summary>
+    /// Toggle de "modo conexión por ID": cuando es true, click en una celda
+    /// ID del LosasGrid registra el primer endpoint; el siguiente click
+    /// crea el borde adicional (X o Y según la heurística del LayoutSolver).
+    /// Inspirado en el modo conexión del DiagramView.
+    /// </summary>
+    public bool ModoConectarBordes
+    {
+        get => _modoConectarBordes;
+        set
+        {
+            if (_modoConectarBordes == value) return;
+            _modoConectarBordes = value;
+            OnPropertyChanged();
+            _primerIdParaBorde = null;  // reset al togglear
+        }
+    }
+
+    private int? _primerIdParaBorde;
+    /// <summary>
+    /// Primera losa clickeada en modo conexión. Null cuando esperamos el
+    /// primer click. El segundo click (sobre una losa distinta) crea el
+    /// BordeAdic y resetea el state.
+    /// </summary>
+    public int? PrimerIdParaBorde => _primerIdParaBorde;
+
+    /// <summary>
+    /// Procesa un click en la celda ID de una losa cuando ModoConectarBordes
+    /// está activo. Si es el primer click, lo recuerda; si es el segundo
+    /// (sobre distinta losa), crea un BordeAdic en BordesX si las losas son
+    /// adyacentes horizontalmente, BordesY si verticalmente, o BordesX por
+    /// default si la heurística no decide (el usuario puede mover después).
+    /// </summary>
+    public void HandleIdClickParaBorde(int losaId)
+    {
+        if (!ModoConectarBordes) return;
+        if (_primerIdParaBorde is null)
+        {
+            _primerIdParaBorde = losaId;
+            OnPropertyChanged(nameof(PrimerIdParaBorde));
+            Log($"Conectar: primera losa = #{losaId}. Click la segunda losa adyacente.");
+            return;
+        }
+        var primer = _primerIdParaBorde.Value;
+        if (primer == losaId)
+        {
+            Log("Conectar: misma losa — cancelado.");
+            _primerIdParaBorde = null;
+            OnPropertyChanged(nameof(PrimerIdParaBorde));
+            return;
+        }
+
+        PushUndoSnapshot();
+        // Heurística de eje: si BI<BJ por ID, los agregamos a BordesX (convención
+        // simple). El usuario puede después editar el grid si está mal.
+        var bi = Math.Min(primer, losaId);
+        var bj = Math.Max(primer, losaId);
+        var nuevo = new BordeAdic { BI = bi, BJ = bj, Balanceo = "S" };
+
+        // Determinar el balanceo correcto según tipos de las losas.
+        if (LosaTieneVoladizo(bi) || LosaTieneVoladizo(bj))
+            nuevo.Balanceo = "N";
+
+        SistemaActivo.BordesX.Add(nuevo);
+        Log($"Borde X creado: I={bi} J={bj} BAL={nuevo.Balanceo}.");
+        _primerIdParaBorde = null;
+        ModoConectarBordes = false;  // sale del modo después de un par exitoso
+        OnPropertyChanged(nameof(PrimerIdParaBorde));
+        RefreshDLContent();
+    }
+
+    private bool LosaTieneVoladizo(int losaId)
+    {
+        var losa = SistemaActivo.Losas.FirstOrDefault(l => l.Id == losaId);
+        if (losa is null) return false;
+        return TipoLosa.Catalogo.TryGetValue(losa.Tipo, out var t) && t.BordesVuelo > 0;
+    }
+
+    /// <summary>
+    /// Recorre todos los bordes (X e Y) y setea Balanceo="N" donde al menos
+    /// una de las dos losas tiene BordesVuelo > 0 (i.e. su tipo Pieper-Martens
+    /// incluye un voladizo). Refleja la convención del motor original de
+    /// F. Perdomo en Losas.exe: voladizo ⇒ no aplicar balanceo de momentos.
+    /// </summary>
+    public void AplicarAutoBalanceo()
+    {
+        if (SistemaActivo is null) return;
+        PushUndoSnapshot();
+        int cambiados = 0;
+        foreach (var b in SistemaActivo.BordesX.Concat(SistemaActivo.BordesY))
+        {
+            var debiera = (LosaTieneVoladizo(b.BI) || LosaTieneVoladizo(b.BJ)) ? "N" : "S";
+            if (b.Balanceo != debiera)
+            {
+                b.Balanceo = debiera;
+                cambiados++;
+            }
+        }
+        Log($"Auto-balanceo: {cambiados} bordes ajustados (voladizo ⇒ N).");
+        RefreshDLContent();
+    }
 
     private string _statusGeneracion = "";
     /// <summary>Mensaje del último intento de generación de memoria .docx.</summary>
@@ -455,6 +559,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             irALosa:               (s, id) => BuscarYActivarSistema(s));
         IrABusquedaCommand = new RelayCommand(_ => ModoActivo = ModoSidebar.Busqueda);
         GenerarMemoriaCommand = new RelayCommand(_ => GenerarMemoria());
+        AutoBalanceoCommand   = new RelayCommand(_ => AplicarAutoBalanceo());
 
         // Bootstrap registry de plantillas con la bundleada (commit 36).
         BootstrapPlantillaPredeterminada();

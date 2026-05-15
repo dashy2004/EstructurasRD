@@ -72,6 +72,19 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
+    /// Click en el botón de ID de una losa: si ModoConectarBordes está activo,
+    /// pasa al VM para crear el borde adicional. Si no, no-op (la selección
+    /// del DataGrid sigue funcionando para el resto del UI).
+    /// </summary>
+    private void OnLosaIdClick(object sender, RoutedEventArgs e)
+    {
+        if (!Vm.ModoConectarBordes) return;
+        if (sender is not Button btn) return;
+        if (btn.Tag is not Losa l) return;
+        Vm.HandleIdClickParaBorde(l.Id);
+    }
+
+    /// <summary>
     /// Click en el chip de validación: además de abrir el panel lateral via
     /// command, switch al modo Validación full-screen para que el usuario vea
     /// los detalles. Si la app crece, se puede mantener solo el panel lateral.
@@ -252,7 +265,20 @@ public partial class MainWindow : Window
 
     private void OnLosasCellEdited(object? sender, DataGridCellEditEndingEventArgs e)
     {
+        // Snapshot ANTES de aplicar el commit para que Ctrl+Z deshaga la edición.
+        // Solo cuando el usuario realmente commiteó (no en cancel).
+        if (e.EditAction == DataGridEditAction.Commit)
+            Vm.PushUndoSnapshot();
         // Refresca la vista del .DL al editar cualquier celda
+        Dispatcher.BeginInvoke(new System.Action(() => Vm.RefreshDLContent()),
+            System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    /// <summary>Análogo para los DataGrids de BordesX / BordesY.</summary>
+    private void OnBordeCellEdited(object? sender, DataGridCellEditEndingEventArgs e)
+    {
+        if (e.EditAction == DataGridEditAction.Commit)
+            Vm.PushUndoSnapshot();
         Dispatcher.BeginInvoke(new System.Action(() => Vm.RefreshDLContent()),
             System.Windows.Threading.DispatcherPriority.Background);
     }
