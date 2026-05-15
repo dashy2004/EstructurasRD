@@ -906,6 +906,12 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     {
         try
         {
+            // Refrescar outputs del motor antes de exportar para que las columnas
+            // αfm, Heq, Qd, Ql, Qu, As, V_bovedilla/concreto no queden desactualizadas
+            // cuando el usuario edita y exporta sin pasar por F5.
+            try { LosasPlus.Calculo.CalculoEngine.RecalcularSistema(Sistema, _proyecto); }
+            catch (Exception recalcEx) { Log("Aviso recalc previo a CSV: " + recalcEx.Message); }
+
             CsvExporter.Export(Sistema, path);
             Log("CSV exportado: " + path);
             await Plugins.LoadAllAsync(Log);
@@ -922,6 +928,10 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     {
         try
         {
+            // Refrescar outputs del motor antes de exportar (mismo motivo que CSV).
+            try { LosasPlus.Calculo.CalculoEngine.RecalcularSistema(Sistema, _proyecto); }
+            catch (Exception recalcEx) { Log("Aviso recalc previo a XLSX: " + recalcEx.Message); }
+
             string? dzp = null, cez = null;
             if (!string.IsNullOrEmpty(LosasExePath))
             {

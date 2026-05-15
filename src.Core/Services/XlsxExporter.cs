@@ -43,6 +43,7 @@ public static class XlsxExporter
         using var wb = new XLWorkbook();
         AddResumen(wb, ctx);
         AddLosas(wb, ctx.Sistema);
+        AddVerificacionAci(wb, ctx.Sistema);
         AddApoyos(wb, ctx.Sistema);
         AddEspejoTxt(wb, ctx);
         if (ctx.EsquemaPng is { Length: > 0 }) AddEsquema(wb, ctx.EsquemaPng);
@@ -93,10 +94,22 @@ public static class XlsxExporter
     private static void AddLosas(XLWorkbook wb, Sistema s)
     {
         var ws = wb.Worksheets.Add("Losas");
+        // Columnas 1..9: input. 10..15: motor F. Perdomo (.TXT). 16..29: LosasPlus.Calculo
+        // (Espesor Equivalente / αfm / cargas / cómputos / acero distribuido).
         string[] headers =
         {
+            // Input
             "ID", "TIPO", "Descripción tipo", "Carga [t/m²]", "H [m]", "Lx [m]", "Ly [m]", "Rec [m]", "Ly/Lx",
+            // Motor Losas.exe (parsed del .TXT)
             "Mfx", "Mfy", "MSx", "MSy", "Disponer X (vano)", "Disponer Y (vano)",
+            // CalculoEngine — espesores + cargas
+            "Cond", "HCalc [m]", "HEq [m]", "Qd [t/m²]", "Ql [t/m²]", "Qu [t/m²]",
+            // CalculoEngine — αfm ACI 9.5.3.3
+            "αx", "αy", "αm", "Estado αfm",
+            // CalculoEngine — cómputos métricos
+            "V_total [m³]", "V_bovedilla [m³]", "V_concreto [m³]", "N bovedillas",
+            // CalculoEngine — acero distribuido por refuerzo configurado
+            "Asx calc [cm²]", "Asy calc [cm²]",
         };
         for (int i = 0; i < headers.Length; i++)
             HeaderCell(ws.Cell(1, i + 1), headers[i]);
@@ -114,6 +127,7 @@ public static class XlsxExporter
             ws.Cell(row, c++).Value = l.Ly;
             ws.Cell(row, c++).Value = l.Rec;
             ws.Cell(row, c++).Value = l.Aspecto;
+
             if (l.Mfx.HasValue) ws.Cell(row, c).Value = l.Mfx.Value; c++;
             if (l.Mfy.HasValue) ws.Cell(row, c).Value = l.Mfy.Value; c++;
             if (l.MSx.HasValue) ws.Cell(row, c).Value = l.MSx.Value; c++;
@@ -121,9 +135,35 @@ public static class XlsxExporter
             ws.Cell(row, c++).Value = l.AsxVano ?? "";
             ws.Cell(row, c++).Value = l.AsyVano ?? "";
 
-            // Resaltar aspecto fuera de rango
+            // CalculoEngine outputs
+            ws.Cell(row, c++).Value = l.Cond;
+            if (l.HCalc.HasValue) ws.Cell(row, c).Value = l.HCalc.Value; c++;
+            if (l.HEq.HasValue)   ws.Cell(row, c).Value = l.HEq.Value;   c++;
+            if (l.Qd.HasValue)    ws.Cell(row, c).Value = l.Qd.Value;    c++;
+            if (l.Ql.HasValue)    ws.Cell(row, c).Value = l.Ql.Value;    c++;
+            if (l.Qu.HasValue)    ws.Cell(row, c).Value = l.Qu.Value;    c++;
+
+            if (l.AlphaX.HasValue) ws.Cell(row, c).Value = l.AlphaX.Value; c++;
+            if (l.AlphaY.HasValue) ws.Cell(row, c).Value = l.AlphaY.Value; c++;
+            if (l.AlphaM.HasValue) ws.Cell(row, c).Value = l.AlphaM.Value; c++;
+            ws.Cell(row, c++).Value = l.EstadoAlphaFm ?? "";
+
+            if (l.VTotal.HasValue)             ws.Cell(row, c).Value = l.VTotal.Value;             c++;
+            if (l.VBovedilla.HasValue)         ws.Cell(row, c).Value = l.VBovedilla.Value;         c++;
+            if (l.VConcreto.HasValue)          ws.Cell(row, c).Value = l.VConcreto.Value;          c++;
+            if (l.CantBovedillasTotal.HasValue) ws.Cell(row, c).Value = l.CantBovedillasTotal.Value; c++;
+
+            if (l.AsxCalc.HasValue) ws.Cell(row, c).Value = l.AsxCalc.Value; c++;
+            if (l.AsyCalc.HasValue) ws.Cell(row, c).Value = l.AsyCalc.Value; c++;
+
+            // Resaltado: aspecto fuera de rango Pieper-Martens (col 9)
             if (l.AspectoFueraDeRango)
                 ws.Cell(row, 9).Style.Fill.BackgroundColor = WarnFill;
+            // Resaltado: estado αfm — verde si OK, rojo claro si CHK (col 25)
+            if (l.EstadoAlphaFm == "OK")
+                ws.Cell(row, 25).Style.Fill.BackgroundColor = XLColor.FromArgb(0xE4, 0xF8, 0xE4);
+            else if (l.EstadoAlphaFm == "CHK")
+                ws.Cell(row, 25).Style.Fill.BackgroundColor = XLColor.FromArgb(0xFC, 0xE4, 0xE4);
 
             row++;
         }
@@ -132,11 +172,73 @@ public static class XlsxExporter
         ws.Range(2, 4, row - 1, 4).Style.NumberFormat.Format = "0.000";    // Carga
         ws.Range(2, 5, row - 1, 8).Style.NumberFormat.Format = "0.000";    // H, Lx, Ly, Rec
         ws.Range(2, 9, row - 1, 9).Style.NumberFormat.Format = "0.00";     // Aspecto
-        ws.Range(2, 10, row - 1, 13).Style.NumberFormat.Format = "0.000";  // Momentos
+        ws.Range(2, 10, row - 1, 13).Style.NumberFormat.Format = "0.000";  // Mfx..MSy
+        ws.Range(2, 17, row - 1, 21).Style.NumberFormat.Format = "0.0000"; // HCalc..Qu
+        ws.Range(2, 22, row - 1, 24).Style.NumberFormat.Format = "0.0000"; // α
+        ws.Range(2, 26, row - 1, 28).Style.NumberFormat.Format = "0.000";  // Volúmenes
+        ws.Range(2, 30, row - 1, 31).Style.NumberFormat.Format = "0.00";   // As
 
         ws.SheetView.FreezeRows(1);
+        ws.SheetView.FreezeColumns(1);
         ws.Columns().AdjustToContents();
         ws.RangeUsed()?.SetAutoFilter();
+    }
+
+    /// <summary>
+    /// Hoja "Verificación ACI" — solo αfm (ACI 318 §9.5.3.3), una fila por losa,
+    /// con shading verde/rojo en la columna Estado. Anticipa la sección de la
+    /// memoria que MemoriaPlus produce.
+    /// </summary>
+    private static void AddVerificacionAci(XLWorkbook wb, Sistema s)
+    {
+        var ws = wb.Worksheets.Add("Verificación ACI");
+        ws.Cell("A1").Value = "Verificación ACI 318 §9.5.3.3 — Espesor mínimo con vigas rígidas";
+        ws.Cell("A1").Style.Font.Bold = true;
+        ws.Cell("A1").Style.Font.FontSize = 13;
+        ws.Range("A1:H1").Merge();
+
+        string[] headers = { "ID", "Cond", "Lx [m]", "Ly [m]", "H [m]", "αx", "αy", "αm", "Estado" };
+        for (int i = 0; i < headers.Length; i++)
+            HeaderCell(ws.Cell(3, i + 1), headers[i]);
+
+        int row = 4;
+        int countOk = 0, countChk = 0;
+        foreach (var l in s.Losas.OrderBy(x => x.Id))
+        {
+            ws.Cell(row, 1).Value = l.Id;
+            ws.Cell(row, 2).Value = l.Cond;
+            ws.Cell(row, 3).Value = l.Lx;
+            ws.Cell(row, 4).Value = l.Ly;
+            ws.Cell(row, 5).Value = l.Espesor;
+            if (l.AlphaX.HasValue) ws.Cell(row, 6).Value = l.AlphaX.Value;
+            if (l.AlphaY.HasValue) ws.Cell(row, 7).Value = l.AlphaY.Value;
+            if (l.AlphaM.HasValue) ws.Cell(row, 8).Value = l.AlphaM.Value;
+            ws.Cell(row, 9).Value = l.EstadoAlphaFm ?? "";
+
+            if (l.EstadoAlphaFm == "OK")
+            {
+                ws.Cell(row, 9).Style.Fill.BackgroundColor = XLColor.FromArgb(0xE4, 0xF8, 0xE4);
+                countOk++;
+            }
+            else if (l.EstadoAlphaFm == "CHK")
+            {
+                ws.Cell(row, 9).Style.Fill.BackgroundColor = XLColor.FromArgb(0xFC, 0xE4, 0xE4);
+                countChk++;
+            }
+            row++;
+        }
+
+        // Footer con totales
+        ws.Cell(row + 1, 1).Value = "Resumen:";
+        ws.Cell(row + 1, 1).Style.Font.Bold = true;
+        ws.Cell(row + 1, 2).Value = $"{countOk} losas OK · {countChk} losas CHK (revisar espesor)";
+        ws.Cell(row + 3, 1).Value = "Criterio: αm > 2 (OK). Si αm ≤ 2, el espesor mínimo debe verificarse con el método de losa sin vigas rígidas.";
+        ws.Cell(row + 3, 1).Style.Font.Italic = true;
+        ws.Range(row + 3, 1, row + 3, 9).Merge();
+
+        ws.Range(4, 3, row - 1, 8).Style.NumberFormat.Format = "0.000";
+        ws.SheetView.FreezeRows(3);
+        ws.Columns().AdjustToContents();
     }
 
     private static void AddApoyos(XLWorkbook wb, Sistema s)
