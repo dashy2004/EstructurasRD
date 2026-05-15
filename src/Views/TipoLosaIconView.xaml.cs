@@ -1,11 +1,7 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Resources;
 using System.Windows.Shapes;
 using LosasPlus.Models;
 
@@ -14,16 +10,28 @@ namespace LosasPlus.Views;
 /// <summary>
 /// Renderiza el icono visual de un tipo de losa.
 ///
-/// <para>Estrategia (best-effort):
-/// <list type="number">
-///   <item>Si existe <c>Resources/icons/tipo_NN.svg</c> embebido como Resource, se muestra
-///         con SharpVectors (vector escalable).</item>
-///   <item>Si no, fallback al dibujo programático sobre Canvas (cuadrado con bordes
-///         según el patrón Apoyado/Empotrado/Libre/Vuelo y código en círculo central).</item>
+/// <para>
+/// Estrategia: <b>siempre render programático</b> a partir de
+/// <see cref="TipoLosa.Catalogo"/>[<see cref="Codigo"/>].<c>Bordes</c>
+/// (N/E/S/W en orden [0,1,2,3]). Esto garantiza que los 24 tipos del catálogo
+/// se vean consistentes entre sí (mismos colores, mismo grosor, misma
+/// orientación) y entre las 3 superficies donde aparecen:
+/// </para>
+/// <list type="bullet">
+///   <item>Celda <c>Tipo</c> del DataGrid de losas.</item>
+///   <item><c>TiposLosaPanel</c> de la barra inferior.</item>
+///   <item><c>SelectorTipoLosaWindow</c> modal del selector.</item>
 /// </list>
+///
+/// <para>
+/// Los SVGs en <c>Resources/icons/tipo_NN.svg</c> se mantienen en disco pero
+/// no se consumen: tenían colores hardcoded (rojo <c>#ff3131</c>, fill gris)
+/// y faltaban 2 archivos (23, 41), lo que generaba 24 iconos visualmente
+/// inconsistentes. El render programático lee colores dinámicos del tema
+/// (<c>FgPrimary</c>, <c>BgInput</c>, <c>FgMuted</c>) y nunca queda desfasado.
 /// </para>
 ///
-/// El control se redibuja al cambiar <see cref="Codigo"/> o el tema.
+/// El control se redibuja al cambiar <see cref="Codigo"/>, el tamaño o el tema.
 /// </summary>
 public partial class TipoLosaIconView : UserControl
 {
@@ -37,9 +45,6 @@ public partial class TipoLosaIconView : UserControl
         set => SetValue(CodigoProperty, value);
     }
 
-    /// <summary>Caché en memoria de los códigos para los que existe SVG embebido.</summary>
-    private static readonly Lazy<HashSet<int>> _svgAvailable = new(LoadAvailableSvgCodes);
-
     public TipoLosaIconView()
     {
         InitializeComponent();
@@ -51,51 +56,10 @@ public partial class TipoLosaIconView : UserControl
     private static void OnCodigoChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         => ((TipoLosaIconView)d).Render();
 
-    /// <summary>Enumera los SVG disponibles en Resources/icons al iniciar la app.</summary>
-    private static HashSet<int> LoadAvailableSvgCodes()
-    {
-        var result = new HashSet<int>();
-        var asm = Assembly.GetExecutingAssembly();
-        var asmName = asm.GetName().Name;
-        // El assembly empaqueta los Resource bajo el manifest; los nombramos
-        // pack://application:,,,/Resources/icons/tipo_NN.svg
-        // Para enumerarlos en runtime, intentamos abrir cada uno por código del catálogo.
-        foreach (var codigo in TipoLosa.Catalogo.Keys)
-        {
-            try
-            {
-                var uri = new Uri($"pack://application:,,,/Resources/icons/tipo_{codigo}.svg", UriKind.Absolute);
-                var info = Application.GetResourceStream(uri);
-                if (info != null)
-                {
-                    info.Stream.Close();
-                    result.Add(codigo);
-                }
-            }
-            catch { /* no existe — seguirá con fallback programático */ }
-        }
-        return result;
-    }
-
     private void Render()
     {
-        // Decidir el modo: SVG si hay archivo, fallback si no.
-        if (_svgAvailable.Value.Contains(Codigo))
-        {
-            try
-            {
-                var uri = new Uri($"pack://application:,,,/Resources/icons/tipo_{Codigo}.svg", UriKind.Absolute);
-                Svg.Source = uri;
-                Svg.Visibility = Visibility.Visible;
-                Canvas.Visibility = Visibility.Collapsed;
-                Canvas.Children.Clear();
-                return;
-            }
-            catch
-            {
-                // Si SharpVectors falla (algún SVG raro), caemos al fallback.
-            }
-        }
+        // Fuente única de verdad: TipoLosa.Catalogo[codigo].Bordes. Los SVGs
+        // legacy quedaron deprecados — ver doc-comment de la clase.
         Svg.Visibility = Visibility.Collapsed;
         Canvas.Visibility = Visibility.Visible;
         DrawProgrammatic();

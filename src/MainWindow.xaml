@@ -764,9 +764,11 @@
 
                                 <Separator Margin="0,12,0,12"/>
 
-                                <TextBlock Text="Sistema" FontWeight="Bold" FontSize="14"/>
-                                <TextBlock Text="Nombre" Margin="0,8,0,0"/>
-                                <TextBox Text="{Binding Sistema.Nombre, UpdateSourceTrigger=LostFocus}"/>
+                                <TextBlock Text="Sistema" FontWeight="Bold" FontSize="14"
+                                           Foreground="{DynamicResource Accent}"/>
+                                <TextBlock Text="Nombre del sistema" Margin="0,8,0,0"/>
+                                <TextBox Text="{Binding Sistema.Nombre, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="Aparece en la barra de estado y se usa para distinguir niveles cuando el proyecto tiene varios sistemas."/>
                                 <TextBlock Text="FC [ton/cm²]" Margin="0,8,0,0"/>
                                 <TextBox Text="{Binding Sistema.Fc, StringFormat=0.000, UpdateSourceTrigger=LostFocus}"/>
                                 <TextBlock Text="FY [ton/cm²]" Margin="0,8,0,0"/>
