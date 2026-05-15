@@ -27,4 +27,18 @@
     <ProjectReference Include="..\src.Core\LosasPlus.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- SharpVectors para renderizar SVG via SvgViewbox en
+         SelectorTipoLosaWindow. LosasPlus.App ya lo referencia; aquí lo
+         declaramos también para que el shared no dependa del consumidor. -->
+    <PackageReference Include="SharpVectors.Reloaded" Version="1.8.4.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Iconos de tipos de losa (catálogo Pieper-Martens). Copiados desde
+         src/Resources/icons/ para que el SelectorTipoLosaWindow del shared
+         pueda renderizarlos vía pack URI sin depender del assembly host. -->
+    <Resource Include="Resources\icons\*.svg" />
+  </ItemGroup>
+
 </Project>
