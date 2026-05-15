@@ -160,6 +160,17 @@ public partial class MainWindow : Window
         AbrirDoctorModal(diag);
     }
 
+    /// <summary>
+    /// Handler del evento <c>AparienciaCambiada</c> del ConfiguracionView.
+    /// Llama a <see cref="App.AplicarApariencia"/> que muta el ResourceDictionary
+    /// global en vivo (tema + tipografía mono + color acento). Sin esto, la
+    /// pestaña Apariencia sólo persistía JSON y no se veía nada hasta restart.
+    /// </summary>
+    private void OnAparienciaCambiada(object sender, MemoriaPlus.Views.AparienciaCambiadaEventArgs e)
+    {
+        App.AplicarApariencia(e.Apariencia);
+    }
+
     private void OnDiagnosticarDLClick(object sender, RoutedEventArgs e)
     {
         var dlg = new OpenFileDialog

@@ -1248,8 +1248,11 @@
                         </Style>
                     </ContentControl.Style>
                     <!-- LosasPlus es calculadora — oculta el sub-tab "Datos del ingeniero"
-                         (propio de MemoriaPlus, donde se usa para portadas y firma). -->
-                    <vws:ConfiguracionView EsCalculadora="True"/>
+                         (propio de MemoriaPlus, donde se usa para portadas y firma).
+                         x:Name para que el code-behind pueda suscribirse a
+                         AparienciaCambiada y llamar App.AplicarApariencia. -->
+                    <vws:ConfiguracionView x:Name="ConfigView" EsCalculadora="True"
+                                           AparienciaCambiada="OnAparienciaCambiada"/>
                 </ContentControl>
 
                 <!-- MODO Acerca de -->

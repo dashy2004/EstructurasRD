@@ -84,6 +84,15 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
     /// </summary>
     public event System.EventHandler? AtajosGuardados;
 
+    /// <summary>
+    /// Disparado tras cualquier mutación de <see cref="Apariencia"/> que deba
+    /// reflejarse en runtime: Guardar, Restaurar defaults, Cargar preset,
+    /// Aplicar color de acento. El host (LosasPlus.App) se suscribe para
+    /// llamar a su <c>AplicarApariencia</c> que mutea el ResourceDictionary
+    /// global (tema + tipografía + color acento) sin requerir restart.
+    /// </summary>
+    public event System.EventHandler? AparienciaGuardada;
+
     private SubTabConfig _subTabActivo;
     /// <summary>Sub-pestaña activa dentro de Configuración (DatosIngeniero / Apariencia / Atajos).</summary>
     public SubTabConfig SubTabActivo
@@ -120,7 +129,8 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
         try
         {
             AparienciaService.Save(Apariencia);
-            StatusGuardado = "✓ Apariencia guardada. Algunos cambios requieren reiniciar la app.";
+            StatusGuardado = "✓ Apariencia guardada y aplicada.";
+            AparienciaGuardada?.Invoke(this, System.EventArgs.Empty);
         }
         catch (System.Exception ex)
         {
@@ -134,6 +144,7 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
         Apariencia = new AparienciaConfig();
         OnPropertyChanged(nameof(Apariencia));
         StatusGuardado = "✓ Apariencia restaurada a defaults.";
+        AparienciaGuardada?.Invoke(this, System.EventArgs.Empty);
     }
 
     private void GuardarAtajos()
@@ -224,7 +235,8 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
         Apariencia = preset.Apariencia;
         OnPropertyChanged(nameof(Apariencia));
         try { AparienciaService.Save(Apariencia); } catch { /* sigue, fallar silenciosamente */ }
-        StatusGuardado = $"✓ Preset «{nombre}» cargado. Reinicia la app para aplicar tema/fuente.";
+        StatusGuardado = $"✓ Preset «{nombre}» cargado y aplicado.";
+        AparienciaGuardada?.Invoke(this, System.EventArgs.Empty);
     }
 
     private void EliminarPreset(string? nombre)
@@ -253,6 +265,8 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
     /// <summary>
     /// Setea el color de acento desde un hex string. Acepta <c>#RRGGBB</c> o
     /// <c>#AARRGGBB</c>. Pasar string vacío o null lo restaura al default del tema.
+    /// Dispara <see cref="AparienciaGuardada"/> para aplicar el cambio en vivo
+    /// (los swatches deben ser "click → apply" sin tener que hacer Guardar).
     /// </summary>
     private void AplicarColorAcentoHex(string? hex)
     {
@@ -260,6 +274,7 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
         if (normalizado.Length > 0 && !normalizado.StartsWith("#")) normalizado = "#" + normalizado;
         Apariencia.ColorAcentoHex = normalizado;
         OnPropertyChanged(nameof(Apariencia));
+        AparienciaGuardada?.Invoke(this, System.EventArgs.Empty);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
