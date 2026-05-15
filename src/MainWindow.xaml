@@ -250,6 +250,8 @@
                             <MenuItem Header="Guardar proyecto..." Click="OnSaveProjectClick"/>
                             <Separator/>
                             <MenuItem Header="Abrir .DL legacy..." Click="OnOpenClick"/>
+                            <MenuItem Header="🩺 Diagnosticar .DL..." Click="OnDiagnosticarDLClick"
+                                      ToolTip="Abre el Doctor para revisar un .DL que no abre o tiene avisos. Detecta JSON disfrazado, decimal con coma, BOM, IDs duplicados, bordes huérfanos, etc."/>
                             <MenuItem Header="Guardar .DL agregado..." Click="OnSaveClick"
                                       ToolTip="Guarda todos los sistemas en un único .DL multi-sistema (formato legacy)."/>
                             <Separator/>

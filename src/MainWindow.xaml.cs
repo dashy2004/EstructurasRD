@@ -146,7 +146,46 @@ public partial class MainWindow : Window
             Filter = "Archivos de datos Losas (*.DL)|*.DL|Todos los archivos|*.*",
             CheckFileExists = true
         };
-        if (dlg.ShowDialog() == true) Vm.AbrirDL(dlg.FileName);
+        if (dlg.ShowDialog() != true) return;
+
+        // Pre-flight con el doctor para detectar problemas comunes ANTES de
+        // que AbrirDL silenciosamente loggee "Error abriendo .DL: ...".
+        // Si hay errores, abrimos el modal del doctor con opciones de acción.
+        var diag = LosasPlus.Services.DLDoctor.Diagnosticar(dlg.FileName);
+        if (diag.PuedeAbrir && diag.EstaLimpio)
+        {
+            Vm.AbrirDL(dlg.FileName);
+            return;
+        }
+        AbrirDoctorModal(diag);
+    }
+
+    private void OnDiagnosticarDLClick(object sender, RoutedEventArgs e)
+    {
+        var dlg = new OpenFileDialog
+        {
+            Title = "Diagnosticar archivo .DL",
+            Filter = "Archivos de datos Losas (*.DL)|*.DL|Todos los archivos|*.*",
+            CheckFileExists = true
+        };
+        if (dlg.ShowDialog() != true) return;
+        var diag = LosasPlus.Services.DLDoctor.Diagnosticar(dlg.FileName);
+        AbrirDoctorModal(diag);
+    }
+
+    /// <summary>
+    /// Abre la ventana modal del Doctor con un diagnóstico ya calculado y wirea
+    /// los callbacks para abrir el archivo reparado / como proyecto.
+    /// </summary>
+    private void AbrirDoctorModal(LosasPlus.Services.DLDiagnostico diag)
+    {
+        var win = new Views.DLDoctorWindow(diag)
+        {
+            Owner = this,
+            OnAbrirDL = path => Vm.AbrirDL(path),
+            OnAbrirComoProyecto = path => Vm.AbrirProyectoLpxPorPath(path),
+        };
+        win.ShowDialog();
     }
 
     private async void OnSaveClick(object sender, RoutedEventArgs e)
