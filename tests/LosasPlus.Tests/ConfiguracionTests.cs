@@ -171,4 +171,40 @@ public class ConfiguracionTests : IDisposable
         var c = AparienciaService.Load();
         Assert.Equal("Claro", c.Tema);
     }
+
+    // =================================================================
+    // ConfiguracionViewModel.EsCalculadora — flag para LosasPlus
+    // =================================================================
+
+    [Fact]
+    public void ConfiguracionVM_default_muestra_DatosIngeniero_y_sub_tab_inicial_es_DatosIngeniero()
+    {
+        var vm = new MemoriaPlus.ViewModels.ConfiguracionViewModel();
+        Assert.False(vm.EsCalculadora);
+        Assert.True (vm.MostrarDatosIngeniero);
+        Assert.Equal(MemoriaPlus.ViewModels.SubTabConfig.DatosIngeniero, vm.SubTabActivo);
+    }
+
+    [Fact]
+    public void ConfiguracionVM_EsCalculadora_oculta_DatosIngeniero_y_redirige_a_Apariencia()
+    {
+        var vm = new MemoriaPlus.ViewModels.ConfiguracionViewModel();
+        // El default era DatosIngeniero; al setear EsCalculadora=true, el VM debe
+        // detectar que estábamos en el sub-tab oculto y saltar al primero visible.
+        vm.EsCalculadora = true;
+
+        Assert.True (vm.EsCalculadora);
+        Assert.False(vm.MostrarDatosIngeniero);
+        Assert.Equal(MemoriaPlus.ViewModels.SubTabConfig.Apariencia, vm.SubTabActivo);
+    }
+
+    [Fact]
+    public void ConfiguracionVM_EsCalculadora_no_pisa_sub_tab_si_ya_es_otro()
+    {
+        var vm = new MemoriaPlus.ViewModels.ConfiguracionViewModel();
+        vm.SubTabActivo = MemoriaPlus.ViewModels.SubTabConfig.Atajos;
+        vm.EsCalculadora = true;
+        // Como ya estaba en Atajos (no en DatosIngeniero), no debe cambiar.
+        Assert.Equal(MemoriaPlus.ViewModels.SubTabConfig.Atajos, vm.SubTabActivo);
+    }
 }

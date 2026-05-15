@@ -1075,7 +1075,9 @@
                             </Style.Triggers>
                         </Style>
                     </ContentControl.Style>
-                    <vws:ConfiguracionView/>
+                    <!-- LosasPlus es calculadora — oculta el sub-tab "Datos del ingeniero"
+                         (propio de MemoriaPlus, donde se usa para portadas y firma). -->
+                    <vws:ConfiguracionView EsCalculadora="True"/>
                 </ContentControl>
 
                 <!-- MODO Acerca de -->

@@ -27,6 +27,32 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
         SubTabActivo = SubTabConfig.DatosIngeniero;
     }
 
+    private bool _esCalculadora;
+    /// <summary>
+    /// True cuando la vista está embedded en LosasPlus (calculadora, no generadora
+    /// de memorias). En este modo se oculta el sub-tab "Datos del ingeniero"
+    /// porque ese perfil solo es relevante para portadas/firma de memorias
+    /// (responsabilidad de MemoriaPlus). El default <see cref="SubTabActivo"/> se
+    /// ajusta a <see cref="SubTabConfig.Apariencia"/>.
+    /// </summary>
+    public bool EsCalculadora
+    {
+        get => _esCalculadora;
+        set
+        {
+            if (_esCalculadora == value) return;
+            _esCalculadora = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(MostrarDatosIngeniero));
+            // Si veníamos en el sub-tab oculto, saltar al primero disponible.
+            if (value && SubTabActivo == SubTabConfig.DatosIngeniero)
+                SubTabActivo = SubTabConfig.Apariencia;
+        }
+    }
+
+    /// <summary>True si el sub-tab "Datos del ingeniero" debe mostrarse (inverso de <see cref="EsCalculadora"/>).</summary>
+    public bool MostrarDatosIngeniero => !_esCalculadora;
+
     public PerfilIngeniero  Perfil     { get; private set; }
     public AparienciaConfig Apariencia { get; private set; }
     public AtajosConfig     Atajos     { get; private set; }

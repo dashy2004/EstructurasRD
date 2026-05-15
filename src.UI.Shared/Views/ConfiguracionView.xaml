@@ -5,9 +5,14 @@
              xmlns:vw="clr-namespace:MemoriaPlus.Views"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:sysctl="clr-namespace:System.Windows.Controls;assembly=PresentationFramework"
              d:DataContext="{d:DesignInstance Type=vm:ConfiguracionViewModel}"
              mc:Ignorable="d"
              Background="{StaticResource SurfaceBrush}">
+
+    <UserControl.Resources>
+        <sysctl:BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+    </UserControl.Resources>
 
     <UserControl.DataContext>
         <vm:ConfiguracionViewModel/>
@@ -32,6 +37,7 @@
                 <RadioButton Style="{StaticResource SidebarNavItemStyle}"
                              GroupName="ConfigSubTab"
                              IsChecked="{Binding SubTabActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DatosIngeniero}"
+                             Visibility="{Binding MostrarDatosIngeniero, Converter={StaticResource BoolToVisibilityConverter}}"
                              Content="👤  Datos del ingeniero"/>
                 <RadioButton Style="{StaticResource SidebarNavItemStyle}"
                              GroupName="ConfigSubTab"
