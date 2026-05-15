@@ -432,4 +432,227 @@ public class CalculoEngineTests
         // Techo: ql = 0.10 (¡diferente!)
         Assert.Equal(0.10, t.Losas[0].Ql);
     }
+
+    // =================================================================
+    // ESPESOR EQUIVALENTE — αfm (ACI 9.5.3.3)
+    // Ref: ESPESOR EQUIVALENTE.xlsx, columnas T..AA
+    // =================================================================
+
+    [Fact]
+    public void InerciaRectangular_b30_h70_es_857500_cm4()
+    {
+        // I = 30 · 70³ / 12 = 30 · 343000 / 12 = 857500 cm⁴
+        var i = CalculoEngine.ComputeInerciaRectangular(30, 70);
+        Assert.Equal(857500.0, i, precision: 1);
+    }
+
+    [Fact]
+    public void InerciaLosa_replica_modelo_xls()
+    {
+        // L_perp = 4 m, J = 0.12 m.
+        // ancho_cm = L_perp·100/2 = 200 cm.
+        // peralte_cm = J·100 = 12 cm → peralte³ = 1728 cm³.
+        // I = ancho · peralte³ / 12 = 200 · 1728 / 12 = 28800 cm⁴.
+        //
+        // Nota: la fórmula del Excel "J³·10⁶ / 12" es equivalente porque
+        // J está en m: J³ = 0.001728, J³·10⁶ = 1728 cm³ (cambio de unidad).
+        var i = CalculoEngine.ComputeInerciaLosa(4.0, 0.12);
+        Assert.Equal(28_800.0, i, precision: 1);
+    }
+
+    [Fact]
+    public void Alpha_se_calcula_como_iViga_sobre_iLosa()
+    {
+        // Iviga 30·70³/12 = 857500, Ilosa arbitrario 100000 → α = 8.575
+        var a = CalculoEngine.ComputeAlpha(857500, 100_000);
+        Assert.Equal(8.575, a, precision: 4);
+    }
+
+    [Fact]
+    public void Alpha_lanza_si_iLosa_es_cero()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => CalculoEngine.ComputeAlpha(100, 0));
+    }
+
+    [Fact]
+    public void AlphaFm_de_losa_4x4_h012_es_OK()
+    {
+        // Losa 4x4 m, J = 0.12 m, viga 30x70 cm.
+        // Iviga = 857500
+        // Ilosa_x = (4·100/2)·(12)³·10⁶/12 = 200·1.728e9/12 = 2.88e10 ... espera, J = 0.12 → J·100 = 12 cm
+        // peralte³ = 12³ = 1728 cm³ → 1.728e3 cm³ (no 1.728e9). Mi código multiplica J*100 y eleva al cubo.
+        // (0.12·100)³ = 12³ = 1728 (cm³)
+        // Ilosa = 200 · 1728 / 12 = 28800 cm⁴ → α = 857500/28800 ≈ 29.78
+        // αx = αy = ~29.78 → αm ≈ 29.78 > 2 → OK
+        var losa  = new Losa { Lx = 4, Ly = 4 };
+        var viga  = new VigaTipo { BaseCm = 30, AlturaCm = 70 };
+        var afm   = CalculoEngine.ComputeAlphaFm(losa, viga, 0.12);
+        Assert.Equal(29.7743, afm.AlphaX, precision: 2);
+        Assert.Equal(29.7743, afm.AlphaY, precision: 2);
+        Assert.Equal(29.7743, afm.AlphaM, precision: 2);
+        Assert.Equal("OK", afm.Estado);
+    }
+
+    [Fact]
+    public void AlphaFm_status_CHK_cuando_alphaM_no_supera_2()
+    {
+        // Losa muy grande con viga muy chica: αm < 2.
+        var losa = new Losa { Lx = 10, Ly = 10 };
+        var viga = new VigaTipo { BaseCm = 10, AlturaCm = 20 };  // I = 10·8000/12 = 6666.7
+        // Ilosa = (10·100/2)·20³/12 = 500·8000/12 = 333333 → α ≈ 0.02 → CHK
+        var afm = CalculoEngine.ComputeAlphaFm(losa, viga, 0.20);
+        Assert.True(afm.AlphaM < 2.0);
+        Assert.Equal("CHK", afm.Estado);
+    }
+
+    // =================================================================
+    // ESPESOR EQUIVALENTE — Volúmenes y cantidades de bovedilla
+    // =================================================================
+
+    [Fact]
+    public void Volumenes_losa_2D_4x4_con_bovedilla_default()
+    {
+        // Bovedilla 0.15/0.50/0.50/0.15 → módulo S+B = 0.65 m
+        // M = floor(4/0.65) = 6, N = floor(4/0.65) = 6 → total = 36
+        // V bovedilla individual = 0.50·0.50·0.15 = 0.0375 m³
+        // V_bov = 36 · 0.0375 = 1.35 m³
+        // V_total = 0.30 · 4 · 4 = 4.80 m³
+        // V_concreto = 4.80 - 1.35 = 3.45 m³
+        var losa = new Losa { Lx = 4, Ly = 4 };
+        var bov  = new Bovedilla();
+        var v    = CalculoEngine.ComputeVolumenes(losa, bov, 0.30);
+        Assert.Equal(6, v.CantBovedillasX);
+        Assert.Equal(6, v.CantBovedillasY);
+        Assert.Equal(36, v.Total);
+        Assert.Equal(1.35, v.VBovedilla, precision: 4);
+        Assert.Equal(4.80, v.VTotal,     precision: 4);
+        Assert.Equal(3.45, v.VConcreto,  precision: 4);
+    }
+
+    [Fact]
+    public void Volumenes_losa_1D_cuenta_nervios_en_direccion_corta()
+    {
+        // Losa 1D 2.0 × 6.0 (ratio = 3, claramente 1D). Cond = "1D".
+        // Luz nervios = min = 2.0 m → M = floor(2/0.65) = 3
+        // Luz perpendicular = 6.0 m → N = floor(6/0.50) = 12 (bovedillas por nervio)
+        var losa = new Losa { Lx = 2, Ly = 6 };
+        Assert.Equal("1D", losa.Cond);
+        var v = CalculoEngine.ComputeVolumenes(losa, new Bovedilla(), 0.25);
+        Assert.Equal(3, v.CantBovedillasX);
+        Assert.Equal(12, v.CantBovedillasY);
+        Assert.Equal(36, v.Total);
+    }
+
+    [Fact]
+    public void Volumenes_VConcreto_nunca_es_negativo()
+    {
+        // Si las bovedillas pesan más que el volumen total (caso degenerado por
+        // espesor muy chico), el código debe entregar 0 sin lanzar.
+        var losa = new Losa { Lx = 4, Ly = 4 };
+        var bov  = new Bovedilla { S = 0.10, B = 0.10, L = 0.10, H = 0.10 };
+        var v = CalculoEngine.ComputeVolumenes(losa, bov, 0.01);  // h muy chico
+        Assert.True(v.VConcreto >= 0);
+    }
+
+    // =================================================================
+    // ACERO POR BARRAS — As total
+    // =================================================================
+
+    [Fact]
+    public void AreasBarras_lookup_funciona_para_los_seis_diametros()
+    {
+        Assert.Equal(0.71, AreasBarras.Para(3));
+        Assert.Equal(1.27, AreasBarras.Para(4));
+        Assert.Equal(1.99, AreasBarras.Para(5));
+        Assert.Equal(2.85, AreasBarras.Para(6));
+        Assert.Equal(3.88, AreasBarras.Para(7));
+        Assert.Equal(5.07, AreasBarras.Para(8));
+        Assert.Equal(0.00, AreasBarras.Para(99));  // fuera de rango
+    }
+
+    [Fact]
+    public void AsTotal_replica_formula_del_xls()
+    {
+        // Excel: D = 5.07·#1" + 2.85·#3/4" + 1.27·#1/2" + 0.71·#3/8"
+        // Ejemplo: 2 barras #8 + 0 #6 + 4 #4 + 3 #3 = 2·5.07 + 4·1.27 + 3·0.71 = 10.14 + 5.08 + 2.13 = 17.35
+        var r = new RefuerzoBarras { N3 = 3, N4 = 4, N8 = 2 };
+        Assert.Equal(17.35, CalculoEngine.ComputeAsTotal(r), precision: 4);
+    }
+
+    [Fact]
+    public void AsTotal_vacio_es_cero()
+    {
+        Assert.Equal(0.0, CalculoEngine.ComputeAsTotal(new RefuerzoBarras()));
+    }
+
+    // =================================================================
+    // EMPALMES / BARRAS ADICIONALES
+    // =================================================================
+
+    [Fact]
+    public void AsAdicional_replica_formula_del_xls()
+    {
+        // Excel B281=7.6 cm², C281=2.0, D281=4.0 → As_adic = 7.6 - 1.0 - 2.0 = 4.6
+        Assert.Equal(4.6, CalculoEngine.ComputeAsAdicional(7.6, 2.0, 4.0), precision: 4);
+    }
+
+    [Fact]
+    public void AsAdicional_clampa_a_cero_si_empalmes_cubren_demanda()
+    {
+        // Si las dos mitades ya superan el As_req, no hay adicional faltante.
+        Assert.Equal(0.0, CalculoEngine.ComputeAsAdicional(5.0, 6.0, 6.0));
+    }
+
+    [Fact]
+    public void SeparacionBarrasAdicionales_es_areaBarra_sobre_Asadic()
+    {
+        // As_adic = 4.6 cm², #3/8" (0.71) → s = 0.71/4.6 ≈ 0.1543
+        Assert.Equal(0.71 / 4.6, CalculoEngine.ComputeSeparacionBarrasAdicionales(4.6, 3), precision: 6);
+        // #1/2" (1.27) → s = 1.27/4.6 ≈ 0.2761
+        Assert.Equal(1.27 / 4.6, CalculoEngine.ComputeSeparacionBarrasAdicionales(4.6, 4), precision: 6);
+    }
+
+    [Fact]
+    public void SeparacionBarrasAdicionales_es_infinito_si_no_hay_demanda()
+    {
+        Assert.Equal(double.PositiveInfinity, CalculoEngine.ComputeSeparacionBarrasAdicionales(0.0, 3));
+    }
+
+    [Fact]
+    public void SeparacionBarrasAdicionales_lanza_para_diametro_invalido()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => CalculoEngine.ComputeSeparacionBarrasAdicionales(4.6, 99));
+    }
+
+    // =================================================================
+    // PIPELINE — α, volúmenes y As también se rellenan en RecalcularLosa
+    // =================================================================
+
+    [Fact]
+    public void RecalcularLosa_rellena_alphaFm_y_volumenes_y_As()
+    {
+        var (p, s) = BuildContextoEntrepiso();
+        // Viga tipo default 30×70, bovedilla default 15/50/50/15.
+        var l = new Losa { Id = 1, Lx = 4, Ly = 4 };
+        l.RefuerzoX.N4 = 5;
+        l.RefuerzoY.N4 = 5;
+        s.Losas.Add(l);
+
+        CalculoEngine.RecalcularLosa(l, s, p);
+
+        Assert.NotNull(l.AlphaX);
+        Assert.NotNull(l.AlphaY);
+        Assert.NotNull(l.AlphaM);
+        Assert.NotNull(l.EstadoAlphaFm);
+        Assert.True(l.AlphaM!.Value > 0);
+
+        Assert.NotNull(l.VBovedilla);
+        Assert.NotNull(l.VTotal);
+        Assert.NotNull(l.VConcreto);
+        Assert.True(l.VConcreto!.Value >= 0);
+
+        Assert.Equal(5 * 1.27, l.AsxCalc!.Value, precision: 4);
+        Assert.Equal(5 * 1.27, l.AsyCalc!.Value, precision: 4);
+    }
 }

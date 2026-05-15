@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json.Serialization;
 
@@ -162,6 +163,43 @@ public partial class Proyecto
     {
         get => _cargas;
         set { _cargas = value; OnPropertyChanged(); }
+    }
+
+    // -----------------------------------------------------------------
+    // ESPESOR EQUIVALENTE — inputs globales (ref: ESPESOR EQUIVALENTE.xlsx)
+    // -----------------------------------------------------------------
+
+    private VigaTipo  _vigaPrincipal = new();
+    private Bovedilla _bovedilla1D  = new();
+    private Bovedilla _bovedilla2D  = new();
+    private double    _toppingPorDefecto = 0.05;  // m
+
+    /// <summary>Viga tipo del sistema (b=30 cm, h=70 cm por defecto). Usada para Iviga en αfm.</summary>
+    public VigaTipo VigaPrincipal
+    {
+        get => _vigaPrincipal;
+        set { _vigaPrincipal = value ?? new VigaTipo(); OnPropertyChanged(); }
+    }
+
+    /// <summary>Geometría de bovedilla para losas <b>1D</b> (default 0.15/0.50/0.50/0.15 m).</summary>
+    public Bovedilla Bovedilla1D
+    {
+        get => _bovedilla1D;
+        set { _bovedilla1D = value ?? new Bovedilla(); OnPropertyChanged(); }
+    }
+
+    /// <summary>Geometría de bovedilla para losas <b>2D</b> (default 0.15/0.50/0.50/0.15 m).</summary>
+    public Bovedilla Bovedilla2D
+    {
+        get => _bovedilla2D;
+        set { _bovedilla2D = value ?? new Bovedilla(); OnPropertyChanged(); }
+    }
+
+    /// <summary>Espesor del topping / capeta por defecto (m). Default 0.05 m. Cada losa puede overridear con <see cref="Losa.Topping"/>.</summary>
+    public double ToppingPorDefecto
+    {
+        get => _toppingPorDefecto;
+        set { _toppingPorDefecto = value; OnPropertyChanged(); }
     }
 }
 
@@ -410,4 +448,202 @@ public partial class Losa
     /// <summary>True si Ln &gt; 8.0 m (revisar manualmente — fuera de rango usual).</summary>
     [JsonIgnore]
     public bool LnExcedeRango => Ln > 8.0;
+
+    // =====================================================================
+    // ESPESOR EQUIVALENTE — outputs adicionales del libro ESPESOR EQUIVALENTE.xlsx
+    // (αfm + cantidades de bovedilla + volúmenes + acero distribuido).
+    // Todos son nullable: null hasta que CalculoEngine corra el paso correspondiente.
+    // =====================================================================
+
+    private double? _alphaX;
+    private double? _alphaY;
+    private double? _alphaM;
+    private string? _estadoAlphaFm;
+    private int?    _cantBovedillasX;
+    private int?    _cantBovedillasY;
+    private int?    _cantBovedillasTotal;
+    private double? _vBovedilla;
+    private double? _vTotal;
+    private double? _vConcreto;
+    private double? _topping;
+
+    /// <summary>α (relación de rigideces) en dirección X. <c>Iviga_x / Ilosa_x</c> ACI 9.5.3.3.</summary>
+    public double? AlphaX { get => _alphaX; set { _alphaX = value; OnPropertyChanged(); } }
+
+    /// <summary>α en dirección Y. <c>Iviga_y / Ilosa_y</c> ACI 9.5.3.3.</summary>
+    public double? AlphaY { get => _alphaY; set { _alphaY = value; OnPropertyChanged(); } }
+
+    /// <summary>α-mean: promedio simple <c>(αx + αy)/2</c>. Criterio ACI: <c>αm &gt; 2</c> → losa con vigas rígidas.</summary>
+    public double? AlphaM { get => _alphaM; set { _alphaM = value; OnPropertyChanged(); OnPropertyChanged(nameof(AlphaFmCumple)); } }
+
+    /// <summary>Estado del check ACI 9.5.3.3: <c>"OK"</c> si αm &gt; 2, sino <c>"CHK"</c> (revisar espesor).</summary>
+    public string? EstadoAlphaFm { get => _estadoAlphaFm; set { _estadoAlphaFm = value; OnPropertyChanged(); } }
+
+    /// <summary>Cantidad de bovedillas en dirección X (paralelas a Lx).</summary>
+    public int? CantBovedillasX { get => _cantBovedillasX; set { _cantBovedillasX = value; OnPropertyChanged(); } }
+
+    /// <summary>Cantidad de bovedillas en dirección Y (paralelas a Ly).</summary>
+    public int? CantBovedillasY { get => _cantBovedillasY; set { _cantBovedillasY = value; OnPropertyChanged(); } }
+
+    /// <summary>Total de bovedillas en la losa = M·N.</summary>
+    public int? CantBovedillasTotal { get => _cantBovedillasTotal; set { _cantBovedillasTotal = value; OnPropertyChanged(); } }
+
+    /// <summary>Volumen de bovedillas (m³).</summary>
+    public double? VBovedilla { get => _vBovedilla; set { _vBovedilla = value; OnPropertyChanged(); } }
+
+    /// <summary>Volumen total de la losa (m³) = h_usar · Lx · Ly.</summary>
+    public double? VTotal { get => _vTotal; set { _vTotal = value; OnPropertyChanged(); } }
+
+    /// <summary>Volumen de concreto (m³) = VTotal − VBovedilla. Equivale a la capa maciza por panel.</summary>
+    public double? VConcreto { get => _vConcreto; set { _vConcreto = value; OnPropertyChanged(); } }
+
+    /// <summary>Espesor del topping / capeta superior maciza (m). Override del default de proyecto.</summary>
+    public double? Topping { get => _topping; set { _topping = value; OnPropertyChanged(); } }
+
+    /// <summary>True si la verificación ACI 9.5.3.3 pasa (αm &gt; 2).</summary>
+    [JsonIgnore]
+    public bool AlphaFmCumple => _alphaM.HasValue && _alphaM.Value > 2.0;
+
+    /// <summary>
+    /// Refuerzo distribuido (barras por diámetro) en X — bottom de vano. Default vacío.
+    /// Calculado por <see cref="LosasPlus.Calculo.CalculoEngine.ComputeAsTotal"/>.
+    /// </summary>
+    public RefuerzoBarras RefuerzoX { get; set; } = new();
+
+    /// <summary>Refuerzo distribuido en Y.</summary>
+    public RefuerzoBarras RefuerzoY { get; set; } = new();
+
+    private double? _asxCalc;
+    private double? _asyCalc;
+
+    /// <summary>Área total de acero en X (cm²) — sumatoria de <see cref="RefuerzoX"/> · áreas nominales.</summary>
+    public double? AsxCalc { get => _asxCalc; set { _asxCalc = value; OnPropertyChanged(); } }
+
+    /// <summary>Área total de acero en Y (cm²) — sumatoria de <see cref="RefuerzoY"/> · áreas nominales.</summary>
+    public double? AsyCalc { get => _asyCalc; set { _asyCalc = value; OnPropertyChanged(); } }
+}
+
+/// <summary>
+/// Cantidades de barras por diámetro estructural para una franja de losa.
+/// Los diámetros listados corresponden al inventario habitual de obra en
+/// República Dominicana (#3, #4, #5, #6, #7, #8). El método
+/// <see cref="LosasPlus.Calculo.CalculoEngine.ComputeAsTotal(RefuerzoBarras)"/>
+/// computa el área total <c>As = Σ n·área_nominal</c>.
+/// </summary>
+public class RefuerzoBarras : INotifyPropertyChanged
+{
+    private int _n3;
+    private int _n4;
+    private int _n5;
+    private int _n6;
+    private int _n7;
+    private int _n8;
+
+    /// <summary>Cantidad de barras Ø 3/8" (#3).</summary>
+    public int N3 { get => _n3; set { _n3 = value; OnPropertyChanged(); } }
+
+    /// <summary>Cantidad de barras Ø 1/2" (#4).</summary>
+    public int N4 { get => _n4; set { _n4 = value; OnPropertyChanged(); } }
+
+    /// <summary>Cantidad de barras Ø 5/8" (#5).</summary>
+    public int N5 { get => _n5; set { _n5 = value; OnPropertyChanged(); } }
+
+    /// <summary>Cantidad de barras Ø 3/4" (#6).</summary>
+    public int N6 { get => _n6; set { _n6 = value; OnPropertyChanged(); } }
+
+    /// <summary>Cantidad de barras Ø 7/8" (#7).</summary>
+    public int N7 { get => _n7; set { _n7 = value; OnPropertyChanged(); } }
+
+    /// <summary>Cantidad de barras Ø 1" (#8).</summary>
+    public int N8 { get => _n8; set { _n8 = value; OnPropertyChanged(); } }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+}
+
+/// <summary>
+/// Viga tipo del sistema (rectangular). Usada para el cálculo de la rigidez
+/// flexionante <c>I_viga = b·h³/12</c> en la verificación αfm (ACI 9.5.3.3).
+/// El Excel de referencia (ESPESOR EQUIVALENTE.xlsx) usa b=30 cm, h=70 cm como
+/// viga tipo del proyecto; en LosasPlus es editable por proyecto.
+/// </summary>
+public class VigaTipo : INotifyPropertyChanged
+{
+    private double _baseCm = 30.0;
+    private double _alturaCm = 70.0;
+
+    /// <summary>Base de la viga (cm). Default 30 cm.</summary>
+    public double BaseCm { get => _baseCm; set { _baseCm = value; OnPropertyChanged(); OnPropertyChanged(nameof(InerciaCm4)); } }
+
+    /// <summary>Altura total de la viga (cm). Default 70 cm.</summary>
+    public double AlturaCm { get => _alturaCm; set { _alturaCm = value; OnPropertyChanged(); OnPropertyChanged(nameof(InerciaCm4)); } }
+
+    /// <summary>Inercia rectangular <c>b·h³/12</c> en cm⁴. Computed.</summary>
+    [JsonIgnore]
+    public double InerciaCm4 => _baseCm * Math.Pow(_alturaCm, 3) / 12.0;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+}
+
+/// <summary>
+/// Geometría de bovedilla (bloque/casetón) usada en losas vigueta+bloque.
+/// El catálogo dominicano típico es S=0.15, B=0.50, L=0.50, h=0.15 (en metros)
+/// tanto para 1D como 2D — pero en LosasPlus se permite editar ambos.
+/// </summary>
+public class Bovedilla : INotifyPropertyChanged
+{
+    private double _s = 0.15;   // separación / ancho nervio (m)
+    private double _b = 0.50;   // ancho bovedilla (m)
+    private double _l = 0.50;   // largo bovedilla (m)
+    private double _h = 0.15;   // altura bovedilla (m)
+
+    /// <summary>Separación entre nervios = ancho del nervio (m). Default 0.15.</summary>
+    public double S { get => _s; set { _s = value; OnPropertyChanged(); OnPropertyChanged(nameof(VolumenIndividual)); } }
+
+    /// <summary>Ancho de la bovedilla (m). Default 0.50.</summary>
+    public double B { get => _b; set { _b = value; OnPropertyChanged(); OnPropertyChanged(nameof(VolumenIndividual)); } }
+
+    /// <summary>Largo de la bovedilla (m). Default 0.50.</summary>
+    public double L { get => _l; set { _l = value; OnPropertyChanged(); OnPropertyChanged(nameof(VolumenIndividual)); } }
+
+    /// <summary>Altura de la bovedilla (m). Default 0.15.</summary>
+    public double H { get => _h; set { _h = value; OnPropertyChanged(); OnPropertyChanged(nameof(VolumenIndividual)); } }
+
+    /// <summary>Volumen de una bovedilla individual = B·L·H (m³). Computed.</summary>
+    [JsonIgnore]
+    public double VolumenIndividual => _b * _l * _h;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+}
+
+/// <summary>
+/// Catálogo de diámetros de barras de refuerzo (norma ASTM A615, número de barra
+/// igual a octavos de pulgada). Áreas nominales en cm².
+/// </summary>
+public static class AreasBarras
+{
+    /// <summary>Área nominal de una barra Ø 3/8" (#3) en cm² = 0.71.</summary>
+    public const double A3 = 0.71;
+    /// <summary>Área nominal de una barra Ø 1/2" (#4) en cm² = 1.27.</summary>
+    public const double A4 = 1.27;
+    /// <summary>Área nominal de una barra Ø 5/8" (#5) en cm² = 1.99.</summary>
+    public const double A5 = 1.99;
+    /// <summary>Área nominal de una barra Ø 3/4" (#6) en cm² = 2.85.</summary>
+    public const double A6 = 2.85;
+    /// <summary>Área nominal de una barra Ø 7/8" (#7) en cm² = 3.88.</summary>
+    public const double A7 = 3.88;
+    /// <summary>Área nominal de una barra Ø 1" (#8) en cm² = 5.07.</summary>
+    public const double A8 = 5.07;
+
+    /// <summary>Lookup por número de barra (3..8). Devuelve 0 para valores fuera de rango.</summary>
+    public static double Para(int numero) => numero switch
+    {
+        3 => A3, 4 => A4, 5 => A5, 6 => A6, 7 => A7, 8 => A8,
+        _ => 0.0,
+    };
 }

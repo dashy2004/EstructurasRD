@@ -195,6 +195,45 @@ public class PersistenceTests : IDisposable
     }
 
     [Fact]
+    public void RoundTrip_preserva_inputs_ESPESOR_EQUIVALENTE()
+    {
+        // VigaPrincipal, Bovedilla1D/2D, ToppingPorDefecto y RefuerzoX/Y
+        // deben round-trippear por JSON sin perder valores custom.
+        var path = TempFile();
+        var p1 = BuildProyectoCompleto();
+        p1.VigaPrincipal.BaseCm    = 35;
+        p1.VigaPrincipal.AlturaCm  = 80;
+        p1.Bovedilla1D.S = 0.12;
+        p1.Bovedilla1D.B = 0.40;
+        p1.Bovedilla2D.S = 0.18;
+        p1.Bovedilla2D.H = 0.20;
+        p1.ToppingPorDefecto = 0.07;
+
+        var l = p1.Sistemas[0].Losas[0];
+        l.RefuerzoX.N4 = 6;
+        l.RefuerzoX.N8 = 2;
+        l.RefuerzoY.N3 = 4;
+        l.Topping = 0.06;
+
+        ProyectoSerializer.Save(p1, path);
+        var p2 = ProyectoSerializer.Load(path);
+
+        Assert.Equal(35, p2.VigaPrincipal.BaseCm,   precision: 1);
+        Assert.Equal(80, p2.VigaPrincipal.AlturaCm, precision: 1);
+        Assert.Equal(0.12, p2.Bovedilla1D.S, precision: 3);
+        Assert.Equal(0.40, p2.Bovedilla1D.B, precision: 3);
+        Assert.Equal(0.18, p2.Bovedilla2D.S, precision: 3);
+        Assert.Equal(0.20, p2.Bovedilla2D.H, precision: 3);
+        Assert.Equal(0.07, p2.ToppingPorDefecto, precision: 3);
+
+        var l2 = p2.Sistemas[0].Losas[0];
+        Assert.Equal(6, l2.RefuerzoX.N4);
+        Assert.Equal(2, l2.RefuerzoX.N8);
+        Assert.Equal(4, l2.RefuerzoY.N3);
+        Assert.Equal(0.06, l2.Topping!.Value, precision: 3);
+    }
+
+    [Fact]
     public void RoundTrip_preserva_cargas_globales()
     {
         var path = TempFile();
