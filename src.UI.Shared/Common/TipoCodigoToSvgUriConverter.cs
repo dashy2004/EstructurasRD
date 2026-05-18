@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Resources;
+using LosasPlus.Models;
 
 namespace MemoriaPlus.Common;
 
@@ -12,17 +13,26 @@ namespace MemoriaPlus.Common;
 /// <c>pack://application:,,,/MemoriaPlus.UI.Shared;component/Resources/icons/tipo_NN.svg</c>.
 ///
 /// <para>
-/// Si el SVG no existe (por ejemplo un código no estándar), devuelve
-/// <see cref="DependencyProperty.UnsetValue"/> para que el SvgViewbox quede
-/// sin source y el fallback visual del card (rect + texto en XAML) tome el
-/// control.
+/// Devuelve <see cref="DependencyProperty.UnsetValue"/> (SvgViewbox sin source,
+/// fallback visual del card) cuando:
 /// </para>
+/// <list type="bullet">
+///   <item>El código no es uno de los 23 tipos permitidos
+///         (<see cref="TipoLosa.CodigosValidos"/>) — fail-fast: un tipo
+///         inválido nunca debe mostrar un icono como si fuera legítimo.</item>
+///   <item>El SVG del código válido no está embebido (no debería pasar — los
+///         23 están cubiertos).</item>
+/// </list>
 /// </summary>
 public sealed class TipoCodigoToSvgUriConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         if (value is not int codigo || codigo <= 0)
+            return DependencyProperty.UnsetValue;
+
+        // Fail-fast: un código fuera del catálogo de 23 no tiene icono.
+        if (!TipoLosa.EsCodigoValido(codigo))
             return DependencyProperty.UnsetValue;
 
         var uri = new Uri(
