@@ -44,7 +44,7 @@
 | [`src.Core/`](src.Core/) | Librería `net8.0` | Modelo de dominio (Proyecto, Sistema, Losa, Cargas), parsers `.DL`/`.TXT`, motor de cálculo (espesor 1D/2D, qd, qu), generador de memorias `.docx`, importador de cargas Excel. **Sin dependencia de WPF** — reusable desde cualquier consumidor .NET. |
 | [`src/`](src/) | App WPF (LosasPlus) | Editor + visor del archivo `.DL` que consume `Losas.exe` (Ing. F. Perdomo). Diagrama del sistema, importación del `.TXT` de salida, exportación a CSV/XLSX, sandbox de plugins en C# Script. |
 | [`src.Memoria/`](src.Memoria/) | App WPF (MemoriaPlus) | Generador de memorias de cálculo `.docx`. Captura datos del proyecto, edita cargas globales, parsea salidas F. Perdomo, y genera la memoria final con plurinivel automático y tablas de momentos/armaduras. **Standalone** — no necesita `Losas.exe`. |
-| [`tests/LosasPlus.Tests/`](tests/) | xUnit tests | **476 tests** cubriendo modelo, motor de cálculo (αfm ACI 9.5.3.3, espesor equivalente, cómputos, acero distribuido), validación normativa, registries de proyectos/plantillas/atajos/temas, configuración, generador de memorias, Doctor de archivos .DL, y todos los importers. |
+| [`tests/LosasPlus.Tests/`](tests/) | xUnit tests | **501 tests** cubriendo modelo, motor de cálculo (αfm ACI 9.5.3.3, espesor equivalente, cómputos, acero distribuido), validación normativa, catálogo estricto de tipos, registries de proyectos/plantillas/atajos/temas, configuración, generador de memorias, Doctor de archivos .DL, importador DXF, y todos los importers. |
 
 ---
 
@@ -72,7 +72,7 @@
 
 ---
 
-## Capacidades end-to-end (v0.6)
+## Capacidades end-to-end (v0.7)
 
 **Cálculo estructural (ACI 318 + R-001):**
 - ✅ Cond 1D / 2D automático según relación Ly/Lx; `h_calc` con fórmulas
@@ -230,7 +230,7 @@ LosasPlus/
 │   └── Services/                    # DLFileService, TxtParser, SalidaPerdomoAdapter, ...
 ├── src/                             # LosasPlus.App (WPF wrapper de Losas.exe)
 ├── src.Memoria/                     # MemoriaPlus.App (WPF generador de memorias)
-├── tests/LosasPlus.Tests/           # 476 tests xUnit
+├── tests/LosasPlus.Tests/           # 501 tests xUnit
 ├── tests/fixtures/                  # samples sintéticos para tests
 ├── docs/
 │   ├── referencia/                  # plantilla genérica, xlsx demo, wireframes
@@ -257,7 +257,17 @@ LosasPlus/
 - Salida .TXT con dos vistas (Texto + Tabla editable).
 - Exportador CSV/XLSX completo con hoja "Verificación ACI".
 
-**v0.7 (próximo):**
+**v0.7 — Completado ✅:**
+- Catálogo estricto de **23 tipos** de losa + validación fail-fast
+  (parser .DL con remapeo de aliases, regla normativa, Doctor, celda
+  marcada en rojo).
+- **Importador DXF — Fase 1.A**: capa de dominio del editor CAD
+  (`PlanoReferencia`, `EntidadCad`, `DxfImportService` con netDxf).
+  Ver [`PLAN_CAD_V1.md`](PLAN_CAD_V1.md).
+
+**v0.8 (próximo):**
+- **Editor CAD Fase 1.B**: host visual WPF (`DrawingVisual`) para el
+  plano DXF importado.
 - **UI de Aceros** dedicada en la pestaña sidebar (hoy "próximamente"):
   As requerido vs As provisto en vivo, separación de barras adicionales
   por empalmes (ACI 318 §25.5), reportes por franja.
@@ -266,8 +276,8 @@ LosasPlus/
   lateral del Editor.
 
 **v1.0 (3-6 meses):**
-- Editor visual de losas (canvas tipo CAD para dibujar el sistema).
-- Importer DXF/DWG (extraer geometría de planos AutoCAD).
+- Editor visual de losas — Fases 2 y 3 del plan CAD (mapeo
+  polígono→Losa, editor de dibujo manual).
 - Distribución vía installer MSI firmado.
 - Locale `es-DO` con formatos numéricos dominicanos.
 
@@ -286,7 +296,7 @@ primero para discutir el diseño. La suite respeta convenciones .NET estándar
 (C# 12, `Nullable=enable`, xUnit) y mantiene **0 warnings** en build.
 
 ```bash
-dotnet test LosasPlus.sln  # debe quedar 476/476 verde antes de un PR
+dotnet test LosasPlus.sln  # debe quedar 501/501 verde antes de un PR
 ```
 
 ---
