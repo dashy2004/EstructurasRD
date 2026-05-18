@@ -137,12 +137,6 @@ public static class AtajosService
     /// </summary>
     public static event EventHandler<AtajosConfig>? AtajosCambiados;
 
-    private static readonly JsonSerializerOptions _opts = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
     private static string DefaultPath =>
         Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -158,7 +152,7 @@ public static class AtajosService
         try
         {
             var json = File.ReadAllText(path);
-            return JsonSerializer.Deserialize<AtajosConfig>(json, _opts) ?? new AtajosConfig();
+            return JsonSerializer.Deserialize<AtajosConfig>(json, JsonConfigHelper.DefaultOptions) ?? new AtajosConfig();
         }
         catch
         {
@@ -172,7 +166,7 @@ public static class AtajosService
         var path = ResolvedPath;
         var dir = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-        File.WriteAllText(path, JsonSerializer.Serialize(config, _opts));
+        File.WriteAllText(path, JsonSerializer.Serialize(config, JsonConfigHelper.DefaultOptions));
         AtajosCambiados?.Invoke(null, config);
     }
 

@@ -15,18 +15,14 @@
         Background="{DynamicResource BgPrimary}"
         WindowStartupLocation="CenterScreen">
 
-    <!-- Atajos de teclado globales. Ctrl+/ abre el panel de atajos. -->
+    <!-- Atajos FIJOS (no personalizables). Los 6 personalizables (Nuevo, Abrir,
+         Guardar, Guardar como, Generar, Búsqueda) los aplica AplicarAtajos() en
+         el code-behind desde atajos.json. Ctrl+/ abre el panel de atajos. -->
     <Window.InputBindings>
-        <KeyBinding Modifiers="Ctrl"       Key="N" Command="{Binding NuevoProyectoLpxCommand}"/>
-        <KeyBinding Modifiers="Ctrl"       Key="O" Command="{Binding AbrirProyectoLpxCommand}"/>
-        <KeyBinding Modifiers="Ctrl"       Key="S" Command="{Binding GuardarProyectoLpxCommand}"/>
-        <KeyBinding Modifiers="Ctrl+Shift" Key="S" Command="{Binding GuardarComoLpxCommand}"/>
-        <KeyBinding Modifiers="Ctrl"       Key="E" Command="{Binding IrAExploradorCommand}"/>
-        <KeyBinding Modifiers="Ctrl"       Key="Z" Command="{Binding UndoCommand}"/>
-        <KeyBinding Modifiers="Ctrl"       Key="Y" Command="{Binding RedoCommand}"/>
-        <KeyBinding Modifiers="Ctrl"       Key="OemQuestion" Command="{Binding AbrirShortcutsCommand}"/>
-        <KeyBinding Modifiers="Ctrl"       Key="F" Command="{Binding IrABusquedaCommand}"/>
-        <KeyBinding Modifiers="Ctrl"       Key="G" Command="{Binding GenerarMemoriaCommand}"/>
+        <KeyBinding Modifiers="Ctrl" Key="E" Command="{Binding IrAExploradorCommand}"/>
+        <KeyBinding Modifiers="Ctrl" Key="Z" Command="{Binding UndoCommand}"/>
+        <KeyBinding Modifiers="Ctrl" Key="Y" Command="{Binding RedoCommand}"/>
+        <KeyBinding Modifiers="Ctrl" Key="OemQuestion" Command="{Binding AbrirShortcutsCommand}"/>
     </Window.InputBindings>
 
     <Window.DataContext>

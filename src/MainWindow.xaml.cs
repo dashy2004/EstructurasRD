@@ -1,8 +1,11 @@
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using LosasPlus.Models;
+using LosasPlus.Persistence;
 using LosasPlus.Services;
 using LosasPlus.ViewModels;
 using Microsoft.Win32;
@@ -12,6 +15,12 @@ namespace LosasPlus;
 public partial class MainWindow : Window
 {
     private MainViewModel Vm => (MainViewModel)DataContext;
+
+    /// <summary>
+    /// InputBindings de los atajos personalizables aplicados dinámicamente. Los
+    /// 4 atajos fijos viven en XAML y nunca se rastrean aquí.
+    /// </summary>
+    private readonly List<InputBinding> _atajosConfigurables = new();
 
     public MainWindow()
     {
@@ -51,6 +60,11 @@ public partial class MainWindow : Window
             if (DataContext is MainViewModel vm)
                 vm.OnAbrirShortcuts = AbrirShortcutsPanel;
         };
+
+        // Atajos personalizables: aplicarlos al cargar y rebuildarlos en vivo
+        // cuando el usuario los edita en Configuración → Atajos.
+        Loaded += OnLoaded;
+        Closed += OnClosed;
     }
 
     /// <summary>Abre el modal <see cref="LosasPlus.Views.KeyboardShortcutsWindow"/>.</summary>
@@ -58,6 +72,106 @@ public partial class MainWindow : Window
     {
         var dlg = new LosasPlus.Views.KeyboardShortcutsWindow { Owner = this };
         dlg.ShowDialog();
+    }
+
+    // =====================================================================
+    // Atajos de teclado personalizables — aplicados en vivo desde atajos.json
+    // =====================================================================
+
+    /// <summary>Aplica los atajos guardados al cargar y se suscribe a sus cambios.</summary>
+    private void OnLoaded(object? sender, RoutedEventArgs e)
+    {
+        AplicarAtajos(AtajosService.Load());
+        AtajosService.AtajosCambiados += OnAtajosCambiados;
+    }
+
+    /// <summary>Se desuscribe del evento estático al cerrar — evita fugas de memoria.</summary>
+    private void OnClosed(object? sender, System.EventArgs e)
+    {
+        AtajosService.AtajosCambiados -= OnAtajosCambiados;
+    }
+
+    /// <summary>
+    /// Reacciona a un guardado en Configuración → Atajos: recompone las
+    /// InputBindings sin necesidad de reiniciar la app.
+    /// </summary>
+    private void OnAtajosCambiados(object? sender, AtajosConfig cfg) =>
+        Dispatcher.BeginInvoke(new System.Action(() => AplicarAtajos(cfg)));
+
+    /// <summary>
+    /// Aplica los atajos personalizables de <paramref name="cfg"/> a las
+    /// <c>InputBindings</c> de la ventana. Sólo toca los bindings que él mismo
+    /// agregó (rastreados en <c>_atajosConfigurables</c>): los 4 atajos FIJOS
+    /// declarados en XAML (Explorador, Undo, Redo, panel de atajos) nunca se
+    /// alteran. Gestos malformados se omiten en silencio.
+    /// </summary>
+    private void AplicarAtajos(AtajosConfig cfg)
+    {
+        if (DataContext is not MainViewModel vm) return;
+
+        // Quitar sólo los configurables aplicados antes — los fijos quedan.
+        foreach (var b in _atajosConfigurables) InputBindings.Remove(b);
+        _atajosConfigurables.Clear();
+
+        // Mapeo id de atajo → command del VM (por instancia). AgregarLosa no
+        // tiene command en LosasPlus, así que no figura en el mapa.
+        var mapa = new Dictionary<string, ICommand?>
+        {
+            { AtajoIds.NuevoProyecto, vm.NuevoProyectoLpxCommand },
+            { AtajoIds.Abrir,         vm.AbrirProyectoLpxCommand },
+            { AtajoIds.Guardar,       vm.GuardarProyectoLpxCommand },
+            { AtajoIds.GuardarComo,   vm.GuardarComoLpxCommand },
+            { AtajoIds.Generar,       vm.GenerarMemoriaCommand },
+            { AtajoIds.Busqueda,      vm.IrABusquedaCommand },
+        };
+
+        foreach (var (id, command) in mapa)
+        {
+            if (command is null) continue;
+            var gestureStr = cfg.Get(id);
+            if (string.IsNullOrWhiteSpace(gestureStr)) continue;
+
+            if (TryParseGesture(gestureStr, out var key, out var mods))
+            {
+                var kb = new KeyBinding(command, key, mods);
+                InputBindings.Add(kb);
+                _atajosConfigurables.Add(kb);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Parsea un gesto ("Ctrl+Shift+S") a un <c>Key</c> + <c>ModifierKeys</c>.
+    /// Tokens separados por '+', modificadores case-insensitive; los dígitos
+    /// 0..9 se traducen a Key.D0..D9. Réplica del helper de MemoriaPlus.
+    /// </summary>
+    private static bool TryParseGesture(string gesture, out Key key, out ModifierKeys mods)
+    {
+        key = Key.None;
+        mods = ModifierKeys.None;
+        var tokens = gesture.Split('+',
+            System.StringSplitOptions.RemoveEmptyEntries | System.StringSplitOptions.TrimEntries);
+        if (tokens.Length == 0) return false;
+
+        for (int i = 0; i < tokens.Length - 1; i++)
+        {
+            switch (tokens[i].ToLowerInvariant())
+            {
+                case "ctrl":
+                case "control": mods |= ModifierKeys.Control; break;
+                case "shift":   mods |= ModifierKeys.Shift;   break;
+                case "alt":     mods |= ModifierKeys.Alt;     break;
+                case "win":
+                case "windows": mods |= ModifierKeys.Windows; break;
+                default: return false;
+            }
+        }
+
+        var keyToken = tokens[^1];
+        if (keyToken.Length == 1 && char.IsDigit(keyToken[0]))
+            keyToken = "D" + keyToken;  // "5" → Key.D5
+
+        return System.Enum.TryParse<Key>(keyToken, ignoreCase: true, out key) && key != Key.None;
     }
 
     /// <summary>

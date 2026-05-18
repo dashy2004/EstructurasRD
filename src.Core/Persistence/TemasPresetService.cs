@@ -40,12 +40,6 @@ public static class TemasPresetService
     /// <summary>Override del path para tests aislados.</summary>
     public static string? PathOverride { get; set; }
 
-    private static readonly JsonSerializerOptions _opts = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
     private static string DefaultPath =>
         Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -62,7 +56,7 @@ public static class TemasPresetService
         try
         {
             var json = File.ReadAllText(path);
-            return JsonSerializer.Deserialize<List<TemaPreset>>(json, _opts) ?? new List<TemaPreset>();
+            return JsonSerializer.Deserialize<List<TemaPreset>>(json, JsonConfigHelper.DefaultOptions) ?? new List<TemaPreset>();
         }
         catch
         {
@@ -77,7 +71,7 @@ public static class TemasPresetService
         var path = ResolvedPath;
         var dir = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-        File.WriteAllText(path, JsonSerializer.Serialize(presets, _opts));
+        File.WriteAllText(path, JsonSerializer.Serialize(presets, JsonConfigHelper.DefaultOptions));
     }
 
     /// <summary>

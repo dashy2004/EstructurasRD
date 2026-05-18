@@ -52,12 +52,6 @@ public static class AparienciaService
 {
     public static string? PathOverride { get; set; }
 
-    private static readonly JsonSerializerOptions _opts = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
     private static string DefaultPath =>
         Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -73,7 +67,7 @@ public static class AparienciaService
         try
         {
             var json = File.ReadAllText(path);
-            return JsonSerializer.Deserialize<AparienciaConfig>(json, _opts) ?? new AparienciaConfig();
+            return JsonSerializer.Deserialize<AparienciaConfig>(json, JsonConfigHelper.DefaultOptions) ?? new AparienciaConfig();
         }
         catch
         {
@@ -87,7 +81,7 @@ public static class AparienciaService
         var path = ResolvedPath;
         var dir = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-        File.WriteAllText(path, JsonSerializer.Serialize(config, _opts));
+        File.WriteAllText(path, JsonSerializer.Serialize(config, JsonConfigHelper.DefaultOptions));
     }
 
     public static void Reset()

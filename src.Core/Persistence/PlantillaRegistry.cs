@@ -52,12 +52,6 @@ public static class PlantillaRegistry
     /// <summary>Para tests: override del path. <c>null</c> = usar default <c>%APPDATA%</c>.</summary>
     public static string? PathOverride { get; set; }
 
-    private static readonly JsonSerializerOptions _opts = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
     private static string DefaultPath =>
         Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -79,7 +73,7 @@ public static class PlantillaRegistry
         try
         {
             var json = File.ReadAllText(path);
-            var entries = JsonSerializer.Deserialize<List<PlantillaEntry>>(json, _opts) ?? new();
+            var entries = JsonSerializer.Deserialize<List<PlantillaEntry>>(json, JsonConfigHelper.DefaultOptions) ?? new();
             entries.RemoveAll(e => string.IsNullOrEmpty(e.Path) || !File.Exists(e.Path));
             return entries;
         }
@@ -202,7 +196,7 @@ public static class PlantillaRegistry
 
         try
         {
-            var json = JsonSerializer.Serialize(entries, _opts);
+            var json = JsonSerializer.Serialize(entries, JsonConfigHelper.DefaultOptions);
             File.WriteAllText(path, json);
         }
         catch

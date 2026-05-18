@@ -72,12 +72,6 @@ public static class PerfilIngenieroService
     /// <summary>Para tests: override del path. <c>null</c> = default <c>%APPDATA%</c>.</summary>
     public static string? PathOverride { get; set; }
 
-    private static readonly JsonSerializerOptions _opts = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
     private static string DefaultPath =>
         Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -97,7 +91,7 @@ public static class PerfilIngenieroService
         try
         {
             var json = File.ReadAllText(path);
-            return JsonSerializer.Deserialize<PerfilIngeniero>(json, _opts) ?? new PerfilIngeniero();
+            return JsonSerializer.Deserialize<PerfilIngeniero>(json, JsonConfigHelper.DefaultOptions) ?? new PerfilIngeniero();
         }
         catch
         {
@@ -113,7 +107,7 @@ public static class PerfilIngenieroService
         var dir = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
 
-        var json = JsonSerializer.Serialize(perfil, _opts);
+        var json = JsonSerializer.Serialize(perfil, JsonConfigHelper.DefaultOptions);
         File.WriteAllText(path, json);
     }
 

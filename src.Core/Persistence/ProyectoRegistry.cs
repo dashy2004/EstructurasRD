@@ -25,12 +25,6 @@ public static class ProyectoRegistry
     /// <summary>Para tests: override del path. <c>null</c> = usar default <c>%APPDATA%</c>.</summary>
     public static string? PathOverride { get; set; }
 
-    private static readonly JsonSerializerOptions _opts = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
     private static string DefaultPath =>
         Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -48,7 +42,7 @@ public static class ProyectoRegistry
         try
         {
             var json = File.ReadAllText(path);
-            var entries = JsonSerializer.Deserialize<List<RecentEntry>>(json, _opts) ?? new();
+            var entries = JsonSerializer.Deserialize<List<RecentEntry>>(json, JsonConfigHelper.DefaultOptions) ?? new();
             // Filtra entries cuyo archivo ya no exista en disco.
             entries.RemoveAll(e => !File.Exists(e.Path));
             return entries.OrderByDescending(e => e.UltimoAccesoUtc).Take(MaxEntries).ToList();
@@ -128,7 +122,7 @@ public static class ProyectoRegistry
 
         try
         {
-            var json = JsonSerializer.Serialize(entries, _opts);
+            var json = JsonSerializer.Serialize(entries, JsonConfigHelper.DefaultOptions);
             File.WriteAllText(path, json);
         }
         catch
