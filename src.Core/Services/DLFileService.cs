@@ -96,7 +96,11 @@ public static class DLFileService
             sistema.Losas.Add(new Losa
             {
                 Id = ParseInt(Next($"ID losa #{i + 1}")),
-                Tipo = ParseInt(Next($"TIPO losa #{i + 1}")),
+                // Remapeo de aliases legacy (11→10, 50→60). Los tipos realmente
+                // no permitidos (41, 99, …) se cargan sin tocar — la marca roja
+                // del IDataErrorInfo y la regla de validación normativa los
+                // exponen sin perder los datos del .DL.
+                Tipo = TipoLosa.NormalizarCodigo(ParseInt(Next($"TIPO losa #{i + 1}"))),
                 Carga = ParseDouble(Next($"CARGA losa #{i + 1}")),
                 Espesor = ParseDouble(Next($"ESPESOR losa #{i + 1}")),
                 Lx = ParseDouble(Next($"LX losa #{i + 1}")),

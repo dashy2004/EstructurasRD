@@ -473,7 +473,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             if (aplicarLy)      l.Ly      = ly;
             if (aplicarEspesor) l.Espesor = esp;
             if (aplicarCarga)   l.Carga   = car;
-            if (aplicarTipo && TipoLosa.Catalogo.ContainsKey(tipo)) l.Tipo = tipo;
+            if (aplicarTipo && TipoLosa.EsCodigoValido(tipo)) l.Tipo = tipo;
             aplicados++;
         }
         // Reset campos para que la próxima vez no se queden con valores viejos.

@@ -404,6 +404,21 @@ public static class DLDoctor
                         LineaNumero: null,
                         FixDescripcion: "Disminuir Rec a un valor menor que H."));
                 }
+                // Tipo de losa fuera del catálogo de 23 permitidos. Los aliases
+                // legacy (11→10, 50→60) ya se remapearon en DLFileService.ReadAll,
+                // así que aquí solo aparecen tipos realmente no soportados (41, 99…).
+                if (!TipoLosa.EsCodigoValido(l.Tipo))
+                {
+                    issues.Add(new DLIssue(
+                        DLIssueSeverity.Warning,
+                        "DL106-TIPO-INVALIDO",
+                        $"Sistema '{sis.Nombre}' losa #{losaIdx} (ID {l.Id}): tipo {l.Tipo} no " +
+                        "pertenece al catálogo de 23 tipos Pieper-Martens soportados. El motor " +
+                        "no puede procesarlo.",
+                        LineaNumero: null,
+                        FixDescripcion: "Cambiar el tipo a uno válido (10, 13, 14, 21–24, 31–34, " +
+                                        "40, 43, 44, 51–54, 60, 63, 64, 71, 72) en el DataGrid del Editor."));
+                }
             }
 
             // Bordes huérfanos (BI o BJ no existe como Id en Losas)

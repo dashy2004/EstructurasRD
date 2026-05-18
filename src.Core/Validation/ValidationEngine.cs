@@ -44,6 +44,7 @@ public sealed class ValidationEngine
     public static ValidationEngine Default() => new(
         new IValidationRule[]
         {
+            new TipoLosaValidoRule(),
             new EspesorMinimoR001Rule(),
             new CargaVivaMinimaR001Rule(),
             new EspesorVsCalculadoRule(),
