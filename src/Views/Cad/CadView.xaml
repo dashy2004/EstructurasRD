@@ -1,0 +1,39 @@
+<UserControl x:Class="LosasPlus.Views.Cad.CadView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:cad="clr-namespace:LosasPlus.Views.Cad"
+             Background="{DynamicResource BgPrimary}">
+    <DockPanel>
+        <!-- Barra superior: importar DXF + estado -->
+        <Border DockPanel.Dock="Top" Padding="10,8"
+                Background="{DynamicResource BgSecondary}"
+                BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+            <DockPanel LastChildFill="True">
+                <Button DockPanel.Dock="Left" Padding="12,5"
+                        Content="📂  Importar DXF…"
+                        Command="{Binding CadEditor.ImportarDxfCommand}"
+                        ToolTip="Abre un plano de arquitectura .DXF como capa de referencia."/>
+                <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
+                           Margin="14,0,0,0"
+                           Foreground="{DynamicResource FgMuted}" FontSize="12"
+                           TextTrimming="CharacterEllipsis"
+                           Text="{Binding CadEditor.EstadoImportacion}"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Pie: ayuda de interacción -->
+        <Border DockPanel.Dock="Bottom" Padding="10,4"
+                Background="{DynamicResource BgSecondary}"
+                BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
+            <TextBlock Foreground="{DynamicResource FgMuted}" FontSize="11"
+                       Text="Rueda del mouse = zoom · arrastrar = pan · capa de losas posicionada por LayoutSolver (solo-lectura en esta fase)."/>
+        </Border>
+
+        <!-- Lienzo CAD retained-mode -->
+        <Border Background="{DynamicResource BgInput}" ClipToBounds="True">
+            <cad:CadCanvasHost x:Name="Canvas"
+                               Plano="{Binding CadEditor.Plano}"
+                               Sistema="{Binding Sistema}"/>
+        </Border>
+    </DockPanel>
+</UserControl>

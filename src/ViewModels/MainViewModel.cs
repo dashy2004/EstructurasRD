@@ -148,6 +148,13 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     // ---- Búsqueda global (commit 35) ----
     public MemoriaPlusVm.BusquedaViewModel Busqueda { get; private set; } = null!;
 
+    /// <summary>
+    /// Sub-ViewModel del modo Plano CAD (Fase 1.B del PLAN_CAD_V1). Coordina
+    /// la importación de planos .DXF; las losas que dibuja vienen del SSOT
+    /// (<see cref="Sistema"/>.Losas), no de un estado propio.
+    /// </summary>
+    public CadEditorViewModel CadEditor { get; private set; } = null!;
+
     public ICommand? IrABusquedaCommand { get; private set; }
     public ICommand? GenerarMemoriaCommand { get; private set; }
     public ICommand? AutoBalanceoCommand { get; private set; }
@@ -626,6 +633,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         IrABusquedaCommand = new RelayCommand(_ => ModoActivo = ModoSidebar.Busqueda);
         GenerarMemoriaCommand = new RelayCommand(_ => GenerarMemoria());
         AutoBalanceoCommand   = new RelayCommand(_ => AplicarAutoBalanceo());
+
+        // ---- Plano CAD (Fase 1.B) — el sub-VM lee las losas del sistema activo ----
+        CadEditor = new CadEditorViewModel(getSistemaActivo: () => _sistemaActivo);
 
         // Cambios al nombre del proyecto refrescan el título de la ventana.
         _proyecto.PropertyChanged += (_, e) =>
@@ -1330,6 +1340,8 @@ public enum ModoSidebar
     Explorador,
     Editor,
     Diagrama,
+    /// <summary>Editor visual CAD: plano DXF de referencia + losas (Fase 1.B).</summary>
+    PlanoCad,
     DLEditor,
     Salida,
     /// <summary>Diseño de aceros distribuidos (próximamente — placeholder en la UI).</summary>

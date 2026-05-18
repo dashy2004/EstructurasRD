@@ -4,6 +4,7 @@
         xmlns:vm="clr-namespace:LosasPlus.ViewModels"
         xmlns:m="clr-namespace:LosasPlus.Models"
         xmlns:v="clr-namespace:LosasPlus.Views"
+        xmlns:cad="clr-namespace:LosasPlus.Views.Cad"
         xmlns:s="clr-namespace:LosasPlus.Services"
         xmlns:cmn="clr-namespace:MemoriaPlus.Common;assembly=MemoriaPlus.UI.Shared"
         xmlns:vws="clr-namespace:MemoriaPlus.Views;assembly=MemoriaPlus.UI.Shared"
@@ -121,6 +122,9 @@
                                  IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Editor}"/>
                     <RadioButton GroupName="SidebarNav" Content="⛶  Diagrama"
                                  IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Diagrama}"/>
+                    <RadioButton GroupName="SidebarNav" Content="🗺  Plano CAD"
+                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}"
+                                 ToolTip="Editor visual CAD: importá un plano .DXF de referencia y visualizá las losas. Fase 1 — visualización."/>
                     <RadioButton GroupName="SidebarNav" Content="▤  Editor .DL"
                                  IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DLEditor}"/>
                     <RadioButton GroupName="SidebarNav" Content="⇲  Salida .TXT"
@@ -969,6 +973,22 @@
                         </Style>
                     </ContentControl.Style>
                     <v:DiagramView x:Name="Diagram" DataContext="{Binding}"/>
+                </ContentControl>
+
+                <!-- MODO Plano CAD (Fase 1.B) — editor visual CAD retained-mode.
+                     Componente nuevo e independiente de DiagramView. -->
+                <ContentControl>
+                    <ContentControl.Style>
+                        <Style TargetType="{x:Type ContentControl}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ModoActivo}" Value="PlanoCad">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ContentControl.Style>
+                    <cad:CadView x:Name="CadEditorView" DataContext="{Binding}"/>
                 </ContentControl>
 
                 <!-- MODO DLEditor (texto crudo) -->
