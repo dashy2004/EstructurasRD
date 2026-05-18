@@ -43,6 +43,57 @@ public class DLFileServiceTests
     }
 
     [Fact]
+    public void ReadAll_remapea_aliases_legacy_11_a_10_y_50_a_60()
+    {
+        // Un .DL con tipos 11 y 50 (aliases legacy retirados) debe cargar las
+        // losas con sus códigos canónicos 10 y 60 — sin perder datos.
+        var tmp = Path.Combine(Path.GetTempPath(), $"losasplus_alias_{System.Guid.NewGuid():N}.DL");
+        var contenido =
+            "Sistema No 1\r\n" +
+            "2 0.210 4.200 1\r\n" +
+            "1 11 2.0 0.12 4.0 4.0 0.02\r\n" +
+            "2 50 2.0 0.12 4.0 4.0 0.02\r\n" +
+            "0\r\n0\r\n";
+        File.WriteAllText(tmp, contenido, System.Text.Encoding.GetEncoding(1252));
+        try
+        {
+            var s = DLFileService.ReadAll(tmp)[0];
+            Assert.Equal(10, s.Losas[0].Tipo);   // 11 → 10
+            Assert.Equal(60, s.Losas[1].Tipo);   // 50 → 60
+            Assert.True(s.Losas[0].TipoEsValido);
+            Assert.True(s.Losas[1].TipoEsValido);
+        }
+        finally
+        {
+            try { File.Delete(tmp); } catch { }
+        }
+    }
+
+    [Fact]
+    public void ReadAll_conserva_tipo_invalido_sin_remapear()
+    {
+        // Un tipo no permitido y sin alias (41) se carga tal cual — la
+        // validación lo marca, pero no se pierde el dato del .DL.
+        var tmp = Path.Combine(Path.GetTempPath(), $"losasplus_t41_{System.Guid.NewGuid():N}.DL");
+        var contenido =
+            "Sistema No 1\r\n" +
+            "1 0.210 4.200 1\r\n" +
+            "1 41 2.0 0.12 4.0 4.0 0.02\r\n" +
+            "0\r\n0\r\n";
+        File.WriteAllText(tmp, contenido, System.Text.Encoding.GetEncoding(1252));
+        try
+        {
+            var s = DLFileService.ReadAll(tmp)[0];
+            Assert.Equal(41, s.Losas[0].Tipo);          // sin remapear
+            Assert.False(s.Losas[0].TipoEsValido);      // pero marcado inválido
+        }
+        finally
+        {
+            try { File.Delete(tmp); } catch { }
+        }
+    }
+
+    [Fact]
     public void Lee_bordes_X_y_Y_con_balanceo()
     {
         var s = DLFileService.Read(FixturePath("sample_simple.DL"));

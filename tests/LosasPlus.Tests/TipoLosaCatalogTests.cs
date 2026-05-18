@@ -42,18 +42,78 @@ public class TipoLosaCatalogTests
             "Tipos usados por el motor pero no en el catálogo: " + string.Join(", ", faltantes));
     }
 
-    [Fact]
-    public void Catalogo_incluye_tipos_basicos_de_la_grilla_del_programa()
+    /// <summary>Los 23 tipos permitidos por la regla de negocio (catálogo Pieper-Martens).</summary>
+    private static readonly int[] CodigosCanonicos =
     {
-        // Basados en la grilla visible en la GUI de Losas.exe (Ver. 5.20 Abr 2013):
-        // Fila 1: 10 21 31 40 51 60 71
-        // Fila 2: 22 32 52 72
-        // Fila 3 / 4: variantes 13/14/23/24/33/34/43/44/53/54/63/64
-        int[] esperados = { 10, 21, 22, 31, 32, 40, 51, 52, 60, 71, 72,
-                            13, 14, 23, 24, 33, 34, 43, 44, 53, 54, 63, 64 };
-        var faltantes = esperados.Where(t => !TipoLosa.Catalogo.ContainsKey(t)).ToArray();
-        Assert.True(faltantes.Length == 0,
-            "Tipos visibles en la GUI no presentes en el catálogo: " + string.Join(", ", faltantes));
+        10, 13, 14, 21, 22, 23, 24, 31, 32, 33, 34, 40, 43, 44,
+        51, 52, 53, 54, 60, 63, 64, 71, 72,
+    };
+
+    [Fact]
+    public void Catalogo_tiene_exactamente_los_23_tipos_canonicos()
+    {
+        // El catálogo debe ser EXACTAMENTE los 23 — ni más ni menos.
+        var enCatalogo = TipoLosa.Catalogo.Keys.OrderBy(x => x).ToArray();
+        Assert.Equal(CodigosCanonicos.OrderBy(x => x).ToArray(), enCatalogo);
+        Assert.Equal(23, TipoLosa.Catalogo.Count);
+    }
+
+    [Fact]
+    public void Catalogo_NO_incluye_los_tipos_espurios_11_41_50()
+    {
+        // Regresión: 11, 41 y 50 fueron retirados (aliases legacy / variante
+        // no estándar). Nunca deben volver al catálogo.
+        Assert.False(TipoLosa.Catalogo.ContainsKey(11));
+        Assert.False(TipoLosa.Catalogo.ContainsKey(41));
+        Assert.False(TipoLosa.Catalogo.ContainsKey(50));
+    }
+
+    [Fact]
+    public void EsCodigoValido_acepta_los_23_y_rechaza_espurios_y_desconocidos()
+    {
+        foreach (var c in CodigosCanonicos)
+            Assert.True(TipoLosa.EsCodigoValido(c), $"Tipo {c} debería ser válido");
+
+        // Espurios retirados
+        Assert.False(TipoLosa.EsCodigoValido(11));
+        Assert.False(TipoLosa.EsCodigoValido(41));
+        Assert.False(TipoLosa.EsCodigoValido(50));
+        // Códigos arbitrarios
+        Assert.False(TipoLosa.EsCodigoValido(0));
+        Assert.False(TipoLosa.EsCodigoValido(99));
+        Assert.False(TipoLosa.EsCodigoValido(-1));
+    }
+
+    [Fact]
+    public void NormalizarCodigo_remapea_11_y_50_pero_no_41_ni_validos()
+    {
+        // Aliases legacy con patrón de bordes idéntico → remapeo seguro.
+        Assert.Equal(10, TipoLosa.NormalizarCodigo(11));
+        Assert.Equal(60, TipoLosa.NormalizarCodigo(50));
+        // 41 NO es alias seguro → se deja tal cual (lo rechaza la validación).
+        Assert.Equal(41, TipoLosa.NormalizarCodigo(41));
+        // Códigos válidos pasan sin cambios.
+        Assert.Equal(40, TipoLosa.NormalizarCodigo(40));
+        Assert.Equal(72, TipoLosa.NormalizarCodigo(72));
+        // Código desconocido se deja tal cual.
+        Assert.Equal(99, TipoLosa.NormalizarCodigo(99));
+    }
+
+    [Fact]
+    public void Losa_con_tipo_invalido_falla_IDataErrorInfo()
+    {
+        var losa = new Losa { Lx = 4, Ly = 4, Espesor = 0.12, Carga = 1.0, Rec = 0.02 };
+        losa.Tipo = 40;
+        Assert.True(losa.TipoEsValido);
+        Assert.True(losa.EsValida);
+
+        losa.Tipo = 41;  // espurio retirado
+        Assert.False(losa.TipoEsValido);
+        Assert.False(losa.EsValida);
+        Assert.Contains("no permitido", ((System.ComponentModel.IDataErrorInfo)losa)["Tipo"]);
+
+        losa.Tipo = 99;  // desconocido
+        Assert.False(losa.TipoEsValido);
     }
 
     [Fact]

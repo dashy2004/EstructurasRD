@@ -28,7 +28,9 @@ public class MultiSistemaTests
 
         Assert.Equal("Cubierta techo", sistemas[1].Nombre);
         Assert.Single(sistemas[1].Losas);
-        Assert.Equal(50, sistemas[1].Losas[0].Tipo);
+        // El fixture trae el tipo 50 (alias legacy); ReadAll lo remapea al
+        // código canónico 60 (mismo patrón de bordes — perimetral empotrado).
+        Assert.Equal(60, sistemas[1].Losas[0].Tipo);
         Assert.Equal(1.500, sistemas[1].Losas[0].Carga);
         Assert.Equal(1, sistemas[1].Adicionales);
     }

@@ -224,6 +224,37 @@ Sistema No 1
     }
 
     [Fact]
+    public void Diagnosticar_tipo_invalido_lo_reporta_como_DL106()
+    {
+        // Tipo 99 no pertenece al catálogo de 23.
+        var contenido = @"Sistema No 1
+1 0.210 4.200 1
+1 99 2.0 0.12 4.0 4.0 0.02
+0
+0
+";
+        var path = CrearTemp(contenido);
+        var diag = DLDoctor.Diagnosticar(path);
+        Assert.Contains(diag.Issues, i => i.Codigo == "DL106-TIPO-INVALIDO");
+    }
+
+    [Fact]
+    public void Diagnosticar_tipo_alias_legacy_11_no_se_reporta_porque_se_remapea()
+    {
+        // El tipo 11 es alias legacy → DLFileService lo remapea a 10 al parsear,
+        // por lo que el Doctor ya no lo ve como inválido.
+        var contenido = @"Sistema No 1
+1 0.210 4.200 1
+1 11 2.0 0.12 4.0 4.0 0.02
+0
+0
+";
+        var path = CrearTemp(contenido);
+        var diag = DLDoctor.Diagnosticar(path);
+        Assert.DoesNotContain(diag.Issues, i => i.Codigo == "DL106-TIPO-INVALIDO");
+    }
+
+    [Fact]
     public void Diagnosticar_balanceo_no_normalizado_lo_reporta_como_Info()
     {
         var contenido = @"Sistema No 1

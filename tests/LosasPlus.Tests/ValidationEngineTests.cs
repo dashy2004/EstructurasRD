@@ -282,4 +282,52 @@ public class ValidationEngineTests
         var issueLosa = issueSistema with { LosaId = 4 };
         Assert.Equal("Nivel E1 · Losa L4", issueLosa.UbicacionFormateada);
     }
+
+    // -----------------------------------------------------------------
+    // TipoLosaValidoRule — fail-fast del catálogo de 23 tipos
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void TipoLosaValidoRule_no_dispara_para_tipo_valido()
+    {
+        var p = ProyectoBase();  // losa con Tipo = 10 (válido)
+        var issues = new TipoLosaValidoRule().Evaluar(p).ToList();
+        Assert.Empty(issues);
+    }
+
+    [Fact]
+    public void TipoLosaValidoRule_dispara_error_para_tipo_invalido()
+    {
+        var p = ProyectoBase();
+        p.Sistemas[0].Losas[0].Tipo = 99;  // código no permitido
+        var issues = new TipoLosaValidoRule().Evaluar(p).ToList();
+        Assert.Single(issues);
+        Assert.Equal(ValidationSeverity.Error, issues[0].Severidad);
+        Assert.Equal("TIPO-LOSA-NO-PERMITIDO", issues[0].Codigo);
+        Assert.Equal(1, issues[0].LosaId);
+        Assert.Equal("E1", issues[0].NombreSistema);
+        Assert.Equal(99, issues[0].ValorActual);
+    }
+
+    [Fact]
+    public void TipoLosaValidoRule_dispara_para_los_espurios_retirados()
+    {
+        var p = ProyectoBase();
+        // 41 es espurio retirado (no es alias seguro de 40).
+        p.Sistemas[0].Losas[0].Tipo = 41;
+        var issues = new TipoLosaValidoRule().Evaluar(p).ToList();
+        Assert.Single(issues);
+        Assert.Equal("TIPO-LOSA-NO-PERMITIDO", issues[0].Codigo);
+    }
+
+    [Fact]
+    public void Default_engine_incluye_la_regla_de_tipo_y_reporta_el_error()
+    {
+        var p = ProyectoBase();
+        CalculoEngine.RecalcularProyecto(p);
+        p.Sistemas[0].Losas[0].Tipo = 88;  // inválido
+        var reporte = ValidationEngine.Default().Validar(p);
+        Assert.Contains(reporte.Issues, i => i.Codigo == "TIPO-LOSA-NO-PERMITIDO");
+        Assert.True(reporte.Errores >= 1);
+    }
 }
