@@ -150,7 +150,17 @@ public partial class Losa : INotifyPropertyChanged, IDataErrorInfo
     private double _rec = 0.020;       // m
 
     public int Id { get => _id; set { _id = value; OnPropertyChanged(); } }
-    public int Tipo { get => _tipo; set { _tipo = value; OnPropertyChanged(); OnPropertyChanged(nameof(TipoDescripcion)); } }
+    public int Tipo
+    {
+        get => _tipo;
+        set
+        {
+            _tipo = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(TipoDescripcion));
+            OnPropertyChanged(nameof(TipoEsValido));
+        }
+    }
 
     public double Carga
     {
@@ -218,6 +228,14 @@ public partial class Losa : INotifyPropertyChanged, IDataErrorInfo
     [JsonIgnore]
     public string TipoDescripcion => TipoLosa.Catalogo.TryGetValue(_tipo, out var t) ? t.Descripcion : "(no estándar)";
 
+    /// <summary>
+    /// True si <see cref="Tipo"/> es uno de los 23 códigos permitidos por la
+    /// regla de negocio (ver <see cref="TipoLosa.CodigosValidos"/>). La UI lo
+    /// usa para marcar en rojo las celdas con tipo no permitido.
+    /// </summary>
+    [JsonIgnore]
+    public bool TipoEsValido => TipoLosa.EsCodigoValido(_tipo);
+
     /// <summary>True cuando Ly/Lx queda fuera del rango Pieper-Martens. Warning, no error.</summary>
     [JsonIgnore]
     public bool AspectoFueraDeRango => _lx > 0 && (Aspecto < AspectoMin || Aspecto > AspectoMax);
@@ -247,6 +265,7 @@ public partial class Losa : INotifyPropertyChanged, IDataErrorInfo
         nameof(Espesor) => _espesor <= 0 ? "Espesor (H) debe ser mayor que 0 (en metros)." : "",
         nameof(Carga)   => _carga   <= 0 ? "Carga Wu debe ser mayor que 0 (en ton/m²)." : "",
         nameof(Rec)     => ValidateRec(),
+        nameof(Tipo)    => ValidateTipo(),
         _ => ""
     };
 
@@ -255,7 +274,7 @@ public partial class Losa : INotifyPropertyChanged, IDataErrorInfo
         get
         {
             var dei = (IDataErrorInfo)this;
-            var errors = new[] { nameof(Lx), nameof(Ly), nameof(Espesor), nameof(Carga), nameof(Rec) }
+            var errors = new[] { nameof(Lx), nameof(Ly), nameof(Espesor), nameof(Carga), nameof(Rec), nameof(Tipo) }
                 .Select(p => dei[p])
                 .Where(e => !string.IsNullOrEmpty(e));
             return string.Join(" • ", errors);
@@ -268,6 +287,14 @@ public partial class Losa : INotifyPropertyChanged, IDataErrorInfo
         if (_espesor > 0 && _rec >= _espesor)
             return $"Recubrimiento ({_rec:0.000} m) debe ser menor que el espesor ({_espesor:0.000} m).";
         return "";
+    }
+
+    private string ValidateTipo()
+    {
+        if (TipoLosa.EsCodigoValido(_tipo)) return "";
+        return $"Tipo {_tipo} no permitido. Solo se aceptan los 23 tipos del " +
+               "catálogo Pieper-Martens (10, 13, 14, 21–24, 31–34, 40, 43, 44, " +
+               "51–54, 60, 63, 64, 71, 72).";
     }
 
     /// <summary>Conveniencia para tests y plugins: ¿la losa pasa todas las validaciones duras?</summary>
@@ -441,8 +468,6 @@ public sealed record TipoLosa
         // 1x — sin empotramientos (apoyo simple en los 4 bordes, eventualmente con vuelos)
         [10] = new(10, "Cuatro bordes simplemente apoyados",
             BorderKind.Apoyado, BorderKind.Apoyado, BorderKind.Apoyado, BorderKind.Apoyado),
-        [11] = new(11, "Cuatro bordes simplemente apoyados (alias legacy de 10)",
-            BorderKind.Apoyado, BorderKind.Apoyado, BorderKind.Apoyado, BorderKind.Apoyado),
         [13] = new(13, "Apoyo simple + un vuelo (variante)",
             BorderKind.Apoyado, BorderKind.Apoyado, BorderKind.Apoyado, BorderKind.Vuelo),
         [14] = new(14, "Apoyo simple + dos vuelos (variante)",
@@ -471,16 +496,12 @@ public sealed record TipoLosa
         // 4x — tres bordes continuos
         [40] = new(40, "Tres bordes continuos (libre el cuarto en X)",
             BorderKind.Empotrado, BorderKind.Empotrado, BorderKind.Apoyado, BorderKind.Empotrado),
-        [41] = new(41, "Tres bordes continuos (libre el cuarto en Y)",
-            BorderKind.Empotrado, BorderKind.Apoyado, BorderKind.Empotrado, BorderKind.Empotrado),
         [43] = new(43, "Tres bordes continuos + un vuelo (variante)",
             BorderKind.Empotrado, BorderKind.Empotrado, BorderKind.Vuelo, BorderKind.Empotrado),
         [44] = new(44, "Tres bordes continuos + dos vuelos (variante)",
             BorderKind.Empotrado, BorderKind.Vuelo, BorderKind.Empotrado, BorderKind.Vuelo),
 
         // 5x — perimetral con vuelos / variantes
-        [50] = new(50, "Cuatro bordes empotrados (alias legacy de 60)",
-            BorderKind.Empotrado, BorderKind.Empotrado, BorderKind.Empotrado, BorderKind.Empotrado),
         [51] = new(51, "Tres bordes continuos + variante de orientación",
             BorderKind.Empotrado, BorderKind.Empotrado, BorderKind.Apoyado, BorderKind.Empotrado),
         [52] = new(52, "Cuatro bordes continuos + variante de orientación",
@@ -507,4 +528,43 @@ public sealed record TipoLosa
 
     public static string FormatTabla(int codigo)
         => Catalogo.TryGetValue(codigo, out var t) ? $"{t.Codigo} — {t.Descripcion}" : codigo.ToString(CultureInfo.InvariantCulture);
+
+    // =====================================================================
+    // VALIDACIÓN DE CÓDIGOS — los 23 tipos permitidos por la regla de negocio
+    // =====================================================================
+
+    /// <summary>
+    /// Conjunto de los 23 códigos de tipo de losa <b>permitidos</b>. Es la
+    /// fuente única de verdad de la regla de negocio: la aplicación solo
+    /// procesa estos tipos. Derivado directamente de <see cref="Catalogo"/>
+    /// (que ya contiene exactamente esos 23).
+    /// </summary>
+    public static readonly IReadOnlySet<int> CodigosValidos =
+        new HashSet<int>(Catalogo.Keys);
+
+    /// <summary>
+    /// Aliases legacy de códigos retirados: tipos cuyo patrón de bordes es
+    /// <b>idéntico</b> a un código canónico, por lo que se pueden remapear
+    /// con seguridad al cargar archivos viejos.
+    /// <list type="bullet">
+    ///   <item><c>11 → 10</c> — ambos: cuatro bordes simplemente apoyados.</item>
+    ///   <item><c>50 → 60</c> — ambos: cuatro bordes empotrados (perimetral).</item>
+    /// </list>
+    /// El código <c>41</c> NO se incluye: su orientación de bordes difiere de
+    /// 40 (no es un alias seguro), así que se trata como tipo no permitido.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<int, int> AliasesLegacy =
+        new Dictionary<int, int> { [11] = 10, [50] = 60 };
+
+    /// <summary>True si <paramref name="codigo"/> es uno de los 23 tipos permitidos.</summary>
+    public static bool EsCodigoValido(int codigo) => CodigosValidos.Contains(codigo);
+
+    /// <summary>
+    /// Normaliza un código: si es un alias legacy conocido (ver
+    /// <see cref="AliasesLegacy"/>) devuelve el código canónico equivalente;
+    /// en cualquier otro caso devuelve el código sin cambios. Usar al
+    /// <b>parsear archivos</b> para absorber .DL antiguos sin perder datos.
+    /// </summary>
+    public static int NormalizarCodigo(int codigo)
+        => AliasesLegacy.TryGetValue(codigo, out var canonico) ? canonico : codigo;
 }
