@@ -521,6 +521,44 @@ public partial class Losa
 
     /// <summary>Área total de acero en Y (cm²) — sumatoria de <see cref="RefuerzoY"/> · áreas nominales.</summary>
     public double? AsyCalc { get => _asyCalc; set { _asyCalc = value; OnPropertyChanged(); } }
+
+    // =====================================================================
+    // POSICIÓN EN EL LIENZO CAD (Fase 2 del PLAN_CAD_V1)
+    // =====================================================================
+
+    private double? _posX;
+    private double? _posY;
+
+    /// <summary>
+    /// Coordenada X de la esquina superior-izquierda de la losa en el lienzo
+    /// CAD (m). <c>null</c> = losa "flotante": su posición la infiere
+    /// <see cref="LosasPlus.Services.LayoutSolver"/> desde las adyacencias.
+    /// Cuando tiene valor (junto con <see cref="PosY"/>), la losa está
+    /// "anclada" — el solver respeta esa coordenada exacta.
+    /// </summary>
+    public double? PosX
+    {
+        get => _posX;
+        set { _posX = value; OnPropertyChanged(); OnPropertyChanged(nameof(TienePosicionExplicita)); }
+    }
+
+    /// <summary>
+    /// Coordenada Y de la esquina superior-izquierda en el lienzo CAD (m),
+    /// con eje Y descendente (igual convención que
+    /// <c>LayoutSolver.Placement</c>). <c>null</c> = losa flotante.
+    /// </summary>
+    public double? PosY
+    {
+        get => _posY;
+        set { _posY = value; OnPropertyChanged(); OnPropertyChanged(nameof(TienePosicionExplicita)); }
+    }
+
+    /// <summary>
+    /// True si la losa tiene posición explícita (ambas <see cref="PosX"/> y
+    /// <see cref="PosY"/> con valor) — está "anclada" en el lienzo CAD.
+    /// </summary>
+    [JsonIgnore]
+    public bool TienePosicionExplicita => _posX.HasValue && _posY.HasValue;
 }
 
 /// <summary>

@@ -26,14 +26,15 @@
                 Background="{DynamicResource BgSecondary}"
                 BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
             <TextBlock Foreground="{DynamicResource FgMuted}" FontSize="11"
-                       Text="Rueda del mouse = zoom · arrastrar = pan · capa de losas posicionada por LayoutSolver (solo-lectura en esta fase)."/>
+                       Text="Rueda = zoom · arrastrar = pan · clic en un polígono rectangular del plano = crear una losa."/>
         </Border>
 
         <!-- Lienzo CAD retained-mode -->
         <Border Background="{DynamicResource BgInput}" ClipToBounds="True">
             <cad:CadCanvasHost x:Name="Canvas"
                                Plano="{Binding CadEditor.Plano}"
-                               Sistema="{Binding Sistema}"/>
+                               Sistema="{Binding Sistema}"
+                               PoligonoClickCommand="{Binding CadEditor.MapearPoligonoCommand}"/>
         </Border>
     </DockPanel>
 </UserControl>

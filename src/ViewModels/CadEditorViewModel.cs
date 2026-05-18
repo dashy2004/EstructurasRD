@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using LosasPlus.Models;
@@ -25,18 +26,21 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
 {
     private readonly IPlanoImporter _importer;
     private readonly Func<Sistema> _getSistemaActivo;
+    private readonly Action _pushUndoSnapshot;
 
-    public CadEditorViewModel(Func<Sistema> getSistemaActivo)
-        : this(getSistemaActivo, new DxfImportService())
+    public CadEditorViewModel(Func<Sistema> getSistemaActivo, Action pushUndoSnapshot)
+        : this(getSistemaActivo, pushUndoSnapshot, new DxfImportService())
     {
     }
 
     /// <summary>Constructor con inyección del importador — útil para tests.</summary>
-    public CadEditorViewModel(Func<Sistema> getSistemaActivo, IPlanoImporter importer)
+    public CadEditorViewModel(Func<Sistema> getSistemaActivo, Action pushUndoSnapshot, IPlanoImporter importer)
     {
         _getSistemaActivo = getSistemaActivo ?? throw new ArgumentNullException(nameof(getSistemaActivo));
+        _pushUndoSnapshot = pushUndoSnapshot ?? throw new ArgumentNullException(nameof(pushUndoSnapshot));
         _importer = importer ?? throw new ArgumentNullException(nameof(importer));
         ImportarDxfCommand = new RelayCommand(_ => ImportarDxf());
+        MapearPoligonoCommand = new RelayCommand(p => MapearPoligono(p as PolilineaCad));
     }
 
     // ---- Plano DXF importado ----
@@ -114,6 +118,57 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
             // Red de seguridad — cualquier fallo inesperado se reporta sin crashear.
             EstadoImportacion = $"✕ Error inesperado al importar: {ex.Message}";
         }
+    }
+
+    // ---- Comando: mapear un polígono del plano a una nueva Losa (Fase 2) ----
+
+    /// <summary>
+    /// Convierte un polígono rectangular del plano DXF en una <see cref="Losa"/>
+    /// nueva. El parámetro es la <see cref="PolilineaCad"/> sobre la que el
+    /// usuario hizo clic en el lienzo (lo dispara <c>CadCanvasHost</c>).
+    /// </summary>
+    public ICommand MapearPoligonoCommand { get; }
+
+    private void MapearPoligono(PolilineaCad? poli)
+    {
+        if (poli is null) return;
+
+        // Restricción geométrica estricta: solo rectángulos ortogonales.
+        if (!PoligonoLosaMapper.TryMapearRectangulo(poli, out var rect))
+        {
+            EstadoImportacion =
+                "✕ El polígono no es un rectángulo ortogonal — no se puede mapear a una losa. " +
+                "Solo se aceptan contornos rectangulares de 4 lados a 90°.";
+            return;
+        }
+
+        var sistema = SistemaActivo;
+        int nuevoId = sistema.Losas.Count > 0 ? sistema.Losas.Max(l => l.Id) + 1 : 1;
+
+        // Conversión a coordenadas del lienzo (Y descendente): la esquina
+        // superior-izquierda en pantalla corresponde al Y máximo del DXF.
+        double posX = rect.MinX;
+        double posY = (Plano?.MaxY ?? rect.MaxY) - rect.MaxY;
+
+        var losa = new Losa
+        {
+            Id = nuevoId,
+            Tipo = 10,                  // 4 bordes simplemente apoyados (default editable)
+            Lx = rect.Ancho,
+            Ly = rect.Alto,
+            PosX = posX,
+            PosY = posY,
+            // Carga / Espesor / Rec quedan en sus defaults del modelo Losa.
+        };
+
+        // CRÍTICO: snapshot ANTES de mutar el SSOT — preserva el Undo/Redo.
+        _pushUndoSnapshot();
+        sistema.Losas.Add(losa);
+
+        EstadoImportacion =
+            $"✓ Losa {nuevoId} creada desde el polígono — " +
+            $"{rect.Ancho:0.00} × {rect.Alto:0.00} m. Editá tipo y cargas en el modo Editor.";
+        OnPropertyChanged(nameof(Losas));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

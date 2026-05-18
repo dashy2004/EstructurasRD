@@ -151,4 +151,81 @@ public class LayoutSolverTests
         Assert.Equal(0, r.MinY);
         Assert.All(r.Placements, p => Assert.True(p.X >= 0 && p.Y >= 0));
     }
+
+    // =================================================================
+    // MODO HÍBRIDO (Fase 2) — losas ancladas (PosX/PosY) vs flotantes
+    // =================================================================
+
+    [Fact]
+    public void Losa_anclada_conserva_sus_coordenadas_exactas()
+    {
+        // Una losa con PosX/PosY explícitos NO se recalcula topológicamente:
+        // su Placement debe usar esas coordenadas tal cual.
+        var s = new Sistema();
+        var losa = L(1, 4, 3);
+        losa.PosX = 12.5;
+        losa.PosY = 7.25;
+        s.Losas.Add(losa);
+
+        var r = LayoutSolver.Solve(s);
+        var p = r.Placements.Single();
+        Assert.Equal(12.5, p.X, precision: 6);
+        Assert.Equal(7.25, p.Y, precision: 6);
+    }
+
+    [Fact]
+    public void Con_losa_anclada_no_se_normaliza_a_cero()
+    {
+        // El comportamiento legacy normaliza minX/minY a 0; en modo anclado
+        // se preservan las coordenadas absolutas del lienzo CAD.
+        var s = new Sistema();
+        var losa = L(1, 5, 5);
+        losa.PosX = 30.0;
+        losa.PosY = 20.0;
+        s.Losas.Add(losa);
+
+        var r = LayoutSolver.Solve(s);
+        Assert.Equal(30.0, r.MinX, precision: 6);
+        Assert.Equal(20.0, r.MinY, precision: 6);
+    }
+
+    [Fact]
+    public void Losa_flotante_se_sigue_infiriendo_topologicamente()
+    {
+        // Sin PosX/PosY el comportamiento legacy se mantiene intacto.
+        var s = new Sistema();
+        s.Losas.Add(L(1, 4, 3));
+        s.Losas.Add(L(2, 3, 3));
+        s.BordesX.Add(new BordeAdic { BI = 1, BJ = 2, Balanceo = "S" });
+
+        var r = LayoutSolver.Solve(s);
+        var p1 = r.Placements.First(p => p.Id == 1);
+        var p2 = r.Placements.First(p => p.Id == 2);
+        Assert.Equal(0, p1.X);
+        Assert.Equal(4, p2.X);   // inferida a la derecha de p1
+        Assert.Equal(0, r.MinX); // sin ancladas → se normaliza
+    }
+
+    [Fact]
+    public void Mezcla_anclada_y_flotante_vecina_se_infiere_relativo_al_ancla()
+    {
+        // Losa 1 anclada en (10, 10). Losa 2 flotante, vecina X de la 1.
+        // La 2 debe quedar a la derecha de la 1 — relativa al ancla, sin normalizar.
+        var s = new Sistema();
+        var l1 = L(1, 4, 3);
+        l1.PosX = 10.0;
+        l1.PosY = 10.0;
+        var l2 = L(2, 3, 3);   // flotante (sin PosX/PosY)
+        s.Losas.Add(l1);
+        s.Losas.Add(l2);
+        s.BordesX.Add(new BordeAdic { BI = 1, BJ = 2, Balanceo = "S" });
+
+        var r = LayoutSolver.Solve(s);
+        var p1 = r.Placements.First(p => p.Id == 1);
+        var p2 = r.Placements.First(p => p.Id == 2);
+        Assert.Equal(10.0, p1.X, precision: 6);   // ancla intacta
+        Assert.Equal(10.0, p1.Y, precision: 6);
+        Assert.Equal(14.0, p2.X, precision: 6);   // 10 + Lx(4) a la derecha
+        Assert.Equal(10.0, p2.Y, precision: 6);
+    }
 }

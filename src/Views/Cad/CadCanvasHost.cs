@@ -131,10 +131,30 @@ public sealed class CadCanvasHost : FrameworkElement
     }
 
     private static void OnPlanoChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        => ((CadCanvasHost)d).RedibujarPlano();
+    {
+        var host = (CadCanvasHost)d;
+        host.RedibujarPlano();
+        host.RedibujarLosas();   // el offset de las losas depende del plano
+    }
 
     private static void OnSistemaChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         => ((CadCanvasHost)d).RedibujarLosas();
+
+    /// <summary>
+    /// Comando que se ejecuta cuando el usuario hace clic dentro de un polígono
+    /// cerrado de la Capa 1 (plano DXF). El parámetro del comando es la
+    /// <see cref="PolilineaCad"/> sobre la que se hizo clic — el ViewModel
+    /// decide si mapearla a una losa (Fase 2).
+    /// </summary>
+    public static readonly DependencyProperty PoligonoClickCommandProperty =
+        DependencyProperty.Register(nameof(PoligonoClickCommand), typeof(ICommand), typeof(CadCanvasHost),
+            new PropertyMetadata(null));
+
+    public ICommand? PoligonoClickCommand
+    {
+        get => (ICommand?)GetValue(PoligonoClickCommandProperty);
+        set => SetValue(PoligonoClickCommandProperty, value);
+    }
 
     // =====================================================================
     // Ciclo de vida — redibujar la grilla cuando cambia el tamaño
@@ -303,9 +323,18 @@ public sealed class CadCanvasHost : FrameworkElement
         var brushId = new SolidColorBrush(Color.FromRgb(0x1B, 0x1B, 0x1D));
         brushId.Freeze();
 
-        // Las losas se desplazan a la derecha del plano para no superponerse
-        // con él en la Fase 1.B (la correlación es trabajo de la Fase 2).
-        double offsetX = (Plano is { EstaVacio: false }) ? (Plano.MaxX + 2.0) * PxPorMetro : 0;
+        // Offset de las losas:
+        //  - Si hay losas ANCLADAS (PosX/PosY), el LayoutSolver no normaliza y
+        //    sus coordenadas son absolutas del plano → offset 0, caen sobre su
+        //    polígono de origen.
+        //  - Si NO hay ancladas (modo Fase 1.B), se desplazan a la derecha del
+        //    plano para no superponerse con él.
+        bool hayAncladas = false;
+        foreach (var l in sistema.Losas)
+            if (l.TienePosicionExplicita) { hayAncladas = true; break; }
+        double offsetX = hayAncladas
+            ? 0
+            : ((Plano is { EstaVacio: false }) ? (Plano.MaxX + 2.0) * PxPorMetro : 0);
 
         foreach (var p in layout.Placements)
         {
@@ -364,9 +393,20 @@ public sealed class CadCanvasHost : FrameworkElement
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
         base.OnMouseLeftButtonUp(e);
+        bool estabaPanning = _isPanning;
         _isPanning = false;
         ReleaseMouseCapture();
         Cursor = Cursors.Arrow;
+
+        // Distinguir un clic de un pan: si el mouse casi no se desplazó desde
+        // el botón-abajo, fue un clic → hit-test sobre los polígonos del plano.
+        var pt = e.GetPosition(this);
+        if (estabaPanning && (pt - _panStart).Length < 5.0)
+        {
+            var poligono = HitTestPoligono(pt);
+            if (poligono != null && PoligonoClickCommand is { } cmd && cmd.CanExecute(poligono))
+                cmd.Execute(poligono);
+        }
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
@@ -376,5 +416,34 @@ public sealed class CadCanvasHost : FrameworkElement
         var pt = e.GetPosition(this);
         _translate.X = _panStartTx + (pt.X - _panStart.X);
         _translate.Y = _panStartTy + (pt.Y - _panStart.Y);
+    }
+
+    /// <summary>
+    /// Determina sobre qué polígono cerrado del plano DXF (si alguno) cae el
+    /// punto de pantalla <paramref name="pantalla"/>. Convierte el punto de
+    /// coordenadas de pantalla a coordenadas DXF (deshaciendo el zoom/pan y el
+    /// flip-Y de la capa del plano) y aplica el test punto-en-polígono.
+    /// </summary>
+    private PolilineaCad? HitTestPoligono(Point pantalla)
+    {
+        var plano = Plano;
+        if (plano is null || plano.EstaVacio) return null;
+        if (_scale.ScaleX <= 0) return null;
+
+        // Pantalla → espacio pre-transform (deshacer scale + translate).
+        double preX = (pantalla.X - _translate.X) / _scale.ScaleX;
+        double preY = (pantalla.Y - _translate.Y) / _scale.ScaleY;
+        // Pre-transform → coordenadas DXF (px→m y deshacer el flip-Y del plano).
+        double dxfX = preX / PxPorMetro;
+        double dxfY = plano.MaxY - preY / PxPorMetro;
+        var punto = new PuntoCad(dxfX, dxfY);
+
+        foreach (var ent in plano.Entidades)
+        {
+            if (ent is PolilineaCad poli && poli.Cerrada &&
+                PoligonoLosaMapper.ContienePunto(poli, punto))
+                return poli;
+        }
+        return null;
     }
 }

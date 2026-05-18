@@ -634,8 +634,11 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         GenerarMemoriaCommand = new RelayCommand(_ => GenerarMemoria());
         AutoBalanceoCommand   = new RelayCommand(_ => AplicarAutoBalanceo());
 
-        // ---- Plano CAD (Fase 1.B) — el sub-VM lee las losas del sistema activo ----
-        CadEditor = new CadEditorViewModel(getSistemaActivo: () => _sistemaActivo);
+        // ---- Plano CAD (Fase 1.B/2) — el sub-VM lee las losas del sistema
+        // activo y, al mapear un polígono, toma snapshot de undo antes de mutar.
+        CadEditor = new CadEditorViewModel(
+            getSistemaActivo: () => _sistemaActivo,
+            pushUndoSnapshot: PushUndoSnapshot);
 
         // Cambios al nombre del proyecto refrescan el título de la ventana.
         _proyecto.PropertyChanged += (_, e) =>

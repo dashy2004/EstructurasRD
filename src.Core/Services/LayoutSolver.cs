@@ -59,6 +59,24 @@ public static class LayoutSolver
         var byId = sistema.Losas.ToDictionary(l => l.Id);
         var placements = new Dictionary<int, Placement>();
 
+        // ---- Modo híbrido (Fase 2): pre-posicionar las losas ANCLADAS ----
+        // Una losa con PosX/PosY explícitos conserva esas coordenadas exactas
+        // y no se recalcula topológicamente. El BFS las respeta porque saltea
+        // cualquier vecino ya presente en 'placements'.
+        bool hayAncladas = false;
+        foreach (var l in sistema.Losas)
+        {
+            if (l.TienePosicionExplicita)
+            {
+                placements[l.Id] = new Placement
+                {
+                    Id = l.Id, Losa = l,
+                    X = l.PosX!.Value, Y = l.PosY!.Value,
+                };
+                hayAncladas = true;
+            }
+        }
+
         // Tabla de adyacencias: para cada losa, lista de (vecino, dirección, esVecino-J?)
         // direccion: 'X' (vecino horizontal), 'Y' (vecino vertical)
         // forward: true si el vecino tiene que ir a la derecha/abajo de this; false si va a la izquierda/arriba.
@@ -78,12 +96,21 @@ public static class LayoutSolver
             adj[b.BJ].Add((b.BI, 'Y', forward: false));
         }
 
-        // BFS desde la losa con menor ID
+        // BFS: si hay losas ancladas, la cola arranca con todas ellas (sus
+        // vecinos flotantes se infieren relativo a ellas). Si no hay ninguna,
+        // arranca desde la losa de menor ID en (0,0) — comportamiento legacy.
         var queue = new Queue<int>();
         var sortedIds = byId.Keys.OrderBy(x => x).ToList();
-        var rootId = sortedIds[0];
-        placements[rootId] = new Placement { Id = rootId, Losa = byId[rootId], X = 0, Y = 0 };
-        queue.Enqueue(rootId);
+        if (hayAncladas)
+        {
+            foreach (var id in placements.Keys.OrderBy(x => x)) queue.Enqueue(id);
+        }
+        else
+        {
+            var rootId = sortedIds[0];
+            placements[rootId] = new Placement { Id = rootId, Losa = byId[rootId], X = 0, Y = 0 };
+            queue.Enqueue(rootId);
+        }
 
         while (queue.Count > 0)
         {
@@ -130,14 +157,20 @@ public static class LayoutSolver
             }
         }
 
-        // Normalizar para que min(x, y) = 0
-        double minX = placements.Values.Min(p => p.X);
-        double minY = placements.Values.Min(p => p.Y);
-        foreach (var p in placements.Values) { p.X -= minX; p.Y -= minY; }
+        // Normalizar para que min(x, y) = 0 — SÓLO en modo topológico puro.
+        // Si hay losas ancladas, sus PosX/PosY son coordenadas absolutas del
+        // lienzo CAD y no deben desplazarse: se preserva el sistema de
+        // coordenadas tal cual.
+        if (!hayAncladas)
+        {
+            double minX = placements.Values.Min(p => p.X);
+            double minY = placements.Values.Min(p => p.Y);
+            foreach (var p in placements.Values) { p.X -= minX; p.Y -= minY; }
+        }
 
         result.Placements.AddRange(placements.Values.OrderBy(p => p.Id));
-        result.MinX = 0;
-        result.MinY = 0;
+        result.MinX = placements.Values.Min(p => p.X);
+        result.MinY = placements.Values.Min(p => p.Y);
         result.MaxX = placements.Values.Max(p => p.X + p.Width);
         result.MaxY = placements.Values.Max(p => p.Y + p.Height);
         return result;
