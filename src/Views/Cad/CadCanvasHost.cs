@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
@@ -18,18 +19,20 @@ namespace LosasPlus.Views.Cad;
 /// <c>Canvas</c> + UIElements (que se conserva intacto y aparte).
 ///
 /// <para>
-/// Sistema de 3 capas, cada una un <see cref="DrawingVisual"/>:
+/// Sistema de 4 capas, cada una un <see cref="DrawingVisual"/>:
 /// </para>
 /// <list type="bullet">
 ///   <item><b>Capa 0 — Grilla</b>: retícula métrica de referencia.</item>
 ///   <item><b>Capa 1 — Plano DXF</b>: las entidades de <see cref="Plano"/>.</item>
-///   <item><b>Capa 2 — Losas</b>: las losas del <see cref="Sistema"/>, en modo
-///         solo-lectura, posicionadas por <see cref="LayoutSolver"/>.</item>
+///   <item><b>Capa 2 — Losas</b>: las losas del <see cref="Sistema"/>,
+///         posicionadas por <see cref="LayoutSolver"/>.</item>
+///   <item><b>Capa 3 — Overlay</b>: capa efímera de interacción (selección,
+///         tiradores y "fantasma" de arrastre). Nunca toca el SSOT.</item>
 /// </list>
 ///
 /// <para>
 /// Zoom y pan se aplican mediante un <see cref="TransformGroup"/> compartido
-/// (la <b>misma instancia</b> en las 3 capas), de modo que un único cambio
+/// (la <b>misma instancia</b> en las 4 capas), de modo que un único cambio
 /// mueve todo el lienzo de forma coherente.
 /// </para>
 /// </summary>
@@ -41,34 +44,64 @@ public sealed class CadCanvasHost : FrameworkElement
     private const double MaxScale   = 20.0;
     private const double ZoomStep   = 1.15;
 
-    // ---- Capas (Capa 0 grilla, Capa 1 plano, Capa 2 losas) ----
+    // ---- Constantes de interacción de la Fase 3 ----
+    private const double ClicMaxPx      = 5.0;    // px — umbral clic vs. arrastre
+    private const double PasoSnapGrilla = 1.0;    // m  — la grilla métrica es de 1 m
+    private const double UmbralSnapM    = 0.20;   // m  — radio de enganche del snap
+    private const double MinLadoM       = 0.10;   // m  — lado mínimo de una losa
+    private const double HandleLadoPx   = 9.0;    // px — tamaño del tirador en pantalla
+    private const double ChipRadioPx    = 11.0;   // px — radio del chip de adyacencia (Fase 4)
+
+    // ---- Capas (0 grilla · 1 plano · 2 losas · 3 overlay efímero) ----
     private readonly VisualCollection _visuals;
-    private readonly DrawingVisual _capaGrilla = new();
-    private readonly DrawingVisual _capaPlano  = new();
-    private readonly DrawingVisual _capaLosas  = new();
+    private readonly DrawingVisual _capaGrilla  = new();
+    private readonly DrawingVisual _capaPlano   = new();
+    private readonly DrawingVisual _capaLosas   = new();
+    private readonly DrawingVisual _capaOverlay = new();
 
     // ---- Transform compartido para zoom/pan ----
     private readonly ScaleTransform _scale = new(1, 1);
     private readonly TranslateTransform _translate = new(0, 0);
     private readonly TransformGroup _transform = new();
 
-    // ---- Estado de pan ----
-    private bool _isPanning;
-    private Point _panStart;
+    // ---- Pinceles del overlay (frozen — ver el constructor estático) ----
+    private static readonly SolidColorBrush PincelOverlay        = new(Color.FromRgb(0x1E, 0x88, 0xE5));
+    private static readonly SolidColorBrush PincelOverlayRelleno = new(Color.FromArgb(48, 0x1E, 0x88, 0xE5));
+
+    // ---- Estado de interacción (efímero, sólo de la vista — nunca toca el SSOT) ----
+    private enum ModoArrastre { Ninguno, Pan, Mover, Redimensionar }
+    private ModoArrastre _modo = ModoArrastre.Ninguno;
+    private Losa? _losaSeleccionada;
+    private Point _dragStart;
     private double _panStartTx, _panStartTy;
+    private int _handleActivo = -1;
+    private Rect _rectOriginalPx;
+    private Rect _rectFantasmaPx;
+    private IReadOnlyList<LayoutSolver.Placement> _placements = Array.Empty<LayoutSolver.Placement>();
+    private double _offsetXPx;
+
+    // ---- Chips de adyacencia (Fase 4) — sugerencias de conexión en el overlay ----
+    private IReadOnlyList<AdyacenciaCandidata> _chips = Array.Empty<AdyacenciaCandidata>();
+
+    static CadCanvasHost()
+    {
+        PincelOverlay.Freeze();
+        PincelOverlayRelleno.Freeze();
+    }
 
     public CadCanvasHost()
     {
         _transform.Children.Add(_scale);
         _transform.Children.Add(_translate);
 
-        // El MISMO TransformGroup en las 3 capas → zoom/pan coherente.
-        _capaGrilla.Transform = _transform;
-        _capaPlano.Transform  = _transform;
-        _capaLosas.Transform  = _transform;
+        // El MISMO TransformGroup en las 4 capas → zoom/pan coherente.
+        _capaGrilla.Transform  = _transform;
+        _capaPlano.Transform   = _transform;
+        _capaLosas.Transform   = _transform;
+        _capaOverlay.Transform = _transform;
 
-        // Orden de pintado: grilla al fondo, plano en medio, losas arriba.
-        _visuals = new VisualCollection(this) { _capaGrilla, _capaPlano, _capaLosas };
+        // Orden de pintado: grilla al fondo · plano · losas · overlay arriba.
+        _visuals = new VisualCollection(this) { _capaGrilla, _capaPlano, _capaLosas, _capaOverlay };
 
         Focusable = true;
         ClipToBounds = true;
@@ -135,10 +168,17 @@ public sealed class CadCanvasHost : FrameworkElement
         var host = (CadCanvasHost)d;
         host.RedibujarPlano();
         host.RedibujarLosas();   // el offset de las losas depende del plano
+        host.RedibujarOverlay(); // la selección sigue a la losa reposicionada
     }
 
     private static void OnSistemaChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        => ((CadCanvasHost)d).RedibujarLosas();
+    {
+        var host = (CadCanvasHost)d;
+        host._losaSeleccionada = null;   // el sistema cambió → la selección quedó obsoleta
+        host.RedibujarLosas();
+        host.RecomputarChips();
+        host.RedibujarOverlay();
+    }
 
     /// <summary>
     /// Comando que se ejecuta cuando el usuario hace clic dentro de un polígono
@@ -156,6 +196,38 @@ public sealed class CadCanvasHost : FrameworkElement
         set => SetValue(PoligonoClickCommandProperty, value);
     }
 
+    /// <summary>
+    /// Comando que se ejecuta al terminar de <b>mover</b> o <b>redimensionar</b>
+    /// una losa (Fase 3). El parámetro es un <see cref="ActualizacionLosaArgs"/>
+    /// con la geometría final ya calculada — el ViewModel toma el snapshot de
+    /// Undo y escribe el SSOT. El host nunca le pasa eventos de mouse crudos.
+    /// </summary>
+    public static readonly DependencyProperty ActualizarLosaCommandProperty =
+        DependencyProperty.Register(nameof(ActualizarLosaCommand), typeof(ICommand), typeof(CadCanvasHost),
+            new PropertyMetadata(null));
+
+    public ICommand? ActualizarLosaCommand
+    {
+        get => (ICommand?)GetValue(ActualizarLosaCommandProperty);
+        set => SetValue(ActualizarLosaCommandProperty, value);
+    }
+
+    /// <summary>
+    /// Comando que se ejecuta cuando el usuario hace clic en un "chip" de
+    /// adyacencia (Fase 4). El parámetro es la <see cref="AdyacenciaCandidata"/>
+    /// del chip — el ViewModel toma el snapshot de Undo y agrega el
+    /// <c>BordeAdic</c> a <c>BordesX</c>/<c>BordesY</c>.
+    /// </summary>
+    public static readonly DependencyProperty CrearBordeAdicCommandProperty =
+        DependencyProperty.Register(nameof(CrearBordeAdicCommand), typeof(ICommand), typeof(CadCanvasHost),
+            new PropertyMetadata(null));
+
+    public ICommand? CrearBordeAdicCommand
+    {
+        get => (ICommand?)GetValue(CrearBordeAdicCommandProperty);
+        set => SetValue(CrearBordeAdicCommandProperty, value);
+    }
+
     // =====================================================================
     // Ciclo de vida — redibujar la grilla cuando cambia el tamaño
     // =====================================================================
@@ -166,6 +238,7 @@ public sealed class CadCanvasHost : FrameworkElement
         RedibujarGrilla();
         RedibujarPlano();
         RedibujarLosas();
+        RedibujarOverlay();
     }
 
     // =====================================================================
@@ -305,6 +378,8 @@ public sealed class CadCanvasHost : FrameworkElement
     private void RedibujarLosas()
     {
         using var dc = _capaLosas.RenderOpen();
+        _placements = Array.Empty<LayoutSolver.Placement>();
+        _offsetXPx = 0;
         var sistema = Sistema;
         if (sistema is null || sistema.Losas.Count == 0) return;
 
@@ -335,6 +410,7 @@ public sealed class CadCanvasHost : FrameworkElement
         double offsetX = hayAncladas
             ? 0
             : ((Plano is { EstaVacio: false }) ? (Plano.MaxX + 2.0) * PxPorMetro : 0);
+        _offsetXPx = offsetX;
 
         foreach (var p in layout.Placements)
         {
@@ -356,11 +432,295 @@ public sealed class CadCanvasHost : FrameworkElement
                 VisualTreeHelper.GetDpi(this).PixelsPerDip);
             dc.DrawText(ft, new Point(x + w / 2 - ft.Width / 2, y + h / 2 - ft.Height / 2));
         }
+
+        _placements = layout.Placements;
     }
 
     // =====================================================================
-    // Interacción — zoom (rueda) y pan (drag). Réplica de DiagramView,
-    // adaptada a DrawingVisual (transforma el TransformGroup compartido).
+    // Capa 3 — Overlay efímero (selección, tiradores, fantasma de arrastre)
+    // =====================================================================
+
+    /// <summary>
+    /// Redibuja la capa overlay: los chips de adyacencia (siempre), y según el
+    /// estado de interacción la selección + 8 tiradores, o el contorno punteado
+    /// "fantasma" mientras se arrastra. Es estado puramente visual — jamás toca
+    /// el SSOT.
+    /// </summary>
+    private void RedibujarOverlay()
+    {
+        using var dc = _capaOverlay.RenderOpen();
+
+        // Grosores y tamaños se dividen por la escala → constantes EN PANTALLA.
+        double inv = _scale.ScaleX > 0 ? 1.0 / _scale.ScaleX : 1.0;
+
+        // Los chips de adyacencia se dibujan SIEMPRE (haya o no selección).
+        DibujarChips(dc, inv);
+
+        if (_losaSeleccionada is null) return;
+
+        if (_modo is ModoArrastre.Mover or ModoArrastre.Redimensionar)
+        {
+            var penFantasma = new Pen(PincelOverlay, 1.6 * inv)
+            {
+                DashStyle = new DashStyle(new double[] { 4, 3 }, 0),
+            };
+            dc.DrawRectangle(PincelOverlayRelleno, penFantasma, _rectFantasmaPx);
+            return;
+        }
+
+        var rectPx = RectPxDeLosaSeleccionada();
+        if (rectPx.IsEmpty) return;
+
+        dc.DrawRectangle(null, new Pen(PincelOverlay, 2.0 * inv), rectPx);
+
+        // 8 tiradores cuadrados de tamaño constante en pantalla.
+        double lado = HandleLadoPx * inv;
+        var penHandle = new Pen(PincelOverlay, 1.4 * inv);
+        foreach (var c in HandleCentros(rectPx))
+            dc.DrawRectangle(Brushes.White, penHandle,
+                             new Rect(c.X - lado / 2, c.Y - lado / 2, lado, lado));
+    }
+
+    /// <summary>Rect en px pre-transform de la losa seleccionada, o <see cref="Rect.Empty"/>.</summary>
+    private Rect RectPxDeLosaSeleccionada()
+    {
+        if (_losaSeleccionada is null) return Rect.Empty;
+        foreach (var p in _placements)
+            if (p.Losa.Id == _losaSeleccionada.Id)
+                return PlacementARectPx(p);
+        return Rect.Empty;
+    }
+
+    /// <summary>Rect en px pre-transform de un <see cref="LayoutSolver.Placement"/>.</summary>
+    private Rect PlacementARectPx(LayoutSolver.Placement p) => new(
+        _offsetXPx + p.X * PxPorMetro, p.Y * PxPorMetro,
+        p.Width * PxPorMetro, p.Height * PxPorMetro);
+
+    /// <summary>Pantalla → espacio pre-transform (deshace zoom y pan).</summary>
+    private Point PantallaAPre(Point pantalla) => new(
+        (pantalla.X - _translate.X) / _scale.ScaleX,
+        (pantalla.Y - _translate.Y) / _scale.ScaleY);
+
+    /// <summary>
+    /// Centros de los 8 tiradores de un rect, en orden horario desde la esquina
+    /// superior-izquierda (0..7: SI · S · SD · D · ID · I · II · izq).
+    /// </summary>
+    private static Point[] HandleCentros(Rect r)
+    {
+        double mx = r.X + r.Width / 2, my = r.Y + r.Height / 2;
+        return new[]
+        {
+            new Point(r.Left,  r.Top),     // 0 sup-izq
+            new Point(mx,      r.Top),     // 1 sup-centro
+            new Point(r.Right, r.Top),     // 2 sup-der
+            new Point(r.Right, my),        // 3 centro-der
+            new Point(r.Right, r.Bottom),  // 4 inf-der
+            new Point(mx,      r.Bottom),  // 5 inf-centro
+            new Point(r.Left,  r.Bottom),  // 6 inf-izq
+            new Point(r.Left,  my),        // 7 centro-izq
+        };
+    }
+
+    // =====================================================================
+    // Hit-testing de losas y tiradores
+    // =====================================================================
+
+    /// <summary>Placement de la losa bajo el punto de pantalla, o null (el último dibujado gana).</summary>
+    private LayoutSolver.Placement? HitTestLosa(Point pantalla)
+    {
+        if (_scale.ScaleX <= 0 || _placements.Count == 0) return null;
+        var pre = PantallaAPre(pantalla);
+        for (int i = _placements.Count - 1; i >= 0; i--)
+            if (PlacementARectPx(_placements[i]).Contains(pre))
+                return _placements[i];
+        return null;
+    }
+
+    /// <summary>Índice (0..7) del tirador de la losa seleccionada bajo el cursor, o -1.</summary>
+    private int HandleBajoCursor(Point pantalla)
+    {
+        if (_losaSeleccionada is null || _scale.ScaleX <= 0) return -1;
+        var rectPx = RectPxDeLosaSeleccionada();
+        if (rectPx.IsEmpty) return -1;
+
+        var pre = PantallaAPre(pantalla);
+        double radio = HandleLadoPx / _scale.ScaleX;   // zona de agarre generosa
+        var centros = HandleCentros(rectPx);
+        for (int i = 0; i < centros.Length; i++)
+            if (Math.Abs(pre.X - centros[i].X) <= radio &&
+                Math.Abs(pre.Y - centros[i].Y) <= radio)
+                return i;
+        return -1;
+    }
+
+    // =====================================================================
+    // Capa 3 — Chips de adyacencia (Fase 4)
+    // =====================================================================
+
+    /// <summary>
+    /// Reevalúa qué losas ancladas son adyacentes y aún no están conectadas por
+    /// un <c>BordeAdic</c>. El resultado alimenta los chips del overlay.
+    /// </summary>
+    private void RecomputarChips()
+        => _chips = Sistema is { } s
+            ? AdyacenciaDetector.Detectar(s)
+            : Array.Empty<AdyacenciaCandidata>();
+
+    /// <summary>Dibuja un círculo de acento con un "+" en cada adyacencia sugerida.</summary>
+    private void DibujarChips(DrawingContext dc, double inv)
+    {
+        if (_chips.Count == 0) return;
+        double r = ChipRadioPx * inv;
+        double b = r * 0.5;
+        var penMas = new Pen(Brushes.White, 2.0 * inv);
+        foreach (var c in _chips)
+        {
+            double cx = _offsetXPx + c.MidX * PxPorMetro;
+            double cy = c.MidY * PxPorMetro;
+            dc.DrawEllipse(PincelOverlay, null, new Point(cx, cy), r, r);
+            dc.DrawLine(penMas, new Point(cx - b, cy), new Point(cx + b, cy));
+            dc.DrawLine(penMas, new Point(cx, cy - b), new Point(cx, cy + b));
+        }
+    }
+
+    /// <summary>Índice del chip de adyacencia bajo el cursor, o -1.</summary>
+    private int HitTestChip(Point pantalla)
+    {
+        if (_chips.Count == 0 || _scale.ScaleX <= 0) return -1;
+        var pre = PantallaAPre(pantalla);
+        double r = ChipRadioPx / _scale.ScaleX;
+        for (int i = 0; i < _chips.Count; i++)
+        {
+            double cx = _offsetXPx + _chips[i].MidX * PxPorMetro;
+            double cy = _chips[i].MidY * PxPorMetro;
+            double dx = pre.X - cx, dy = pre.Y - cy;
+            if (dx * dx + dy * dy <= r * r) return i;
+        }
+        return -1;
+    }
+
+    // =====================================================================
+    // Cálculo geométrico del arrastre (con snapping) — nunca muta el SSOT
+    // =====================================================================
+
+    /// <summary>Bordes de las OTRAS losas, en metros de lienzo, para el snapping.</summary>
+    private (List<double> X, List<double> Y) CandidatosSnap()
+    {
+        var xs = new List<double>();
+        var ys = new List<double>();
+        foreach (var p in _placements)
+        {
+            if (_losaSeleccionada != null && p.Losa.Id == _losaSeleccionada.Id) continue;
+            var r = PlacementARectPx(p);
+            xs.Add(r.Left  / PxPorMetro);
+            xs.Add(r.Right / PxPorMetro);
+            ys.Add(r.Top    / PxPorMetro);
+            ys.Add(r.Bottom / PxPorMetro);
+        }
+        return (xs, ys);
+    }
+
+    /// <summary>Rect candidato de un MOVER: el original trasladado + snapping rígido del rango.</summary>
+    private Rect CalcularRectMovido(Point pantalla)
+    {
+        double dxPx = (pantalla.X - _dragStart.X) / _scale.ScaleX;
+        double dyPx = (pantalla.Y - _dragStart.Y) / _scale.ScaleY;
+
+        double xM = (_rectOriginalPx.X + dxPx) / PxPorMetro;
+        double yM = (_rectOriginalPx.Y + dyPx) / PxPorMetro;
+        double wM = _rectOriginalPx.Width  / PxPorMetro;
+        double hM = _rectOriginalPx.Height / PxPorMetro;
+
+        var (candsX, candsY) = CandidatosSnap();
+        double snapX = SnappingEngine.SnapRango(xM, wM, candsX, PasoSnapGrilla, UmbralSnapM).Valor;
+        double snapY = SnappingEngine.SnapRango(yM, hM, candsY, PasoSnapGrilla, UmbralSnapM).Valor;
+
+        return new Rect(snapX * PxPorMetro, snapY * PxPorMetro,
+                        _rectOriginalPx.Width, _rectOriginalPx.Height);
+    }
+
+    /// <summary>
+    /// Rect candidato de un REDIMENSIONAR: mueve sólo los bordes del tirador
+    /// activo (con snapping), respetando el lado mínimo y sin permitir el flip.
+    /// </summary>
+    private Rect CalcularRectRedimensionado(Point pantalla)
+    {
+        var pre = PantallaAPre(pantalla);
+        double left = _rectOriginalPx.Left, right  = _rectOriginalPx.Right;
+        double top  = _rectOriginalPx.Top,  bottom = _rectOriginalPx.Bottom;
+
+        bool mueveL = _handleActivo is 0 or 6 or 7;
+        bool mueveR = _handleActivo is 2 or 3 or 4;
+        bool mueveT = _handleActivo is 0 or 1 or 2;
+        bool mueveB = _handleActivo is 4 or 5 or 6;
+
+        var (candsX, candsY) = CandidatosSnap();
+        if (mueveL) left   = SnappingEngine.SnapCombinado(pre.X / PxPorMetro, candsX, PasoSnapGrilla, UmbralSnapM).Valor * PxPorMetro;
+        if (mueveR) right  = SnappingEngine.SnapCombinado(pre.X / PxPorMetro, candsX, PasoSnapGrilla, UmbralSnapM).Valor * PxPorMetro;
+        if (mueveT) top    = SnappingEngine.SnapCombinado(pre.Y / PxPorMetro, candsY, PasoSnapGrilla, UmbralSnapM).Valor * PxPorMetro;
+        if (mueveB) bottom = SnappingEngine.SnapCombinado(pre.Y / PxPorMetro, candsY, PasoSnapGrilla, UmbralSnapM).Valor * PxPorMetro;
+
+        // Lado mínimo: el borde móvil no puede cruzar al borde fijo opuesto.
+        double minPx = MinLadoM * PxPorMetro;
+        if (mueveL && left   > right  - minPx) left   = right  - minPx;
+        if (mueveR && right  < left   + minPx) right  = left   + minPx;
+        if (mueveT && top    > bottom - minPx) top    = bottom - minPx;
+        if (mueveB && bottom < top    + minPx) bottom = top    + minPx;
+
+        return new Rect(left, top, Math.Max(minPx, right - left), Math.Max(minPx, bottom - top));
+    }
+
+    /// <summary>
+    /// Confirma un mover/redimensionar: si la geometría cambió, despacha el
+    /// comando (que toma UN snapshot de Undo y escribe el SSOT) y redibuja.
+    /// </summary>
+    private void ConfirmarArrastre()
+    {
+        if (_losaSeleccionada != null)
+        {
+            const double eps = 0.5;   // px pre-transform
+            bool cambio =
+                Math.Abs(_rectFantasmaPx.X      - _rectOriginalPx.X)      > eps ||
+                Math.Abs(_rectFantasmaPx.Y      - _rectOriginalPx.Y)      > eps ||
+                Math.Abs(_rectFantasmaPx.Width  - _rectOriginalPx.Width)  > eps ||
+                Math.Abs(_rectFantasmaPx.Height - _rectOriginalPx.Height) > eps;
+
+            if (cambio && ActualizarLosaCommand is { } cmd)
+            {
+                var dto = new ActualizacionLosaArgs(
+                    _losaSeleccionada,
+                    _rectFantasmaPx.X      / PxPorMetro,
+                    _rectFantasmaPx.Y      / PxPorMetro,
+                    _rectFantasmaPx.Width  / PxPorMetro,
+                    _rectFantasmaPx.Height / PxPorMetro);
+                if (cmd.CanExecute(dto)) cmd.Execute(dto);
+            }
+        }
+
+        RedibujarLosas();
+        RecomputarChips();
+        RedibujarOverlay();
+    }
+
+    /// <summary>Ajusta el cursor según lo que hay bajo el puntero (estado en reposo).</summary>
+    private void ActualizarCursorHover(Point pantalla)
+    {
+        int h = HandleBajoCursor(pantalla);
+        if (h >= 0) { Cursor = CursorDeHandle(h); return; }
+        Cursor = HitTestLosa(pantalla) != null ? Cursors.SizeAll : Cursors.Arrow;
+    }
+
+    private static Cursor CursorDeHandle(int h) => h switch
+    {
+        0 or 4 => Cursors.SizeNWSE,   // esquinas en diagonal ╲
+        2 or 6 => Cursors.SizeNESW,   // esquinas en diagonal ╱
+        1 or 5 => Cursors.SizeNS,     // bordes horizontales
+        3 or 7 => Cursors.SizeWE,     // bordes verticales
+        _      => Cursors.Arrow,
+    };
+
+    // =====================================================================
+    // Interacción — zoom (rueda), pan, selección y arrastre de losas
     // =====================================================================
 
     protected override void OnMouseWheel(MouseWheelEventArgs e)
@@ -376,14 +736,66 @@ public sealed class CadCanvasHost : FrameworkElement
         _translate.X = pt.X - k * (pt.X - _translate.X);
         _translate.Y = pt.Y - k * (pt.Y - _translate.Y);
         _scale.ScaleX = _scale.ScaleY = nuevo;
+        RedibujarOverlay();   // los tiradores mantienen su tamaño en pantalla
         e.Handled = true;
     }
 
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
     {
         base.OnMouseLeftButtonDown(e);
-        _isPanning = true;
-        _panStart = e.GetPosition(this);
+        var pt = e.GetPosition(this);
+        _dragStart = pt;
+
+        // 1) ¿Sobre un tirador de la losa ya seleccionada? → redimensionar.
+        //    (HandleBajoCursor sólo devuelve >=0 si hay una losa seleccionada.)
+        int handle = HandleBajoCursor(pt);
+        if (handle >= 0)
+        {
+            _handleActivo = handle;
+            _rectOriginalPx = RectPxDeLosaSeleccionada();
+            _rectFantasmaPx = _rectOriginalPx;
+            _chips = Array.Empty<AdyacenciaCandidata>();   // se ocultan durante el arrastre
+            RedibujarOverlay();             // re-dibuja la selección sin chips (modo aún Ninguno)
+            _modo = ModoArrastre.Redimensionar;
+            CaptureMouse();
+            return;
+        }
+
+        // 2) ¿Sobre un chip de adyacencia? → crear el BordeAdic (acción instantánea).
+        int chip = HitTestChip(pt);
+        if (chip >= 0)
+        {
+            var candidato = _chips[chip];
+            if (CrearBordeAdicCommand is { } cmd && cmd.CanExecute(candidato))
+                cmd.Execute(candidato);
+            RecomputarChips();   // el par recién conectado deja de sugerirse
+            RedibujarOverlay();
+            return;              // sin captura ni arrastre; el MouseUp será inocuo
+        }
+
+        // 3) ¿Sobre una losa? → seleccionarla y armar un posible movimiento.
+        var hit = HitTestLosa(pt);
+        if (hit != null)
+        {
+            _losaSeleccionada = hit.Losa;
+            _handleActivo = -1;
+            _rectOriginalPx = PlacementARectPx(hit);
+            _rectFantasmaPx = _rectOriginalPx;
+            _chips = Array.Empty<AdyacenciaCandidata>();   // se ocultan durante el arrastre
+            RedibujarOverlay();           // _modo aún Ninguno → dibuja selección + tiradores
+            _modo = ModoArrastre.Mover;   // armado: el próximo MouseMove arrastra
+            CaptureMouse();
+            Cursor = Cursors.SizeAll;
+            return;
+        }
+
+        // 4) Espacio vacío → pan, y se deselecciona lo que hubiera.
+        if (_losaSeleccionada != null)
+        {
+            _losaSeleccionada = null;
+            RedibujarOverlay();
+        }
+        _modo = ModoArrastre.Pan;
         _panStartTx = _translate.X;
         _panStartTy = _translate.Y;
         CaptureMouse();
@@ -393,29 +805,74 @@ public sealed class CadCanvasHost : FrameworkElement
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
         base.OnMouseLeftButtonUp(e);
-        bool estabaPanning = _isPanning;
-        _isPanning = false;
+        var modo = _modo;
+        _modo = ModoArrastre.Ninguno;
+        _handleActivo = -1;
         ReleaseMouseCapture();
         Cursor = Cursors.Arrow;
-
-        // Distinguir un clic de un pan: si el mouse casi no se desplazó desde
-        // el botón-abajo, fue un clic → hit-test sobre los polígonos del plano.
         var pt = e.GetPosition(this);
-        if (estabaPanning && (pt - _panStart).Length < 5.0)
+
+        switch (modo)
         {
-            var poligono = HitTestPoligono(pt);
-            if (poligono != null && PoligonoClickCommand is { } cmd && cmd.CanExecute(poligono))
-                cmd.Execute(poligono);
+            case ModoArrastre.Pan:
+                // Un clic (no un pan real) sobre espacio vacío → mapear polígono.
+                if ((pt - _dragStart).Length < ClicMaxPx)
+                {
+                    var poligono = HitTestPoligono(pt);
+                    if (poligono != null && PoligonoClickCommand is { } cmd && cmd.CanExecute(poligono))
+                    {
+                        cmd.Execute(poligono);
+                        RedibujarLosas();    // la losa recién creada aparece al instante
+                        RecomputarChips();
+                        RedibujarOverlay();
+                    }
+                }
+                break;
+
+            case ModoArrastre.Mover:
+            case ModoArrastre.Redimensionar:
+                ConfirmarArrastre();
+                break;
         }
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
-        if (!_isPanning) return;
         var pt = e.GetPosition(this);
-        _translate.X = _panStartTx + (pt.X - _panStart.X);
-        _translate.Y = _panStartTy + (pt.Y - _panStart.Y);
+
+        switch (_modo)
+        {
+            case ModoArrastre.Ninguno:
+                ActualizarCursorHover(pt);
+                break;
+
+            case ModoArrastre.Pan:
+                _translate.X = _panStartTx + (pt.X - _dragStart.X);
+                _translate.Y = _panStartTy + (pt.Y - _dragStart.Y);
+                break;
+
+            case ModoArrastre.Mover:
+                _rectFantasmaPx = CalcularRectMovido(pt);
+                RedibujarOverlay();
+                break;
+
+            case ModoArrastre.Redimensionar:
+                _rectFantasmaPx = CalcularRectRedimensionado(pt);
+                RedibujarOverlay();
+                break;
+        }
+    }
+
+    protected override void OnLostMouseCapture(MouseEventArgs e)
+    {
+        base.OnLostMouseCapture(e);
+        // Captura perdida a mitad de un gesto: descartar el arrastre (el SSOT
+        // nunca se tocó) y volver al overlay de selección estática.
+        bool arrastrando = _modo is ModoArrastre.Mover or ModoArrastre.Redimensionar;
+        _modo = ModoArrastre.Ninguno;
+        _handleActivo = -1;
+        if (arrastrando) RedibujarOverlay();
     }
 
     /// <summary>

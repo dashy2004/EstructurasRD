@@ -26,7 +26,7 @@
                 Background="{DynamicResource BgSecondary}"
                 BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
             <TextBlock Foreground="{DynamicResource FgMuted}" FontSize="11"
-                       Text="Rueda = zoom · arrastrar = pan · clic en un polígono rectangular del plano = crear una losa."/>
+                       Text="Rueda = zoom · arrastrar fondo = pan · clic en polígono = crear losa · clic en losa = seleccionar/mover · tiradores = redimensionar · chip + = conectar losas."/>
         </Border>
 
         <!-- Lienzo CAD retained-mode -->
@@ -34,7 +34,9 @@
             <cad:CadCanvasHost x:Name="Canvas"
                                Plano="{Binding CadEditor.Plano}"
                                Sistema="{Binding Sistema}"
-                               PoligonoClickCommand="{Binding CadEditor.MapearPoligonoCommand}"/>
+                               PoligonoClickCommand="{Binding CadEditor.MapearPoligonoCommand}"
+                               ActualizarLosaCommand="{Binding CadEditor.ActualizarLosaCommand}"
+                               CrearBordeAdicCommand="{Binding CadEditor.CrearBordeAdicCommand}"/>
         </Border>
     </DockPanel>
 </UserControl>

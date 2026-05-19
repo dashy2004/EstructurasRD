@@ -41,6 +41,8 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         _importer = importer ?? throw new ArgumentNullException(nameof(importer));
         ImportarDxfCommand = new RelayCommand(_ => ImportarDxf());
         MapearPoligonoCommand = new RelayCommand(p => MapearPoligono(p as PolilineaCad));
+        ActualizarLosaCommand = new RelayCommand(p => ActualizarLosa(p as ActualizacionLosaArgs));
+        CrearBordeAdicCommand = new RelayCommand(p => CrearBordeAdic(p as AdyacenciaCandidata?));
     }
 
     // ---- Plano DXF importado ----
@@ -169,6 +171,62 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
             $"✓ Losa {nuevoId} creada desde el polígono — " +
             $"{rect.Ancho:0.00} × {rect.Alto:0.00} m. Editá tipo y cargas en el modo Editor.";
         OnPropertyChanged(nameof(Losas));
+    }
+
+    // ---- Comando: actualizar una losa movida o redimensionada (Fase 3) ----
+
+    /// <summary>
+    /// Persiste en el SSOT el resultado de un gesto de <b>mover</b> o
+    /// <b>redimensionar</b> una losa en el lienzo CAD. El parámetro es un
+    /// <see cref="ActualizacionLosaArgs"/> que el <c>CadCanvasHost</c> construye
+    /// al soltar el mouse — el ViewModel nunca ve eventos de <c>System.Windows.Input</c>.
+    /// </summary>
+    public ICommand ActualizarLosaCommand { get; }
+
+    private void ActualizarLosa(ActualizacionLosaArgs? args)
+    {
+        if (args is null) return;
+
+        // CRÍTICO: un ÚNICO snapshot ANTES de mutar — todo el arrastre (mover
+        // o redimensionar) se revierte con un solo Ctrl+Z.
+        _pushUndoSnapshot();
+
+        var losa = args.Losa;
+        losa.PosX = args.PosX;
+        losa.PosY = args.PosY;
+        losa.Lx   = args.Lx;
+        losa.Ly   = args.Ly;
+
+        EstadoImportacion =
+            $"✓ Losa {losa.Id} actualizada — {args.Lx:0.00} × {args.Ly:0.00} m " +
+            $"@ ({args.PosX:0.00}, {args.PosY:0.00}).";
+        OnPropertyChanged(nameof(Losas));
+    }
+
+    // ---- Comando: crear una adyacencia (BordeAdic) desde un chip del lienzo (Fase 4) ----
+
+    /// <summary>
+    /// Crea un <see cref="BordeAdic"/> a partir de un chip de adyacencia del
+    /// lienzo CAD. El parámetro es la <see cref="AdyacenciaCandidata"/> detectada
+    /// por <see cref="AdyacenciaDetector"/> — el ViewModel toma el snapshot de
+    /// Undo y agrega el borde a <c>BordesX</c> o <c>BordesY</c> según el sentido.
+    /// </summary>
+    public ICommand CrearBordeAdicCommand { get; }
+
+    private void CrearBordeAdic(AdyacenciaCandidata? c)
+    {
+        if (c is null) return;
+        var cand = c.Value;
+
+        // CRÍTICO: snapshot ANTES de mutar el SSOT — preserva el Undo/Redo.
+        _pushUndoSnapshot();
+
+        var borde = new BordeAdic { BI = cand.BI, BJ = cand.BJ, Balanceo = "S" };
+        (cand.EsBordeX ? SistemaActivo.BordesX : SistemaActivo.BordesY).Add(borde);
+
+        EstadoImportacion =
+            $"✓ Adyacencia {(cand.EsBordeX ? "X" : "Y")} creada entre las losas " +
+            $"{cand.BI} y {cand.BJ}.";
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
