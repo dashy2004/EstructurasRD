@@ -108,6 +108,64 @@
                                          ToolTip="Arrastrar en el lienzo para dibujar una losa rectangular nueva."/>
                         </StackPanel>
                     </Border>
+
+                    <!-- Editor flotante in-canvas (Iteración 2): el doble clic
+                         sobre una losa lo abre; se posiciona por Margin desde
+                         el code-behind. Fondo opaco → los clics no se filtran. -->
+                    <Border x:Name="EditorLosa" Visibility="Collapsed" Panel.ZIndex="100"
+                            HorizontalAlignment="Left" VerticalAlignment="Top"
+                            Width="220" Padding="12"
+                            Background="{DynamicResource BgSecondary}"
+                            BorderBrush="{DynamicResource Accent}" BorderThickness="1.5"
+                            CornerRadius="7"
+                            KeyDown="OnEditorKeyDown" LostKeyboardFocus="OnEditorLostFocus">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="14" ShadowDepth="3" Opacity="0.5"/>
+                        </Border.Effect>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="EDITAR LOSA"
+                                       FontWeight="Bold" FontSize="10" Margin="0,0,0,8"
+                                       Foreground="{DynamicResource FgMuted}"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Lx (m)"
+                                       VerticalAlignment="Center" Margin="0,0,8,6" FontSize="12"
+                                       Foreground="{DynamicResource FgSecondary}"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" x:Name="EditorLx" Margin="0,0,0,6"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Ly (m)"
+                                       VerticalAlignment="Center" Margin="0,0,8,6" FontSize="12"
+                                       Foreground="{DynamicResource FgSecondary}"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" x:Name="EditorLy" Margin="0,0,0,6"/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Tipo"
+                                       VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12"
+                                       Foreground="{DynamicResource FgSecondary}"/>
+                            <ComboBox Grid.Row="3" Grid.Column="1" x:Name="EditorTipo"
+                                      ItemsSource="{Binding CadEditor.CatalogoTipos}"
+                                      SelectedValuePath="Codigo">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock>
+                                            <Run Text="{Binding Codigo, Mode=OneWay}"/>
+                                            <Run Text="  —  "/>
+                                            <Run Text="{Binding Descripcion, Mode=OneWay}"/>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+                    </Border>
                 </Grid>
             </Border>
 

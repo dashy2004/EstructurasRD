@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -46,6 +47,13 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         EncuadrarPlanoCommand = new RelayCommand(_ => EncuadrarPlano());
         CrearLosaCommand = new RelayCommand(p => CrearLosa(p as CrearLosaArgs));
     }
+
+    /// <summary>
+    /// Catálogo de los 23 tipos de losa permitidos, ordenado por código —
+    /// fuente del <c>ComboBox</c> del editor in-canvas (Iteración 2 v1.2).
+    /// </summary>
+    public IReadOnlyList<TipoLosa> CatalogoTipos { get; } =
+        TipoLosa.Catalogo.Values.OrderBy(t => t.Codigo).ToList();
 
     // ---- Plano DXF importado ----
 
@@ -320,10 +328,11 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         losa.PosY = args.PosY;
         losa.Lx   = args.Lx;
         losa.Ly   = args.Ly;
+        losa.Tipo = args.Tipo;
 
         EstadoImportacion =
-            $"✓ Losa {losa.Id} actualizada — {args.Lx:0.00} × {args.Ly:0.00} m " +
-            $"@ ({args.PosX:0.00}, {args.PosY:0.00}).";
+            $"✓ Losa {losa.Id} actualizada — {args.Lx:0.00} × {args.Ly:0.00} m, " +
+            $"tipo {args.Tipo} @ ({args.PosX:0.00}, {args.PosY:0.00}).";
         OnPropertyChanged(nameof(Losas));
     }
 

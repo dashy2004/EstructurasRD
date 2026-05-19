@@ -238,6 +238,12 @@ public sealed class CadCanvasHost : FrameworkElement
     }
 
     /// <summary>
+    /// Se dispara al hacer doble clic sobre una losa (modo Puntero). Lo escucha
+    /// <c>CadView</c> para abrir el editor flotante in-canvas (Iteración 2 v1.2).
+    /// </summary>
+    public event EventHandler<LosaDobleClicEventArgs>? LosaDobleClicada;
+
+    /// <summary>
     /// Token de revisión del plano: el ViewModel lo incrementa cuando cambian
     /// los factores de escala/offset del <see cref="PlanoReferencia"/>, para
     /// pedir un redibujo de la Capa 1 (cambiar una propiedad del objeto Plano
@@ -735,6 +741,18 @@ public sealed class CadCanvasHost : FrameworkElement
         dc.DrawLine(pen, new Point(c.X + r, c.Y), new Point(c.X + r - g, c.Y + g));
     }
 
+    /// <summary>
+    /// Re-renderiza la Capa 2 (losas) y el overlay. La invoca <c>CadView</c> tras
+    /// confirmar la edición in-canvas, ya que el host no observa cambios de
+    /// propiedad de una <see cref="Losa"/> individual.
+    /// </summary>
+    public void RefrescarLosas()
+    {
+        RedibujarLosas();
+        RecomputarChips();
+        RedibujarOverlay();
+    }
+
     // =====================================================================
     // Capa 3 — Overlay efímero (selección, tiradores, fantasma de arrastre)
     // =====================================================================
@@ -1074,7 +1092,8 @@ public sealed class CadCanvasHost : FrameworkElement
                     _rectFantasmaPx.X      / PxPorMetro,
                     _rectFantasmaPx.Y      / PxPorMetro,
                     _rectFantasmaPx.Width  / PxPorMetro,
-                    _rectFantasmaPx.Height / PxPorMetro);
+                    _rectFantasmaPx.Height / PxPorMetro,
+                    _losaSeleccionada.Tipo);
                 if (cmd.CanExecute(dto)) cmd.Execute(dto);
             }
         }
@@ -1182,6 +1201,24 @@ public sealed class CadCanvasHost : FrameworkElement
         base.OnMouseLeftButtonDown(e);
         var pt = e.GetPosition(this);
         _dragStart = pt;
+
+        // Doble clic sobre una losa (modo Puntero) → abrir el editor flotante.
+        if (e.ClickCount == 2 && ModoInteraccion == ModoInteraccionCad.Puntero)
+        {
+            var hitDoble = HitTestLosa(pt);
+            if (hitDoble != null)
+            {
+                var rp = PlacementARectPx(hitDoble);
+                var rectPant = new Rect(
+                    rp.X * _scale.ScaleX + _translate.X,
+                    rp.Y * _scale.ScaleY + _translate.Y,
+                    rp.Width  * _scale.ScaleX,
+                    rp.Height * _scale.ScaleY);
+                LosaDobleClicada?.Invoke(this,
+                    new LosaDobleClicEventArgs(hitDoble.Losa, rectPant, hitDoble.X, hitDoble.Y));
+                return;
+            }
+        }
 
         // 0) Herramienta «Dibujar Losa» → iniciar el trazado de un rectángulo.
         if (ModoInteraccion == ModoInteraccionCad.DibujarLosa)

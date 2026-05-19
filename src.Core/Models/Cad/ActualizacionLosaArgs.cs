@@ -19,5 +19,6 @@ namespace LosasPlus.Models.Cad;
 /// <param name="PosY">Nueva esquina superior-izquierda Y, en metros de lienzo.</param>
 /// <param name="Lx">Nuevo ancho de la losa, en metros.</param>
 /// <param name="Ly">Nuevo alto de la losa, en metros.</param>
+/// <param name="Tipo">Código de tipo de losa (catálogo de 23 tipos permitidos).</param>
 public sealed record ActualizacionLosaArgs(
-    Losa Losa, double PosX, double PosY, double Lx, double Ly);
+    Losa Losa, double PosX, double PosY, double Lx, double Ly, int Tipo);
