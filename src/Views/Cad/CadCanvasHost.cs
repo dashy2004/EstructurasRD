@@ -22,12 +22,13 @@ namespace LosasPlus.Views.Cad;
 /// Sistema de 4 capas, cada una un <see cref="DrawingVisual"/>:
 /// </para>
 /// <list type="bullet">
-///   <item><b>Capa 0 — Grilla</b>: retícula métrica de referencia.</item>
+///   <item><b>Capa 0 — Grilla</b>: retícula métrica, ejes del origen (0,0) y el
+///         bounding box del plano DXF.</item>
 ///   <item><b>Capa 1 — Plano DXF</b>: las entidades de <see cref="Plano"/>.</item>
 ///   <item><b>Capa 2 — Losas</b>: las losas del <see cref="Sistema"/>,
 ///         posicionadas por <see cref="LayoutSolver"/>.</item>
 ///   <item><b>Capa 3 — Overlay</b>: capa efímera de interacción (selección,
-///         tiradores y "fantasma" de arrastre). Nunca toca el SSOT.</item>
+///         tiradores, "fantasma" y cotas dinámicas de arrastre). Nunca toca el SSOT.</item>
 /// </list>
 ///
 /// <para>
@@ -67,6 +68,7 @@ public sealed class CadCanvasHost : FrameworkElement
     // ---- Pinceles del overlay (frozen — ver el constructor estático) ----
     private static readonly SolidColorBrush PincelOverlay        = new(Color.FromRgb(0x1E, 0x88, 0xE5));
     private static readonly SolidColorBrush PincelOverlayRelleno = new(Color.FromArgb(48, 0x1E, 0x88, 0xE5));
+    private static readonly SolidColorBrush PincelCota           = new(Color.FromRgb(0xEF, 0x6C, 0x00));
 
     // ---- Estado de interacción (efímero, sólo de la vista — nunca toca el SSOT) ----
     private enum ModoArrastre { Ninguno, Pan, Mover, Redimensionar }
@@ -87,6 +89,7 @@ public sealed class CadCanvasHost : FrameworkElement
     {
         PincelOverlay.Freeze();
         PincelOverlayRelleno.Freeze();
+        PincelCota.Freeze();
     }
 
     public CadCanvasHost()
@@ -166,6 +169,7 @@ public sealed class CadCanvasHost : FrameworkElement
     private static void OnPlanoChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var host = (CadCanvasHost)d;
+        host.RedibujarGrilla();  // el bounding box del DXF se dibuja en la Capa 0
         host.RedibujarPlano();
         host.RedibujarLosas();   // el offset de las losas depende del plano
         host.RedibujarOverlay(); // la selección sigue a la losa reposicionada
@@ -270,6 +274,32 @@ public sealed class CadCanvasHost : FrameworkElement
             double y = ym * PxPorMetro;
             var pen = Math.Abs(ym % 5) < 1e-9 ? penMetro5 : penFino;
             dc.DrawLine(pen, new Point(-extra, y), new Point(w + extra, y));
+        }
+
+        // ---- Ejes del origen (0,0) — destacados sobre la grilla (B1) ----
+        var penEjeX = new Pen(new SolidColorBrush(Color.FromRgb(0xD3, 0x2F, 0x2F)), 1.6);  // rojo
+        var penEjeY = new Pen(new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32)), 1.6);  // verde
+        penEjeX.Freeze();
+        penEjeY.Freeze();
+        dc.DrawLine(penEjeX, new Point(-extra, 0), new Point(w + extra, 0));  // eje X (y = 0)
+        dc.DrawLine(penEjeY, new Point(0, -extra), new Point(0, h + extra));  // eje Y (x = 0)
+
+        var pincelOrigen = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88));
+        pincelOrigen.Freeze();
+        dc.DrawEllipse(pincelOrigen, null, new Point(0, 0), 3.0, 3.0);
+
+        // ---- Bounding box del plano DXF — contexto de escala total (B1) ----
+        if (Plano is { EstaVacio: false } plano)
+        {
+            var penBBox = new Pen(new SolidColorBrush(Color.FromArgb(120, 0x33, 0x66, 0x99)), 1.0)
+            {
+                DashStyle = new DashStyle(new double[] { 6, 4 }, 0),
+            };
+            penBBox.Freeze();
+            // El plano (Capa 1) se dibuja con flip-Y; su bounding box en pantalla:
+            var bbox = new Rect(plano.MinX * PxPorMetro, 0,
+                                plano.Ancho * PxPorMetro, plano.Alto * PxPorMetro);
+            dc.DrawRectangle(null, penBBox, bbox);
         }
     }
 
@@ -465,6 +495,7 @@ public sealed class CadCanvasHost : FrameworkElement
                 DashStyle = new DashStyle(new double[] { 4, 3 }, 0),
             };
             dc.DrawRectangle(PincelOverlayRelleno, penFantasma, _rectFantasmaPx);
+            DibujarCotas(dc, inv);
             return;
         }
 
@@ -598,6 +629,74 @@ public sealed class CadCanvasHost : FrameworkElement
         }
         return -1;
     }
+
+    // =====================================================================
+    // Capa 3 — Cotas dinámicas (Fase B.2)
+    // =====================================================================
+
+    /// <summary>
+    /// Dibuja las cotas dinámicas (distancias dₙ) entre la losa que se está
+    /// arrastrando y sus vecinas ancladas. Invoca al motor puro
+    /// <see cref="MotorCotas"/> (Fase A) y traza cada cota como una línea con
+    /// dos tick marks y el texto del valor. Sólo se llama durante un arrastre,
+    /// así que las cotas se limpian solas al soltar la losa.
+    /// </summary>
+    private void DibujarCotas(DrawingContext dc, double inv)
+    {
+        if (_placements.Count == 0) return;
+
+        // La losa activa es el rectángulo fantasma; las vecinas, el resto.
+        var activa = new RectM(
+            _rectFantasmaPx.X / PxPorMetro, _rectFantasmaPx.Y / PxPorMetro,
+            _rectFantasmaPx.Width / PxPorMetro, _rectFantasmaPx.Height / PxPorMetro);
+
+        var ancladas = new List<RectM>();
+        foreach (var p in _placements)
+        {
+            if (_losaSeleccionada != null && p.Losa.Id == _losaSeleccionada.Id) continue;
+            var r = PlacementARectPx(p);
+            ancladas.Add(new RectM(r.X / PxPorMetro, r.Y / PxPorMetro,
+                                   r.Width / PxPorMetro, r.Height / PxPorMetro));
+        }
+
+        var cotas = MotorCotas.Calcular(activa, ancladas);
+        if (cotas.Count == 0) return;
+
+        var penCota = new Pen(PincelCota, 1.3 * inv);
+        double tick = 5.0 * inv;   // medio largo del tick mark de los extremos
+
+        foreach (var c in cotas)
+        {
+            var ft = CrearTextoCota(c.Valor, inv);
+            if (c.Eje == EjeCota.Horizontal)
+            {
+                double y  = c.CoordenadaLinea * PxPorMetro;
+                double x0 = c.Inicio * PxPorMetro;
+                double x1 = c.Fin    * PxPorMetro;
+                dc.DrawLine(penCota, new Point(x0, y), new Point(x1, y));
+                dc.DrawLine(penCota, new Point(x0, y - tick), new Point(x0, y + tick));
+                dc.DrawLine(penCota, new Point(x1, y - tick), new Point(x1, y + tick));
+                dc.DrawText(ft, new Point((x0 + x1) / 2.0 - ft.Width / 2.0, y - tick - ft.Height));
+            }
+            else
+            {
+                double x  = c.CoordenadaLinea * PxPorMetro;
+                double y0 = c.Inicio * PxPorMetro;
+                double y1 = c.Fin    * PxPorMetro;
+                dc.DrawLine(penCota, new Point(x, y0), new Point(x, y1));
+                dc.DrawLine(penCota, new Point(x - tick, y0), new Point(x + tick, y0));
+                dc.DrawLine(penCota, new Point(x - tick, y1), new Point(x + tick, y1));
+                dc.DrawText(ft, new Point(x + tick + 2.0 * inv, (y0 + y1) / 2.0 - ft.Height / 2.0));
+            }
+        }
+    }
+
+    /// <summary>Construye el <see cref="FormattedText"/> del valor de una cota ("X.XX m").</summary>
+    private FormattedText CrearTextoCota(double valorM, double inv)
+        => new(valorM.ToString("0.00", CultureInfo.InvariantCulture) + " m",
+               CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+               new Typeface("Segoe UI"), 11.0 * inv, PincelCota,
+               VisualTreeHelper.GetDpi(this).PixelsPerDip);
 
     // =====================================================================
     // Cálculo geométrico del arrastre (con snapping) — nunca muta el SSOT
