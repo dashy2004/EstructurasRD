@@ -43,6 +43,7 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         MapearPoligonoCommand = new RelayCommand(p => MapearPoligono(p as PolilineaCad));
         ActualizarLosaCommand = new RelayCommand(p => ActualizarLosa(p as ActualizacionLosaArgs));
         CrearBordeAdicCommand = new RelayCommand(p => CrearBordeAdic(p as AdyacenciaCandidata?));
+        EncuadrarPlanoCommand = new RelayCommand(_ => EncuadrarPlano());
     }
 
     // ---- Plano DXF importado ----
@@ -57,11 +58,83 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
             _plano = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(TienePlano));
+            OnPropertyChanged(nameof(EscalaPlano));
+            OnPropertyChanged(nameof(OffsetXPlano));
+            OnPropertyChanged(nameof(OffsetYPlano));
         }
     }
 
     /// <summary>True si hay un plano DXF cargado.</summary>
     public bool TienePlano => _plano is { EstaVacio: false };
+
+    // ---- Ajuste espacial del plano DXF (escala / offset / encuadre) — It. 2 ----
+
+    private int _revisionPlano;
+    /// <summary>
+    /// Token de revisión: se incrementa al cambiar escala/offset para que el
+    /// <c>CadCanvasHost</c> redibuje la Capa 1 (el plano es un objeto mutable;
+    /// cambiar una de sus propiedades no notifica al lienzo por sí solo).
+    /// </summary>
+    public int RevisionPlano
+    {
+        get => _revisionPlano;
+        private set { _revisionPlano = value; OnPropertyChanged(); }
+    }
+
+    private int _solicitudEncuadre;
+    /// <summary>Token de encuadre: se incrementa para pedir un «zoom to fit» del plano.</summary>
+    public int SolicitudEncuadre
+    {
+        get => _solicitudEncuadre;
+        private set { _solicitudEncuadre = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Escala uniforme del bloque DXF — proxy bindable de <see cref="PlanoReferencia.Escala"/>.</summary>
+    public double EscalaPlano
+    {
+        get => _plano?.Escala ?? 1.0;
+        set
+        {
+            if (_plano is null || Math.Abs(_plano.Escala - value) < 1e-9) return;
+            _plano.Escala = value;
+            OnPropertyChanged();
+            RevisionPlano++;
+        }
+    }
+
+    /// <summary>Desplazamiento X del bloque DXF en metros — proxy bindable.</summary>
+    public double OffsetXPlano
+    {
+        get => _plano?.OffsetX ?? 0.0;
+        set
+        {
+            if (_plano is null || Math.Abs(_plano.OffsetX - value) < 1e-9) return;
+            _plano.OffsetX = value;
+            OnPropertyChanged();
+            RevisionPlano++;
+        }
+    }
+
+    /// <summary>Desplazamiento Y del bloque DXF en metros — proxy bindable.</summary>
+    public double OffsetYPlano
+    {
+        get => _plano?.OffsetY ?? 0.0;
+        set
+        {
+            if (_plano is null || Math.Abs(_plano.OffsetY - value) < 1e-9) return;
+            _plano.OffsetY = value;
+            OnPropertyChanged();
+            RevisionPlano++;
+        }
+    }
+
+    /// <summary>Encuadra el plano DXF en el viewport del lienzo (zoom to fit).</summary>
+    public ICommand EncuadrarPlanoCommand { get; }
+
+    private void EncuadrarPlano()
+    {
+        if (TienePlano) SolicitudEncuadre++;
+    }
 
     // ---- Acceso al SSOT (sistema activo + sus losas) ----
 

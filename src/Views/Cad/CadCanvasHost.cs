@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using LosasPlus.Models;
 using LosasPlus.Models.Cad;
 using LosasPlus.Services;
@@ -231,6 +232,47 @@ public sealed class CadCanvasHost : FrameworkElement
         set => SetValue(CrearBordeAdicCommandProperty, value);
     }
 
+    /// <summary>
+    /// Token de revisión del plano: el ViewModel lo incrementa cuando cambian
+    /// los factores de escala/offset del <see cref="PlanoReferencia"/>, para
+    /// pedir un redibujo de la Capa 1 (cambiar una propiedad del objeto Plano
+    /// no dispara <see cref="OnPlanoChanged"/>).
+    /// </summary>
+    public static readonly DependencyProperty RevisionPlanoProperty =
+        DependencyProperty.Register(nameof(RevisionPlano), typeof(int), typeof(CadCanvasHost),
+            new PropertyMetadata(0, OnRevisionPlanoChanged));
+
+    public int RevisionPlano
+    {
+        get => (int)GetValue(RevisionPlanoProperty);
+        set => SetValue(RevisionPlanoProperty, value);
+    }
+
+    private static void OnRevisionPlanoChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var host = (CadCanvasHost)d;
+        host.RedibujarGrilla();
+        host.RedibujarPlano();
+        host.RedibujarOverlay();
+    }
+
+    /// <summary>
+    /// Token de encuadre: el ViewModel lo incrementa para pedir un «zoom to
+    /// fit» del plano DXF (botón «Encuadrar Plano»).
+    /// </summary>
+    public static readonly DependencyProperty SolicitudEncuadreProperty =
+        DependencyProperty.Register(nameof(SolicitudEncuadre), typeof(int), typeof(CadCanvasHost),
+            new PropertyMetadata(0, OnSolicitudEncuadreChanged));
+
+    public int SolicitudEncuadre
+    {
+        get => (int)GetValue(SolicitudEncuadreProperty);
+        set => SetValue(SolicitudEncuadreProperty, value);
+    }
+
+    private static void OnSolicitudEncuadreChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        => ((CadCanvasHost)d).EncuadrarPlano();
+
     // =====================================================================
     // Ciclo de vida — redibujar la grilla cuando cambia el tamaño
     // =====================================================================
@@ -242,6 +284,76 @@ public sealed class CadCanvasHost : FrameworkElement
         RedibujarPlano();
         RedibujarLosas();
         RedibujarOverlay();
+    }
+
+    // =====================================================================
+    // Encuadre del plano y captura de imagen — API pública del Gestor de DXF
+    // =====================================================================
+
+    /// <summary>
+    /// «Zoom to fit» del plano DXF: calcula el bounding box transformado
+    /// (escala + offset) del plano y ajusta el zoom/pan del lienzo para que
+    /// ocupe el viewport, centrado y con un pequeño margen.
+    /// </summary>
+    public void EncuadrarPlano()
+    {
+        var plano = Plano;
+        if (plano is null || plano.EstaVacio) return;
+
+        double w = ActualWidth, h = ActualHeight;
+        if (w < 1 || h < 1) return;
+
+        // Bounding box del plano en px (pre-transform), con el bloque DXF ya
+        // escalado y desplazado — mismo cálculo que la Capa 1 y la grilla.
+        double esc = plano.Escala;
+        double bx = (plano.MinX * esc + plano.OffsetX) * PxPorMetro;
+        double bw = plano.Ancho * esc * PxPorMetro;
+        double bh = plano.Alto  * esc * PxPorMetro;
+        if (bw < 1e-6 || bh < 1e-6) return;
+
+        const double margen = 0.92;
+        double fit = Math.Clamp(Math.Min(w / bw, h / bh) * margen, MinScale, MaxScale);
+
+        double cx = bx + bw / 2.0;   // centro del bbox (pre-transform)
+        double cy = bh / 2.0;        // el bbox arranca en y = 0
+        _scale.ScaleX = _scale.ScaleY = fit;
+        _translate.X = w / 2.0 - fit * cx;
+        _translate.Y = h / 2.0 - fit * cy;
+
+        RedibujarOverlay();
+    }
+
+    /// <summary>
+    /// Captura el lienzo CAD completo (las 4 capas) como imagen, para
+    /// incrustarla en la exportación a Excel. Mide y dispone el host a un
+    /// tamaño de trabajo — la exportación se dispara desde el modo Editor,
+    /// donde el lienzo puede no haberse mostrado nunca — encuadra el plano
+    /// para componer la toma, renderiza y restaura el zoom/pan previo.
+    /// </summary>
+    public BitmapSource CaptureCanvasPng()
+    {
+        double w = ActualWidth  >= 1 ? ActualWidth  : 1200;
+        double h = ActualHeight >= 1 ? ActualHeight : 800;
+
+        Measure(new Size(w, h));
+        Arrange(new Rect(0, 0, w, h));
+        UpdateLayout();
+
+        // Encuadrar para componer la toma, sin importar el zoom/pan con que el
+        // usuario dejó el lienzo. Se restaura el estado al terminar.
+        double sx = _scale.ScaleX, sy = _scale.ScaleY;
+        double tx = _translate.X,  ty = _translate.Y;
+        EncuadrarPlano();
+
+        var rtb = new RenderTargetBitmap(
+            (int)Math.Ceiling(w), (int)Math.Ceiling(h), 96, 96, PixelFormats.Pbgra32);
+        rtb.Render(this);
+        rtb.Freeze();
+
+        _scale.ScaleX = sx; _scale.ScaleY = sy;
+        _translate.X = tx;  _translate.Y = ty;
+        RedibujarOverlay();
+        return rtb;
     }
 
     // =====================================================================
@@ -295,9 +407,11 @@ public sealed class CadCanvasHost : FrameworkElement
                 DashStyle = new DashStyle(new double[] { 6, 4 }, 0),
             };
             penBBox.Freeze();
-            // El plano (Capa 1) se dibuja con flip-Y; su bounding box en pantalla:
-            var bbox = new Rect(plano.MinX * PxPorMetro, 0,
-                                plano.Ancho * PxPorMetro, plano.Alto * PxPorMetro);
+            // El plano (Capa 1) se dibuja con flip-Y y la transformación de
+            // bloque (escala/offset); su bounding box en pantalla:
+            double esc = plano.Escala;
+            var bbox = new Rect((plano.MinX * esc + plano.OffsetX) * PxPorMetro, 0,
+                                plano.Ancho * esc * PxPorMetro, plano.Alto * esc * PxPorMetro);
             dc.DrawRectangle(null, penBBox, bbox);
         }
     }
@@ -312,10 +426,15 @@ public sealed class CadCanvasHost : FrameworkElement
         var plano = Plano;
         if (plano is null || plano.EstaVacio) return;
 
-        // Flip Y: el DXF tiene Y ascendente; en pantalla Y desciende. Mostramos
-        // el plano "derecho" reflejando respecto al máximo Y del bounding box.
-        double maxY = plano.MaxY;
-        Point ToPx(PuntoCad p) => new(p.X * PxPorMetro, (maxY - p.Y) * PxPorMetro);
+        // Transformación de bloque del calco DXF (escala + offset) — ajuste
+        // espacial del Gestor de DXF; se aplica ANTES del flip-Y. Las losas
+        // (Capa 2) NO se ven afectadas por estos factores.
+        // Flip Y: el DXF tiene Y ascendente; en pantalla Y desciende.
+        double esc = plano.Escala;
+        double maxYT = plano.MaxY * esc + plano.OffsetY;
+        Point ToPx(PuntoCad p) => new(
+            (p.X * esc + plano.OffsetX) * PxPorMetro,
+            (maxYT - (p.Y * esc + plano.OffsetY)) * PxPorMetro);
 
         var penPlano = new Pen(new SolidColorBrush(Color.FromRgb(0x33, 0x66, 0x99)), 1.2);
         penPlano.Freeze();
@@ -351,7 +470,7 @@ public sealed class CadCanvasHost : FrameworkElement
                         CultureInfo.CurrentCulture,
                         FlowDirection.LeftToRight,
                         new Typeface("Segoe UI"),
-                        Math.Max(8, t.Altura * PxPorMetro),
+                        Math.Max(8, t.Altura * esc * PxPorMetro),
                         brushTexto,
                         VisualTreeHelper.GetDpi(this).PixelsPerDip);
                     dc.DrawText(ft, ToPx(t.Posicion));
@@ -361,7 +480,7 @@ public sealed class CadCanvasHost : FrameworkElement
                 case ArcoCad a when a.Radio > 0:
                 {
                     var centro = ToPx(a.Centro);
-                    double rPx = a.Radio * PxPorMetro;
+                    double rPx = a.Radio * esc * PxPorMetro;
                     if (a.EsCirculoCompleto)
                     {
                         dc.DrawEllipse(null, penPlano, centro, rPx, rPx);
@@ -369,7 +488,7 @@ public sealed class CadCanvasHost : FrameworkElement
                     else
                     {
                         // Arco parcial: PathGeometry con un ArcSegment.
-                        var geo = ArcoAGeometria(a, ToPx);
+                        var geo = ArcoAGeometria(a, ToPx, esc);
                         if (geo != null) dc.DrawGeometry(null, penPlano, geo);
                     }
                     break;
@@ -379,9 +498,9 @@ public sealed class CadCanvasHost : FrameworkElement
     }
 
     /// <summary>Construye la geometría de un arco parcial (no círculo completo).</summary>
-    private static Geometry? ArcoAGeometria(ArcoCad a, Func<PuntoCad, Point> toPx)
+    private static Geometry? ArcoAGeometria(ArcoCad a, Func<PuntoCad, Point> toPx, double esc)
     {
-        double rPx = a.Radio * PxPorMetro;
+        double rPx = a.Radio * esc * PxPorMetro;
         // Puntos inicial y final del arco en coordenadas de modelo.
         double i = a.AnguloInicioGrados * Math.PI / 180.0;
         double f = a.AnguloFinGrados * Math.PI / 180.0;

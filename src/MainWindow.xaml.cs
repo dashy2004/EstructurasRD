@@ -4,6 +4,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
 using LosasPlus.Models;
 using LosasPlus.Persistence;
 using LosasPlus.Services;
@@ -365,8 +366,21 @@ public partial class MainWindow : Window
         };
         if (dlg.ShowDialog() != true) return;
 
-        // El esquema 2D se eliminó junto con DiagramView (FASE C); se exporta sin imagen.
-        await Vm.ExportarXlsxAsync(dlg.FileName, null);
+        // Captura del lienzo CAD como esquema del .xlsx (mejor esfuerzo: si la
+        // captura falla, se exporta el Excel sin imagen).
+        byte[]? png = null;
+        try
+        {
+            var bmp = CadEditorView.CanvasHost.CaptureCanvasPng();
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bmp));
+            using var ms = new MemoryStream();
+            encoder.Save(ms);
+            png = ms.ToArray();
+        }
+        catch (System.Exception ex) { Vm.Log("No se pudo capturar el lienzo CAD: " + ex.Message); }
+
+        await Vm.ExportarXlsxAsync(dlg.FileName, png);
     }
 
     private void OnTrustPluginClick(object sender, RoutedEventArgs e)

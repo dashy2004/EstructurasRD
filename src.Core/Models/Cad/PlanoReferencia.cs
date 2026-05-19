@@ -58,4 +58,18 @@ public sealed class PlanoReferencia
 
     /// <summary>True si el plano no contiene ninguna entidad geométrica.</summary>
     public bool EstaVacio => Entidades.Count == 0;
+
+    // ---- Transformación de bloque — ajuste espacial del calco DXF (FASE C) ----
+
+    /// <summary>
+    /// Factor de escala uniforme aplicado al bloque entero del plano al
+    /// dibujarlo en el lienzo. 1.0 = tamaño original importado del DXF.
+    /// </summary>
+    public double Escala { get; set; } = 1.0;
+
+    /// <summary>Desplazamiento horizontal del bloque DXF, en metros.</summary>
+    public double OffsetX { get; set; }
+
+    /// <summary>Desplazamiento vertical del bloque DXF, en metros.</summary>
+    public double OffsetY { get; set; }
 }

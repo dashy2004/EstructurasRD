@@ -3,6 +3,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:cad="clr-namespace:LosasPlus.Views.Cad"
              Background="{DynamicResource BgPrimary}">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="B2V"/>
+    </UserControl.Resources>
     <DockPanel>
         <!-- Barra superior: importar DXF + estado -->
         <Border DockPanel.Dock="Top" Padding="10,8"
@@ -29,14 +32,90 @@
                        Text="Rueda = zoom · arrastrar fondo = pan · clic en polígono = crear losa · clic en losa = seleccionar/mover · tiradores = redimensionar · chip + = conectar losas."/>
         </Border>
 
-        <!-- Lienzo CAD retained-mode -->
-        <Border Background="{DynamicResource BgInput}" ClipToBounds="True">
-            <cad:CadCanvasHost x:Name="Canvas"
-                               Plano="{Binding CadEditor.Plano}"
-                               Sistema="{Binding Sistema}"
-                               PoligonoClickCommand="{Binding CadEditor.MapearPoligonoCommand}"
-                               ActualizarLosaCommand="{Binding CadEditor.ActualizarLosaCommand}"
-                               CrearBordeAdicCommand="{Binding CadEditor.CrearBordeAdicCommand}"/>
-        </Border>
+        <!-- Lienzo CAD retained-mode + panel lateral de ajustes del plano DXF -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Background="{DynamicResource BgInput}" ClipToBounds="True">
+                <cad:CadCanvasHost x:Name="Canvas"
+                                   Plano="{Binding CadEditor.Plano}"
+                                   Sistema="{Binding Sistema}"
+                                   RevisionPlano="{Binding CadEditor.RevisionPlano}"
+                                   SolicitudEncuadre="{Binding CadEditor.SolicitudEncuadre}"
+                                   PoligonoClickCommand="{Binding CadEditor.MapearPoligonoCommand}"
+                                   ActualizarLosaCommand="{Binding CadEditor.ActualizarLosaCommand}"
+                                   CrearBordeAdicCommand="{Binding CadEditor.CrearBordeAdicCommand}"/>
+            </Border>
+
+            <!-- Panel lateral derecho, fijo y colapsable vía PanelToggle -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <ToggleButton x:Name="PanelToggle" IsChecked="True" Width="26"
+                              Background="{DynamicResource BgSecondary}"
+                              BorderBrush="{DynamicResource Border}" BorderThickness="1,0,0,0"
+                              Foreground="{DynamicResource FgSecondary}"
+                              ToolTip="Mostrar u ocultar el panel del plano DXF">
+                    <TextBlock Text="⚙  PLANO DXF" FontSize="11" FontWeight="SemiBold">
+                        <TextBlock.LayoutTransform>
+                            <RotateTransform Angle="90"/>
+                        </TextBlock.LayoutTransform>
+                    </TextBlock>
+                </ToggleButton>
+
+                <Border Width="250"
+                        Background="{DynamicResource BgSecondary}"
+                        BorderBrush="{DynamicResource Border}" BorderThickness="1,0,0,0"
+                        Visibility="{Binding IsChecked, ElementName=PanelToggle, Converter={StaticResource B2V}}">
+                    <StackPanel Margin="16,14">
+                        <!-- Detalles del plano importado actual -->
+                        <TextBlock Text="PLANO IMPORTADO" FontWeight="Bold" FontSize="10"
+                                   Foreground="{DynamicResource FgMuted}" Margin="0,0,0,6"/>
+                        <TextBlock Text="{Binding CadEditor.Plano.NombreArchivo, FallbackValue=(sin plano DXF), TargetNullValue=(sin plano DXF)}"
+                                   FontFamily="JetBrains Mono, Consolas" FontSize="11"
+                                   TextTrimming="CharacterEllipsis"
+                                   Foreground="{DynamicResource FgPrimary}"/>
+                        <TextBlock FontSize="11" Margin="0,3,0,0"
+                                   Foreground="{DynamicResource FgMuted}">
+                            <Run Text="{Binding CadEditor.Plano.Ancho, StringFormat=0.0, FallbackValue=0, Mode=OneWay}"/>
+                            <Run Text=" × "/>
+                            <Run Text="{Binding CadEditor.Plano.Alto, StringFormat=0.0, FallbackValue=0, Mode=OneWay}"/>
+                            <Run Text=" m  ·  "/>
+                            <Run Text="{Binding CadEditor.Plano.CantidadEntidades, FallbackValue=0, Mode=OneWay}"/>
+                            <Run Text=" entidades"/>
+                        </TextBlock>
+
+                        <Border Height="1" Margin="0,12" Background="{DynamicResource Border}"/>
+
+                        <!-- Ajuste espacial — deshabilitado si no hay plano importado -->
+                        <StackPanel IsEnabled="{Binding CadEditor.TienePlano}">
+                            <TextBlock Text="AJUSTE ESPACIAL" FontWeight="Bold" FontSize="10"
+                                       Foreground="{DynamicResource FgMuted}" Margin="0,0,0,8"/>
+
+                            <TextBlock Text="Escala" FontSize="11"
+                                       Foreground="{DynamicResource FgSecondary}"/>
+                            <TextBox Margin="0,2,0,8"
+                                     Text="{Binding CadEditor.EscalaPlano, UpdateSourceTrigger=LostFocus}"/>
+
+                            <TextBlock Text="Offset X (m)" FontSize="11"
+                                       Foreground="{DynamicResource FgSecondary}"/>
+                            <TextBox Margin="0,2,0,8"
+                                     Text="{Binding CadEditor.OffsetXPlano, UpdateSourceTrigger=LostFocus}"/>
+
+                            <TextBlock Text="Offset Y (m)" FontSize="11"
+                                       Foreground="{DynamicResource FgSecondary}"/>
+                            <TextBox Margin="0,2,0,12"
+                                     Text="{Binding CadEditor.OffsetYPlano, UpdateSourceTrigger=LostFocus}"/>
+
+                            <Button Content="🎯  Encuadrar Plano" Padding="10,6"
+                                    HorizontalAlignment="Stretch"
+                                    Command="{Binding CadEditor.EncuadrarPlanoCommand}"
+                                    ToolTip="Centra y ajusta el zoom para que el plano DXF ocupe el viewport."/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
     </DockPanel>
 </UserControl>

@@ -14,4 +14,10 @@ public partial class CadView : UserControl
     {
         InitializeComponent();
     }
+
+    /// <summary>
+    /// El <see cref="CadCanvasHost"/> alojado — expuesto para que
+    /// <c>MainWindow</c> pueda capturar el lienzo al exportar a Excel.
+    /// </summary>
+    public CadCanvasHost CanvasHost => Canvas;
 }
