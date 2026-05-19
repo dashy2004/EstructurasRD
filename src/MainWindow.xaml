@@ -34,194 +34,175 @@
     </Window.Resources>
 
     <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="240"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>  <!-- barra superior (top tabs) -->
+            <RowDefinition Height="*"/>     <!-- área principal -->
+        </Grid.RowDefinitions>
 
         <!-- =============================================================
-             SIDEBAR (240 px) — branding + nav modos + sistemas + footer
+             BARRA SUPERIOR (Top Tabs) — branding + nav modos + selector de
+             sistema + tema. Reemplaza al sidebar de 240 px (FASE B.3): la
+             navegación pasa arriba para liberar todo el ancho al viewport.
              ============================================================= -->
-        <Border Grid.Column="0" Background="{DynamicResource BgSecondary}"
-                BorderBrush="{DynamicResource Border}" BorderThickness="0,0,1,0">
+        <Border Grid.Row="0" Background="{DynamicResource BgSecondary}"
+                BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1"
+                Padding="0,4,0,0">
             <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>  <!-- branding header -->
-                    <RowDefinition Height="Auto"/>  <!-- nav modos -->
-                    <RowDefinition Height="Auto"/>  <!-- separador SISTEMAS -->
-                    <RowDefinition Height="*"/>     <!-- sistemas list -->
-                    <RowDefinition Height="Auto"/>  <!-- footer sidebar -->
-                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>  <!-- branding -->
+                    <ColumnDefinition Width="*"/>     <!-- nav modos (tabs) -->
+                    <ColumnDefinition Width="Auto"/>  <!-- sistema + tema -->
+                </Grid.ColumnDefinitions>
 
                 <!-- Branding -->
-                <StackPanel Grid.Row="0" Margin="20,20,20,12">
-                    <TextBlock Text="LosasPlus"
-                               FontFamily="Inter, Segoe UI"
-                               FontSize="20" FontWeight="SemiBold"
-                               Foreground="{DynamicResource Accent}"/>
-                    <TextBlock Text="{Binding Version}"
-                               FontFamily="JetBrains Mono, Consolas"
-                               FontSize="11"
-                               Foreground="{DynamicResource FgMuted}"
-                               Margin="0,2,0,0"/>
+                <StackPanel Grid.Column="0" Margin="16,0,12,4"
+                            VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="LosasPlus"
+                                   FontFamily="Inter, Segoe UI"
+                                   FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource Accent}"/>
+                        <TextBlock Text="{Binding Version}"
+                                   FontFamily="JetBrains Mono, Consolas"
+                                   FontSize="10"
+                                   Foreground="{DynamicResource FgMuted}"
+                                   VerticalAlignment="Bottom"
+                                   Margin="6,0,0,2"/>
+                    </StackPanel>
                     <TextBlock Text="motor: F. Perdomo"
-                               FontSize="10"
+                               FontSize="9"
                                Foreground="{DynamicResource FgMuted}"/>
                 </StackPanel>
 
-                <!-- Nav modos: 7 RadioButtons bindeados a ModoActivo via EnumToBool. -->
-                <StackPanel Grid.Row="1" Margin="8,0,8,12">
-                    <StackPanel.Resources>
-                        <Style TargetType="{x:Type RadioButton}">
-                            <Setter Property="Padding" Value="10,8"/>
-                            <Setter Property="Margin" Value="0,1"/>
-                            <Setter Property="Cursor" Value="Hand"/>
-                            <Setter Property="FontFamily" Value="Inter, Segoe UI"/>
-                            <Setter Property="FontSize" Value="13"/>
-                            <Setter Property="Foreground" Value="{DynamicResource FgSecondary}"/>
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="{x:Type RadioButton}">
-                                        <Border x:Name="bd"
-                                                Background="Transparent"
-                                                BorderBrush="Transparent"
-                                                BorderThickness="3,0,0,0"
-                                                Padding="{TemplateBinding Padding}">
-                                            <ContentPresenter VerticalAlignment="Center"/>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsChecked" Value="True">
-                                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource BgTertiary}"/>
-                                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource ActiveBar}"/>
-                                                <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
-                                                <Setter Property="FontWeight" Value="SemiBold"/>
-                                            </Trigger>
-                                            <MultiTrigger>
-                                                <MultiTrigger.Conditions>
-                                                    <Condition Property="IsMouseOver" Value="True"/>
-                                                    <Condition Property="IsChecked" Value="False"/>
-                                                </MultiTrigger.Conditions>
-                                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource BgInput}"/>
-                                                <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
-                                            </MultiTrigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </StackPanel.Resources>
-                    <RadioButton GroupName="SidebarNav" Content="📂  Explorador"
-                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Explorador}"/>
-                    <RadioButton GroupName="SidebarNav" Content="🔍  Búsqueda"
-                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Busqueda}"/>
-                    <RadioButton GroupName="SidebarNav" Content="✎  Editor"
-                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Editor}"/>
-                    <RadioButton GroupName="SidebarNav" Content="⛶  Diagrama"
-                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Diagrama}"/>
-                    <RadioButton GroupName="SidebarNav" Content="🗺  Plano CAD"
-                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}"
-                                 ToolTip="Editor visual CAD: importá un plano .DXF de referencia y visualizá las losas. Fase 1 — visualización."/>
-                    <RadioButton GroupName="SidebarNav" Content="▤  Editor .DL"
-                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DLEditor}"/>
-                    <RadioButton GroupName="SidebarNav" Content="⇲  Salida .TXT"
-                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Salida}"/>
-                    <RadioButton GroupName="SidebarNav" Content="🔩  Aceros"
-                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Aceros}"
-                                 ToolTip="Diseño de aceros distribuidos por losa basado en los momentos importados del .TXT. Próximamente."/>
-                    <RadioButton GroupName="SidebarNav" Content="🛡  Validación"
-                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}"/>
-                    <RadioButton GroupName="SidebarNav" Content="⚖  Reglamento"
-                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Reglamento}"/>
-                    <RadioButton GroupName="SidebarNav" Content="⚙  Configuración"
-                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Configuracion}"/>
-                    <RadioButton GroupName="SidebarNav" Content="◆  Plugins"
-                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Plugins}"/>
-                    <RadioButton GroupName="SidebarNav" Content="ℹ  Acerca de"
-                                 IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Acerca}"/>
-                </StackPanel>
-
-                <!-- Separador + título SISTEMAS -->
-                <StackPanel Grid.Row="2" Margin="16,4,16,4">
-                    <Border Height="1" Background="{DynamicResource Border}" Margin="0,0,0,8"/>
-                    <DockPanel LastChildFill="False">
-                        <TextBlock DockPanel.Dock="Left" Text="SISTEMAS"
-                                   FontWeight="Bold" FontSize="11"
-                                   Foreground="{DynamicResource FgMuted}"/>
-                        <Button DockPanel.Dock="Right" Content="−" Width="22" Height="22" Padding="0"
-                                Click="OnDeleteSistema"
-                                Background="Transparent" BorderThickness="0"
-                                Foreground="{DynamicResource FgMuted}"
-                                ToolTip="Eliminar sistema seleccionado"/>
-                        <Button DockPanel.Dock="Right" Content="+" Width="22" Height="22" Padding="0"
-                                Click="OnAddSistema"
-                                Background="Transparent" BorderThickness="0"
-                                Foreground="{DynamicResource FgPrimary}"
-                                ToolTip="Agregar nuevo sistema"/>
-                    </DockPanel>
-                </StackPanel>
-
-                <!-- Lista de sistemas -->
-                <ListBox Grid.Row="3" x:Name="SistemasList"
-                         Margin="8,4,8,8"
-                         ItemsSource="{Binding Proyecto.Sistemas}"
-                         SelectedItem="{Binding SistemaActivo, Mode=TwoWay}"
-                         Background="Transparent"
-                         BorderThickness="0">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Margin="4,6">
-                                <TextBlock Text="{Binding Nombre}"
-                                           FontWeight="SemiBold"
-                                           Foreground="{DynamicResource FgPrimary}"/>
-                                <TextBlock FontSize="10" Margin="0,2,0,0"
-                                           Foreground="{DynamicResource FgMuted}">
-                                    <Run Text="{Binding Losas.Count, Mode=OneWay}"/>
-                                    <Run Text=" losas · "/>
-                                    <Run Text="{Binding BordesX.Count, Mode=OneWay}"/>
-                                    <Run Text="X + "/>
-                                    <Run Text="{Binding BordesY.Count, Mode=OneWay}"/>
-                                    <Run Text="Y bordes"/>
-                                </TextBlock>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-
-                <!-- Footer sidebar: project path + theme buttons -->
-                <Border Grid.Row="4" Padding="14,10"
-                        BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
-                    <StackPanel>
-                        <TextBlock Text="PROJECT" FontSize="10" FontWeight="Bold"
-                                   Foreground="{DynamicResource FgMuted}"/>
-                        <TextBlock Text="{Binding Proyecto.Archivo, FallbackValue=(sin .DL), TargetNullValue=(sin .DL), Mode=OneWay}"
-                                   FontFamily="JetBrains Mono, Consolas" FontSize="10"
-                                   Margin="0,2,0,8"
-                                   TextTrimming="CharacterEllipsis"
-                                   ToolTip="{Binding Proyecto.Archivo}"
-                                   Foreground="{DynamicResource FgSecondary}"/>
-                        <DockPanel LastChildFill="False">
-                            <Button DockPanel.Dock="Left" Content="Tema" Padding="8,3"
-                                    Click="OnToggleTheme"
-                                    Background="Transparent"
-                                    Foreground="{DynamicResource FgSecondary}"
-                                    BorderBrush="{DynamicResource Border}" BorderThickness="1"
-                                    ToolTip="Ciclar Precision/Light/Dark"/>
-                            <Button DockPanel.Dock="Right" Content="Apariencia" Padding="8,3"
-                                    Click="OnAppearanceClick"
-                                    Background="Transparent"
-                                    Foreground="{DynamicResource FgSecondary}"
-                                    BorderBrush="{DynamicResource Border}" BorderThickness="1"
-                                    ToolTip="Personalizar colores"/>
-                        </DockPanel>
+                <!-- Nav modos: 13 RadioButtons bindeados a ModoActivo via
+                     EnumToBool, reestilizados como tabs horizontales con
+                     indicador inferior. El ScrollViewer los desplaza cuando la
+                     ventana es estrecha. Bindings y GroupName sin cambios. -->
+                <ScrollViewer Grid.Column="1" VerticalAlignment="Bottom"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Disabled">
+                    <StackPanel Orientation="Horizontal">
+                        <StackPanel.Resources>
+                            <Style TargetType="{x:Type RadioButton}">
+                                <Setter Property="Padding" Value="14,8"/>
+                                <Setter Property="Margin" Value="1,0"/>
+                                <Setter Property="Cursor" Value="Hand"/>
+                                <Setter Property="FontFamily" Value="Inter, Segoe UI"/>
+                                <Setter Property="FontSize" Value="13"/>
+                                <Setter Property="Foreground" Value="{DynamicResource FgSecondary}"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="{x:Type RadioButton}">
+                                            <Border x:Name="bd"
+                                                    Background="Transparent"
+                                                    BorderBrush="Transparent"
+                                                    BorderThickness="0,0,0,3"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsChecked" Value="True">
+                                                    <Setter TargetName="bd" Property="Background" Value="{DynamicResource BgTertiary}"/>
+                                                    <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource ActiveBar}"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                                </Trigger>
+                                                <MultiTrigger>
+                                                    <MultiTrigger.Conditions>
+                                                        <Condition Property="IsMouseOver" Value="True"/>
+                                                        <Condition Property="IsChecked" Value="False"/>
+                                                    </MultiTrigger.Conditions>
+                                                    <Setter TargetName="bd" Property="Background" Value="{DynamicResource BgInput}"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                                                </MultiTrigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </StackPanel.Resources>
+                        <RadioButton GroupName="SidebarNav" Content="📂  Explorador"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Explorador}"/>
+                        <RadioButton GroupName="SidebarNav" Content="🔍  Búsqueda"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Busqueda}"/>
+                        <RadioButton GroupName="SidebarNav" Content="✎  Editor"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Editor}"/>
+                        <RadioButton GroupName="SidebarNav" Content="⛶  Diagrama"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Diagrama}"/>
+                        <RadioButton GroupName="SidebarNav" Content="🗺  Plano CAD"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}"
+                                     ToolTip="Editor visual CAD: importá un plano .DXF de referencia y visualizá las losas. Fase 1 — visualización."/>
+                        <RadioButton GroupName="SidebarNav" Content="▤  Editor .DL"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DLEditor}"/>
+                        <RadioButton GroupName="SidebarNav" Content="⇲  Salida .TXT"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Salida}"/>
+                        <RadioButton GroupName="SidebarNav" Content="🔩  Aceros"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Aceros}"
+                                     ToolTip="Diseño de aceros distribuidos por losa basado en los momentos importados del .TXT. Próximamente."/>
+                        <RadioButton GroupName="SidebarNav" Content="🛡  Validación"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}"/>
+                        <RadioButton GroupName="SidebarNav" Content="⚖  Reglamento"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Reglamento}"/>
+                        <RadioButton GroupName="SidebarNav" Content="⚙  Configuración"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Configuracion}"/>
+                        <RadioButton GroupName="SidebarNav" Content="◆  Plugins"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Plugins}"/>
+                        <RadioButton GroupName="SidebarNav" Content="ℹ  Acerca de"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Acerca}"/>
                     </StackPanel>
-                </Border>
+                </ScrollViewer>
+
+                <!-- Selector de SISTEMA activo + tema. Reemplaza la lista
+                     lateral; el ComboBox conserva x:Name="SistemasList" para
+                     el code-behind (OnDeleteSistema lee su SelectedItem).
+                     Operable desde cualquier modo. -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal"
+                            VerticalAlignment="Center" Margin="12,0,16,0">
+                    <TextBlock Text="SISTEMA" VerticalAlignment="Center"
+                               FontWeight="Bold" FontSize="10"
+                               Margin="0,0,8,0"
+                               Foreground="{DynamicResource FgMuted}"/>
+                    <ComboBox x:Name="SistemasList"
+                              VerticalAlignment="Center" MinWidth="160"
+                              ItemsSource="{Binding Proyecto.Sistemas}"
+                              SelectedItem="{Binding SistemaActivo, Mode=TwoWay}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Nombre}" FontWeight="SemiBold"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <Button Content="+" Width="24" Height="24" Padding="0" Margin="4,0,0,0"
+                            Click="OnAddSistema" VerticalAlignment="Center"
+                            Background="Transparent" BorderThickness="0"
+                            Foreground="{DynamicResource FgPrimary}"
+                            ToolTip="Agregar nuevo sistema"/>
+                    <Button Content="−" Width="24" Height="24" Padding="0"
+                            Click="OnDeleteSistema" VerticalAlignment="Center"
+                            Background="Transparent" BorderThickness="0"
+                            Foreground="{DynamicResource FgMuted}"
+                            ToolTip="Eliminar sistema seleccionado"/>
+                    <Border Width="1" Margin="10,6" Background="{DynamicResource Border}"/>
+                    <Button Content="Tema" Padding="8,3"
+                            Click="OnToggleTheme" VerticalAlignment="Center"
+                            Background="Transparent"
+                            Foreground="{DynamicResource FgSecondary}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                            ToolTip="Ciclar Precision/Light/Dark"/>
+                    <Button Content="Apariencia" Padding="8,3" Margin="6,0,0,0"
+                            Click="OnAppearanceClick" VerticalAlignment="Center"
+                            Background="Transparent"
+                            Foreground="{DynamicResource FgSecondary}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                            ToolTip="Personalizar colores"/>
+                </StackPanel>
             </Grid>
         </Border>
 
         <!-- =============================================================
              ÁREA PRINCIPAL: top bar + content switch + statusbar
              ============================================================= -->
-        <Grid Grid.Column="1">
+        <Grid Grid.Row="1">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>  <!-- top action bar -->
                 <RowDefinition Height="*"/>     <!-- content switch -->
@@ -1412,6 +1393,14 @@
                         <Run Foreground="{DynamicResource FgMuted}" Text="  ·  "/>
                         <Run Foreground="{DynamicResource FgSecondary}" Text="{Binding SistemaActivo.Nombre, FallbackValue=(sin sistema), TargetNullValue=(sin sistema), Mode=OneWay}"/>
                     </TextBlock>
+                    <!-- Ruta del proyecto: reubicada del footer del antiguo sidebar (B.3). -->
+                    <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" FontSize="11"
+                               Margin="16,0,0,0" MaxWidth="340"
+                               FontFamily="JetBrains Mono, Consolas"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource FgMuted}"
+                               ToolTip="{Binding Proyecto.Archivo}"
+                               Text="{Binding Proyecto.Archivo, FallbackValue=(sin .DL), TargetNullValue=(sin .DL), Mode=OneWay}"/>
                     <ToggleButton DockPanel.Dock="Right" x:Name="LogToggle"
                                   Content="Logs" Width="60" Margin="6,0,0,0"
                                   Background="Transparent"
