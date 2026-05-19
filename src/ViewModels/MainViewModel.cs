@@ -37,7 +37,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
 
     /// <summary>
     /// Modo activo de la sidebar principal. Determina qué contenido muestra
-    /// el área principal: Editor (tabla de losas), Diagrama, DLEditor crudo,
+    /// el área principal: Editor (tabla de losas), DLEditor crudo,
     /// Salida del .TXT, Reglamento R-001, Plugins, Acerca.
     ///
     /// <para>
@@ -60,19 +60,6 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
 
     /// <summary>Conveniencia para DataTriggers que muestran el top bar de acciones solo en Editor.</summary>
     public bool EsModoEditor => _modoActivo == ModoSidebar.Editor;
-
-    private bool _esquemaEnVivo;
-    /// <summary>
-    /// Split-view del Editor: cuando es <c>true</c>, el esquema 2D del sistema
-    /// se renderiza al lado de la tabla de losas y se redibuja en vivo a medida
-    /// que el usuario edita Lx/Ly/Tipo/Bordes. Útil para ver el efecto visual
-    /// del cambio sin tener que ir al modo Diagrama y volver.
-    /// </summary>
-    public bool EsquemaEnVivo
-    {
-        get => _esquemaEnVivo;
-        set { if (_esquemaEnVivo == value) return; _esquemaEnVivo = value; OnPropertyChanged(); }
-    }
 
     /// <summary>Texto de versión mostrado en el branding de la sidebar.</summary>
     public string Version => "v0.5.0 — LosasPlus";
@@ -164,7 +151,6 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// Toggle de "modo conexión por ID": cuando es true, click en una celda
     /// ID del LosasGrid registra el primer endpoint; el siguiente click
     /// crea el borde adicional (X o Y según la heurística del LayoutSolver).
-    /// Inspirado en el modo conexión del DiagramView.
     /// </summary>
     public bool ModoConectarBordes
     {
@@ -1342,7 +1328,6 @@ public enum ModoSidebar
 {
     Explorador,
     Editor,
-    Diagrama,
     /// <summary>Editor visual CAD: plano DXF de referencia + losas (Fase 1.B).</summary>
     PlanoCad,
     DLEditor,

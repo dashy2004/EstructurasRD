@@ -365,12 +365,8 @@ public partial class MainWindow : Window
         };
         if (dlg.ShowDialog() != true) return;
 
-        // Capturar PNG del Canvas (mejor esfuerzo: si falla, exportamos sin esquema).
-        byte[]? png = null;
-        try { png = Diagram?.CaptureCanvasPng(); }
-        catch (System.Exception ex) { Vm.Log("No se pudo capturar el esquema: " + ex.Message); }
-
-        await Vm.ExportarXlsxAsync(dlg.FileName, png);
+        // El esquema 2D se eliminó junto con DiagramView (FASE C); se exporta sin imagen.
+        await Vm.ExportarXlsxAsync(dlg.FileName, null);
     }
 
     private void OnTrustPluginClick(object sender, RoutedEventArgs e)

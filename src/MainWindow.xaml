@@ -127,11 +127,9 @@
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Busqueda}"/>
                         <RadioButton GroupName="SidebarNav" Content="✎  Editor"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Editor}"/>
-                        <RadioButton GroupName="SidebarNav" Content="⛶  Diagrama"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Diagrama}"/>
-                        <RadioButton GroupName="SidebarNav" Content="🗺  Plano CAD"
+                        <RadioButton GroupName="SidebarNav" Content="🗺  Lienzo CAD"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}"
-                                     ToolTip="Editor visual CAD: importá un plano .DXF de referencia y visualizá las losas. Fase 1 — visualización."/>
+                                     ToolTip="Editor visual CAD: importá un plano .DXF de referencia y visualizá las losas. Único entorno gráfico."/>
                         <RadioButton GroupName="SidebarNav" Content="▤  Editor .DL"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DLEditor}"/>
                         <RadioButton GroupName="SidebarNav" Content="⇲  Salida .TXT"
@@ -513,40 +511,8 @@
                     </Grid.Style>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
-                        <!-- Columna del esquema en vivo: 0 si toggle OFF, *
-                             si toggle ON. Cambia via DataTrigger sobre
-                             EsquemaEnVivo. -->
-                        <ColumnDefinition>
-                            <ColumnDefinition.Style>
-                                <Style TargetType="{x:Type ColumnDefinition}">
-                                    <Setter Property="Width" Value="0"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding EsquemaEnVivo}" Value="True">
-                                            <Setter Property="Width" Value="*"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </ColumnDefinition.Style>
-                        </ColumnDefinition>
                         <ColumnDefinition Width="320"/>
                     </Grid.ColumnDefinitions>
-
-                    <!-- Esquema en vivo (col 1) — visible solo con toggle ON -->
-                    <Border Grid.Column="1" Margin="6,0,6,0"
-                            Background="{DynamicResource BgSecondary}"
-                            BorderBrush="{DynamicResource Border}" BorderThickness="1">
-                        <Border.Style>
-                            <Style TargetType="{x:Type Border}">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding EsquemaEnVivo}" Value="True">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </Border.Style>
-                        <v:DiagramView x:Name="DiagramLive" DataContext="{Binding}"/>
-                    </Border>
 
                     <!-- Tabla de losas + tipos panel abajo -->
                     <DockPanel Grid.Column="0">
@@ -568,15 +534,6 @@
                             <Button Content="⌨  Atajos" Width="100" Margin="8,0,0,0"
                                     Command="{Binding AbrirShortcutsCommand}"
                                     ToolTip="Ver todos los atajos de teclado (Ctrl+/)."/>
-                            <!-- Esquema en vivo: split-view con el diagrama. -->
-                            <ToggleButton DockPanel.Dock="Right" Margin="8,0,0,0"
-                                          IsChecked="{Binding EsquemaEnVivo, Mode=TwoWay}"
-                                          Padding="10,4"
-                                          ToolTip="Mostrar el esquema 2D al lado de la tabla y redibujarlo en vivo a medida que editás Lx/Ly/Tipo.">
-                                <TextBlock>
-                                    <Run Text="👁  Esquema en vivo"/>
-                                </TextBlock>
-                            </ToggleButton>
                             <TextBlock Text="(seleccioná una fila para eliminar / aplicar tipo)" VerticalAlignment="Center" Margin="8,0,0,0"
                                        Foreground="{DynamicResource FgMuted}"/>
                         </DockPanel>
@@ -829,7 +786,7 @@
                     </DockPanel>
 
                     <!-- Panel lateral: settings del sistema + bordes -->
-                    <Border Grid.Column="2" Background="{DynamicResource BgSecondary}" Margin="6,0,0,0" Padding="8">
+                    <Border Grid.Column="1" Background="{DynamicResource BgSecondary}" Margin="6,0,0,0" Padding="8">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <StackPanel>
                                 <!-- PROYECTO: nombre + autor + código de obra. El Nombre se usa
@@ -937,23 +894,7 @@
                     </Border>
                 </Grid>
 
-                <!-- MODO Diagrama -->
-                <ContentControl>
-                    <ContentControl.Style>
-                        <Style TargetType="{x:Type ContentControl}">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding ModoActivo}" Value="Diagrama">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </ContentControl.Style>
-                    <v:DiagramView x:Name="Diagram" DataContext="{Binding}"/>
-                </ContentControl>
-
-                <!-- MODO Plano CAD (Fase 1.B) — editor visual CAD retained-mode.
-                     Componente nuevo e independiente de DiagramView. -->
+                <!-- MODO Lienzo CAD — editor visual CAD retained-mode. -->
                 <ContentControl>
                     <ContentControl.Style>
                         <Style TargetType="{x:Type ContentControl}">

@@ -15,8 +15,7 @@ namespace LosasPlus.Views.Cad;
 /// <c>PLAN_CAD_V1.md</c>). Hereda directamente de <see cref="FrameworkElement"/>
 /// y dibuja con <see cref="DrawingVisual"/> + <see cref="DrawingContext"/> —
 /// <b>sin un solo <c>Shape</c></b> (Rectangle/Line). Esto escala a planos con
-/// cientos de entidades, a diferencia del <c>DiagramView</c> basado en
-/// <c>Canvas</c> + UIElements (que se conserva intacto y aparte).
+/// cientos de entidades sin instanciar un UIElement por cada primitiva.
 ///
 /// <para>
 /// Sistema de 4 capas, cada una un <see cref="DrawingVisual"/>:
