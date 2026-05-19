@@ -599,6 +599,10 @@ public sealed class CadCanvasHost : FrameworkElement
         penHuerf.Freeze();
         var brushId = new SolidColorBrush(Color.FromRgb(0x1B, 0x1B, 0x1D));
         brushId.Freeze();
+        var penPatron = new Pen(new SolidColorBrush(Color.FromArgb(70, 0x2E, 0x7D, 0x32)), 0.8);
+        penPatron.Freeze();
+        var penAcero = new Pen(new SolidColorBrush(Color.FromRgb(0x37, 0x47, 0x4F)), 2.2);
+        penAcero.Freeze();
 
         // Offset de las losas:
         //  - Si hay losas ANCLADAS (PosX/PosY), el LayoutSolver no normaliza y
@@ -625,17 +629,110 @@ public sealed class CadCanvasHost : FrameworkElement
             dc.DrawRectangle(p.Huerfana ? rellenoHuerf : rellenoLosa,
                              p.Huerfana ? penHuerf : penLosa, rect);
 
-            var ft = new FormattedText(
-                p.Id.ToString(CultureInfo.InvariantCulture),
-                CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
-                new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal,
-                             FontWeights.Bold, FontStretches.Normal),
-                Math.Min(20, h * 0.35), brushId,
-                VisualTreeHelper.GetDpi(this).PixelsPerDip);
-            dc.DrawText(ft, new Point(x + w / 2 - ft.Width / 2, y + h / 2 - ft.Height / 2));
+            // Patrón interior (franjas 1D / cuadrícula 2D) + rótulo de 3 líneas.
+            DibujarPatronLosa(dc, rect, p.Losa, penPatron);
+            DibujarRotuloLosa(dc, rect, p, brushId);
         }
 
+        // Marcas de acero adicional sobre las adyacencias confirmadas.
+        DibujarMarcasAcero(dc, layout.Placements, offsetX, sistema, penAcero);
+
         _placements = layout.Placements;
+    }
+
+    /// <summary>
+    /// Dibuja el patrón interior de una losa con líneas divisorias: franjas
+    /// verticales (1D-V), horizontales (1D-H) o cuadrícula (2D), según
+    /// <see cref="Losa.DireccionTrabajo"/>. Sólo <see cref="DrawingContext"/>.
+    /// </summary>
+    private static void DibujarPatronLosa(DrawingContext dc, Rect rect, Losa losa, Pen pen)
+    {
+        string dir = losa.DireccionTrabajo;          // "2D" | "1D-V" | "1D-H"
+        bool lineasV = dir is "1D-V" or "2D";
+        bool lineasH = dir is "1D-H" or "2D";
+        const int divisiones = 4;                    // 3 líneas interiores por eje
+
+        if (lineasV && rect.Width > 10)
+            for (int i = 1; i < divisiones; i++)
+            {
+                double lx = rect.X + rect.Width * i / divisiones;
+                dc.DrawLine(pen, new Point(lx, rect.Y), new Point(lx, rect.Bottom));
+            }
+        if (lineasH && rect.Height > 10)
+            for (int i = 1; i < divisiones; i++)
+            {
+                double ly = rect.Y + rect.Height * i / divisiones;
+                dc.DrawLine(pen, new Point(rect.X, ly), new Point(rect.Right, ly));
+            }
+    }
+
+    /// <summary>
+    /// Rótulo interno de una losa: 3 líneas centradas y apiladas arriba
+    /// (<c>Id</c> · <c>Lx × Ly</c> · <c>Tipo</c>). Si el rect no da para 3
+    /// líneas, se degrada a sólo el <c>Id</c> centrado.
+    /// </summary>
+    private void DibujarRotuloLosa(DrawingContext dc, Rect rect, LayoutSolver.Placement p, Brush brush)
+    {
+        var losa = p.Losa;
+        double dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+        double fsId  = Math.Clamp(rect.Height * 0.16, 9.0, 22.0);
+        double fsSub = fsId * 0.72;
+        var negrita = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
+        var normal  = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+
+        FormattedText Texto(string s, Typeface tf, double fs) => new(
+            s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, tf, fs, brush, dpi);
+
+        var l1 = Texto(p.Id.ToString(CultureInfo.InvariantCulture), negrita, fsId);
+        var l2 = Texto($"{losa.Lx:0.00} × {losa.Ly:0.00}", normal, fsSub);
+        var l3 = Texto($"Tipo: {losa.Tipo}", normal, fsSub);
+
+        double anchoMax = Math.Max(l1.Width, Math.Max(l2.Width, l3.Width));
+        if (l1.Height + l2.Height + l3.Height + 6 > rect.Height || anchoMax > rect.Width)
+        {
+            // Losa muy chica para 3 líneas: sólo el Id, centrado.
+            dc.DrawText(l1, new Point(rect.X + (rect.Width - l1.Width) / 2,
+                                      rect.Y + (rect.Height - l1.Height) / 2));
+            return;
+        }
+        double cy = rect.Y + 4;
+        dc.DrawText(l1, new Point(rect.X + (rect.Width - l1.Width) / 2, cy)); cy += l1.Height;
+        dc.DrawText(l2, new Point(rect.X + (rect.Width - l2.Width) / 2, cy)); cy += l2.Height;
+        dc.DrawText(l3, new Point(rect.X + (rect.Width - l3.Width) / 2, cy));
+    }
+
+    /// <summary>
+    /// Dibuja el ícono de acero adicional sobre cada adyacencia confirmada
+    /// (<see cref="Sistema.BordesX"/> / <see cref="Sistema.BordesY"/>), entre las
+    /// losas <c>BI</c> y <c>BJ</c>. Sólo <see cref="DrawingContext"/>.
+    /// </summary>
+    private static void DibujarMarcasAcero(DrawingContext dc, IReadOnlyList<LayoutSolver.Placement> placements,
+                                           double offsetX, Sistema sistema, Pen pen)
+    {
+        var centro = new Dictionary<int, Point>();
+        foreach (var p in placements)
+            centro[p.Id] = new Point(
+                offsetX + (p.X + p.Width / 2) * PxPorMetro,
+                (p.Y + p.Height / 2) * PxPorMetro);
+
+        void Marcar(IEnumerable<BordeAdic> bordes)
+        {
+            foreach (var b in bordes)
+                if (centro.TryGetValue(b.BI, out var ci) && centro.TryGetValue(b.BJ, out var cj))
+                    DibujarIconoAcero(dc, new Point((ci.X + cj.X) / 2, (ci.Y + cj.Y) / 2), pen);
+        }
+        Marcar(sistema.BordesX);
+        Marcar(sistema.BordesY);
+    }
+
+    /// <summary>Ícono de acero adicional: barra horizontal con ganchos diagonales.</summary>
+    private static void DibujarIconoAcero(DrawingContext dc, Point c, Pen pen)
+    {
+        const double r = 11.0;   // semi-ancho de la barra (px)
+        const double g = 7.0;    // largo del gancho diagonal (px)
+        dc.DrawLine(pen, new Point(c.X - r, c.Y), new Point(c.X + r, c.Y));
+        dc.DrawLine(pen, new Point(c.X - r, c.Y), new Point(c.X - r + g, c.Y - g));
+        dc.DrawLine(pen, new Point(c.X + r, c.Y), new Point(c.X + r - g, c.Y + g));
     }
 
     // =====================================================================
