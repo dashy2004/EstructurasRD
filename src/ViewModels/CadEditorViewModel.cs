@@ -44,6 +44,7 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         ActualizarLosaCommand = new RelayCommand(p => ActualizarLosa(p as ActualizacionLosaArgs));
         CrearBordeAdicCommand = new RelayCommand(p => CrearBordeAdic(p as AdyacenciaCandidata?));
         EncuadrarPlanoCommand = new RelayCommand(_ => EncuadrarPlano());
+        CrearLosaCommand = new RelayCommand(p => CrearLosa(p as CrearLosaArgs));
     }
 
     // ---- Plano DXF importado ----
@@ -134,6 +135,56 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
     private void EncuadrarPlano()
     {
         if (TienePlano) SolicitudEncuadre++;
+    }
+
+    // ---- Herramienta de interacción del lienzo (Iteración 3) ----
+
+    private ModoInteraccionCad _modoInteraccion = ModoInteraccionCad.Puntero;
+    /// <summary>
+    /// Herramienta activa del lienzo CAD: <see cref="ModoInteraccionCad.Puntero"/>
+    /// (selección/arrastre) o <see cref="ModoInteraccionCad.DibujarLosa"/>
+    /// (click-drag para crear losas). La cambia la toolbar flotante de <c>CadView</c>.
+    /// </summary>
+    public ModoInteraccionCad ModoInteraccion
+    {
+        get => _modoInteraccion;
+        set { if (_modoInteraccion == value) return; _modoInteraccion = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// Crea una <see cref="Losa"/> nueva a partir del rectángulo que el usuario
+    /// dibujó en el lienzo (lo dispara <c>CadCanvasHost</c> al soltar el mouse en
+    /// modo <see cref="ModoInteraccionCad.DibujarLosa"/>). El parámetro es un
+    /// <see cref="CrearLosaArgs"/> con la geometría ya en metros.
+    /// </summary>
+    public ICommand CrearLosaCommand { get; }
+
+    private void CrearLosa(CrearLosaArgs? args)
+    {
+        if (args is null) return;
+
+        var sistema = SistemaActivo;
+        int nuevoId = sistema.Losas.Count > 0 ? sistema.Losas.Max(l => l.Id) + 1 : 1;
+
+        var losa = new Losa
+        {
+            Id = nuevoId,
+            Tipo = 10,                  // 4 bordes simplemente apoyados (default editable)
+            Lx = args.Lx,
+            Ly = args.Ly,
+            PosX = args.PosX,
+            PosY = args.PosY,
+            // Carga / Espesor / Rec quedan en sus defaults del modelo Losa.
+        };
+
+        // CRÍTICO: snapshot ANTES de mutar el SSOT — preserva el Undo/Redo.
+        _pushUndoSnapshot();
+        sistema.Losas.Add(losa);
+
+        EstadoImportacion =
+            $"✓ Losa {nuevoId} dibujada — {args.Lx:0.00} × {args.Ly:0.00} m. " +
+            $"Editá tipo y cargas en el modo Editor.";
+        OnPropertyChanged(nameof(Losas));
     }
 
     // ---- Acceso al SSOT (sistema activo + sus losas) ----

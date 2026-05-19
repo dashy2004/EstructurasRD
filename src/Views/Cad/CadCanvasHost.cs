@@ -8,6 +8,7 @@ using System.Windows.Media.Imaging;
 using LosasPlus.Models;
 using LosasPlus.Models.Cad;
 using LosasPlus.Services;
+using LosasPlus.ViewModels;
 
 namespace LosasPlus.Views.Cad;
 
@@ -71,7 +72,7 @@ public sealed class CadCanvasHost : FrameworkElement
     private static readonly SolidColorBrush PincelCota           = new(Color.FromRgb(0xEF, 0x6C, 0x00));
 
     // ---- Estado de interacción (efímero, sólo de la vista — nunca toca el SSOT) ----
-    private enum ModoArrastre { Ninguno, Pan, Mover, Redimensionar }
+    private enum ModoArrastre { Ninguno, Pan, Mover, Redimensionar, DibujarLosa }
     private ModoArrastre _modo = ModoArrastre.Ninguno;
     private Losa? _losaSeleccionada;
     private Point _dragStart;
@@ -81,6 +82,10 @@ public sealed class CadCanvasHost : FrameworkElement
     private Rect _rectFantasmaPx;
     private IReadOnlyList<LayoutSolver.Placement> _placements = Array.Empty<LayoutSolver.Placement>();
     private double _offsetXPx;
+
+    // ---- Herramienta de dibujo de losas (Iteración 3) ----
+    private const double MinLadoDibujoM = 0.5;   // m — lado mínimo de una losa dibujada
+    private Point _dibujarAnclaPre;               // ancla del trazo, en px pre-transform
 
     // ---- Chips de adyacencia (Fase 4) — sugerencias de conexión en el overlay ----
     private IReadOnlyList<AdyacenciaCandidata> _chips = Array.Empty<AdyacenciaCandidata>();
@@ -272,6 +277,55 @@ public sealed class CadCanvasHost : FrameworkElement
 
     private static void OnSolicitudEncuadreChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         => ((CadCanvasHost)d).EncuadrarPlano();
+
+    /// <summary>
+    /// Herramienta de interacción activa (Puntero / DibujarLosa). Bindeada
+    /// TwoWay al ViewModel: la toolbar la cambia, y el host la revierte a
+    /// <see cref="ModoInteraccionCad.Puntero"/> cuando el usuario pulsa Escape.
+    /// </summary>
+    public static readonly DependencyProperty ModoInteraccionProperty =
+        DependencyProperty.Register(nameof(ModoInteraccion), typeof(ModoInteraccionCad), typeof(CadCanvasHost),
+            new FrameworkPropertyMetadata(ModoInteraccionCad.Puntero,
+                FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnModoInteraccionChanged));
+
+    public ModoInteraccionCad ModoInteraccion
+    {
+        get => (ModoInteraccionCad)GetValue(ModoInteraccionProperty);
+        set => SetValue(ModoInteraccionProperty, value);
+    }
+
+    private static void OnModoInteraccionChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var host = (CadCanvasHost)d;
+        if ((ModoInteraccionCad)e.NewValue == ModoInteraccionCad.DibujarLosa)
+        {
+            host.Focus();   // para recibir la tecla Escape durante el trazo
+        }
+        else if (host._modo == ModoArrastre.DibujarLosa)
+        {
+            // Se abandonó la herramienta de dibujo a mitad de un trazo → cancelarlo.
+            host._modo = ModoArrastre.Ninguno;
+            host._rectFantasmaPx = Rect.Empty;
+            if (host.IsMouseCaptured) host.ReleaseMouseCapture();
+            host.RedibujarOverlay();
+        }
+    }
+
+    /// <summary>
+    /// Comando que se ejecuta al terminar de <b>dibujar</b> una losa nueva con
+    /// la herramienta de dibujo (Iteración 3). El parámetro es un
+    /// <see cref="CrearLosaArgs"/> con la geometría ya en metros — el ViewModel
+    /// toma el snapshot de Undo, instancia la <c>Losa</c> y la agrega al SSOT.
+    /// </summary>
+    public static readonly DependencyProperty CrearLosaCommandProperty =
+        DependencyProperty.Register(nameof(CrearLosaCommand), typeof(ICommand), typeof(CadCanvasHost),
+            new PropertyMetadata(null));
+
+    public ICommand? CrearLosaCommand
+    {
+        get => (ICommand?)GetValue(CrearLosaCommandProperty);
+        set => SetValue(CrearLosaCommandProperty, value);
+    }
 
     // =====================================================================
     // Ciclo de vida — redibujar la grilla cuando cambia el tamaño
@@ -604,6 +658,20 @@ public sealed class CadCanvasHost : FrameworkElement
         // Los chips de adyacencia se dibujan SIEMPRE (haya o no selección).
         DibujarChips(dc, inv);
 
+        // Rectángulo fantasma de la herramienta «Dibujar Losa» (Iteración 3).
+        if (_modo == ModoArrastre.DibujarLosa)
+        {
+            if (_rectFantasmaPx.Width > 0 && _rectFantasmaPx.Height > 0)
+            {
+                var penDibujo = new Pen(PincelOverlay, 1.6 * inv)
+                {
+                    DashStyle = new DashStyle(new double[] { 4, 3 }, 0),
+                };
+                dc.DrawRectangle(PincelOverlayRelleno, penDibujo, _rectFantasmaPx);
+            }
+            return;
+        }
+
         if (_losaSeleccionada is null) return;
 
         if (_modo is ModoArrastre.Mover or ModoArrastre.Redimensionar)
@@ -919,6 +987,61 @@ public sealed class CadCanvasHost : FrameworkElement
         RedibujarOverlay();
     }
 
+    /// <summary>
+    /// Confirma el trazado de la herramienta «Dibujar Losa»: convierte el
+    /// rectángulo fantasma a metros y, si supera el lado mínimo, despacha el
+    /// comando que crea la losa (con snapshot de Undo). Trazos demasiado chicos
+    /// se descartan en silencio. El modo herramienta no cambia → trazos seguidos.
+    /// </summary>
+    private void ConfirmarDibujoLosa()
+    {
+        double posX = _rectFantasmaPx.X      / PxPorMetro;
+        double posY = _rectFantasmaPx.Y      / PxPorMetro;
+        double lx   = _rectFantasmaPx.Width  / PxPorMetro;
+        double ly   = _rectFantasmaPx.Height / PxPorMetro;
+        _rectFantasmaPx = Rect.Empty;
+
+        // Validación: descartar clics accidentales o losas microscópicas.
+        if (lx < MinLadoDibujoM || ly < MinLadoDibujoM)
+        {
+            RedibujarOverlay();   // aborto silencioso — ni snapshot ni losa
+            return;
+        }
+
+        if (CrearLosaCommand is { } cmd)
+        {
+            var dto = new CrearLosaArgs(posX, posY, lx, ly);
+            if (cmd.CanExecute(dto)) cmd.Execute(dto);
+        }
+        RedibujarLosas();
+        RecomputarChips();
+        RedibujarOverlay();
+    }
+
+    /// <summary>
+    /// Tecla Escape: durante un trazo de dibujo lo cancela; con la herramienta
+    /// «Dibujar Losa» activa pero sin trazo en curso, vuelve a «Puntero».
+    /// </summary>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Key != Key.Escape) return;
+
+        if (_modo == ModoArrastre.DibujarLosa)
+        {
+            _modo = ModoArrastre.Ninguno;
+            _rectFantasmaPx = Rect.Empty;
+            if (IsMouseCaptured) ReleaseMouseCapture();
+            RedibujarOverlay();
+            e.Handled = true;
+        }
+        else if (ModoInteraccion == ModoInteraccionCad.DibujarLosa)
+        {
+            ModoInteraccion = ModoInteraccionCad.Puntero;
+            e.Handled = true;
+        }
+    }
+
     /// <summary>Ajusta el cursor según lo que hay bajo el puntero (estado en reposo).</summary>
     private void ActualizarCursorHover(Point pantalla)
     {
@@ -962,6 +1085,19 @@ public sealed class CadCanvasHost : FrameworkElement
         base.OnMouseLeftButtonDown(e);
         var pt = e.GetPosition(this);
         _dragStart = pt;
+
+        // 0) Herramienta «Dibujar Losa» → iniciar el trazado de un rectángulo.
+        if (ModoInteraccion == ModoInteraccionCad.DibujarLosa)
+        {
+            Focus();   // asegura recibir la tecla Escape durante el trazo
+            _chips = Array.Empty<AdyacenciaCandidata>();
+            _modo = ModoArrastre.DibujarLosa;
+            _dibujarAnclaPre = PantallaAPre(pt);
+            _rectFantasmaPx = new Rect(_dibujarAnclaPre, _dibujarAnclaPre);
+            CaptureMouse();
+            Cursor = Cursors.Cross;
+            return;
+        }
 
         // 1) ¿Sobre un tirador de la losa ya seleccionada? → redimensionar.
         //    (HandleBajoCursor sólo devuelve >=0 si hay una losa seleccionada.)
@@ -1050,6 +1186,10 @@ public sealed class CadCanvasHost : FrameworkElement
             case ModoArrastre.Redimensionar:
                 ConfirmarArrastre();
                 break;
+
+            case ModoArrastre.DibujarLosa:
+                ConfirmarDibujoLosa();
+                break;
         }
     }
 
@@ -1061,7 +1201,15 @@ public sealed class CadCanvasHost : FrameworkElement
         switch (_modo)
         {
             case ModoArrastre.Ninguno:
-                ActualizarCursorHover(pt);
+                if (ModoInteraccion == ModoInteraccionCad.DibujarLosa)
+                    Cursor = Cursors.Cross;
+                else
+                    ActualizarCursorHover(pt);
+                break;
+
+            case ModoArrastre.DibujarLosa:
+                _rectFantasmaPx = new Rect(_dibujarAnclaPre, PantallaAPre(pt));
+                RedibujarOverlay();
                 break;
 
             case ModoArrastre.Pan:
@@ -1086,7 +1234,9 @@ public sealed class CadCanvasHost : FrameworkElement
         base.OnLostMouseCapture(e);
         // Captura perdida a mitad de un gesto: descartar el arrastre (el SSOT
         // nunca se tocó) y volver al overlay de selección estática.
-        bool arrastrando = _modo is ModoArrastre.Mover or ModoArrastre.Redimensionar;
+        bool arrastrando = _modo is ModoArrastre.Mover or ModoArrastre.Redimensionar
+                                 or ModoArrastre.DibujarLosa;
+        if (_modo == ModoArrastre.DibujarLosa) _rectFantasmaPx = Rect.Empty;
         _modo = ModoArrastre.Ninguno;
         _handleActivo = -1;
         if (arrastrando) RedibujarOverlay();
