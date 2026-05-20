@@ -531,9 +531,11 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         {
             var plano = _importer.Importar(dlg.FileName);
             Plano = plano;
-            EstadoImportacion =
-                $"✓ {plano.NombreArchivo} — {plano.CantidadEntidades} entidad(es), " +
-                $"{plano.Ancho:0.0}×{plano.Alto:0.0} m (unidad origen: {plano.UnidadOriginal}).";
+            EstadoImportacion = plano.CantidadEntidades > 0
+                ? $"✓ {plano.NombreArchivo} — {plano.CantidadEntidades} entidad(es), " +
+                  $"{plano.Ancho:0.0}×{plano.Alto:0.0} m (unidad origen: {plano.UnidadOriginal})."
+                : $"⚠ {plano.NombreArchivo} importado pero sin entidades reconocidas " +
+                  $"(tipos no soportados como SPLINE / HATCH / DIMENSION / Polyline3D).";
         }
         catch (FileNotFoundException ex)
         {

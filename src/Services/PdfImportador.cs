@@ -169,11 +169,21 @@ public static class PdfImportador
     /// <summary>
     /// Abre el PDF con el descriptor de dimensiones dado, lee la primera
     /// página, aplica inversión BGRA opcional y devuelve un
-    /// <see cref="BitmapSource"/> congelado. Devuelve <c>null</c> si Docnet
-    /// reporta dimensiones &lt;= 0 o un buffer completamente vacío
-    /// (escenario observado en PDFs con transformaciones de impresión
-    /// complejas, v1.2.3). Propaga excepciones de Docnet — el caller
-    /// decide si caer al salvavidas 1:1.
+    /// <see cref="BitmapSource"/> congelado. Devuelve <c>null</c> sólo si
+    /// Docnet reporta dimensiones &lt;= 0 o un buffer null/diminuto.
+    /// Propaga excepciones de Docnet — el caller decide si caer al
+    /// salvavidas 1:1.
+    ///
+    /// <para>
+    /// Nota Parche v1.2.4: se removió la heurística <c>EsBufferVacio</c>
+    /// que escaneaba los primeros 4 KB del buffer en busca de bytes en
+    /// cero. Producía falsos positivos en PDFs con margen transparente
+    /// o <c>/CropBox</c> legítimo (alpha=0 en la esquina superior izquierda
+    /// es común en planos profesionales). La protección que ofrecía contra
+    /// PDFs que devolvían buffer todo-cero sin lanzar excepción era muy
+    /// rara, mientras que el falso positivo bloqueaba todos los PDFs con
+    /// margen transparente.
+    /// </para>
     /// </summary>
     private static BitmapSource? RasterizarPagina(string path, PageDimensions pd, bool invertColors)
     {
@@ -185,32 +195,11 @@ public static class PdfImportador
         byte[] bgra = page.GetImage();    // stride = wPx * 4 (32 bpp BGRA)
         if (bgra is null || bgra.Length < 4) return null;
 
-        // Detección de buffer vacío (Parche v1.2.3): algunos PDFs con
-        // transformaciones complejas hacen que Docnet devuelva dimensiones
-        // válidas pero un arreglo de bytes en cero. El caller usa el
-        // salvavidas a tamaño nativo 1:1 cuando esto ocurre.
-        if (EsBufferVacio(bgra)) return null;
-
         if (invertColors) InvertirBgra(bgra);
         var bmp = BitmapSource.Create(
             wPx, hPx, 96, 96, PixelFormats.Bgra32, null, bgra, wPx * 4);
         bmp.Freeze();   // seguro en background; obligatorio antes del UI thread
         return bmp;
-    }
-
-    /// <summary>
-    /// Heurística rápida (Parche v1.2.3): devuelve <c>true</c> si los
-    /// primeros 4 KB del buffer son todos cero — signo inequívoco de un
-    /// renderizado fallido de Docnet en PDFs con transformaciones de
-    /// impresión complejas. Aborta en O(1) en el caso común (encuentra
-    /// el primer byte no-cero rápido) y nunca escanea más de 4 KB.
-    /// </summary>
-    private static bool EsBufferVacio(byte[] buf)
-    {
-        int limite = Math.Min(buf.Length, 4096);
-        for (int i = 0; i < limite; i++)
-            if (buf[i] != 0) return false;
-        return true;
     }
 
     /// <summary>
