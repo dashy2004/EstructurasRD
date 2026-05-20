@@ -49,10 +49,13 @@
                                        RevisionPlano="{Binding CadEditor.RevisionPlano}"
                                        SolicitudEncuadre="{Binding CadEditor.SolicitudEncuadre}"
                                        ModoInteraccion="{Binding CadEditor.ModoInteraccion}"
+                                       SnapActivo="{Binding CadEditor.SnapActivo}"
+                                       MoverConectadas="{Binding CadEditor.MoverConectadas}"
                                        PoligonoClickCommand="{Binding CadEditor.MapearPoligonoCommand}"
                                        ActualizarLosaCommand="{Binding CadEditor.ActualizarLosaCommand}"
                                        CrearBordeAdicCommand="{Binding CadEditor.CrearBordeAdicCommand}"
-                                       CrearLosaCommand="{Binding CadEditor.CrearLosaCommand}"/>
+                                       CrearLosaCommand="{Binding CadEditor.CrearLosaCommand}"
+                                       MoverGrupoCommand="{Binding CadEditor.MoverGrupoCommand}"/>
 
                     <!-- Toolbar flotante de herramientas — superpuesta arriba-centro -->
                     <Border VerticalAlignment="Top" HorizontalAlignment="Center"
@@ -99,6 +102,42 @@
                                         </Setter.Value>
                                     </Setter>
                                 </Style>
+                                <Style TargetType="{x:Type ToggleButton}">
+                                    <Setter Property="Padding" Value="14,7"/>
+                                    <Setter Property="Margin" Value="2,0"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                    <Setter Property="FontFamily" Value="Inter, Segoe UI"/>
+                                    <Setter Property="FontSize" Value="13"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource FgSecondary}"/>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                                <Border x:Name="bd" CornerRadius="5"
+                                                        Background="Transparent"
+                                                        Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsChecked" Value="True">
+                                                        <Setter TargetName="bd" Property="Background" Value="{DynamicResource Accent}"/>
+                                                        <Setter Property="Foreground" Value="White"/>
+                                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                                    </Trigger>
+                                                    <MultiTrigger>
+                                                        <MultiTrigger.Conditions>
+                                                            <Condition Property="IsMouseOver" Value="True"/>
+                                                            <Condition Property="IsChecked" Value="False"/>
+                                                        </MultiTrigger.Conditions>
+                                                        <Setter TargetName="bd" Property="Background" Value="{DynamicResource BgInput}"/>
+                                                        <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                                                    </MultiTrigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
                             </StackPanel.Resources>
                             <RadioButton GroupName="HerramientaCad" Content="↖  Puntero"
                                          IsChecked="{Binding CadEditor.ModoInteraccion, Converter={StaticResource EnumToBool}, ConverterParameter=Puntero}"
@@ -106,6 +145,16 @@
                             <RadioButton GroupName="HerramientaCad" Content="▭  Dibujar Losa"
                                          IsChecked="{Binding CadEditor.ModoInteraccion, Converter={StaticResource EnumToBool}, ConverterParameter=DibujarLosa}"
                                          ToolTip="Arrastrar en el lienzo para dibujar una losa rectangular nueva."/>
+                            <RadioButton GroupName="HerramientaCad" Content="✋  Mano"
+                                         IsChecked="{Binding CadEditor.ModoInteraccion, Converter={StaticResource EnumToBool}, ConverterParameter=Mano}"
+                                         ToolTip="Arrastrar el lienzo para panear sin tocar las losas."/>
+                            <Border Width="1" Margin="6,4" Background="{DynamicResource Border}"/>
+                            <ToggleButton Content="🧲  Snap"
+                                          IsChecked="{Binding CadEditor.SnapActivo, Mode=TwoWay}"
+                                          ToolTip="Imán de alineación a la grilla y a bordes de losas vecinas. Apagar deja el rect siguiendo crudo al cursor."/>
+                            <ToggleButton Content="🔗  Conectadas"
+                                          IsChecked="{Binding CadEditor.MoverConectadas, Mode=TwoWay}"
+                                          ToolTip="Al mover una losa, arrastra rígidamente todas las losas conectadas a ella por bordes adicionales (BFS)."/>
                         </StackPanel>
                     </Border>
 

@@ -90,6 +90,14 @@ public sealed class CadCanvasHost : FrameworkElement
     // ---- Chips de adyacencia (Fase 4) — sugerencias de conexión en el overlay ----
     private IReadOnlyList<AdyacenciaCandidata> _chips = Array.Empty<AdyacenciaCandidata>();
 
+    // ---- Snap excluyente y «Mover Conectadas» (Iteración 3 Epic v1.2) ----
+    // Ids de losas que NO deben aparecer como candidatos a snap durante el
+    // gesto activo (la propia losa, o la componente conexa cuando hay bloque).
+    private readonly HashSet<int> _idsExcluidosSnap = new();
+    private bool _grupoMoverActivo;
+    private readonly Dictionary<int, Rect> _grupoMoverOrigPx = new();
+    private readonly List<Rect> _grupoMoverFantasmasPx = new();
+
     static CadCanvasHost()
     {
         PincelOverlay.Freeze();
@@ -331,6 +339,50 @@ public sealed class CadCanvasHost : FrameworkElement
     {
         get => (ICommand?)GetValue(CrearLosaCommandProperty);
         set => SetValue(CrearLosaCommandProperty, value);
+    }
+
+    /// <summary>
+    /// Encendido del <see cref="SnappingEngine"/> en el arrastre (toggle de la
+    /// toolbar — Iteración 3 v1.2). Bindeado a <c>CadEditor.SnapActivo</c>.
+    /// </summary>
+    public static readonly DependencyProperty SnapActivoProperty =
+        DependencyProperty.Register(nameof(SnapActivo), typeof(bool), typeof(CadCanvasHost),
+            new PropertyMetadata(true));
+
+    public bool SnapActivo
+    {
+        get => (bool)GetValue(SnapActivoProperty);
+        set => SetValue(SnapActivoProperty, value);
+    }
+
+    /// <summary>
+    /// Si <c>true</c>, al iniciar un mover en modo Puntero el host recolecta la
+    /// componente conexa (BFS sobre BordesX/Y) y arrastra todo el bloque rígido.
+    /// </summary>
+    public static readonly DependencyProperty MoverConectadasProperty =
+        DependencyProperty.Register(nameof(MoverConectadas), typeof(bool), typeof(CadCanvasHost),
+            new PropertyMetadata(false));
+
+    public bool MoverConectadas
+    {
+        get => (bool)GetValue(MoverConectadasProperty);
+        set => SetValue(MoverConectadasProperty, value);
+    }
+
+    /// <summary>
+    /// Comando que se ejecuta al soltar un arrastre con bloque conectado activo.
+    /// El parámetro es un <see cref="MovimientoGrupoArgs"/> — el ViewModel toma
+    /// UN único snapshot de Undo y aplica las nuevas posiciones a todas las
+    /// losas de la componente conexa.
+    /// </summary>
+    public static readonly DependencyProperty MoverGrupoCommandProperty =
+        DependencyProperty.Register(nameof(MoverGrupoCommand), typeof(ICommand), typeof(CadCanvasHost),
+            new PropertyMetadata(null));
+
+    public ICommand? MoverGrupoCommand
+    {
+        get => (ICommand?)GetValue(MoverGrupoCommandProperty);
+        set => SetValue(MoverGrupoCommandProperty, value);
     }
 
     // =====================================================================
@@ -796,6 +848,10 @@ public sealed class CadCanvasHost : FrameworkElement
                 DashStyle = new DashStyle(new double[] { 4, 3 }, 0),
             };
             dc.DrawRectangle(PincelOverlayRelleno, penFantasma, _rectFantasmaPx);
+            // «Mover Conectadas»: ghosts de las vecinas que viajan con el líder.
+            if (_grupoMoverActivo)
+                foreach (var r in _grupoMoverFantasmasPx)
+                    dc.DrawRectangle(PincelOverlayRelleno, penFantasma, r);
             DibujarCotas(dc, inv);
             return;
         }
@@ -1010,7 +1066,10 @@ public sealed class CadCanvasHost : FrameworkElement
         var ys = new List<double>();
         foreach (var p in _placements)
         {
-            if (_losaSeleccionada != null && p.Losa.Id == _losaSeleccionada.Id) continue;
+            // Excluir las losas del gesto activo (la propia, o todo el bloque
+            // conectado en «Mover Conectadas») — evita la oscilación contra
+            // las vecinas que se mueven con el líder.
+            if (_idsExcluidosSnap.Contains(p.Losa.Id)) continue;
             var r = PlacementARectPx(p);
             xs.Add(r.Left  / PxPorMetro);
             xs.Add(r.Right / PxPorMetro);
@@ -1031,9 +1090,17 @@ public sealed class CadCanvasHost : FrameworkElement
         double wM = _rectOriginalPx.Width  / PxPorMetro;
         double hM = _rectOriginalPx.Height / PxPorMetro;
 
-        var (candsX, candsY) = CandidatosSnap();
-        double snapX = SnappingEngine.SnapRango(xM, wM, candsX, PasoSnapGrilla, UmbralSnapM).Valor;
-        double snapY = SnappingEngine.SnapRango(yM, hM, candsY, PasoSnapGrilla, UmbralSnapM).Valor;
+        double snapX, snapY;
+        if (SnapActivo)
+        {
+            var (candsX, candsY) = CandidatosSnap();
+            snapX = SnappingEngine.SnapRango(xM, wM, candsX, PasoSnapGrilla, UmbralSnapM).Valor;
+            snapY = SnappingEngine.SnapRango(yM, hM, candsY, PasoSnapGrilla, UmbralSnapM).Valor;
+        }
+        else
+        {
+            snapX = xM; snapY = yM;
+        }
 
         return new Rect(snapX * PxPorMetro, snapY * PxPorMetro,
                         _rectOriginalPx.Width, _rectOriginalPx.Height);
@@ -1054,11 +1121,21 @@ public sealed class CadCanvasHost : FrameworkElement
         bool mueveT = _handleActivo is 0 or 1 or 2;
         bool mueveB = _handleActivo is 4 or 5 or 6;
 
-        var (candsX, candsY) = CandidatosSnap();
-        if (mueveL) left   = SnappingEngine.SnapCombinado(pre.X / PxPorMetro, candsX, PasoSnapGrilla, UmbralSnapM).Valor * PxPorMetro;
-        if (mueveR) right  = SnappingEngine.SnapCombinado(pre.X / PxPorMetro, candsX, PasoSnapGrilla, UmbralSnapM).Valor * PxPorMetro;
-        if (mueveT) top    = SnappingEngine.SnapCombinado(pre.Y / PxPorMetro, candsY, PasoSnapGrilla, UmbralSnapM).Valor * PxPorMetro;
-        if (mueveB) bottom = SnappingEngine.SnapCombinado(pre.Y / PxPorMetro, candsY, PasoSnapGrilla, UmbralSnapM).Valor * PxPorMetro;
+        if (SnapActivo)
+        {
+            var (candsX, candsY) = CandidatosSnap();
+            if (mueveL) left   = SnappingEngine.SnapCombinado(pre.X / PxPorMetro, candsX, PasoSnapGrilla, UmbralSnapM).Valor * PxPorMetro;
+            if (mueveR) right  = SnappingEngine.SnapCombinado(pre.X / PxPorMetro, candsX, PasoSnapGrilla, UmbralSnapM).Valor * PxPorMetro;
+            if (mueveT) top    = SnappingEngine.SnapCombinado(pre.Y / PxPorMetro, candsY, PasoSnapGrilla, UmbralSnapM).Valor * PxPorMetro;
+            if (mueveB) bottom = SnappingEngine.SnapCombinado(pre.Y / PxPorMetro, candsY, PasoSnapGrilla, UmbralSnapM).Valor * PxPorMetro;
+        }
+        else
+        {
+            if (mueveL) left   = pre.X;
+            if (mueveR) right  = pre.X;
+            if (mueveT) top    = pre.Y;
+            if (mueveB) bottom = pre.Y;
+        }
 
         // Lado mínimo: el borde móvil no puede cruzar al borde fijo opuesto.
         double minPx = MinLadoM * PxPorMetro;
@@ -1085,22 +1162,66 @@ public sealed class CadCanvasHost : FrameworkElement
                 Math.Abs(_rectFantasmaPx.Width  - _rectOriginalPx.Width)  > eps ||
                 Math.Abs(_rectFantasmaPx.Height - _rectOriginalPx.Height) > eps;
 
-            if (cambio && ActualizarLosaCommand is { } cmd)
+            if (cambio)
             {
-                var dto = new ActualizacionLosaArgs(
-                    _losaSeleccionada,
-                    _rectFantasmaPx.X      / PxPorMetro,
-                    _rectFantasmaPx.Y      / PxPorMetro,
-                    _rectFantasmaPx.Width  / PxPorMetro,
-                    _rectFantasmaPx.Height / PxPorMetro,
-                    _losaSeleccionada.Tipo);
-                if (cmd.CanExecute(dto)) cmd.Execute(dto);
+                if (_grupoMoverActivo && MoverGrupoCommand is { } cmdGrupo)
+                {
+                    // Bloque conectado: aplicar el delta a TODAS las losas del
+                    // grupo con un único snapshot de Undo.
+                    double dxM = (_rectFantasmaPx.X - _rectOriginalPx.X) / PxPorMetro;
+                    double dyM = (_rectFantasmaPx.Y - _rectOriginalPx.Y) / PxPorMetro;
+                    var movs = new List<MovimientoLosaEntry>(_grupoMoverOrigPx.Count);
+                    foreach (var kv in _grupoMoverOrigPx)
+                        movs.Add(new MovimientoLosaEntry(kv.Key,
+                            kv.Value.X / PxPorMetro + dxM,
+                            kv.Value.Y / PxPorMetro + dyM));
+                    var args = new MovimientoGrupoArgs(movs);
+                    if (cmdGrupo.CanExecute(args)) cmdGrupo.Execute(args);
+                }
+                else if (ActualizarLosaCommand is { } cmd)
+                {
+                    var dto = new ActualizacionLosaArgs(
+                        _losaSeleccionada,
+                        _rectFantasmaPx.X      / PxPorMetro,
+                        _rectFantasmaPx.Y      / PxPorMetro,
+                        _rectFantasmaPx.Width  / PxPorMetro,
+                        _rectFantasmaPx.Height / PxPorMetro,
+                        _losaSeleccionada.Tipo);
+                    if (cmd.CanExecute(dto)) cmd.Execute(dto);
+                }
             }
         }
 
+        ResetGrupoMover();
         RedibujarLosas();
         RecomputarChips();
         RedibujarOverlay();
+    }
+
+    /// <summary>
+    /// Propaga el delta del líder a las losas vecinas del grupo «Mover
+    /// Conectadas» — actualiza la lista de ghosts para el overlay.
+    /// </summary>
+    private void PropagarGrupoMover()
+    {
+        double dxPx = _rectFantasmaPx.X - _rectOriginalPx.X;
+        double dyPx = _rectFantasmaPx.Y - _rectOriginalPx.Y;
+        _grupoMoverFantasmasPx.Clear();
+        foreach (var kv in _grupoMoverOrigPx)
+        {
+            if (_losaSeleccionada is not null && kv.Key == _losaSeleccionada.Id) continue;
+            var r = kv.Value;
+            _grupoMoverFantasmasPx.Add(new Rect(r.X + dxPx, r.Y + dyPx, r.Width, r.Height));
+        }
+    }
+
+    /// <summary>Limpia el estado del bloque conectado al terminar/abortar un gesto.</summary>
+    private void ResetGrupoMover()
+    {
+        _grupoMoverActivo = false;
+        _grupoMoverOrigPx.Clear();
+        _grupoMoverFantasmasPx.Clear();
+        _idsExcluidosSnap.Clear();
     }
 
     /// <summary>
@@ -1220,6 +1341,17 @@ public sealed class CadCanvasHost : FrameworkElement
             }
         }
 
+        // 0-bis) Herramienta «Mano» → siempre pan, sin tocar losas.
+        if (ModoInteraccion == ModoInteraccionCad.Mano)
+        {
+            _modo = ModoArrastre.Pan;
+            _panStartTx = _translate.X;
+            _panStartTy = _translate.Y;
+            CaptureMouse();
+            Cursor = Cursors.Hand;
+            return;
+        }
+
         // 0) Herramienta «Dibujar Losa» → iniciar el trazado de un rectángulo.
         if (ModoInteraccion == ModoInteraccionCad.DibujarLosa)
         {
@@ -1244,6 +1376,8 @@ public sealed class CadCanvasHost : FrameworkElement
             _chips = Array.Empty<AdyacenciaCandidata>();   // se ocultan durante el arrastre
             RedibujarOverlay();             // re-dibuja la selección sin chips (modo aún Ninguno)
             _modo = ModoArrastre.Redimensionar;
+            _idsExcluidosSnap.Clear();
+            if (_losaSeleccionada is not null) _idsExcluidosSnap.Add(_losaSeleccionada.Id);
             CaptureMouse();
             return;
         }
@@ -1271,6 +1405,29 @@ public sealed class CadCanvasHost : FrameworkElement
             _chips = Array.Empty<AdyacenciaCandidata>();   // se ocultan durante el arrastre
             RedibujarOverlay();           // _modo aún Ninguno → dibuja selección + tiradores
             _modo = ModoArrastre.Mover;   // armado: el próximo MouseMove arrastra
+
+            // «Mover Conectadas»: si está activo, BFS sobre BordesX/Y y arrastrar
+            // todo el bloque rígido. Excluir el grupo de candidatos a snap (regla
+            // crítica: el líder no puede engancharse a sus propias vecinas que
+            // se mueven con él — eso causaría oscilación visual).
+            _idsExcluidosSnap.Clear();
+            _grupoMoverOrigPx.Clear();
+            _grupoMoverFantasmasPx.Clear();
+            _grupoMoverActivo = false;
+            if (MoverConectadas && Sistema is { } sis)
+            {
+                var componente = GrafoAdyacencia.ComponenteConexa(sis, hit.Losa.Id);
+                if (componente.Count > 1)
+                {
+                    _grupoMoverActivo = true;
+                    foreach (var p in _placements)
+                        if (componente.Contains(p.Losa.Id))
+                            _grupoMoverOrigPx[p.Losa.Id] = PlacementARectPx(p);
+                    foreach (var id in componente) _idsExcluidosSnap.Add(id);
+                }
+            }
+            if (!_grupoMoverActivo) _idsExcluidosSnap.Add(hit.Losa.Id);
+
             CaptureMouse();
             Cursor = Cursors.SizeAll;
             return;
@@ -1303,7 +1460,9 @@ public sealed class CadCanvasHost : FrameworkElement
         {
             case ModoArrastre.Pan:
                 // Un clic (no un pan real) sobre espacio vacío → mapear polígono.
-                if ((pt - _dragStart).Length < ClicMaxPx)
+                // En modo «Mano» el clic es siempre pan, nunca crea losas.
+                if (ModoInteraccion != ModoInteraccionCad.Mano
+                    && (pt - _dragStart).Length < ClicMaxPx)
                 {
                     var poligono = HitTestPoligono(pt);
                     if (poligono != null && PoligonoClickCommand is { } cmd && cmd.CanExecute(poligono))
@@ -1337,6 +1496,8 @@ public sealed class CadCanvasHost : FrameworkElement
             case ModoArrastre.Ninguno:
                 if (ModoInteraccion == ModoInteraccionCad.DibujarLosa)
                     Cursor = Cursors.Cross;
+                else if (ModoInteraccion == ModoInteraccionCad.Mano)
+                    Cursor = Cursors.Hand;
                 else
                     ActualizarCursorHover(pt);
                 break;
@@ -1353,6 +1514,7 @@ public sealed class CadCanvasHost : FrameworkElement
 
             case ModoArrastre.Mover:
                 _rectFantasmaPx = CalcularRectMovido(pt);
+                if (_grupoMoverActivo) PropagarGrupoMover();
                 RedibujarOverlay();
                 break;
 
@@ -1371,6 +1533,7 @@ public sealed class CadCanvasHost : FrameworkElement
         bool arrastrando = _modo is ModoArrastre.Mover or ModoArrastre.Redimensionar
                                  or ModoArrastre.DibujarLosa;
         if (_modo == ModoArrastre.DibujarLosa) _rectFantasmaPx = Rect.Empty;
+        ResetGrupoMover();
         _modo = ModoArrastre.Ninguno;
         _handleActivo = -1;
         if (arrastrando) RedibujarOverlay();

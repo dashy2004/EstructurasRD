@@ -12,4 +12,7 @@ public enum ModoInteraccionCad
 
     /// <summary>Click-drag dibuja una losa rectangular nueva en el lienzo.</summary>
     DibujarLosa,
+
+    /// <summary>Arrastrar el lienzo (pan dedicado). No selecciona ni mueve losas.</summary>
+    Mano,
 }

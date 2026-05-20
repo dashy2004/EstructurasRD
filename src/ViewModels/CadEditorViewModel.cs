@@ -46,6 +46,7 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         CrearBordeAdicCommand = new RelayCommand(p => CrearBordeAdic(p as AdyacenciaCandidata?));
         EncuadrarPlanoCommand = new RelayCommand(_ => EncuadrarPlano());
         CrearLosaCommand = new RelayCommand(p => CrearLosa(p as CrearLosaArgs));
+        MoverGrupoCommand = new RelayCommand(p => MoverGrupo(p as MovimientoGrupoArgs));
     }
 
     /// <summary>
@@ -157,6 +158,28 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
     {
         get => _modoInteraccion;
         set { if (_modoInteraccion == value) return; _modoInteraccion = value; OnPropertyChanged(); }
+    }
+
+    private bool _snapActivo = true;
+    /// <summary>
+    /// Encendido del <see cref="SnappingEngine"/> al mover/redimensionar (toggle
+    /// de la toolbar — Iteración 3 Epic v1.2).
+    /// </summary>
+    public bool SnapActivo
+    {
+        get => _snapActivo;
+        set { if (_snapActivo == value) return; _snapActivo = value; OnPropertyChanged(); }
+    }
+
+    private bool _moverConectadas;
+    /// <summary>
+    /// Si está activo, al arrastrar una losa se arrastran rígidamente todas las
+    /// losas conectadas por adyacencia (BFS sobre <c>BordesX</c>/<c>BordesY</c>).
+    /// </summary>
+    public bool MoverConectadas
+    {
+        get => _moverConectadas;
+        set { if (_moverConectadas == value) return; _moverConectadas = value; OnPropertyChanged(); }
     }
 
     /// <summary>
@@ -333,6 +356,39 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         EstadoImportacion =
             $"✓ Losa {losa.Id} actualizada — {args.Lx:0.00} × {args.Ly:0.00} m, " +
             $"tipo {args.Tipo} @ ({args.PosX:0.00}, {args.PosY:0.00}).";
+        OnPropertyChanged(nameof(Losas));
+    }
+
+    // ---- Comando: mover un bloque conectado de losas (Iteración 3 v1.2) ----
+
+    /// <summary>
+    /// Aplica las nuevas posiciones a todas las losas del bloque conectado que
+    /// se arrastró rígidamente (con <see cref="MoverConectadas"/> activo). El
+    /// <c>CadCanvasHost</c> arma el DTO con la componente conexa y las nuevas
+    /// <c>PosX/PosY</c>; el ViewModel toma <b>un único</b> snapshot de Undo y
+    /// muta el SSOT (Ctrl+Z revierte el bloque entero de una vez).
+    /// </summary>
+    public ICommand MoverGrupoCommand { get; }
+
+    private void MoverGrupo(MovimientoGrupoArgs? args)
+    {
+        if (args is null || args.Movimientos.Count == 0) return;
+
+        // CRÍTICO: UN solo snapshot para todo el bloque conectado.
+        _pushUndoSnapshot();
+
+        int n = 0;
+        var losas = SistemaActivo.Losas;
+        foreach (var m in args.Movimientos)
+        {
+            var losa = losas.FirstOrDefault(l => l.Id == m.LosaId);
+            if (losa is null) continue;
+            losa.PosX = m.PosX;
+            losa.PosY = m.PosY;
+            n++;
+        }
+
+        EstadoImportacion = $"✓ Bloque conectado movido — {n} losa(s) actualizadas.";
         OnPropertyChanged(nameof(Losas));
     }
 
