@@ -56,6 +56,7 @@
                                        FondoPdf="{Binding CadEditor.FondoPdf}"
                                        RevisionPdf="{Binding CadEditor.RevisionPdf}"
                                        SolicitudEncuadrePdf="{Binding CadEditor.SolicitudEncuadrePdf}"
+                                       OpacidadPdf="{Binding CadEditor.OpacidadPdf}"
                                        ModoCalibrarPdf="{Binding CadEditor.ModoCalibrarPdf, Mode=TwoWay}"
                                        CancelarCalibrarPdfCommand="{Binding CadEditor.CancelarCalibrarPdfCommand}"
                                        ModoInteraccion="{Binding CadEditor.ModoInteraccion}"
@@ -363,8 +364,19 @@
 
                             <TextBlock Text="Offset Y (m)" FontSize="11"
                                        Foreground="{DynamicResource FgSecondary}"/>
-                            <TextBox Margin="0,2,0,12"
+                            <TextBox Margin="0,2,0,8"
                                      Text="{Binding CadEditor.OffsetYPdf, UpdateSourceTrigger=LostFocus}"/>
+
+                            <TextBlock FontSize="11" Margin="0,4,0,0"
+                                       Foreground="{DynamicResource FgSecondary}">
+                                <Run Text="Opacidad: "/>
+                                <Run Text="{Binding CadEditor.OpacidadPdf, StringFormat={}{0:P0}, Mode=OneWay}"/>
+                            </TextBlock>
+                            <Slider Minimum="0" Maximum="1" SmallChange="0.05" LargeChange="0.1"
+                                    Value="{Binding CadEditor.OpacidadPdf, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    TickFrequency="0.1" IsSnapToTickEnabled="False"
+                                    Margin="0,2,0,12"
+                                    ToolTip="Atenúa el PDF de fondo (0% transparente · 100% opaco). Sirve para que las losas dibujadas encima resalten."/>
 
                             <Button Content="🎯  Encuadrar PDF" Padding="10,6"
                                     HorizontalAlignment="Stretch"

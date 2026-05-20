@@ -254,6 +254,26 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         }
     }
 
+    private double _opacidadPdf = 0.6;
+    /// <summary>
+    /// Opacidad del PDF underlay en la Capa 1 (rango 0.0-1.0, default 0.6).
+    /// Bindeada al <c>Slider</c> del panel lateral; al cambiar incrementa
+    /// <see cref="RevisionPdf"/> para forzar el redibujado de la Capa 1.
+    /// Aplica sólo al PDF — el DXF se dibuja con su propio pincel sólido.
+    /// </summary>
+    public double OpacidadPdf
+    {
+        get => _opacidadPdf;
+        set
+        {
+            double v = Math.Clamp(value, 0.0, 1.0);
+            if (Math.Abs(_opacidadPdf - v) < 1e-9) return;
+            _opacidadPdf = v;
+            OnPropertyChanged();
+            RevisionPdf++;
+        }
+    }
+
     /// <summary>Encuadra el PDF en el viewport del lienzo (zoom to fit).</summary>
     public ICommand EncuadrarPdfCommand { get; }
 
@@ -513,7 +533,7 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         var meta = resultado.Meta!;
         Pdf = meta;
         FondoPdf = resultado.Imagen;
-        EstadoImportacion =
+        EstadoImportacion = resultado.Aviso ??
             $"✓ {meta.NombreArchivo} — {meta.Ancho:0.00} × {meta.Alto:0.00} m " +
             $"(rasterizado).";
 

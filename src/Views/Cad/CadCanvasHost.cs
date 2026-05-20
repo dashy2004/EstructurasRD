@@ -468,6 +468,24 @@ public sealed class CadCanvasHost : FrameworkElement
         => ((CadCanvasHost)d).EncuadrarPdf();
 
     /// <summary>
+    /// Opacidad del PDF underlay en la Capa 1 (rango 0.0-1.0, default 0.6 —
+    /// Parche v1.2.1). El callback fuerza un redibujado síncrono de la Capa 1.
+    /// Aplica sólo al PDF; el DXF se dibuja con su propio pincel sólido.
+    /// </summary>
+    public static readonly DependencyProperty OpacidadPdfProperty =
+        DependencyProperty.Register(nameof(OpacidadPdf), typeof(double), typeof(CadCanvasHost),
+            new PropertyMetadata(0.6, OnOpacidadPdfChanged));
+
+    public double OpacidadPdf
+    {
+        get => (double)GetValue(OpacidadPdfProperty);
+        set => SetValue(OpacidadPdfProperty, value);
+    }
+
+    private static void OnOpacidadPdfChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        => ((CadCanvasHost)d).RedibujarPlano();
+
+    /// <summary>
     /// Modo de calibración del PDF activo (Iteración 5 Epic v1.2). Bindeado
     /// TwoWay con <c>CadEditor.ModoCalibrarPdf</c>: lo enciende el botón
     /// «Calibrar PDF» y el host lo apaga al confirmar o cancelar (Escape).
@@ -721,7 +739,13 @@ public sealed class CadCanvasHost : FrameworkElement
                 pdf.OffsetY * PxPorMetro,
                 pdf.Ancho * escPdf * PxPorMetro,
                 pdf.Alto  * escPdf * PxPorMetro);
-            dc.DrawImage(imgPdf, rectPdfPx);
+
+            // Atenuación del underlay (Parche v1.2.1). El try/finally preserva
+            // el balance del stack de DrawingContext si el render lanzase.
+            double op = Math.Clamp(OpacidadPdf, 0.0, 1.0);
+            dc.PushOpacity(op);
+            try   { dc.DrawImage(imgPdf, rectPdfPx); }
+            finally { dc.Pop(); }
         }
 
         // ---- Capa 1b: entidades vectoriales del DXF ----

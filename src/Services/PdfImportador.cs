@@ -17,7 +17,14 @@ namespace LosasPlus.Services;
 /// <param name="Meta">Metadata del PDF (nombre, dimensiones físicas), o <c>null</c> en error.</param>
 /// <param name="Imagen">Bitmap rasterizado y <b>congelado</b>, o <c>null</c> en error.</param>
 /// <param name="Error">Mensaje amigable de error, o <c>null</c> en éxito.</param>
-public sealed record PdfImportResult(PdfReferencia? Meta, BitmapSource? Imagen, string? Error)
+/// <param name="Aviso">
+/// Mensaje informativo a mostrar en la barra de estado cuando el PDF se cargó
+/// con un fallback (ej. dimensiones por defecto ANSI D porque Docnet no las
+/// reportó). <c>null</c> en éxito limpio. No es un error: <see cref="EsExito"/>
+/// puede ser <c>true</c> aún cuando <see cref="Aviso"/> está poblado.
+/// </param>
+public sealed record PdfImportResult(
+    PdfReferencia? Meta, BitmapSource? Imagen, string? Error, string? Aviso = null)
 {
     public bool EsExito => Meta is not null && Imagen is not null && Error is null;
 }
@@ -71,9 +78,21 @@ public static class PdfImportador
                 natH = pageNatural.GetPageHeight();
             }
 
+            // Fallback ANSI D — algunos PDFs estructurales no exponen /MediaBox
+            // explícitamente y Docnet reporta 0 para Width/Height. Asignamos
+            // 36" × 24" @ 96 DPI (3456 × 2304 px ≈ 91.4 × 60.96 cm — formato D
+            // horizontal estándar) y emitimos un aviso para que la UI sugiera
+            // al usuario calibrar manualmente con la herramienta de calibración.
+            const int AnsiDWidthPx96 = 3456;
+            const int AnsiDHeightPx96 = 2304;
+            string? aviso = null;
             if (natW <= 0 || natH <= 0)
-                return new PdfImportResult(null, null,
-                    "El PDF no reporta dimensiones válidas en su primera página.");
+            {
+                natW = AnsiDWidthPx96;
+                natH = AnsiDHeightPx96;
+                aviso = "✓ PDF importado (Utilizando escala estimada ANSI D; " +
+                        "use la herramienta de calibración para ajustar).";
+            }
 
             // Paso 2 — reabrir con dimensiones objetivo (en px enteros)
             // preservando la relación de aspecto. PageDimensions(int, int) es
@@ -99,7 +118,7 @@ public static class PdfImportador
                 Ancho = natW * MetrosPorPxA96Dpi,
                 Alto  = natH * MetrosPorPxA96Dpi,
             };
-            return new PdfImportResult(meta, bmp, null);
+            return new PdfImportResult(meta, bmp, null, aviso);
         }
         catch (Exception ex)
         {
