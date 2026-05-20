@@ -50,6 +50,9 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         CrearBordeAdicCommand = new RelayCommand(p => CrearBordeAdic(p as AdyacenciaCandidata?));
         EncuadrarPlanoCommand = new RelayCommand(_ => EncuadrarPlano());
         EncuadrarPdfCommand = new RelayCommand(_ => EncuadrarPdf());
+        IniciarCalibrarPdfCommand = new RelayCommand(_ => IniciarCalibrarPdf());
+        AplicarCalibrarPdfCommand = new RelayCommand(p => AplicarCalibrarPdf(p as CalibracionPdfArgs));
+        CancelarCalibrarPdfCommand = new RelayCommand(_ => CancelarCalibrarPdf());
         CrearLosaCommand = new RelayCommand(p => CrearLosa(p as CrearLosaArgs));
         MoverGrupoCommand = new RelayCommand(p => MoverGrupo(p as MovimientoGrupoArgs));
     }
@@ -257,6 +260,87 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
     private void EncuadrarPdf()
     {
         if (TienePdf) SolicitudEncuadrePdf++;
+    }
+
+    // ---- Calibración interactiva del PDF (Iteración 5 Epic v1.2) ----
+
+    private bool _modoCalibrarPdf;
+    /// <summary>
+    /// Modo de calibración activo: el usuario coloca dos puntos de referencia
+    /// sobre el PDF e introduce la distancia real entre ellos para corregir
+    /// la <see cref="PdfReferencia.Escala"/> conservando el primer punto fijo.
+    /// Bindeado TwoWay al <c>CadCanvasHost</c>: el VM lo activa con el botón
+    /// «Calibrar PDF», el host lo apaga al cancelar (Escape) o al confirmar.
+    /// </summary>
+    public bool ModoCalibrarPdf
+    {
+        get => _modoCalibrarPdf;
+        set { if (_modoCalibrarPdf == value) return; _modoCalibrarPdf = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Entra al modo de calibración (sólo si hay un PDF cargado).</summary>
+    public ICommand IniciarCalibrarPdfCommand { get; }
+
+    private void IniciarCalibrarPdf()
+    {
+        if (!TienePdf) return;
+        ModoCalibrarPdf = true;
+        EstadoImportacion =
+            "Calibración del PDF: haga clic en el PRIMER punto de referencia. " +
+            "Mantenga Shift para línea ortogonal. Esc cancela.";
+    }
+
+    /// <summary>
+    /// Aplica el factor de homotecia al PDF tras recibir los dos puntos y la
+    /// distancia real introducida por el usuario. Conserva el pivote
+    /// <c>(PivoteX, PivoteY)</c> fijo en el lienzo y apaga el modo.
+    /// </summary>
+    public ICommand AplicarCalibrarPdfCommand { get; }
+
+    private void AplicarCalibrarPdf(CalibracionPdfArgs? args)
+    {
+        if (args is null || _pdf is null) { ModoCalibrarPdf = false; return; }
+        if (args.DistanciaActual <= 1e-9 || args.DistanciaReal <= 1e-9)
+        {
+            EstadoImportacion = "✕ Calibración cancelada: la distancia debe ser mayor a cero.";
+            ModoCalibrarPdf = false;
+            return;
+        }
+
+        double factor = args.DistanciaReal / args.DistanciaActual;
+
+        // Homotecia afín preservando el pivote P₁:
+        //   pdf.OffsetX' = P1.X - (P1.X - pdf.OffsetX) * factor
+        //   pdf.OffsetY' = P1.Y - (P1.Y - pdf.OffsetY) * factor
+        //   pdf.Escala' = pdf.Escala * factor
+        // Cualquier punto interno del PDF cuya coord en lienzo coincida con
+        // P₁ antes, sigue coincidiendo con P₁ después. Verificado:
+        //   x_post = OffsetX' + interno * Escala' = P1 - (P1 - OffsetX) * f
+        //          + ((P1 - OffsetX) / Escala) * Escala * f = P1.   ✓
+        _pdf.OffsetX = args.PivoteX - (args.PivoteX - _pdf.OffsetX) * factor;
+        _pdf.OffsetY = args.PivoteY - (args.PivoteY - _pdf.OffsetY) * factor;
+        _pdf.Escala *= factor;
+
+        // Forzar redibujado síncrono de la Capa 1 y notificar a los proxies.
+        OnPropertyChanged(nameof(EscalaPdf));
+        OnPropertyChanged(nameof(OffsetXPdf));
+        OnPropertyChanged(nameof(OffsetYPdf));
+        RevisionPdf++;
+
+        ModoCalibrarPdf = false;
+        EstadoImportacion =
+            $"✓ PDF recalibrado — factor ×{factor:0.0000} " +
+            $"({args.DistanciaActual:0.000} m → {args.DistanciaReal:0.000} m).";
+    }
+
+    /// <summary>Cancela el modo de calibración sin aplicar cambios.</summary>
+    public ICommand CancelarCalibrarPdfCommand { get; }
+
+    private void CancelarCalibrarPdf()
+    {
+        if (!_modoCalibrarPdf) return;
+        ModoCalibrarPdf = false;
+        EstadoImportacion = "Calibración del PDF cancelada.";
     }
 
     // ---- Herramienta de interacción del lienzo (Iteración 3) ----

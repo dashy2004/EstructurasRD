@@ -21,6 +21,12 @@ public partial class CadView : UserControl
     private double _edicionPosX, _edicionPosY;
     private bool _commitEnCurso;
 
+    // Calibración del PDF (Iteración 5 Epic v1.2): el host dispara el evento
+    // tras el 2º click; estos campos guardan los argumentos para usarlos al
+    // confirmar o cancelar el editor flotante.
+    private double _calPivoteX, _calPivoteY, _calDistanciaActual;
+    private bool _calibrandoActivo;
+
     public CadView()
     {
         InitializeComponent();
@@ -107,4 +113,78 @@ public partial class CadView : UserControl
     private static double ParsearOFallback(string texto, double fallback)
         => double.TryParse(texto, NumberStyles.Any, CultureInfo.CurrentCulture, out double v) && v > 0
             ? v : fallback;
+
+    // ---- Editor flotante de calibración del PDF (Iteración 5 v1.2) ----
+
+    /// <summary>
+    /// El host fijó P₂ y disparó el evento. Posicionamos el editor en el
+    /// punto medio (clampeado al viewport), guardamos los argumentos y le
+    /// damos foco al TextBox de distancia real.
+    /// </summary>
+    private void Canvas_CalibrarPdfPuntosListos(object? sender, CalibrarPdfPuntosListosEventArgs e)
+    {
+        _calPivoteX = e.PivoteX;
+        _calPivoteY = e.PivoteY;
+        _calDistanciaActual = e.DistanciaActual;
+        _calibrandoActivo = true;
+
+        CalibrarLineaActual.Text =
+            $"Línea trazada: {e.DistanciaActual:0.000} m. Indique la medida real:";
+        CalibrarDistanciaReal.Text = e.DistanciaActual.ToString("0.000", CultureInfo.CurrentCulture);
+
+        // Anclar el editor cerca del midpoint sin que se salga del lienzo.
+        double maxX = Math.Max(0, Canvas.ActualWidth  - EditorCalibrarPdf.Width);
+        double maxY = Math.Max(0, Canvas.ActualHeight - 180);
+        double left = Math.Clamp(e.MidpointPantalla.X - EditorCalibrarPdf.Width / 2.0, 0, maxX);
+        double top  = Math.Clamp(e.MidpointPantalla.Y + 12, 0, maxY);
+        EditorCalibrarPdf.Margin = new Thickness(left, top, 0, 0);
+
+        EditorCalibrarPdf.Visibility = Visibility.Visible;
+        CalibrarDistanciaReal.Focus();
+        CalibrarDistanciaReal.SelectAll();
+    }
+
+    /// <summary>Enter confirma; Esc cancela todo el flujo.</summary>
+    private void OnCalibrarKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)       { ConfirmarCalibracion(); e.Handled = true; }
+        else if (e.Key == Key.Escape) { CancelarCalibracion();  e.Handled = true; }
+    }
+
+    /// <summary>Si el editor pierde el foco sin commit explícito → cancelar.</summary>
+    private void OnCalibrarLostFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (!_calibrandoActivo || EditorCalibrarPdf.Visibility != Visibility.Visible) return;
+        if (e.NewFocus is DependencyObject d && EditorCalibrarPdf.IsAncestorOf(d)) return;
+        CancelarCalibracion();
+    }
+
+    private void OnCalibrarConfirmar(object sender, RoutedEventArgs e) => ConfirmarCalibracion();
+    private void OnCalibrarCancelar(object sender, RoutedEventArgs e)  => CancelarCalibracion();
+
+    private void ConfirmarCalibracion()
+    {
+        if (!_calibrandoActivo) return;
+        _calibrandoActivo = false;
+        EditorCalibrarPdf.Visibility = Visibility.Collapsed;
+
+        if (DataContext is not LosasPlus.ViewModels.MainViewModel mvm
+            || mvm.CadEditor.AplicarCalibrarPdfCommand is not { } cmd) return;
+
+        double real = ParsearOFallback(CalibrarDistanciaReal.Text, _calDistanciaActual);
+        var args = new CalibracionPdfArgs(_calPivoteX, _calPivoteY, _calDistanciaActual, real);
+        if (cmd.CanExecute(args)) cmd.Execute(args);
+    }
+
+    private void CancelarCalibracion()
+    {
+        if (!_calibrandoActivo) return;
+        _calibrandoActivo = false;
+        EditorCalibrarPdf.Visibility = Visibility.Collapsed;
+
+        if (DataContext is LosasPlus.ViewModels.MainViewModel mvm
+            && mvm.CadEditor.CancelarCalibrarPdfCommand is { } cmd
+            && cmd.CanExecute(null))
+            cmd.Execute(null);
+    }
 }

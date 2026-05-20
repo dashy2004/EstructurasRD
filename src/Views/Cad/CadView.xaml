@@ -56,6 +56,8 @@
                                        FondoPdf="{Binding CadEditor.FondoPdf}"
                                        RevisionPdf="{Binding CadEditor.RevisionPdf}"
                                        SolicitudEncuadrePdf="{Binding CadEditor.SolicitudEncuadrePdf}"
+                                       ModoCalibrarPdf="{Binding CadEditor.ModoCalibrarPdf, Mode=TwoWay}"
+                                       CancelarCalibrarPdfCommand="{Binding CadEditor.CancelarCalibrarPdfCommand}"
                                        ModoInteraccion="{Binding CadEditor.ModoInteraccion}"
                                        SnapActivo="{Binding CadEditor.SnapActivo}"
                                        MoverConectadas="{Binding CadEditor.MoverConectadas}"
@@ -63,7 +65,8 @@
                                        ActualizarLosaCommand="{Binding CadEditor.ActualizarLosaCommand}"
                                        CrearBordeAdicCommand="{Binding CadEditor.CrearBordeAdicCommand}"
                                        CrearLosaCommand="{Binding CadEditor.CrearLosaCommand}"
-                                       MoverGrupoCommand="{Binding CadEditor.MoverGrupoCommand}"/>
+                                       MoverGrupoCommand="{Binding CadEditor.MoverGrupoCommand}"
+                                       CalibrarPdfPuntosListos="Canvas_CalibrarPdfPuntosListos"/>
 
                     <!-- Toolbar flotante de herramientas — superpuesta arriba-centro -->
                     <Border VerticalAlignment="Top" HorizontalAlignment="Center"
@@ -223,6 +226,40 @@
                             </ComboBox>
                         </Grid>
                     </Border>
+
+                    <!-- Editor flotante de calibración del PDF (Iteración 5).
+                         El code-behind lo posiciona en el punto medio entre P₁
+                         y P₂ y lo muestra cuando el host dispara el evento
+                         CalibrarPdfPuntosListos. Enter confirma, Esc cancela. -->
+                    <Border x:Name="EditorCalibrarPdf" Visibility="Collapsed" Panel.ZIndex="101"
+                            HorizontalAlignment="Left" VerticalAlignment="Top"
+                            Width="220" Padding="12"
+                            Background="{DynamicResource BgSecondary}"
+                            BorderBrush="#D32F2F" BorderThickness="1.5"
+                            CornerRadius="7"
+                            KeyDown="OnCalibrarKeyDown" LostKeyboardFocus="OnCalibrarLostFocus">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="14" ShadowDepth="3" Opacity="0.5"/>
+                        </Border.Effect>
+                        <StackPanel>
+                            <TextBlock Text="CALIBRAR PDF" FontWeight="Bold" FontSize="10"
+                                       Margin="0,0,0,4"
+                                       Foreground="{DynamicResource FgMuted}"/>
+                            <TextBlock x:Name="CalibrarLineaActual" FontSize="11" Margin="0,0,0,8"
+                                       Foreground="{DynamicResource FgSecondary}"
+                                       TextWrapping="Wrap"/>
+                            <TextBlock Text="Distancia real (m)" FontSize="12"
+                                       Foreground="{DynamicResource FgSecondary}"
+                                       Margin="0,0,0,2"/>
+                            <TextBox x:Name="CalibrarDistanciaReal" Margin="0,0,0,10"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="Cancelar" Padding="10,4" Margin="0,0,6,0"
+                                        Click="OnCalibrarCancelar"/>
+                                <Button Content="OK" Padding="14,4" IsDefault="True"
+                                        Click="OnCalibrarConfirmar"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </Border>
 
@@ -333,6 +370,10 @@
                                     HorizontalAlignment="Stretch"
                                     Command="{Binding CadEditor.EncuadrarPdfCommand}"
                                     ToolTip="Centra y ajusta el zoom para que el PDF ocupe el viewport."/>
+                            <Button Content="📐  Calibrar PDF" Padding="10,6" Margin="0,8,0,0"
+                                    HorizontalAlignment="Stretch"
+                                    Command="{Binding CadEditor.IniciarCalibrarPdfCommand}"
+                                    ToolTip="Marcá dos puntos sobre el PDF e indicá la distancia real para recalcular la escala (Shift = línea ortogonal · Esc = cancelar)."/>
                         </StackPanel>
                     </StackPanel>
                 </Border>

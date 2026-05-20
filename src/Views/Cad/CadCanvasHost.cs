@@ -98,6 +98,16 @@ public sealed class CadCanvasHost : FrameworkElement
     private readonly Dictionary<int, Rect> _grupoMoverOrigPx = new();
     private readonly List<Rect> _grupoMoverFantasmasPx = new();
 
+    // Calibración interactiva del PDF (Iteración 5 Epic v1.2).
+    // _calibrarP1Pre = primer punto fijado por el usuario (pre-transform px).
+    // _calibrarP2Pre = posición actual del cursor mientras se traza la línea,
+    //                  o P₂ definitivo tras el 2º click (pre-transform px).
+    // El flag _calibrarConfirmando se pone en true al 2º click — la línea
+    // queda "congelada" mientras el editor flotante recibe la distancia real.
+    private Point? _calibrarP1Pre;
+    private Point? _calibrarP2Pre;
+    private bool _calibrarConfirmando;
+
     static CadCanvasHost()
     {
         PincelOverlay.Freeze();
@@ -456,6 +466,64 @@ public sealed class CadCanvasHost : FrameworkElement
 
     private static void OnSolicitudEncuadrePdfChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         => ((CadCanvasHost)d).EncuadrarPdf();
+
+    /// <summary>
+    /// Modo de calibración del PDF activo (Iteración 5 Epic v1.2). Bindeado
+    /// TwoWay con <c>CadEditor.ModoCalibrarPdf</c>: lo enciende el botón
+    /// «Calibrar PDF» y el host lo apaga al confirmar o cancelar (Escape).
+    /// </summary>
+    public static readonly DependencyProperty ModoCalibrarPdfProperty =
+        DependencyProperty.Register(nameof(ModoCalibrarPdf), typeof(bool), typeof(CadCanvasHost),
+            new FrameworkPropertyMetadata(false,
+                FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnModoCalibrarPdfChanged));
+
+    public bool ModoCalibrarPdf
+    {
+        get => (bool)GetValue(ModoCalibrarPdfProperty);
+        set => SetValue(ModoCalibrarPdfProperty, value);
+    }
+
+    private static void OnModoCalibrarPdfChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var host = (CadCanvasHost)d;
+        bool activo = (bool)e.NewValue;
+        if (activo)
+        {
+            host.Focus();   // para recibir Escape durante el flujo
+            host._calibrarP1Pre = null;
+            host._calibrarP2Pre = null;
+            host._calibrarConfirmando = false;
+            host.Cursor = Cursors.Cross;
+        }
+        else
+        {
+            host.LimpiarCalibracion();
+        }
+        host.RedibujarOverlay();
+    }
+
+    /// <summary>
+    /// Comando que el host invoca cuando el usuario cancela la calibración
+    /// con Escape o cuando el editor flotante envía Cancel. Bindeado a
+    /// <c>CadEditor.CancelarCalibrarPdfCommand</c>.
+    /// </summary>
+    public static readonly DependencyProperty CancelarCalibrarPdfCommandProperty =
+        DependencyProperty.Register(nameof(CancelarCalibrarPdfCommand), typeof(ICommand), typeof(CadCanvasHost),
+            new PropertyMetadata(null));
+
+    public ICommand? CancelarCalibrarPdfCommand
+    {
+        get => (ICommand?)GetValue(CancelarCalibrarPdfCommandProperty);
+        set => SetValue(CancelarCalibrarPdfCommandProperty, value);
+    }
+
+    /// <summary>
+    /// Se dispara al fijar el segundo punto de la calibración del PDF. Lo
+    /// escucha <c>CadView</c> para abrir el editor flotante de distancia
+    /// real (Iteración 5 Epic v1.2). Mientras el editor está visible, el
+    /// host mantiene la línea congelada en pantalla y rechaza nuevos clicks.
+    /// </summary>
+    public event EventHandler<CalibrarPdfPuntosListosEventArgs>? CalibrarPdfPuntosListos;
 
     // =====================================================================
     // Ciclo de vida — redibujar la grilla cuando cambia el tamaño
@@ -944,6 +1012,35 @@ public sealed class CadCanvasHost : FrameworkElement
         // Grosores y tamaños se dividen por la escala → constantes EN PANTALLA.
         double inv = _scale.ScaleX > 0 ? 1.0 / _scale.ScaleX : 1.0;
 
+        // ---- Calibración del PDF (Iteración 5) — capa interactiva sobre todo lo demás ----
+        if (ModoCalibrarPdf && _calibrarP1Pre is { } p1Cal && _calibrarP2Pre is { } p2Cal)
+        {
+            var pincelCal = new SolidColorBrush(Color.FromRgb(0xD3, 0x2F, 0x2F));
+            pincelCal.Freeze();
+            var penCal = new Pen(pincelCal, 2.0 * inv)
+            {
+                DashStyle = DashStyles.Dash,
+            };
+            penCal.Freeze();
+            dc.DrawLine(penCal, p1Cal, p2Cal);
+            dc.DrawEllipse(pincelCal, null, p1Cal, 4 * inv, 4 * inv);
+            dc.DrawEllipse(pincelCal, null, p2Cal, 4 * inv, 4 * inv);
+
+            double dxM = (p2Cal.X - p1Cal.X) / PxPorMetro;
+            double dyM = (p2Cal.Y - p1Cal.Y) / PxPorMetro;
+            double distM = Math.Sqrt(dxM * dxM + dyM * dyM);
+            var ft = new FormattedText(
+                $"Línea de calibración: {distM:0.000} m",
+                CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight,
+                new Typeface("Segoe UI"),
+                13 * inv,
+                pincelCal,
+                VisualTreeHelper.GetDpi(this).PixelsPerDip);
+            // Etiqueta a la derecha/abajo del extremo P₂ para no taparlo.
+            dc.DrawText(ft, new Point(p2Cal.X + 10 * inv, p2Cal.Y + 6 * inv));
+        }
+
         // Los chips de adyacencia se dibujan SIEMPRE (haya o no selección).
         DibujarChips(dc, inv);
 
@@ -1379,12 +1476,22 @@ public sealed class CadCanvasHost : FrameworkElement
 
     /// <summary>
     /// Tecla Escape: durante un trazo de dibujo lo cancela; con la herramienta
-    /// «Dibujar Losa» activa pero sin trazo en curso, vuelve a «Puntero».
+    /// «Dibujar Losa» activa pero sin trazo en curso, vuelve a «Puntero»; en
+    /// modo Calibrar PDF, aborta limpiamente la calibración.
     /// </summary>
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
         if (e.Key != Key.Escape) return;
+
+        // Calibración del PDF tiene prioridad — puede activarse en paralelo
+        // a cualquier otra herramienta y el Escape debe abortarla siempre.
+        if (ModoCalibrarPdf)
+        {
+            AbortarCalibracion();
+            e.Handled = true;
+            return;
+        }
 
         if (_modo == ModoArrastre.DibujarLosa)
         {
@@ -1399,6 +1506,41 @@ public sealed class CadCanvasHost : FrameworkElement
             ModoInteraccion = ModoInteraccionCad.Puntero;
             e.Handled = true;
         }
+    }
+
+    /// <summary>
+    /// Aborta la calibración (Escape o evento Cancel del editor): limpia
+    /// estado local, apaga <see cref="ModoCalibrarPdf"/> y dispara el
+    /// comando del ViewModel para refrescar el mensaje de estado.
+    /// </summary>
+    private void AbortarCalibracion()
+    {
+        LimpiarCalibracion();
+        ModoCalibrarPdf = false;
+        if (CancelarCalibrarPdfCommand is { } cmd && cmd.CanExecute(null))
+            cmd.Execute(null);
+        RedibujarOverlay();
+    }
+
+    /// <summary>Limpia los campos internos del flujo de calibración del PDF.</summary>
+    private void LimpiarCalibracion()
+    {
+        _calibrarP1Pre = null;
+        _calibrarP2Pre = null;
+        _calibrarConfirmando = false;
+        Cursor = Cursors.Arrow;
+    }
+
+    /// <summary>
+    /// Aplica el snap ortogonal al cursor cuando Shift está presionado:
+    /// proyecta el punto sobre el eje cardinal más cercano respecto al pivote.
+    /// </summary>
+    private static Point AplicarSnapOrtoCalibracion(Point pivote, Point cursor)
+    {
+        if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) return cursor;
+        double dx = Math.Abs(cursor.X - pivote.X);
+        double dy = Math.Abs(cursor.Y - pivote.Y);
+        return dx >= dy ? new Point(cursor.X, pivote.Y) : new Point(pivote.X, cursor.Y);
     }
 
     /// <summary>Ajusta el cursor según lo que hay bajo el puntero (estado en reposo).</summary>
@@ -1444,6 +1586,48 @@ public sealed class CadCanvasHost : FrameworkElement
         base.OnMouseLeftButtonDown(e);
         var pt = e.GetPosition(this);
         _dragStart = pt;
+
+        // Calibración del PDF: prioridad absoluta sobre cualquier herramienta.
+        // Click 1 → fija P₁; Click 2 → fija P₂ (con snap orto si Shift), dispara
+        // el evento y queda esperando la confirmación del editor flotante.
+        if (ModoCalibrarPdf)
+        {
+            if (_calibrarConfirmando) { e.Handled = true; return; }   // congelado
+            var ptPre = PantallaAPre(pt);
+            if (_calibrarP1Pre is null)
+            {
+                _calibrarP1Pre = ptPre;
+                _calibrarP2Pre = ptPre;
+                RedibujarOverlay();
+            }
+            else
+            {
+                var p2 = AplicarSnapOrtoCalibracion(_calibrarP1Pre.Value, ptPre);
+                _calibrarP2Pre = p2;
+                _calibrarConfirmando = true;
+                RedibujarOverlay();
+
+                // Reportar puntos al CadView para abrir el editor flotante.
+                double pivX = _calibrarP1Pre.Value.X / PxPorMetro;
+                double pivY = _calibrarP1Pre.Value.Y / PxPorMetro;
+                double dxM = (p2.X - _calibrarP1Pre.Value.X) / PxPorMetro;
+                double dyM = (p2.Y - _calibrarP1Pre.Value.Y) / PxPorMetro;
+                double distM = Math.Sqrt(dxM * dxM + dyM * dyM);
+
+                // Midpoint en coordenadas de pantalla post-transform.
+                var midPre = new Point(
+                    (_calibrarP1Pre.Value.X + p2.X) / 2.0,
+                    (_calibrarP1Pre.Value.Y + p2.Y) / 2.0);
+                var midPant = new Point(
+                    midPre.X * _scale.ScaleX + _translate.X,
+                    midPre.Y * _scale.ScaleY + _translate.Y);
+
+                CalibrarPdfPuntosListos?.Invoke(this,
+                    new CalibrarPdfPuntosListosEventArgs(pivX, pivY, distM, midPant));
+            }
+            e.Handled = true;
+            return;
+        }
 
         // Doble clic sobre una losa (modo Puntero) → abrir el editor flotante.
         if (e.ClickCount == 2 && ModoInteraccion == ModoInteraccionCad.Puntero)
@@ -1612,6 +1796,20 @@ public sealed class CadCanvasHost : FrameworkElement
     {
         base.OnMouseMove(e);
         var pt = e.GetPosition(this);
+
+        // Modo Calibrar PDF — el cursor sigue libre hasta que se fije P₁; tras
+        // el primer click, la línea se anima hasta el cursor (con snap orto
+        // opcional vía Shift). Tras P₂ queda congelada esperando confirmación.
+        if (ModoCalibrarPdf)
+        {
+            Cursor = Cursors.Cross;
+            if (_calibrarP1Pre is { } p1 && !_calibrarConfirmando)
+            {
+                _calibrarP2Pre = AplicarSnapOrtoCalibracion(p1, PantallaAPre(pt));
+                RedibujarOverlay();
+            }
+            return;   // ignorar cualquier otro estado del lienzo mientras calibramos
+        }
 
         switch (_modo)
         {
