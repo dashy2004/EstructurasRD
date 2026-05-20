@@ -274,6 +274,66 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         }
     }
 
+    // Modo oscuro CAD (Parche v1.2.2) — invertir los canales B/G/R del PDF
+    // para que el fondo blanco quede negro y las líneas oscuras se vuelvan
+    // blancas resplandecientes. Al togglear, re-rasterizamos en background
+    // preservando la calibración actual (Pdf.Escala/OffsetX/OffsetY).
+    private string? _lastPdfPath;       // ruta del último PDF importado con éxito
+    private bool _invirtiendoEnCurso;   // gate anti-doble-click durante la re-rasterización
+
+    private bool _invertirColorPdf;
+    /// <summary>
+    /// Modo oscuro del PDF underlay: si <c>true</c>, los canales B/G/R del
+    /// bitmap rasterizado se invierten (preservando Alpha). Al cambiar,
+    /// dispara una re-rasterización asíncrona que SOLO actualiza
+    /// <see cref="FondoPdf"/> — la metadata <see cref="Pdf"/> (incluida la
+    /// calibración Escala/Offset) se preserva intacta.
+    /// </summary>
+    public bool InvertirColorPdf
+    {
+        get => _invertirColorPdf;
+        set
+        {
+            if (_invertirColorPdf == value) return;
+            _invertirColorPdf = value;
+            OnPropertyChanged();
+            if (_lastPdfPath is not null && _fondoPdf is not null && !_invirtiendoEnCurso)
+                _ = ReRasterizarPdfAsync();
+        }
+    }
+
+    private async Task ReRasterizarPdfAsync()
+    {
+        if (_lastPdfPath is null) return;
+        _invirtiendoEnCurso = true;
+        try
+        {
+            EstadoImportacion = _invertirColorPdf
+                ? "Aplicando modo oscuro…"
+                : "Restaurando colores normales…";
+
+            var r = await PdfImportador.RasterizarPrimeraPaginaAsync(
+                _lastPdfPath, invertColors: _invertirColorPdf);
+
+            if (!r.EsExito)
+            {
+                MessageBox.Show(r.Error ?? "Error al re-rasterizar el PDF.",
+                    "Modo oscuro", MessageBoxButton.OK, MessageBoxImage.Warning);
+                EstadoImportacion = "✕ No se pudo aplicar la inversión.";
+                return;
+            }
+
+            // CRÍTICO: sólo actualizamos el bitmap. La metadata Pdf (con su
+            // Escala/Offset calibrados por el usuario) se preserva intacta.
+            FondoPdf = r.Imagen;
+            RevisionPdf++;
+            EstadoImportacion = _invertirColorPdf
+                ? "✓ Modo oscuro activado — fondo negro con líneas blancas."
+                : "✓ Modo claro restaurado.";
+        }
+        finally { _invirtiendoEnCurso = false; }
+    }
+
     /// <summary>Encuadra el PDF en el viewport del lienzo (zoom to fit).</summary>
     public ICommand EncuadrarPdfCommand { get; }
 
@@ -533,6 +593,7 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         var meta = resultado.Meta!;
         Pdf = meta;
         FondoPdf = resultado.Imagen;
+        _lastPdfPath = dlg.FileName;   // para re-rasterizar al togglear Modo Oscuro (v1.2.2)
         EstadoImportacion = resultado.Aviso ??
             $"✓ {meta.NombreArchivo} — {meta.Ancho:0.00} × {meta.Alto:0.00} m " +
             $"(rasterizado).";

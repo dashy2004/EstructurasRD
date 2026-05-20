@@ -375,8 +375,14 @@
                             <Slider Minimum="0" Maximum="1" SmallChange="0.05" LargeChange="0.1"
                                     Value="{Binding CadEditor.OpacidadPdf, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                     TickFrequency="0.1" IsSnapToTickEnabled="False"
-                                    Margin="0,2,0,12"
+                                    Margin="0,2,0,8"
                                     ToolTip="Atenúa el PDF de fondo (0% transparente · 100% opaco). Sirve para que las losas dibujadas encima resalten."/>
+
+                            <CheckBox Content="🌙  Modo Oscuro (Fondo Negro)"
+                                      IsChecked="{Binding CadEditor.InvertirColorPdf, Mode=TwoWay}"
+                                      Foreground="{DynamicResource FgSecondary}"
+                                      Margin="0,4,0,12"
+                                      ToolTip="Invierte los canales B/G/R del PDF: fondo blanco → negro, líneas oscuras → claras. Reduce la fatiga visual en sesiones largas."/>
 
                             <Button Content="🎯  Encuadrar PDF" Padding="10,6"
                                     HorizontalAlignment="Stretch"

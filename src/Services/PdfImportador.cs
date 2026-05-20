@@ -62,8 +62,14 @@ public static class PdfImportador
     /// Resolución horizontal del bitmap rasterizado. Valores entre 2000 y
     /// 3000 mantienen los textos del plano legibles sin disparar la memoria.
     /// </param>
+    /// <param name="invertColors">
+    /// Si <c>true</c>, invierte los canales B/G/R del buffer rasterizado
+    /// (preservando el canal Alpha) para producir un PDF en «modo oscuro»:
+    /// fondo blanco → negro, líneas oscuras → blancas resplandecientes.
+    /// Parche v1.2.2.
+    /// </param>
     public static Task<PdfImportResult> RasterizarPrimeraPaginaAsync(
-        string path, int anchoObjetivoPx = 2400) => Task.Run(() =>
+        string path, int anchoObjetivoPx = 2400, bool invertColors = false) => Task.Run(() =>
     {
         try
         {
@@ -94,23 +100,41 @@ public static class PdfImportador
                         "use la herramienta de calibración para ajustar).";
             }
 
-            // Paso 2 — reabrir con dimensiones objetivo (en px enteros)
-            // preservando la relación de aspecto. PageDimensions(int, int) es
-            // la API que Docnet.Core 2.6 expone — no acepta escalas double.
+            // Paso 2 — rasterizar con estrategia defensiva (Parche v1.2.2):
+            //   Vía A: PageDimensions(targetW, targetH) — control fino.
+            //   Vía B (salvavidas): PageDimensions() nativo si Vía A lanza
+            //   ArgumentException (típico en landscape donde Docnet exige
+            //   dim1 ≤ dim2 internamente y rechaza la combinación).
             double escala = Math.Max(0.1, (double)anchoObjetivoPx / natW);
             int targetW = Math.Max(1, (int)Math.Round(natW * escala));
             int targetH = Math.Max(1, (int)Math.Round(natH * escala));
-            using var doc = DocLib.Instance.GetDocReader(path, new PageDimensions(targetW, targetH));
-            using var page = doc.GetPageReader(0);
 
-            int wPx = page.GetPageWidth();
-            int hPx = page.GetPageHeight();
-            byte[] bgra = page.GetImage();   // stride = wPx * 4 (32 bpp BGRA)
+            BitmapSource? bmp;
+            try
+            {
+                bmp = RasterizarPagina(path, new PageDimensions(targetW, targetH), invertColors);
+            }
+            catch (ArgumentException)
+            {
+                // Salvavidas: Docnet rechazó la combinación de dimensiones
+                // (típicamente "dimOne can't be more than dimTwo" en landscape).
+                // Renderizamos a tamaño nativo — pierde el control de resolución
+                // pero la app no crashea y el usuario sigue trabajando con el PDF.
+                try
+                {
+                    bmp = RasterizarPagina(path, new PageDimensions(), invertColors);
+                    aviso ??= "✓ PDF importado en modo nativo (la resolución objetivo no era compatible con este PDF).";
+                }
+                catch (Exception ex)
+                {
+                    return new PdfImportResult(null, null,
+                        $"No se pudo rasterizar el PDF ni con dimensiones objetivo ni en modo nativo.\n\nDetalle: {ex.Message}");
+                }
+            }
 
-            // Docnet entrega los bytes en BGRA (no RGBA) — usar Bgra32.
-            var bmp = BitmapSource.Create(
-                wPx, hPx, 96, 96, PixelFormats.Bgra32, null, bgra, wPx * 4);
-            bmp.Freeze();   // seguro en background; obligatorio antes del UI thread
+            if (bmp is null)
+                return new PdfImportResult(null, null,
+                    "El PDF se abrió pero no produjo una imagen rasterizada válida.");
 
             var meta = new PdfReferencia
             {
@@ -130,4 +154,41 @@ public static class PdfImportador
                 $"No se pudo leer el PDF.\n\nDetalle: {ex.Message}");
         }
     });
+
+    /// <summary>
+    /// Abre el PDF con el descriptor de dimensiones dado, lee la primera
+    /// página, aplica inversión BGRA opcional y devuelve un
+    /// <see cref="BitmapSource"/> congelado. Devuelve <c>null</c> si Docnet
+    /// reporta dimensiones &lt;= 0. Propaga <see cref="ArgumentException"/>
+    /// si Docnet rechaza el descriptor (caller decide si caer al salvavidas).
+    /// </summary>
+    private static BitmapSource? RasterizarPagina(string path, PageDimensions pd, bool invertColors)
+    {
+        using var doc = DocLib.Instance.GetDocReader(path, pd);
+        using var page = doc.GetPageReader(0);
+        int wPx = page.GetPageWidth();
+        int hPx = page.GetPageHeight();
+        if (wPx <= 0 || hPx <= 0) return null;
+        byte[] bgra = page.GetImage();    // stride = wPx * 4 (32 bpp BGRA)
+        if (invertColors) InvertirBgra(bgra);
+        var bmp = BitmapSource.Create(
+            wPx, hPx, 96, 96, PixelFormats.Bgra32, null, bgra, wPx * 4);
+        bmp.Freeze();   // seguro en background; obligatorio antes del UI thread
+        return bmp;
+    }
+
+    /// <summary>
+    /// Invierte los canales B/G/R del buffer BGRA (Parche v1.2.2 — modo
+    /// oscuro CAD). El blanco (255,255,255) se vuelve negro (0,0,0) y
+    /// viceversa; el canal Alpha (índice +3) se preserva.
+    /// </summary>
+    private static void InvertirBgra(byte[] buf)
+    {
+        for (int i = 0; i + 3 < buf.Length; i += 4)
+        {
+            buf[i]     = (byte)(255 - buf[i]);      // B
+            buf[i + 1] = (byte)(255 - buf[i + 1]);  // G
+            buf[i + 2] = (byte)(255 - buf[i + 2]);  // R
+        }
+    }
 }
