@@ -100,35 +100,46 @@ public static class PdfImportador
                         "use la herramienta de calibración para ajustar).";
             }
 
-            // Paso 2 — rasterizar con estrategia defensiva (Parche v1.2.2):
-            //   Vía A: PageDimensions(targetW, targetH) — control fino.
-            //   Vía B (salvavidas): PageDimensions() nativo si Vía A lanza
-            //   ArgumentException (típico en landscape donde Docnet exige
-            //   dim1 ≤ dim2 internamente y rechaza la combinación).
-            double escala = Math.Max(0.1, (double)anchoObjetivoPx / natW);
-            int targetW = Math.Max(1, (int)Math.Round(natW * escala));
-            int targetH = Math.Max(1, (int)Math.Round(natH * escala));
+            // Paso 2 — rasterizar por FACTOR de escala proporcional (Parche v1.2.3).
+            //
+            // Reemplaza el approach anterior con PageDimensions(int, int), que
+            // generaba buffers vacíos en PDFs con transformaciones de impresión
+            // complejas (/CropBox /Rotate matrices) y exigía dim1 ≤ dim2
+            // internamente. El constructor PageDimensions(double) preserva la
+            // geometría nativa del PDF y solo escala proporcionalmente — funciona
+            // en portrait, landscape y PDFs con cualquier matriz de transformación.
+            //
+            // Factor calculado para apuntar al anchoObjetivoPx (~2400 px), clampeado
+            // a [0.5, 5.0] para evitar consumos absurdos de memoria en PDFs muy
+            // chicos o muy grandes.
+            double factor = Math.Clamp((double)anchoObjetivoPx / natW, 0.5, 5.0);
 
             BitmapSource? bmp;
             try
             {
-                bmp = RasterizarPagina(path, new PageDimensions(targetW, targetH), invertColors);
+                bmp = RasterizarPagina(path, new PageDimensions(factor), invertColors);
             }
-            catch (ArgumentException)
+            catch (Exception)
             {
-                // Salvavidas: Docnet rechazó la combinación de dimensiones
-                // (típicamente "dimOne can't be more than dimTwo" en landscape).
-                // Renderizamos a tamaño nativo — pierde el control de resolución
-                // pero la app no crashea y el usuario sigue trabajando con el PDF.
+                // Captura ancha: cualquier excepción nativa de PDFium/Docnet
+                // (incluida OutOfMemory en factores altos) cae al salvavidas 1:1.
+                bmp = null;
+            }
+
+            if (bmp is null)
+            {
+                // Salvavidas: renderizado a tamaño natural (factor 1.0). Pierde
+                // el control de resolución objetivo pero la app no crashea y el
+                // PDF se visualiza al menos a su tamaño nativo.
                 try
                 {
-                    bmp = RasterizarPagina(path, new PageDimensions(), invertColors);
-                    aviso ??= "✓ PDF importado en modo nativo (la resolución objetivo no era compatible con este PDF).";
+                    bmp = RasterizarPagina(path, new PageDimensions(1.0), invertColors);
+                    aviso ??= "✓ PDF importado en modo nativo 1:1 (la resolución objetivo no fue compatible con este PDF).";
                 }
                 catch (Exception ex)
                 {
                     return new PdfImportResult(null, null,
-                        $"No se pudo rasterizar el PDF ni con dimensiones objetivo ni en modo nativo.\n\nDetalle: {ex.Message}");
+                        $"No se pudo rasterizar el PDF ni con factor de escala ni en modo 1:1 nativo.\n\nDetalle: {ex.Message}");
                 }
             }
 
@@ -159,8 +170,10 @@ public static class PdfImportador
     /// Abre el PDF con el descriptor de dimensiones dado, lee la primera
     /// página, aplica inversión BGRA opcional y devuelve un
     /// <see cref="BitmapSource"/> congelado. Devuelve <c>null</c> si Docnet
-    /// reporta dimensiones &lt;= 0. Propaga <see cref="ArgumentException"/>
-    /// si Docnet rechaza el descriptor (caller decide si caer al salvavidas).
+    /// reporta dimensiones &lt;= 0 o un buffer completamente vacío
+    /// (escenario observado en PDFs con transformaciones de impresión
+    /// complejas, v1.2.3). Propaga excepciones de Docnet — el caller
+    /// decide si caer al salvavidas 1:1.
     /// </summary>
     private static BitmapSource? RasterizarPagina(string path, PageDimensions pd, bool invertColors)
     {
@@ -170,11 +183,34 @@ public static class PdfImportador
         int hPx = page.GetPageHeight();
         if (wPx <= 0 || hPx <= 0) return null;
         byte[] bgra = page.GetImage();    // stride = wPx * 4 (32 bpp BGRA)
+        if (bgra is null || bgra.Length < 4) return null;
+
+        // Detección de buffer vacío (Parche v1.2.3): algunos PDFs con
+        // transformaciones complejas hacen que Docnet devuelva dimensiones
+        // válidas pero un arreglo de bytes en cero. El caller usa el
+        // salvavidas a tamaño nativo 1:1 cuando esto ocurre.
+        if (EsBufferVacio(bgra)) return null;
+
         if (invertColors) InvertirBgra(bgra);
         var bmp = BitmapSource.Create(
             wPx, hPx, 96, 96, PixelFormats.Bgra32, null, bgra, wPx * 4);
         bmp.Freeze();   // seguro en background; obligatorio antes del UI thread
         return bmp;
+    }
+
+    /// <summary>
+    /// Heurística rápida (Parche v1.2.3): devuelve <c>true</c> si los
+    /// primeros 4 KB del buffer son todos cero — signo inequívoco de un
+    /// renderizado fallido de Docnet en PDFs con transformaciones de
+    /// impresión complejas. Aborta en O(1) en el caso común (encuentra
+    /// el primer byte no-cero rápido) y nunca escanea más de 4 KB.
+    /// </summary>
+    private static bool EsBufferVacio(byte[] buf)
+    {
+        int limite = Math.Min(buf.Length, 4096);
+        for (int i = 0; i < limite; i++)
+            if (buf[i] != 0) return false;
+        return true;
     }
 
     /// <summary>
