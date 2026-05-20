@@ -18,6 +18,10 @@
                         Content="📂  Importar DXF…"
                         Command="{Binding CadEditor.ImportarDxfCommand}"
                         ToolTip="Abre un plano de arquitectura .DXF como capa de referencia."/>
+                <Button DockPanel.Dock="Left" Padding="12,5" Margin="8,0,0,0"
+                        Content="📑  Importar PDF…"
+                        Command="{Binding CadEditor.ImportarPdfCommand}"
+                        ToolTip="Rasteriza la primera página de un PDF como capa de referencia."/>
                 <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
                            Margin="14,0,0,0"
                            Foreground="{DynamicResource FgMuted}" FontSize="12"
@@ -48,6 +52,10 @@
                                        Sistema="{Binding Sistema}"
                                        RevisionPlano="{Binding CadEditor.RevisionPlano}"
                                        SolicitudEncuadre="{Binding CadEditor.SolicitudEncuadre}"
+                                       Pdf="{Binding CadEditor.Pdf}"
+                                       FondoPdf="{Binding CadEditor.FondoPdf}"
+                                       RevisionPdf="{Binding CadEditor.RevisionPdf}"
+                                       SolicitudEncuadrePdf="{Binding CadEditor.SolicitudEncuadrePdf}"
                                        ModoInteraccion="{Binding CadEditor.ModoInteraccion}"
                                        SnapActivo="{Binding CadEditor.SnapActivo}"
                                        MoverConectadas="{Binding CadEditor.MoverConectadas}"
@@ -280,6 +288,51 @@
                                     HorizontalAlignment="Stretch"
                                     Command="{Binding CadEditor.EncuadrarPlanoCommand}"
                                     ToolTip="Centra y ajusta el zoom para que el plano DXF ocupe el viewport."/>
+                        </StackPanel>
+
+                        <Border Height="1" Margin="0,16" Background="{DynamicResource Border}"/>
+
+                        <!-- Detalles del PDF importado actual (Iteración 4 v1.2) -->
+                        <TextBlock Text="PDF IMPORTADO" FontWeight="Bold" FontSize="10"
+                                   Foreground="{DynamicResource FgMuted}" Margin="0,0,0,6"/>
+                        <TextBlock Text="{Binding CadEditor.Pdf.NombreArchivo, FallbackValue=(sin PDF), TargetNullValue=(sin PDF)}"
+                                   FontFamily="JetBrains Mono, Consolas" FontSize="11"
+                                   TextTrimming="CharacterEllipsis"
+                                   Foreground="{DynamicResource FgPrimary}"/>
+                        <TextBlock FontSize="11" Margin="0,3,0,0"
+                                   Foreground="{DynamicResource FgMuted}">
+                            <Run Text="{Binding CadEditor.Pdf.Ancho, StringFormat=0.00, FallbackValue=0, Mode=OneWay}"/>
+                            <Run Text=" × "/>
+                            <Run Text="{Binding CadEditor.Pdf.Alto, StringFormat=0.00, FallbackValue=0, Mode=OneWay}"/>
+                            <Run Text=" m  ·  primera página"/>
+                        </TextBlock>
+
+                        <Border Height="1" Margin="0,12" Background="{DynamicResource Border}"/>
+
+                        <!-- Ajuste espacial PDF — independiente del DXF -->
+                        <StackPanel IsEnabled="{Binding CadEditor.TienePdf}">
+                            <TextBlock Text="AJUSTE ESPACIAL PDF" FontWeight="Bold" FontSize="10"
+                                       Foreground="{DynamicResource FgMuted}" Margin="0,0,0,8"/>
+
+                            <TextBlock Text="Escala" FontSize="11"
+                                       Foreground="{DynamicResource FgSecondary}"/>
+                            <TextBox Margin="0,2,0,8"
+                                     Text="{Binding CadEditor.EscalaPdf, UpdateSourceTrigger=LostFocus}"/>
+
+                            <TextBlock Text="Offset X (m)" FontSize="11"
+                                       Foreground="{DynamicResource FgSecondary}"/>
+                            <TextBox Margin="0,2,0,8"
+                                     Text="{Binding CadEditor.OffsetXPdf, UpdateSourceTrigger=LostFocus}"/>
+
+                            <TextBlock Text="Offset Y (m)" FontSize="11"
+                                       Foreground="{DynamicResource FgSecondary}"/>
+                            <TextBox Margin="0,2,0,12"
+                                     Text="{Binding CadEditor.OffsetYPdf, UpdateSourceTrigger=LostFocus}"/>
+
+                            <Button Content="🎯  Encuadrar PDF" Padding="10,6"
+                                    HorizontalAlignment="Stretch"
+                                    Command="{Binding CadEditor.EncuadrarPdfCommand}"
+                                    ToolTip="Centra y ajusta el zoom para que el PDF ocupe el viewport."/>
                         </StackPanel>
                     </StackPanel>
                 </Border>

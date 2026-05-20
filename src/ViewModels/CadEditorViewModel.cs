@@ -5,7 +5,10 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
 using LosasPlus.Models;
 using LosasPlus.Models.Cad;
 using LosasPlus.Services;
@@ -41,10 +44,12 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         _pushUndoSnapshot = pushUndoSnapshot ?? throw new ArgumentNullException(nameof(pushUndoSnapshot));
         _importer = importer ?? throw new ArgumentNullException(nameof(importer));
         ImportarDxfCommand = new RelayCommand(_ => ImportarDxf());
+        ImportarPdfCommand = new RelayCommand(_ => _ = ImportarPdfAsync());
         MapearPoligonoCommand = new RelayCommand(p => MapearPoligono(p as PolilineaCad));
         ActualizarLosaCommand = new RelayCommand(p => ActualizarLosa(p as ActualizacionLosaArgs));
         CrearBordeAdicCommand = new RelayCommand(p => CrearBordeAdic(p as AdyacenciaCandidata?));
         EncuadrarPlanoCommand = new RelayCommand(_ => EncuadrarPlano());
+        EncuadrarPdfCommand = new RelayCommand(_ => EncuadrarPdf());
         CrearLosaCommand = new RelayCommand(p => CrearLosa(p as CrearLosaArgs));
         MoverGrupoCommand = new RelayCommand(p => MoverGrupo(p as MovimientoGrupoArgs));
     }
@@ -144,6 +149,114 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
     private void EncuadrarPlano()
     {
         if (TienePlano) SolicitudEncuadre++;
+    }
+
+    // ---- PDF Underlay importado (Iteración 4 Epic v1.2) ----
+
+    private PdfReferencia? _pdf;
+    /// <summary>
+    /// Metadata del PDF importado (nombre + dimensiones físicas en metros).
+    /// Null hasta que el usuario importe un PDF.
+    /// </summary>
+    public PdfReferencia? Pdf
+    {
+        get => _pdf;
+        private set
+        {
+            _pdf = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(TienePdf));
+            OnPropertyChanged(nameof(EscalaPdf));
+            OnPropertyChanged(nameof(OffsetXPdf));
+            OnPropertyChanged(nameof(OffsetYPdf));
+        }
+    }
+
+    private BitmapSource? _fondoPdf;
+    /// <summary>
+    /// Bitmap rasterizado de la primera página del PDF, ya <c>.Freeze()</c>-eado
+    /// para poder cruzarse entre el hilo de background y el UI. Null hasta que
+    /// el usuario importe un PDF (o si la importación falló).
+    /// </summary>
+    public BitmapSource? FondoPdf
+    {
+        get => _fondoPdf;
+        private set
+        {
+            _fondoPdf = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(TienePdf));
+        }
+    }
+
+    /// <summary>True si hay un PDF con metadata Y bitmap rasterizado disponibles.</summary>
+    public bool TienePdf => _pdf is { EstaVacio: false } && _fondoPdf is not null;
+
+    private int _revisionPdf;
+    /// <summary>
+    /// Token de revisión análogo a <see cref="RevisionPlano"/> pero para el
+    /// PDF: se incrementa al cambiar <see cref="EscalaPdf"/>/<see cref="OffsetXPdf"/>/
+    /// <see cref="OffsetYPdf"/> para que el <c>CadCanvasHost</c> redibuje la Capa 1.
+    /// </summary>
+    public int RevisionPdf
+    {
+        get => _revisionPdf;
+        private set { _revisionPdf = value; OnPropertyChanged(); }
+    }
+
+    private int _solicitudEncuadrePdf;
+    /// <summary>Token de encuadre: se incrementa para pedir un «zoom to fit» del PDF.</summary>
+    public int SolicitudEncuadrePdf
+    {
+        get => _solicitudEncuadrePdf;
+        private set { _solicitudEncuadrePdf = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Escala uniforme del bloque PDF — proxy bindable de <see cref="PdfReferencia.Escala"/>.</summary>
+    public double EscalaPdf
+    {
+        get => _pdf?.Escala ?? 1.0;
+        set
+        {
+            if (_pdf is null || Math.Abs(_pdf.Escala - value) < 1e-9) return;
+            _pdf.Escala = value;
+            OnPropertyChanged();
+            RevisionPdf++;
+        }
+    }
+
+    /// <summary>Desplazamiento X del bloque PDF en metros — proxy bindable.</summary>
+    public double OffsetXPdf
+    {
+        get => _pdf?.OffsetX ?? 0.0;
+        set
+        {
+            if (_pdf is null || Math.Abs(_pdf.OffsetX - value) < 1e-9) return;
+            _pdf.OffsetX = value;
+            OnPropertyChanged();
+            RevisionPdf++;
+        }
+    }
+
+    /// <summary>Desplazamiento Y del bloque PDF en metros — proxy bindable.</summary>
+    public double OffsetYPdf
+    {
+        get => _pdf?.OffsetY ?? 0.0;
+        set
+        {
+            if (_pdf is null || Math.Abs(_pdf.OffsetY - value) < 1e-9) return;
+            _pdf.OffsetY = value;
+            OnPropertyChanged();
+            RevisionPdf++;
+        }
+    }
+
+    /// <summary>Encuadra el PDF en el viewport del lienzo (zoom to fit).</summary>
+    public ICommand EncuadrarPdfCommand { get; }
+
+    private void EncuadrarPdf()
+    {
+        if (TienePdf) SolicitudEncuadrePdf++;
     }
 
     // ---- Herramienta de interacción del lienzo (Iteración 3) ----
@@ -275,6 +388,53 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
             // Red de seguridad — cualquier fallo inesperado se reporta sin crashear.
             EstadoImportacion = $"✕ Error inesperado al importar: {ex.Message}";
         }
+    }
+
+    // ---- Comando: importar un .PDF (Iteración 4 Epic v1.2) ----
+
+    /// <summary>
+    /// Abre un <c>OpenFileDialog</c> filtrado a .pdf y rasteriza la primera
+    /// página vía <see cref="PdfImportador"/> en un hilo de background, sin
+    /// bloquear el UI. Al terminar, asigna <see cref="Pdf"/> + <see cref="FondoPdf"/>
+    /// y dispara un encuadre automático.
+    /// </summary>
+    public ICommand ImportarPdfCommand { get; }
+
+    private async Task ImportarPdfAsync()
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Title  = "Importar PDF como capa de referencia",
+            Filter = "Documentos PDF (*.pdf)|*.pdf|Todos los archivos (*.*)|*.*",
+            CheckFileExists = true,
+        };
+        if (dlg.ShowDialog() != true) return;
+
+        EstadoImportacion = "Rasterizando PDF…";
+
+        var resultado = await PdfImportador.RasterizarPrimeraPaginaAsync(dlg.FileName);
+
+        if (!resultado.EsExito)
+        {
+            // Mensaje amigable — no propagamos la excepción para no crashear la app.
+            MessageBox.Show(
+                resultado.Error ?? "Error desconocido al leer el PDF.",
+                "Importar PDF",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            EstadoImportacion = "✕ Error al importar PDF.";
+            return;
+        }
+
+        var meta = resultado.Meta!;
+        Pdf = meta;
+        FondoPdf = resultado.Imagen;
+        EstadoImportacion =
+            $"✓ {meta.NombreArchivo} — {meta.Ancho:0.00} × {meta.Alto:0.00} m " +
+            $"(rasterizado).";
+
+        // Auto-encuadrar al recién importar para que el PDF caiga centrado.
+        SolicitudEncuadrePdf++;
     }
 
     // ---- Comando: mapear un polígono del plano a una nueva Losa (Fase 2) ----

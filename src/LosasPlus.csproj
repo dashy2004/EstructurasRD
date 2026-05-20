@@ -24,10 +24,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- SharpVectors es UI-only (renderer SVG en WPF). El resto de paquetes
-         (ClosedXML, Roslyn, EncodingCodePages, Text.Json) llegan transitivamente
-         vía LosasPlus.Core. -->
+    <!-- SharpVectors es UI-only (renderer SVG en WPF). Docnet.Core rasteriza
+         PDFs vía PDFium (DLL nativa x64 embebida) y produce BitmapSource, así
+         que también es UI-only. El resto de paquetes (ClosedXML, Roslyn,
+         EncodingCodePages, Text.Json) llegan transitivamente vía
+         LosasPlus.Core. -->
     <PackageReference Include="SharpVectors.Reloaded" Version="1.8.4.2" />
+    <PackageReference Include="Docnet.Core" Version="2.6.0" />
   </ItemGroup>
 
   <ItemGroup>

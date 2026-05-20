@@ -385,6 +385,78 @@ public sealed class CadCanvasHost : FrameworkElement
         set => SetValue(MoverGrupoCommandProperty, value);
     }
 
+    // ---- PDF Underlay (Iteración 4 Epic v1.2) ----
+
+    /// <summary>
+    /// Metadata del PDF importado (nombre + dimensiones físicas + transformación
+    /// de bloque). Es la análoga «vectorial» a <see cref="Plano"/>; el bitmap
+    /// rasterizado vive aparte en <see cref="FondoPdf"/>.
+    /// </summary>
+    public static readonly DependencyProperty PdfProperty =
+        DependencyProperty.Register(nameof(Pdf), typeof(PdfReferencia), typeof(CadCanvasHost),
+            new PropertyMetadata(null, OnPdfChanged));
+
+    public PdfReferencia? Pdf
+    {
+        get => (PdfReferencia?)GetValue(PdfProperty);
+        set => SetValue(PdfProperty, value);
+    }
+
+    /// <summary>
+    /// Bitmap rasterizado de la primera página del PDF, ya <c>.Freeze()</c>-eado
+    /// por el <c>PdfImportador</c>. Null = sin PDF cargado.
+    /// </summary>
+    public static readonly DependencyProperty FondoPdfProperty =
+        DependencyProperty.Register(nameof(FondoPdf), typeof(BitmapSource), typeof(CadCanvasHost),
+            new PropertyMetadata(null, OnPdfChanged));
+
+    public BitmapSource? FondoPdf
+    {
+        get => (BitmapSource?)GetValue(FondoPdfProperty);
+        set => SetValue(FondoPdfProperty, value);
+    }
+
+    private static void OnPdfChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var host = (CadCanvasHost)d;
+        host.RedibujarPlano();
+    }
+
+    /// <summary>
+    /// Token de revisión del PDF: el ViewModel lo incrementa cuando cambian
+    /// los factores Escala/OffsetX/OffsetY del <see cref="PdfReferencia"/>,
+    /// análogo a <see cref="RevisionPlano"/>.
+    /// </summary>
+    public static readonly DependencyProperty RevisionPdfProperty =
+        DependencyProperty.Register(nameof(RevisionPdf), typeof(int), typeof(CadCanvasHost),
+            new PropertyMetadata(0, OnRevisionPdfChanged));
+
+    public int RevisionPdf
+    {
+        get => (int)GetValue(RevisionPdfProperty);
+        set => SetValue(RevisionPdfProperty, value);
+    }
+
+    private static void OnRevisionPdfChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        => ((CadCanvasHost)d).RedibujarPlano();
+
+    /// <summary>
+    /// Token de encuadre del PDF: el ViewModel lo incrementa para pedir un
+    /// «zoom to fit» del PDF (botón «Encuadrar PDF» en el panel lateral).
+    /// </summary>
+    public static readonly DependencyProperty SolicitudEncuadrePdfProperty =
+        DependencyProperty.Register(nameof(SolicitudEncuadrePdf), typeof(int), typeof(CadCanvasHost),
+            new PropertyMetadata(0, OnSolicitudEncuadrePdfChanged));
+
+    public int SolicitudEncuadrePdf
+    {
+        get => (int)GetValue(SolicitudEncuadrePdfProperty);
+        set => SetValue(SolicitudEncuadrePdfProperty, value);
+    }
+
+    private static void OnSolicitudEncuadrePdfChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        => ((CadCanvasHost)d).EncuadrarPdf();
+
     // =====================================================================
     // Ciclo de vida — redibujar la grilla cuando cambia el tamaño
     // =====================================================================
@@ -428,6 +500,38 @@ public sealed class CadCanvasHost : FrameworkElement
 
         double cx = bx + bw / 2.0;   // centro del bbox (pre-transform)
         double cy = bh / 2.0;        // el bbox arranca en y = 0
+        _scale.ScaleX = _scale.ScaleY = fit;
+        _translate.X = w / 2.0 - fit * cx;
+        _translate.Y = h / 2.0 - fit * cy;
+
+        RedibujarOverlay();
+    }
+
+    /// <summary>
+    /// «Zoom to fit» del PDF underlay (Iteración 4 Epic v1.2): mismo principio
+    /// que <see cref="EncuadrarPlano"/> pero usando el bbox del PDF en lugar
+    /// del DXF. Permite encuadrar PDF y DXF por separado cuando coexisten.
+    /// </summary>
+    public void EncuadrarPdf()
+    {
+        var pdf = Pdf;
+        if (pdf is null || pdf.EstaVacio) return;
+
+        double w = ActualWidth, h = ActualHeight;
+        if (w < 1 || h < 1) return;
+
+        double esc = pdf.Escala;
+        double bx = pdf.OffsetX * PxPorMetro;
+        double by = pdf.OffsetY * PxPorMetro;
+        double bw = pdf.Ancho * esc * PxPorMetro;
+        double bh = pdf.Alto  * esc * PxPorMetro;
+        if (bw < 1e-6 || bh < 1e-6) return;
+
+        const double margen = 0.92;
+        double fit = Math.Clamp(Math.Min(w / bw, h / bh) * margen, MinScale, MaxScale);
+
+        double cx = bx + bw / 2.0;
+        double cy = by + bh / 2.0;   // a diferencia del DXF, el PDF puede tener by ≠ 0
         _scale.ScaleX = _scale.ScaleY = fit;
         _translate.X = w / 2.0 - fit * cx;
         _translate.Y = h / 2.0 - fit * cy;
@@ -535,6 +639,24 @@ public sealed class CadCanvasHost : FrameworkElement
     private void RedibujarPlano()
     {
         using var dc = _capaPlano.RenderOpen();
+
+        // ---- Capa 1a: PDF underlay rasterizado (Iteración 4) ----
+        // Se dibuja PRIMERO para quedar DEBAJO de las entidades vectoriales del
+        // DXF; ambos coexisten sin conflicto. El rect en lienzo px usa la misma
+        // convención de las losas (Capa 2): (OffsetX, OffsetY) es la esquina
+        // superior-izquierda en metros, Y descendente.
+        if (Pdf is { EstaVacio: false } pdf && FondoPdf is { } imgPdf)
+        {
+            double escPdf = pdf.Escala;
+            var rectPdfPx = new Rect(
+                pdf.OffsetX * PxPorMetro,
+                pdf.OffsetY * PxPorMetro,
+                pdf.Ancho * escPdf * PxPorMetro,
+                pdf.Alto  * escPdf * PxPorMetro);
+            dc.DrawImage(imgPdf, rectPdfPx);
+        }
+
+        // ---- Capa 1b: entidades vectoriales del DXF ----
         var plano = Plano;
         if (plano is null || plano.EstaVacio) return;
 
