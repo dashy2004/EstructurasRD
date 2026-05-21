@@ -299,6 +299,26 @@ public sealed class CadCanvasHost : FrameworkElement
     }
 
     /// <summary>
+    /// Token de revisión del SSOT (Epic v1.3 Iteración 3): el ViewModel lo
+    /// incrementa cuando un comando muta las losas o los bordes del
+    /// <see cref="Sistema"/> sin reemplazar la referencia del objeto (ej. el
+    /// motor de auto-alineación). Dispara un refresco completo de la Capa 2,
+    /// chips de adyacencia y overlay.
+    /// </summary>
+    public static readonly DependencyProperty RevisionSistemaProperty =
+        DependencyProperty.Register(nameof(RevisionSistema), typeof(int), typeof(CadCanvasHost),
+            new PropertyMetadata(0, OnRevisionSistemaChanged));
+
+    public int RevisionSistema
+    {
+        get => (int)GetValue(RevisionSistemaProperty);
+        set => SetValue(RevisionSistemaProperty, value);
+    }
+
+    private static void OnRevisionSistemaChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        => ((CadCanvasHost)d).RefrescarLosas();
+
+    /// <summary>
     /// Token de encuadre: el ViewModel lo incrementa para pedir un «zoom to
     /// fit» del plano DXF (botón «Encuadrar Plano»).
     /// </summary>

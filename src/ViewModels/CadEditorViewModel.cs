@@ -47,6 +47,7 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         ImportarPdfCommand = new RelayCommand(_ => _ = ImportarPdfAsync());
         EliminarDxfCommand = new RelayCommand(_ => EliminarDxf());
         EliminarPdfCommand = new RelayCommand(_ => EliminarPdf());
+        AutoAlinearSistemasCommand = new RelayCommand(_ => AutoAlinearSistemas());
         ReRasterizarPdfCommand = new RelayCommand(
             p => { if (p is int px) _ = ReRasterizarPdfAsync(px, silencioso: true); },
             _ => TienePdf && _lastPdfPath is not null && !_invirtiendoEnCurso);
@@ -401,6 +402,58 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         FondoPdf = null;
         _lastPdfPath = null;   // corta la re-rasterización dinámica por zoom
         EstadoImportacion = "✓ PDF eliminado del lienzo.";
+    }
+
+    // ---- Auto-alineación y auto-conexión de losas (Epic v1.3 Iteración 3) ----
+
+    private int _revisionSistema;
+    /// <summary>
+    /// Token de revisión del SSOT: se incrementa cuando un comando muta las
+    /// losas o los bordes del <see cref="Sistema"/> activo <b>sin reemplazar
+    /// la referencia del objeto</b>. El <c>CadCanvasHost</c> lo observa para
+    /// disparar un refresco completo del lienzo (mismo patrón que
+    /// <see cref="RevisionPlano"/> / <see cref="RevisionPdf"/>).
+    /// </summary>
+    public int RevisionSistema
+    {
+        get => _revisionSistema;
+        private set { _revisionSistema = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Señala al host que el SSOT cambió y debe redibujar el lienzo.</summary>
+    private void NotificarCambioLienzo() => RevisionSistema++;
+
+    /// <summary>
+    /// Ejecuta el <see cref="MotorGeometriaAnalitica"/> sobre el sistema
+    /// activo: alinea las losas vecinas que casi se tocan y genera los
+    /// bordes de continuidad de acero entre las que quedan en contacto.
+    /// </summary>
+    public ICommand AutoAlinearSistemasCommand { get; }
+
+    private void AutoAlinearSistemas()
+    {
+        var sistema = SistemaActivo;
+        if (sistema.Losas.Count < 2)
+        {
+            EstadoImportacion = "Se necesitan al menos 2 losas para auto-conectar.";
+            return;
+        }
+
+        // CRÍTICO: un único snapshot de Undo antes de mutar el SSOT — toda la
+        // optimización (posiciones + bordes) se revierte con un solo Ctrl+Z.
+        _pushUndoSnapshot();
+
+        var r = MotorGeometriaAnalitica.EjecutarAlineacionYConexion(sistema);
+
+        if (r.LosasAlineadasCount > 0 || r.BordesCreadosCount > 0)
+        {
+            OnPropertyChanged(nameof(Losas));
+            NotificarCambioLienzo();
+        }
+
+        EstadoImportacion =
+            $"✓ Sistema optimizado: se alinearon {r.LosasAlineadasCount} losas y " +
+            $"se generaron {r.BordesCreadosCount} conexiones de aceros adicionales.";
     }
 
     // ---- Calibración interactiva del PDF (Iteración 5 Epic v1.2) ----

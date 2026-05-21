@@ -50,6 +50,7 @@
                     <cad:CadCanvasHost x:Name="Canvas"
                                        Plano="{Binding CadEditor.Plano}"
                                        Sistema="{Binding Sistema}"
+                                       RevisionSistema="{Binding CadEditor.RevisionSistema}"
                                        RevisionPlano="{Binding CadEditor.RevisionPlano}"
                                        SolicitudEncuadre="{Binding CadEditor.SolicitudEncuadre}"
                                        Pdf="{Binding CadEditor.Pdf}"
@@ -151,6 +152,37 @@
                                         </Setter.Value>
                                     </Setter>
                                 </Style>
+                                <Style TargetType="{x:Type Button}">
+                                    <Setter Property="Padding" Value="14,7"/>
+                                    <Setter Property="Margin" Value="2,0"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                    <Setter Property="FontFamily" Value="Inter, Segoe UI"/>
+                                    <Setter Property="FontSize" Value="13"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource FgSecondary}"/>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="{x:Type Button}">
+                                                <Border x:Name="bd" CornerRadius="5"
+                                                        Background="Transparent"
+                                                        Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter VerticalAlignment="Center"/>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="bd" Property="Background" Value="{DynamicResource BgInput}"/>
+                                                        <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Setter TargetName="bd" Property="Background" Value="{DynamicResource Accent}"/>
+                                                        <Setter Property="Foreground" Value="White"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
                             </StackPanel.Resources>
                             <RadioButton GroupName="HerramientaCad" Content="↖  Puntero"
                                          IsChecked="{Binding CadEditor.ModoInteraccion, Converter={StaticResource EnumToBool}, ConverterParameter=Puntero}"
@@ -161,6 +193,10 @@
                             <RadioButton GroupName="HerramientaCad" Content="✋  Mano"
                                          IsChecked="{Binding CadEditor.ModoInteraccion, Converter={StaticResource EnumToBool}, ConverterParameter=Mano}"
                                          ToolTip="Arrastrar el lienzo para panear sin tocar las losas."/>
+                            <Border Width="1" Margin="6,4" Background="{DynamicResource Border}"/>
+                            <Button Content="🤖  Auto-Conectar"
+                                    Command="{Binding CadEditor.AutoAlinearSistemasCommand}"
+                                    ToolTip="Alinea las losas vecinas que casi se tocan y genera automáticamente los bordes de continuidad de acero."/>
                             <Border Width="1" Margin="6,4" Background="{DynamicResource Border}"/>
                             <ToggleButton Content="🧲  Snap"
                                           IsChecked="{Binding CadEditor.SnapActivo, Mode=TwoWay}"
