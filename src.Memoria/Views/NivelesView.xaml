@@ -116,10 +116,22 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <Button Grid.Row="2" Margin="8,4,8,8"
-                        Style="{StaticResource SecondaryButtonStyle}"
-                        Content="+ Agregar nivel"
-                        Command="{Binding AgregarSistemaCommand}"/>
+                <Grid Grid.Row="2" Margin="8,4,8,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="6"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Content="+ Agregar nivel"
+                            Command="{Binding AgregarSistemaCommand}"/>
+                    <Button Grid.Column="2"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Content="🗑"
+                            Command="{Binding EliminarSistemaCommand}"
+                            ToolTip="Eliminar el nivel seleccionado"/>
+                </Grid>
             </Grid>
         </Border>
 

@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Windows;
 using LosasPlus.Calculo;
 using LosasPlus.Generation;
 using LosasPlus.Importers;
@@ -55,6 +56,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         AbrirProyectoRecienteCommand = new RelayCommand<string>(AbrirProyectoReciente);
         AgregarLosaCommand    = new RelayCommand(AgregarLosa,    () => SistemaActivo != null);
         AgregarSistemaCommand = new RelayCommand(AgregarSistema, () => ProyectoActivo != null);
+        EliminarSistemaCommand = new RelayCommand(EliminarSistema, () => SistemaActivo != null);
         AbrirEnCalculosCommand = new RelayCommand(AbrirEnCalculos,
             () => ProyectoRecienteSeleccionado != null
                   && !string.IsNullOrEmpty(ProyectoRecienteSeleccionado.Path));
@@ -256,6 +258,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             ImportarTxtPerdomoCommand?.RaiseCanExecuteChanged();
             QuitarTxtPerdomoCommand?.RaiseCanExecuteChanged();
             AgregarLosaCommand?.RaiseCanExecuteChanged();
+            EliminarSistemaCommand?.RaiseCanExecuteChanged();
             OnPropertyChanged(nameof(IssuesEnSistemaActivo));
             OnPropertyChanged(nameof(HayIssuesEnSistemaActivo));
         }
@@ -314,6 +317,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand<string> AbrirProyectoRecienteCommand { get; }
     public RelayCommand AgregarLosaCommand    { get; }
     public RelayCommand AgregarSistemaCommand { get; }
+    public RelayCommand EliminarSistemaCommand { get; }
     public RelayCommand AbrirEnCalculosCommand { get; }
     public RelayCommand IrABusquedaCommand    { get; }
 
@@ -705,6 +709,39 @@ public sealed class MainViewModel : INotifyPropertyChanged
         ProyectoActivo.Sistemas.Add(nuevo);
         SistemaActivo = nuevo;  // foco automático al nuevo nivel
         StatusPersistencia = $"Nivel {nuevoNombre} agregado.";
+    }
+
+    /// <summary>
+    /// Elimina el <see cref="SistemaActivo"/> del proyecto, previa confirmación
+    /// del usuario (la operación destruye las losas del nivel y su salida .txt
+    /// importada). Tras eliminar, reselecciona un nivel vecino — el que ocupa
+    /// ahora ese índice, o <c>null</c> si el proyecto quedó sin niveles.
+    /// </summary>
+    private void EliminarSistema()
+    {
+        if (ProyectoActivo is null || SistemaActivo is null) return;
+        var sistema = SistemaActivo;
+
+        var detalle = $"Se perderán sus {sistema.Losas.Count} losa(s)";
+        if (sistema.TieneSalidaPerdomo)
+            detalle += " y la salida .txt importada de F. Perdomo";
+
+        var resp = MessageBox.Show(
+            $"¿Eliminar el nivel «{sistema.Nombre}»?\n\n{detalle}.",
+            "Eliminar nivel",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        if (resp != MessageBoxResult.Yes) return;
+
+        int idx = ProyectoActivo.Sistemas.IndexOf(sistema);
+        ProyectoActivo.Sistemas.Remove(sistema);
+
+        // Reseleccionar un nivel vecino para que la pestaña no quede colgada.
+        SistemaActivo = ProyectoActivo.Sistemas.Count == 0
+            ? null
+            : ProyectoActivo.Sistemas[Math.Min(idx, ProyectoActivo.Sistemas.Count - 1)];
+
+        StatusPersistencia = $"Nivel {sistema.Nombre} eliminado.";
     }
 
     /// <summary>Abre un proyecto desde el sidebar de recientes (click en una entry).</summary>
