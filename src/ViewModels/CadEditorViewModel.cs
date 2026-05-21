@@ -61,6 +61,8 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         CancelarCalibrarPdfCommand = new RelayCommand(_ => CancelarCalibrarPdf());
         CrearLosaCommand = new RelayCommand(p => CrearLosa(p as CrearLosaArgs));
         MoverGrupoCommand = new RelayCommand(p => MoverGrupo(p as MovimientoGrupoArgs));
+        CrearMuroCommand = new RelayCommand(p => CrearMuro(p as CrearMuroArgs));
+        EliminarMuroCommand = new RelayCommand(_ => EliminarMuro(), _ => _muroSeleccionado is not null);
     }
 
     /// <summary>
@@ -454,6 +456,125 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         EstadoImportacion =
             $"✓ Sistema optimizado: se alinearon {r.LosasAlineadasCount} losas y " +
             $"se generaron {r.BordesCreadosCount} conexiones de aceros adicionales.";
+    }
+
+    // ---- Módulo de Muros v0.9.0 (Epic v1.4.0 Iteración 1) ----
+
+    private double _espesorMuroNuevo = 0.15;
+    /// <summary>Espesor (m) asignado a los muros nuevos que se dibujan en el lienzo.</summary>
+    public double EspesorMuroNuevo
+    {
+        get => _espesorMuroNuevo;
+        set
+        {
+            double v = Math.Max(0.01, value);
+            if (Math.Abs(_espesorMuroNuevo - v) < 1e-9) return;
+            _espesorMuroNuevo = v;
+            OnPropertyChanged();
+        }
+    }
+
+    private double _alturaMuroNueva = 2.80;
+    /// <summary>Altura libre (m) asignada a los muros nuevos.</summary>
+    public double AlturaMuroNueva
+    {
+        get => _alturaMuroNueva;
+        set
+        {
+            double v = Math.Max(0.01, value);
+            if (Math.Abs(_alturaMuroNueva - v) < 1e-9) return;
+            _alturaMuroNueva = v;
+            OnPropertyChanged();
+        }
+    }
+
+    private Muro? _muroSeleccionado;
+    /// <summary>
+    /// Muro actualmente seleccionado en el panel «MUROS». Sus parámetros
+    /// (espesor, altura) se editan desde el panel; el host lo resalta.
+    /// </summary>
+    public Muro? MuroSeleccionado
+    {
+        get => _muroSeleccionado;
+        set
+        {
+            if (ReferenceEquals(_muroSeleccionado, value)) return;
+            if (_muroSeleccionado is not null)
+                _muroSeleccionado.PropertyChanged -= OnMuroSeleccionadoEditado;
+            _muroSeleccionado = value;
+            if (_muroSeleccionado is not null)
+                _muroSeleccionado.PropertyChanged += OnMuroSeleccionadoEditado;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(MuroSeleccionadoId));
+        }
+    }
+
+    /// <summary>Id del muro seleccionado, o −1 si no hay ninguno — bindeado al host.</summary>
+    public int MuroSeleccionadoId => _muroSeleccionado?.Id ?? -1;
+
+    private void OnMuroSeleccionadoEditado(object? sender, PropertyChangedEventArgs e)
+    {
+        // El usuario editó espesor/altura en el panel → redibujar y recomputar leyenda.
+        NotificarCambioLienzo();
+        OnPropertyChanged(nameof(ResumenMuros));
+    }
+
+    /// <summary>
+    /// Desglose «Suma de Colores»: longitudes totales de muro por losa y por
+    /// espesor. Lo consume la leyenda flotante del lienzo.
+    /// </summary>
+    public IReadOnlyList<EntradaResumenMuro> ResumenMuros
+        => AnalisisMuros.Resumir(SistemaActivo).Entradas;
+
+    /// <summary>
+    /// Crea un <see cref="Muro"/> a partir del segmento que el usuario trazó
+    /// con la herramienta «Dibujar Muro» (lo dispara <c>CadCanvasHost</c>).
+    /// </summary>
+    public ICommand CrearMuroCommand { get; }
+
+    private void CrearMuro(CrearMuroArgs? args)
+    {
+        if (args is null) return;
+        var sistema = SistemaActivo;
+        int nuevoId = sistema.Muros.Count > 0 ? sistema.Muros.Max(m => m.Id) + 1 : 1;
+
+        // CRÍTICO: snapshot ANTES de mutar el SSOT — preserva el Undo/Redo.
+        _pushUndoSnapshot();
+
+        var muro = new Muro
+        {
+            Id = nuevoId,
+            PuntoInicio = args.Inicio,
+            PuntoFin = args.Fin,
+            Espesor = _espesorMuroNuevo,
+            Altura = _alturaMuroNueva,
+        };
+        sistema.Muros.Add(muro);
+        MuroSeleccionado = muro;
+
+        EstadoImportacion =
+            $"✓ Muro {nuevoId} dibujado — {muro.Longitud:0.00} m, espesor {muro.Espesor:0.00} m.";
+        OnPropertyChanged(nameof(ResumenMuros));
+        NotificarCambioLienzo();
+    }
+
+    /// <summary>Elimina el <see cref="MuroSeleccionado"/> del sistema activo.</summary>
+    public ICommand EliminarMuroCommand { get; }
+
+    private void EliminarMuro()
+    {
+        if (_muroSeleccionado is null) return;
+        var muro = _muroSeleccionado;
+
+        // CRÍTICO: snapshot ANTES de mutar el SSOT.
+        _pushUndoSnapshot();
+
+        SistemaActivo.Muros.Remove(muro);
+        MuroSeleccionado = null;
+
+        EstadoImportacion = $"✓ Muro {muro.Id} eliminado.";
+        OnPropertyChanged(nameof(ResumenMuros));
+        NotificarCambioLienzo();
     }
 
     // ---- Calibración interactiva del PDF (Iteración 5 Epic v1.2) ----

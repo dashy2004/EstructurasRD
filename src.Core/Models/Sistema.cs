@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
+using LosasPlus.Models.Cad;
 
 namespace LosasPlus.Models;
 
@@ -118,6 +119,14 @@ public partial class Sistema : INotifyPropertyChanged
 
     /// <summary>Bordes adicionales en dirección Y (continuidad entre losas según Y).</summary>
     public ObservableCollection<BordeAdic> BordesY { get; } = new();
+
+    /// <summary>
+    /// Muros estructurales del sistema (Epic v1.4.0, Módulo Muros v0.9.0).
+    /// Elementos verticales dibujados sobre el lienzo CAD. No forman parte
+    /// del archivo <c>.DL</c> legacy (Losas.exe no los conoce) — persisten
+    /// únicamente en el proyecto.
+    /// </summary>
+    public ObservableCollection<Muro> Muros { get; } = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? name = null)

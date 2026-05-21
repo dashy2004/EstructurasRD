@@ -15,4 +15,7 @@ public enum ModoInteraccionCad
 
     /// <summary>Arrastrar el lienzo (pan dedicado). No selecciona ni mueve losas.</summary>
     Mano,
+
+    /// <summary>Click-drag traza un muro nuevo entre dos puntos (Epic v1.4.0).</summary>
+    DibujarMuro,
 }

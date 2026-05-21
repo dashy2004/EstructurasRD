@@ -73,7 +73,7 @@ public sealed class CadCanvasHost : FrameworkElement
     private static readonly SolidColorBrush PincelCota           = new(Color.FromRgb(0xEF, 0x6C, 0x00));
 
     // ---- Estado de interacción (efímero, sólo de la vista — nunca toca el SSOT) ----
-    private enum ModoArrastre { Ninguno, Pan, Mover, Redimensionar, DibujarLosa }
+    private enum ModoArrastre { Ninguno, Pan, Mover, Redimensionar, DibujarLosa, DibujarMuro }
     private ModoArrastre _modo = ModoArrastre.Ninguno;
     private Losa? _losaSeleccionada;
     private Point _dragStart;
@@ -87,6 +87,11 @@ public sealed class CadCanvasHost : FrameworkElement
     // ---- Herramienta de dibujo de losas (Iteración 3) ----
     private const double MinLadoDibujoM = 0.5;   // m — lado mínimo de una losa dibujada
     private Point _dibujarAnclaPre;               // ancla del trazo, en px pre-transform
+
+    // ---- Herramienta de dibujo de muros (Epic v1.4.0) ----
+    private const double MinLongitudMuroM = 0.30;   // m — longitud mínima de un muro
+    private Point _muroAnclaPre;                     // P₁ del trazo (px pre-transform)
+    private Point _muroFinPre;                       // P₂ actual del trazo (px pre-transform)
 
     // ---- Chips de adyacencia (Fase 4) — sugerencias de conexión en el overlay ----
     private IReadOnlyList<AdyacenciaCandidata> _chips = Array.Empty<AdyacenciaCandidata>();
@@ -354,15 +359,22 @@ public sealed class CadCanvasHost : FrameworkElement
     private static void OnModoInteraccionChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var host = (CadCanvasHost)d;
-        if ((ModoInteraccionCad)e.NewValue == ModoInteraccionCad.DibujarLosa)
+        var nuevo = (ModoInteraccionCad)e.NewValue;
+        if (nuevo is ModoInteraccionCad.DibujarLosa or ModoInteraccionCad.DibujarMuro)
         {
             host.Focus();   // para recibir la tecla Escape durante el trazo
         }
-        else if (host._modo == ModoArrastre.DibujarLosa)
+        // Se abandonó una herramienta de dibujo a mitad de un trazo → cancelarlo.
+        if (nuevo != ModoInteraccionCad.DibujarLosa && host._modo == ModoArrastre.DibujarLosa)
         {
-            // Se abandonó la herramienta de dibujo a mitad de un trazo → cancelarlo.
             host._modo = ModoArrastre.Ninguno;
             host._rectFantasmaPx = Rect.Empty;
+            if (host.IsMouseCaptured) host.ReleaseMouseCapture();
+            host.RedibujarOverlay();
+        }
+        if (nuevo != ModoInteraccionCad.DibujarMuro && host._modo == ModoArrastre.DibujarMuro)
+        {
+            host._modo = ModoArrastre.Ninguno;
             if (host.IsMouseCaptured) host.ReleaseMouseCapture();
             host.RedibujarOverlay();
         }
@@ -383,6 +395,38 @@ public sealed class CadCanvasHost : FrameworkElement
         get => (ICommand?)GetValue(CrearLosaCommandProperty);
         set => SetValue(CrearLosaCommandProperty, value);
     }
+
+    /// <summary>
+    /// Comando que se ejecuta al terminar de <b>dibujar un muro</b> con la
+    /// herramienta «Dibujar Muro» (Epic v1.4.0). El parámetro es un
+    /// <see cref="CrearMuroArgs"/> con la geometría ya en metros.
+    /// </summary>
+    public static readonly DependencyProperty CrearMuroCommandProperty =
+        DependencyProperty.Register(nameof(CrearMuroCommand), typeof(ICommand), typeof(CadCanvasHost),
+            new PropertyMetadata(null));
+
+    public ICommand? CrearMuroCommand
+    {
+        get => (ICommand?)GetValue(CrearMuroCommandProperty);
+        set => SetValue(CrearMuroCommandProperty, value);
+    }
+
+    /// <summary>
+    /// Id del muro seleccionado en el panel «MUROS» (−1 = ninguno). El host
+    /// resalta ese muro en el overlay. Bindeado a <c>CadEditor.MuroSeleccionadoId</c>.
+    /// </summary>
+    public static readonly DependencyProperty MuroSeleccionadoIdProperty =
+        DependencyProperty.Register(nameof(MuroSeleccionadoId), typeof(int), typeof(CadCanvasHost),
+            new PropertyMetadata(-1, OnMuroSeleccionadoIdChanged));
+
+    public int MuroSeleccionadoId
+    {
+        get => (int)GetValue(MuroSeleccionadoIdProperty);
+        set => SetValue(MuroSeleccionadoIdProperty, value);
+    }
+
+    private static void OnMuroSeleccionadoIdChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        => ((CadCanvasHost)d).RedibujarOverlay();
 
     /// <summary>
     /// Encendido del <see cref="SnappingEngine"/> en el arrastre (toggle de la
@@ -906,11 +950,13 @@ public sealed class CadCanvasHost : FrameworkElement
         _placements = Array.Empty<LayoutSolver.Placement>();
         _offsetXPx = 0;
         var sistema = Sistema;
-        if (sistema is null || sistema.Losas.Count == 0) return;
+        if (sistema is null) return;
+        // Sistema con muros pero sin losas: igual hay que pintar los muros.
+        if (sistema.Losas.Count == 0) { DibujarMuros(dc, sistema); return; }
 
         LayoutSolver.LayoutResult layout;
         try { layout = LayoutSolver.Solve(sistema); }
-        catch { return; }  // geometría degenerada — no dibujar, sin crashear
+        catch { DibujarMuros(dc, sistema); return; }  // geometría degenerada — no crashear
 
         var rellenoLosa = new SolidColorBrush(Color.FromArgb(45, 0x2E, 0x7D, 0x32));
         rellenoLosa.Freeze();
@@ -961,6 +1007,34 @@ public sealed class CadCanvasHost : FrameworkElement
         DibujarMarcasAcero(dc, layout.Placements, offsetX, sistema, penAcero);
 
         _placements = layout.Placements;
+
+        // Muros (Epic v1.4.0) — encima de las losas, con su espesor físico real.
+        DibujarMuros(dc, sistema);
+    }
+
+    /// <summary>
+    /// Dibuja los muros del <see cref="Sistema"/> (Epic v1.4.0) sobre la
+    /// Capa 2, por encima de las losas. Cada muro es el segmento
+    /// <c>PuntoInicio → PuntoFin</c> trazado con su <b>espesor físico real</b>
+    /// (<c>Espesor · PxPorMetro</c>) y el color que <see cref="PaletaMuros"/>
+    /// asigna a ese espesor. Sólo usa <see cref="DrawingContext"/>.
+    /// </summary>
+    private static void DibujarMuros(DrawingContext dc, Sistema sistema)
+    {
+        foreach (var muro in sistema.Muros)
+        {
+            var p1 = new Point(muro.PuntoInicio.X * PxPorMetro, muro.PuntoInicio.Y * PxPorMetro);
+            var p2 = new Point(muro.PuntoFin.X    * PxPorMetro, muro.PuntoFin.Y    * PxPorMetro);
+            double grosor = Math.Max(muro.Espesor * PxPorMetro, 1.0);
+
+            var pen = new Pen(PaletaMuros.BrushParaEspesor(muro.Espesor), grosor)
+            {
+                StartLineCap = PenLineCap.Round,
+                EndLineCap   = PenLineCap.Round,
+            };
+            pen.Freeze();
+            dc.DrawLine(pen, p1, p2);
+        }
     }
 
     /// <summary>
@@ -1119,6 +1193,9 @@ public sealed class CadCanvasHost : FrameworkElement
         // Los chips de adyacencia se dibujan SIEMPRE (haya o no selección).
         DibujarChips(dc, inv);
 
+        // El resalte del muro seleccionado es visible en cualquier modo.
+        DibujarMuroSeleccionado(dc, inv);
+
         // Rectángulo fantasma de la herramienta «Dibujar Losa» (Iteración 3).
         if (_modo == ModoArrastre.DibujarLosa)
         {
@@ -1130,6 +1207,19 @@ public sealed class CadCanvasHost : FrameworkElement
                 };
                 dc.DrawRectangle(PincelOverlayRelleno, penDibujo, _rectFantasmaPx);
             }
+            return;
+        }
+
+        // Línea fantasma de la herramienta «Dibujar Muro» (Epic v1.4.0).
+        if (_modo == ModoArrastre.DibujarMuro)
+        {
+            var penMuro = new Pen(PincelOverlay, 1.8 * inv)
+            {
+                DashStyle = new DashStyle(new double[] { 5, 3 }, 0),
+            };
+            dc.DrawLine(penMuro, _muroAnclaPre, _muroFinPre);
+            dc.DrawEllipse(PincelOverlay, null, _muroAnclaPre, 3 * inv, 3 * inv);
+            dc.DrawEllipse(PincelOverlay, null, _muroFinPre, 3 * inv, 3 * inv);
             return;
         }
 
@@ -1159,6 +1249,52 @@ public sealed class CadCanvasHost : FrameworkElement
         double lado = HandleLadoPx * inv;
         var penHandle = new Pen(PincelOverlay, 1.4 * inv);
         foreach (var c in HandleCentros(rectPx))
+            dc.DrawRectangle(Brushes.White, penHandle,
+                             new Rect(c.X - lado / 2, c.Y - lado / 2, lado, lado));
+    }
+
+    /// <summary>
+    /// Resalta en el overlay el muro cuyo <see cref="Muro.Id"/> coincide con
+    /// <see cref="MuroSeleccionadoId"/> (−1 = ninguno): traza el contorno del
+    /// rectángulo del muro (el segmento engrosado por su espesor) y un tirador
+    /// blanco en cada extremo del eje. Estado puramente visual — jamás toca el
+    /// SSOT.
+    /// </summary>
+    private void DibujarMuroSeleccionado(DrawingContext dc, double inv)
+    {
+        if (MuroSeleccionadoId < 0 || Sistema is not { } sistema) return;
+
+        Muro? sel = null;
+        foreach (var m in sistema.Muros)
+            if (m.Id == MuroSeleccionadoId) { sel = m; break; }
+        if (sel is null) return;
+
+        var p1 = new Point(sel.PuntoInicio.X * PxPorMetro, sel.PuntoInicio.Y * PxPorMetro);
+        var p2 = new Point(sel.PuntoFin.X    * PxPorMetro, sel.PuntoFin.Y    * PxPorMetro);
+
+        double dx = p2.X - p1.X, dy = p2.Y - p1.Y;
+        double len = Math.Sqrt(dx * dx + dy * dy);
+        if (len < 1e-6) return;                       // muro degenerado — nada que resaltar
+
+        double nx = -dy / len, ny = dx / len;         // normal unitaria al eje del muro
+        double ht = Math.Max(sel.Espesor * PxPorMetro, 1.0) / 2.0;
+
+        // Contorno del rectángulo del muro (4 esquinas), sin relleno que lo tape.
+        var e0 = new Point(p1.X + nx * ht, p1.Y + ny * ht);
+        var e1 = new Point(p2.X + nx * ht, p2.Y + ny * ht);
+        var e2 = new Point(p2.X - nx * ht, p2.Y - ny * ht);
+        var e3 = new Point(p1.X - nx * ht, p1.Y - ny * ht);
+
+        var penContorno = new Pen(PincelOverlay, 2.0 * inv);
+        dc.DrawLine(penContorno, e0, e1);
+        dc.DrawLine(penContorno, e1, e2);
+        dc.DrawLine(penContorno, e2, e3);
+        dc.DrawLine(penContorno, e3, e0);
+
+        // Un tirador blanco en cada extremo del eje del muro.
+        double lado = HandleLadoPx * inv;
+        var penHandle = new Pen(PincelOverlay, 1.4 * inv);
+        foreach (var c in new[] { p1, p2 })
             dc.DrawRectangle(Brushes.White, penHandle,
                              new Rect(c.X - lado / 2, c.Y - lado / 2, lado, lado));
     }
@@ -1550,6 +1686,38 @@ public sealed class CadCanvasHost : FrameworkElement
     }
 
     /// <summary>
+    /// Cierra el trazo de la herramienta «Dibujar Muro»: convierte el
+    /// segmento P₁→P₂ (px pre-transform) a metros y dispara
+    /// <see cref="CrearMuroCommand"/>. Descarta trazos más cortos que
+    /// <see cref="MinLongitudMuroM"/> (clics accidentales).
+    /// </summary>
+    private void ConfirmarDibujoMuro()
+    {
+        var iniPx = _muroAnclaPre;
+        var finPx = _muroFinPre;
+
+        double dxM = (finPx.X - iniPx.X) / PxPorMetro;
+        double dyM = (finPx.Y - iniPx.Y) / PxPorMetro;
+        double longitud = Math.Sqrt(dxM * dxM + dyM * dyM);
+
+        if (longitud < MinLongitudMuroM)
+        {
+            RedibujarOverlay();   // aborto silencioso — ni snapshot ni muro
+            return;
+        }
+
+        if (CrearMuroCommand is { } cmd)
+        {
+            var dto = new CrearMuroArgs(
+                new PuntoCad(iniPx.X / PxPorMetro, iniPx.Y / PxPorMetro),
+                new PuntoCad(finPx.X / PxPorMetro, finPx.Y / PxPorMetro));
+            if (cmd.CanExecute(dto)) cmd.Execute(dto);
+        }
+        RedibujarLosas();
+        RedibujarOverlay();
+    }
+
+    /// <summary>
     /// Tecla Escape: durante un trazo de dibujo lo cancela; con la herramienta
     /// «Dibujar Losa» activa pero sin trazo en curso, vuelve a «Puntero»; en
     /// modo Calibrar PDF, aborta limpiamente la calibración.
@@ -1576,7 +1744,14 @@ public sealed class CadCanvasHost : FrameworkElement
             RedibujarOverlay();
             e.Handled = true;
         }
-        else if (ModoInteraccion == ModoInteraccionCad.DibujarLosa)
+        else if (_modo == ModoArrastre.DibujarMuro)
+        {
+            _modo = ModoArrastre.Ninguno;
+            if (IsMouseCaptured) ReleaseMouseCapture();
+            RedibujarOverlay();
+            e.Handled = true;
+        }
+        else if (ModoInteraccion is ModoInteraccionCad.DibujarLosa or ModoInteraccionCad.DibujarMuro)
         {
             ModoInteraccion = ModoInteraccionCad.Puntero;
             e.Handled = true;
@@ -1782,6 +1957,19 @@ public sealed class CadCanvasHost : FrameworkElement
             return;
         }
 
+        // 0-bis) Herramienta «Dibujar Muro» → iniciar el trazado de un segmento.
+        if (ModoInteraccion == ModoInteraccionCad.DibujarMuro)
+        {
+            Focus();   // asegura recibir la tecla Escape durante el trazo
+            _chips = Array.Empty<AdyacenciaCandidata>();
+            _modo = ModoArrastre.DibujarMuro;
+            _muroAnclaPre = PantallaAPre(pt);
+            _muroFinPre = _muroAnclaPre;
+            CaptureMouse();
+            Cursor = Cursors.Cross;
+            return;
+        }
+
         // 1) ¿Sobre un tirador de la losa ya seleccionada? → redimensionar.
         //    (HandleBajoCursor sólo devuelve >=0 si hay una losa seleccionada.)
         int handle = HandleBajoCursor(pt);
@@ -1900,6 +2088,10 @@ public sealed class CadCanvasHost : FrameworkElement
             case ModoArrastre.DibujarLosa:
                 ConfirmarDibujoLosa();
                 break;
+
+            case ModoArrastre.DibujarMuro:
+                ConfirmarDibujoMuro();
+                break;
         }
     }
 
@@ -1925,7 +2117,7 @@ public sealed class CadCanvasHost : FrameworkElement
         switch (_modo)
         {
             case ModoArrastre.Ninguno:
-                if (ModoInteraccion == ModoInteraccionCad.DibujarLosa)
+                if (ModoInteraccion is ModoInteraccionCad.DibujarLosa or ModoInteraccionCad.DibujarMuro)
                     Cursor = Cursors.Cross;
                 else if (ModoInteraccion == ModoInteraccionCad.Mano)
                     Cursor = Cursors.Hand;
@@ -1935,6 +2127,11 @@ public sealed class CadCanvasHost : FrameworkElement
 
             case ModoArrastre.DibujarLosa:
                 _rectFantasmaPx = new Rect(_dibujarAnclaPre, PantallaAPre(pt));
+                RedibujarOverlay();
+                break;
+
+            case ModoArrastre.DibujarMuro:
+                _muroFinPre = PantallaAPre(pt);
                 RedibujarOverlay();
                 break;
 
@@ -1962,7 +2159,7 @@ public sealed class CadCanvasHost : FrameworkElement
         // Captura perdida a mitad de un gesto: descartar el arrastre (el SSOT
         // nunca se tocó) y volver al overlay de selección estática.
         bool arrastrando = _modo is ModoArrastre.Mover or ModoArrastre.Redimensionar
-                                 or ModoArrastre.DibujarLosa;
+                                 or ModoArrastre.DibujarLosa or ModoArrastre.DibujarMuro;
         if (_modo == ModoArrastre.DibujarLosa) _rectFantasmaPx = Rect.Empty;
         ResetGrupoMover();
         _modo = ModoArrastre.Ninguno;

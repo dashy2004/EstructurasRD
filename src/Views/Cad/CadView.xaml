@@ -7,6 +7,7 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="B2V"/>
         <cmn:EnumToBoolConverter x:Key="EnumToBool"/>
+        <cad:EspesorABrushConverter x:Key="EspesorABrush"/>
     </UserControl.Resources>
     <DockPanel>
         <!-- Barra superior: importar DXF + estado -->
@@ -68,6 +69,8 @@
                                        ActualizarLosaCommand="{Binding CadEditor.ActualizarLosaCommand}"
                                        CrearBordeAdicCommand="{Binding CadEditor.CrearBordeAdicCommand}"
                                        CrearLosaCommand="{Binding CadEditor.CrearLosaCommand}"
+                                       CrearMuroCommand="{Binding CadEditor.CrearMuroCommand}"
+                                       MuroSeleccionadoId="{Binding CadEditor.MuroSeleccionadoId}"
                                        MoverGrupoCommand="{Binding CadEditor.MoverGrupoCommand}"
                                        CalibrarPdfPuntosListos="Canvas_CalibrarPdfPuntosListos"/>
 
@@ -190,6 +193,9 @@
                             <RadioButton GroupName="HerramientaCad" Content="▭  Dibujar Losa"
                                          IsChecked="{Binding CadEditor.ModoInteraccion, Converter={StaticResource EnumToBool}, ConverterParameter=DibujarLosa}"
                                          ToolTip="Arrastrar en el lienzo para dibujar una losa rectangular nueva."/>
+                            <RadioButton GroupName="HerramientaCad" Content="🧱  Dibujar Muro"
+                                         IsChecked="{Binding CadEditor.ModoInteraccion, Converter={StaticResource EnumToBool}, ConverterParameter=DibujarMuro}"
+                                         ToolTip="Arrastrar en el lienzo para trazar un muro nuevo entre dos puntos."/>
                             <RadioButton GroupName="HerramientaCad" Content="✋  Mano"
                                          IsChecked="{Binding CadEditor.ModoInteraccion, Converter={StaticResource EnumToBool}, ConverterParameter=Mano}"
                                          ToolTip="Arrastrar el lienzo para panear sin tocar las losas."/>
@@ -296,6 +302,60 @@
                                 <Button Content="OK" Padding="14,4" IsDefault="True"
                                         Click="OnCalibrarConfirmar"/>
                             </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Leyenda «Suma de Colores» (Epic v1.4.0): fija a la
+                         pantalla en la esquina inferior izquierda del lienzo;
+                         desglosa la longitud de muro por losa y por espesor.
+                         Sólo visible cuando hay al menos un muro dibujado. -->
+                    <Border Panel.ZIndex="50"
+                            VerticalAlignment="Bottom" HorizontalAlignment="Left"
+                            Margin="12" Padding="12,10" MaxHeight="300" MaxWidth="240"
+                            Background="{DynamicResource BgSecondary}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                            CornerRadius="7">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CadEditor.ResumenMuros.Count}" Value="0">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.4"/>
+                        </Border.Effect>
+                        <StackPanel>
+                            <TextBlock Text="🧱  SUMA DE COLORES" FontWeight="Bold" FontSize="10"
+                                       Foreground="{DynamicResource FgMuted}" Margin="0,0,0,8"/>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="240">
+                                <ItemsControl ItemsSource="{Binding CadEditor.ResumenMuros}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel Margin="0,3">
+                                                <Border DockPanel.Dock="Left" Width="14" Height="14"
+                                                        CornerRadius="3" Margin="0,1,8,0"
+                                                        VerticalAlignment="Top"
+                                                        BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                                        Background="{Binding Espesor, Converter={StaticResource EspesorABrush}}"/>
+                                                <StackPanel>
+                                                    <TextBlock FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource FgPrimary}"
+                                                               Text="{Binding EtiquetaLosa, Mode=OneWay}"/>
+                                                    <TextBlock FontSize="11"
+                                                               Foreground="{DynamicResource FgSecondary}">
+                                                        <Run Text="e "/><Run Text="{Binding Espesor, StringFormat=0.00, Mode=OneWay}"/><Run Text=" m  ·  "/>
+                                                        <Run Text="{Binding LongitudTotal, StringFormat=0.00, Mode=OneWay}"/><Run Text=" m  ·  ×"/><Run Text="{Binding Cantidad, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -445,6 +505,96 @@
                                     HorizontalAlignment="Stretch"
                                     Command="{Binding CadEditor.IniciarCalibrarPdfCommand}"
                                     ToolTip="Marcá dos puntos sobre el PDF e indicá la distancia real para recalcular la escala (Shift = línea ortogonal · Esc = cancelar)."/>
+                        </StackPanel>
+
+                        <Border Height="1" Margin="0,16" Background="{DynamicResource Border}"/>
+
+                        <!-- Módulo de Muros v0.9.0 (Epic v1.4.0 Iteración 1) -->
+                        <TextBlock Text="🧱  MUROS" FontWeight="Bold" FontSize="10"
+                                   Foreground="{DynamicResource FgMuted}" Margin="0,0,0,8"/>
+
+                        <!-- Parámetros por defecto de los muros nuevos -->
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Espesor (m)" FontSize="11"
+                                       Foreground="{DynamicResource FgSecondary}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Altura (m)" FontSize="11"
+                                       Foreground="{DynamicResource FgSecondary}"/>
+                            <TextBox Grid.Row="1" Grid.Column="0" Margin="0,2,0,0"
+                                     Text="{Binding CadEditor.EspesorMuroNuevo, UpdateSourceTrigger=LostFocus}"/>
+                            <TextBox Grid.Row="1" Grid.Column="2" Margin="0,2,0,0"
+                                     Text="{Binding CadEditor.AlturaMuroNueva, UpdateSourceTrigger=LostFocus}"/>
+                        </Grid>
+                        <TextBlock FontSize="10" Foreground="{DynamicResource FgMuted}"
+                                   TextWrapping="Wrap" Margin="0,0,0,8"
+                                   Text="Valores de los muros nuevos. Elegí «🧱 Dibujar Muro» en la toolbar y arrastrá en el lienzo."/>
+
+                        <!-- Lista de muros del sistema activo -->
+                        <ListBox MaxHeight="150" Margin="0,0,0,8"
+                                 Background="{DynamicResource BgInput}"
+                                 BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                 ItemsSource="{Binding Sistema.Muros}"
+                                 SelectedItem="{Binding CadEditor.MuroSeleccionado, Mode=TwoWay}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Left" Width="11" Height="11"
+                                                CornerRadius="2" Margin="0,0,7,0"
+                                                VerticalAlignment="Center"
+                                                Background="{Binding Espesor, Converter={StaticResource EspesorABrush}}"/>
+                                        <TextBlock FontSize="11" Foreground="{DynamicResource FgPrimary}">
+                                            <Run Text="Muro "/><Run Text="{Binding Id, Mode=OneWay}"/>
+                                            <Run Text="  ·  "/>
+                                            <Run Text="{Binding Longitud, StringFormat=0.00, Mode=OneWay}"/><Run Text=" m"/>
+                                        </TextBlock>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <!-- Edición del muro seleccionado — deshabilitado si no hay ninguno -->
+                        <StackPanel>
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="IsEnabled" Value="True"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CadEditor.MuroSeleccionado}" Value="{x:Null}">
+                                            <Setter Property="IsEnabled" Value="False"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Espesor (m)" FontSize="11"
+                                           Foreground="{DynamicResource FgSecondary}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="Altura (m)" FontSize="11"
+                                           Foreground="{DynamicResource FgSecondary}"/>
+                                <TextBox Grid.Row="1" Grid.Column="0" Margin="0,2,0,0"
+                                         Text="{Binding CadEditor.MuroSeleccionado.Espesor, UpdateSourceTrigger=LostFocus}"/>
+                                <TextBox Grid.Row="1" Grid.Column="2" Margin="0,2,0,0"
+                                         Text="{Binding CadEditor.MuroSeleccionado.Altura, UpdateSourceTrigger=LostFocus}"/>
+                            </Grid>
+                            <Button Content="🗑  Eliminar muro" Padding="10,6" Margin="0,8,0,0"
+                                    HorizontalAlignment="Stretch"
+                                    Command="{Binding CadEditor.EliminarMuroCommand}"
+                                    ToolTip="Quita el muro seleccionado del sistema (Ctrl+Z lo revierte)."/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
