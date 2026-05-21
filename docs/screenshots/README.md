@@ -10,16 +10,48 @@ nombre de archivo fijo definido en las tablas de abajo.
 
 ## Cómo capturar
 
+### Opción recomendada — el asistente `capturar.ps1`
+
+En esta carpeta hay un script PowerShell que automatiza el guardado:
+
 1. Compilá y abrí la app: `dotnet run --project src` (o `LosasPlus.exe`).
-2. Maximizá la ventana para que las capturas sean consistentes.
-3. Usá **Win + Shift + S** (Recorte de Windows) o la **Herramienta de
-   Recortes**. Para ventana completa: `Alt + Impr Pant`.
-4. Guardá cada imagen como **PNG** en la subcarpeta indicada, con el
-   **nombre exacto** de la columna «Archivo».
-5. Usá el tema **Precision** (el de fábrica) en todas las capturas, salvo
-   las de la sección `00-shell-temas` que piden Light y Dark.
-6. Para datos realistas: tené un proyecto abierto con varios sistemas y
-   losas cargadas antes de capturar.
+2. Abrí PowerShell en esta carpeta y ejecutá:
+   ```powershell
+   .\capturar.ps1
+   ```
+   (si Windows bloquea el script:
+   `powershell -ExecutionPolicy Bypass -File .\capturar.ps1`)
+3. El script te dice **qué pantalla preparar**. Navegala en LosasPlus.
+4. Con LosasPlus al frente, presioná el **hotkey de captura** —
+   el script fotografía la ventana y guarda el PNG con el nombre correcto
+   en la subcarpeta correcta, automáticamente.
+
+**Hotkeys** (globales, funcionan con LosasPlus al frente):
+
+| Combinación | Acción |
+|---|---|
+| `Ctrl + Shift + F12` | Capturar la pantalla actual |
+| `Ctrl + Shift + F11` | Saltar esta captura (hacerla después) |
+| `Ctrl + Shift + F10` | Terminar y mostrar el resumen |
+
+El script recorre las 54 capturas en orden y, si lo re-ejecutás, retoma
+desde la primera que falte. Sólo captura si la ventana al frente es de
+LosasPlus (así no fotografía la consola por error).
+
+### Opción manual
+
+1. Compilá y abrí la app.
+2. Usá **Win + Shift + S** (Recorte de Windows) y guardá cada imagen como
+   **PNG** en la subcarpeta indicada, con el **nombre exacto** de la
+   columna «Archivo».
+
+### En cualquiera de las dos
+
+- Maximizá la ventana para que las capturas sean consistentes.
+- Usá el tema **Precision** (el de fábrica) en todas las capturas, salvo
+  las de la sección `00-shell-temas` que piden Light y Dark.
+- Para datos realistas: tené un proyecto abierto con varios sistemas y
+  losas cargadas antes de capturar.
 
 ## Convención de nombres
 
