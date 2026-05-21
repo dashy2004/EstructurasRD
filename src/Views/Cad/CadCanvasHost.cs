@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using LosasPlus.Models;
 using LosasPlus.Models.Cad;
 using LosasPlus.Services;
@@ -108,6 +109,12 @@ public sealed class CadCanvasHost : FrameworkElement
     private Point? _calibrarP2Pre;
     private bool _calibrarConfirmando;
 
+    // Re-rasterización dinámica del PDF (Epic v1.3 — nitidez gráfica).
+    // El timer hace debounce de los eventos de zoom: cuando el usuario
+    // termina de hacer zoom, EvaluarReRasterizado decide si el bitmap
+    // actual quedó corto de resolución y pide al VM uno nuevo más nítido.
+    private readonly DispatcherTimer _debounceReraster;
+
     static CadCanvasHost()
     {
         PincelOverlay.Freeze();
@@ -132,6 +139,12 @@ public sealed class CadCanvasHost : FrameworkElement
         Focusable = true;
         ClipToBounds = true;
         Background_HitTestFix();
+
+        // Debounce de la re-rasterización dinámica del PDF: 350 ms tras el
+        // último evento de zoom — evita ahogar la CPU mientras el usuario
+        // rota la rueda del mouse.
+        _debounceReraster = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
+        _debounceReraster.Tick += (_, _) => EvaluarReRasterizado();
     }
 
     /// <summary>
@@ -486,6 +499,22 @@ public sealed class CadCanvasHost : FrameworkElement
         => ((CadCanvasHost)d).RedibujarPlano();
 
     /// <summary>
+    /// Comando que el host invoca tras un zoom-in significativo para pedir
+    /// al ViewModel un bitmap de PDF de mayor resolución (Epic v1.3 —
+    /// nitidez gráfica). El parámetro es un <c>int</c> con el ancho objetivo
+    /// en píxeles. Bindeado a <c>CadEditor.ReRasterizarPdfCommand</c>.
+    /// </summary>
+    public static readonly DependencyProperty ReRasterizarPdfCommandProperty =
+        DependencyProperty.Register(nameof(ReRasterizarPdfCommand), typeof(ICommand), typeof(CadCanvasHost),
+            new PropertyMetadata(null));
+
+    public ICommand? ReRasterizarPdfCommand
+    {
+        get => (ICommand?)GetValue(ReRasterizarPdfCommandProperty);
+        set => SetValue(ReRasterizarPdfCommandProperty, value);
+    }
+
+    /// <summary>
     /// Modo de calibración del PDF activo (Iteración 5 Epic v1.2). Bindeado
     /// TwoWay con <c>CadEditor.ModoCalibrarPdf</c>: lo enciende el botón
     /// «Calibrar PDF» y el host lo apaga al confirmar o cancelar (Escape).
@@ -591,6 +620,7 @@ public sealed class CadCanvasHost : FrameworkElement
         _translate.Y = h / 2.0 - fit * cy;
 
         RedibujarOverlay();
+        ReiniciarDebounceReraster();   // el encuadre cambió el zoom
     }
 
     /// <summary>
@@ -623,6 +653,7 @@ public sealed class CadCanvasHost : FrameworkElement
         _translate.Y = h / 2.0 - fit * cy;
 
         RedibujarOverlay();
+        ReiniciarDebounceReraster();   // el encuadre cambió el zoom
     }
 
     /// <summary>
@@ -1602,7 +1633,43 @@ public sealed class CadCanvasHost : FrameworkElement
         _translate.Y = pt.Y - k * (pt.Y - _translate.Y);
         _scale.ScaleX = _scale.ScaleY = nuevo;
         RedibujarOverlay();   // los tiradores mantienen su tamaño en pantalla
+        ReiniciarDebounceReraster();   // re-rasterizar el PDF si el zoom lo amerita
         e.Handled = true;
+    }
+
+    /// <summary>
+    /// Reinicia el temporizador de debounce de la re-rasterización dinámica
+    /// del PDF (Epic v1.3). Lo llaman los gestos que cambian el zoom — rueda
+    /// del mouse y los encuadres «zoom to fit».
+    /// </summary>
+    private void ReiniciarDebounceReraster()
+    {
+        _debounceReraster.Stop();
+        _debounceReraster.Start();
+    }
+
+    /// <summary>
+    /// Evalúa, tras el debounce de zoom, si el bitmap del PDF quedó corto de
+    /// resolución frente a su tamaño en pantalla. Si el PDF en pantalla
+    /// supera 1.5× los píxeles del bitmap actual, pide al ViewModel —vía
+    /// <see cref="ReRasterizarPdfCommand"/>— un bitmap más nítido. El zoom-out
+    /// nunca dispara nada (el bitmap existente sobra). Comparar contra el
+    /// <c>PixelWidth</c> real del bitmap hace el chequeo auto-consistente.
+    /// </summary>
+    private void EvaluarReRasterizado()
+    {
+        _debounceReraster.Stop();
+        if (Pdf is not { EstaVacio: false } pdf || FondoPdf is not { } img) return;
+
+        // Ancho que el PDF ocupa en pantalla al nivel de zoom actual.
+        double anchoEnPantalla = pdf.Ancho * pdf.Escala * PxPorMetro * _scale.ScaleX;
+        if (anchoEnPantalla <= img.PixelWidth * 1.5) return;   // el bitmap aún alcanza
+
+        int objetivo = (int)Math.Clamp(anchoEnPantalla, 1500, 6000);
+        if (ReRasterizarPdfCommand is { } cmd && cmd.CanExecute(objetivo))
+            cmd.Execute(objetivo);
+        else
+            ReiniciarDebounceReraster();   // ocupado → reintentar en 350 ms
     }
 
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)

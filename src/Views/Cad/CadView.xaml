@@ -57,6 +57,7 @@
                                        RevisionPdf="{Binding CadEditor.RevisionPdf}"
                                        SolicitudEncuadrePdf="{Binding CadEditor.SolicitudEncuadrePdf}"
                                        OpacidadPdf="{Binding CadEditor.OpacidadPdf}"
+                                       ReRasterizarPdfCommand="{Binding CadEditor.ReRasterizarPdfCommand}"
                                        ModoCalibrarPdf="{Binding CadEditor.ModoCalibrarPdf, Mode=TwoWay}"
                                        CancelarCalibrarPdfCommand="{Binding CadEditor.CancelarCalibrarPdfCommand}"
                                        ModoInteraccion="{Binding CadEditor.ModoInteraccion}"
@@ -284,8 +285,16 @@
                         Visibility="{Binding IsChecked, ElementName=PanelToggle, Converter={StaticResource B2V}}">
                     <StackPanel Margin="16,14">
                         <!-- Detalles del plano importado actual -->
-                        <TextBlock Text="PLANO IMPORTADO" FontWeight="Bold" FontSize="10"
-                                   Foreground="{DynamicResource FgMuted}" Margin="0,0,0,6"/>
+                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                            <TextBlock DockPanel.Dock="Left" Text="PLANO IMPORTADO"
+                                       FontWeight="Bold" FontSize="10" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource FgMuted}"/>
+                            <Button DockPanel.Dock="Right" Content="🗑" Padding="4,0" FontSize="12"
+                                    Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                    Foreground="{DynamicResource FgMuted}"
+                                    Command="{Binding CadEditor.EliminarDxfCommand}"
+                                    ToolTip="Quitar el plano DXF del lienzo (no afecta las losas)."/>
+                        </DockPanel>
                         <TextBlock Text="{Binding CadEditor.Plano.NombreArchivo, FallbackValue=(sin plano DXF), TargetNullValue=(sin plano DXF)}"
                                    FontFamily="JetBrains Mono, Consolas" FontSize="11"
                                    TextTrimming="CharacterEllipsis"
@@ -331,8 +340,16 @@
                         <Border Height="1" Margin="0,16" Background="{DynamicResource Border}"/>
 
                         <!-- Detalles del PDF importado actual (Iteración 4 v1.2) -->
-                        <TextBlock Text="PDF IMPORTADO" FontWeight="Bold" FontSize="10"
-                                   Foreground="{DynamicResource FgMuted}" Margin="0,0,0,6"/>
+                        <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                            <TextBlock DockPanel.Dock="Left" Text="PDF IMPORTADO"
+                                       FontWeight="Bold" FontSize="10" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource FgMuted}"/>
+                            <Button DockPanel.Dock="Right" Content="🗑" Padding="4,0" FontSize="12"
+                                    Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                    Foreground="{DynamicResource FgMuted}"
+                                    Command="{Binding CadEditor.EliminarPdfCommand}"
+                                    ToolTip="Quitar el PDF underlay del lienzo."/>
+                        </DockPanel>
                         <TextBlock Text="{Binding CadEditor.Pdf.NombreArchivo, FallbackValue=(sin PDF), TargetNullValue=(sin PDF)}"
                                    FontFamily="JetBrains Mono, Consolas" FontSize="11"
                                    TextTrimming="CharacterEllipsis"

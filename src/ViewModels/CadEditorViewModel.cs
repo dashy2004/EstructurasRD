@@ -45,6 +45,11 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         _importer = importer ?? throw new ArgumentNullException(nameof(importer));
         ImportarDxfCommand = new RelayCommand(_ => ImportarDxf());
         ImportarPdfCommand = new RelayCommand(_ => _ = ImportarPdfAsync());
+        EliminarDxfCommand = new RelayCommand(_ => EliminarDxf());
+        EliminarPdfCommand = new RelayCommand(_ => EliminarPdf());
+        ReRasterizarPdfCommand = new RelayCommand(
+            p => { if (p is int px) _ = ReRasterizarPdfAsync(px, silencioso: true); },
+            _ => TienePdf && _lastPdfPath is not null && !_invirtiendoEnCurso);
         MapearPoligonoCommand = new RelayCommand(p => MapearPoligono(p as PolilineaCad));
         ActualizarLosaCommand = new RelayCommand(p => ActualizarLosa(p as ActualizacionLosaArgs));
         CrearBordeAdicCommand = new RelayCommand(p => CrearBordeAdic(p as AdyacenciaCandidata?));
@@ -302,24 +307,46 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         }
     }
 
-    private async Task ReRasterizarPdfAsync()
+    /// <summary>
+    /// Re-rasteriza el PDF actual preservando su calibración (sólo cambia
+    /// <see cref="FondoPdf"/>, nunca <see cref="Pdf"/>). Lo usan dos flujos:
+    /// el toggle de modo oscuro (sin parámetros, con mensajes de estado) y
+    /// la re-rasterización dinámica por zoom (con <paramref name="anchoObjetivoPx"/>
+    /// y <paramref name="silencioso"/> = true para no spammear la barra).
+    /// </summary>
+    /// <param name="anchoObjetivoPx">
+    /// Resolución horizontal objetivo del bitmap. <c>null</c> → default del
+    /// <see cref="PdfImportador"/> (2400 px).
+    /// </param>
+    /// <param name="silencioso">
+    /// Si <c>true</c>, no escribe en <see cref="EstadoImportacion"/> ni abre
+    /// <c>MessageBox</c> — para la re-rasterización por zoom, que es frecuente.
+    /// </param>
+    private async Task ReRasterizarPdfAsync(int? anchoObjetivoPx = null, bool silencioso = false)
     {
         if (_lastPdfPath is null) return;
         _invirtiendoEnCurso = true;
         try
         {
-            EstadoImportacion = _invertirColorPdf
-                ? "Aplicando modo oscuro…"
-                : "Restaurando colores normales…";
+            if (!silencioso)
+                EstadoImportacion = _invertirColorPdf
+                    ? "Aplicando modo oscuro…"
+                    : "Restaurando colores normales…";
 
-            var r = await PdfImportador.RasterizarPrimeraPaginaAsync(
-                _lastPdfPath, invertColors: _invertirColorPdf);
+            var r = anchoObjetivoPx is { } px
+                ? await PdfImportador.RasterizarPrimeraPaginaAsync(
+                    _lastPdfPath, px, invertColors: _invertirColorPdf)
+                : await PdfImportador.RasterizarPrimeraPaginaAsync(
+                    _lastPdfPath, invertColors: _invertirColorPdf);
 
             if (!r.EsExito)
             {
-                MessageBox.Show(r.Error ?? "Error al re-rasterizar el PDF.",
-                    "Modo oscuro", MessageBoxButton.OK, MessageBoxImage.Warning);
-                EstadoImportacion = "✕ No se pudo aplicar la inversión.";
+                if (!silencioso)
+                {
+                    MessageBox.Show(r.Error ?? "Error al re-rasterizar el PDF.",
+                        "Re-rasterizar PDF", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    EstadoImportacion = "✕ No se pudo re-rasterizar el PDF.";
+                }
                 return;
             }
 
@@ -327,9 +354,10 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
             // Escala/Offset calibrados por el usuario) se preserva intacta.
             FondoPdf = r.Imagen;
             RevisionPdf++;
-            EstadoImportacion = _invertirColorPdf
-                ? "✓ Modo oscuro activado — fondo negro con líneas blancas."
-                : "✓ Modo claro restaurado.";
+            if (!silencioso)
+                EstadoImportacion = _invertirColorPdf
+                    ? "✓ Modo oscuro activado — fondo negro con líneas blancas."
+                    : "✓ Modo claro restaurado.";
         }
         finally { _invirtiendoEnCurso = false; }
     }
@@ -340,6 +368,39 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
     private void EncuadrarPdf()
     {
         if (TienePdf) SolicitudEncuadrePdf++;
+    }
+
+    /// <summary>
+    /// Re-rasteriza el PDF en alta resolución cuando el host detecta un
+    /// zoom-in significativo (Epic v1.3 — nitidez gráfica). El parámetro es
+    /// un <c>int</c> con el ancho objetivo en píxeles ya calculado por el
+    /// host según el nivel de zoom. Corre en silencio (no toca la barra de
+    /// estado) y preserva la calibración del PDF.
+    /// </summary>
+    public ICommand ReRasterizarPdfCommand { get; }
+
+    // ---- Eliminación de planos de referencia (Epic v1.3 Iteración 2) ----
+
+    /// <summary>Quita el plano DXF del lienzo (vacía la Capa 1; no toca las losas).</summary>
+    public ICommand EliminarDxfCommand { get; }
+
+    private void EliminarDxf()
+    {
+        if (_plano is null) return;
+        Plano = null;   // OnPlanoChanged en el host redibuja la Capa 1 vacía
+        EstadoImportacion = "✓ Plano DXF eliminado del lienzo.";
+    }
+
+    /// <summary>Quita el PDF underlay del lienzo (bitmap + metadata + ruta cacheada).</summary>
+    public ICommand EliminarPdfCommand { get; }
+
+    private void EliminarPdf()
+    {
+        if (_pdf is null && _fondoPdf is null) return;
+        Pdf = null;
+        FondoPdf = null;
+        _lastPdfPath = null;   // corta la re-rasterización dinámica por zoom
+        EstadoImportacion = "✓ PDF eliminado del lienzo.";
     }
 
     // ---- Calibración interactiva del PDF (Iteración 5 Epic v1.2) ----

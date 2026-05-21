@@ -109,10 +109,22 @@ public static class PdfImportador
             // geometría nativa del PDF y solo escala proporcionalmente — funciona
             // en portrait, landscape y PDFs con cualquier matriz de transformación.
             //
-            // Factor calculado para apuntar al anchoObjetivoPx (~2400 px), clampeado
-            // a [0.5, 5.0] para evitar consumos absurdos de memoria en PDFs muy
-            // chicos o muy grandes.
-            double factor = Math.Clamp((double)anchoObjetivoPx / natW, 0.5, 5.0);
+            // Factor calculado para apuntar al anchoObjetivoPx, clampeado a
+            // [0.1, 5.0]: el techo 5.0 evita ampliar PDFs diminutos hasta
+            // absurdo; el piso 0.1 (Epic v1.3) permite reducir PDFs nativamente
+            // gigantes sin forzar bitmaps enormes durante la re-rasterización
+            // dinámica por zoom.
+            double factor = Math.Clamp((double)anchoObjetivoPx / natW, 0.1, 5.0);
+
+            // Cap de área (Epic v1.3) — ningún bitmap supera 30 megapíxeles
+            // (≈120 MB en BGRA32). Protege contra OutOfMemory cuando la
+            // re-rasterización por zoom pide resoluciones altas sobre PDFs
+            // de gran formato. Si el factor produjo un área excesiva, se
+            // reduce proporcionalmente preservando la relación de aspecto.
+            const double MaxMegapixeles = 30_000_000.0;
+            double areaPx = (double)natW * natH * factor * factor;
+            if (areaPx > MaxMegapixeles)
+                factor *= Math.Sqrt(MaxMegapixeles / areaPx);
 
             BitmapSource? bmp;
             try
