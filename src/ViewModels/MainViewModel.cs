@@ -142,6 +142,12 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// </summary>
     public CadEditorViewModel CadEditor { get; private set; } = null!;
 
+    /// <summary>
+    /// Sub-VM de la pestaña «Cargas y Combinaciones» (Fase 2): gestiona los
+    /// casos y combinaciones de carga del proyecto.
+    /// </summary>
+    public CargasCombinacionesViewModel CargasCombinaciones { get; private set; } = null!;
+
     public ICommand? IrABusquedaCommand { get; private set; }
     public ICommand? GenerarMemoriaCommand { get; private set; }
     public ICommand? AutoBalanceoCommand { get; private set; }
@@ -391,6 +397,19 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             _proyecto.CodigoObra  = restored.CodigoObra;
             _proyecto.Ubicacion   = restored.Ubicacion;
             _proyecto.Descripcion = restored.Descripcion;
+
+            // Restaurar la base de cargas (Fase 2) sin reasignar el objeto: se
+            // mantienen estables sus ObservableCollection bindeadas por la
+            // pestaña «Cargas y Combinaciones» — patrón idéntico al de Sistemas.
+            _proyecto.Combinaciones.Norma = restored.Combinaciones.Norma;
+            _proyecto.Combinaciones.Casos.Clear();
+            foreach (var c in restored.Combinaciones.Casos)
+                _proyecto.Combinaciones.Casos.Add(c);
+            _proyecto.Combinaciones.Combinaciones.Clear();
+            foreach (var c in restored.Combinaciones.Combinaciones)
+                _proyecto.Combinaciones.Combinaciones.Add(c);
+            CargasCombinaciones.NotificarRestauracion();
+
             SistemaActivo = _proyecto.Sistemas.FirstOrDefault() ?? NuevoSistemaDemo();
             OnPropertyChanged(nameof(Proyecto));
             OnPropertyChanged(nameof(TituloVentana));
@@ -625,6 +644,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         CadEditor = new CadEditorViewModel(
             getSistemaActivo: () => _sistemaActivo,
             pushUndoSnapshot: PushUndoSnapshot);
+
+        // ---- Cargas y Combinaciones (Fase 2) ----
+        CargasCombinaciones = new CargasCombinacionesViewModel(_proyecto, PushUndoSnapshot);
 
         // Cambios al nombre del proyecto refrescan el título de la ventana.
         _proyecto.PropertyChanged += (_, e) =>
@@ -1334,6 +1356,8 @@ public enum ModoSidebar
     Salida,
     /// <summary>Diseño de aceros distribuidos (próximamente — placeholder en la UI).</summary>
     Aceros,
+    /// <summary>Casos y combinaciones de carga del proyecto (Fase 2).</summary>
+    CargasCombinaciones,
     Validacion,
     Busqueda,
     Configuracion,

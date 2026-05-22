@@ -137,6 +137,9 @@
                         <RadioButton GroupName="SidebarNav" Content="🔩  Aceros"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Aceros}"
                                      ToolTip="Diseño de aceros distribuidos por losa basado en los momentos importados del .TXT. Próximamente."/>
+                        <RadioButton GroupName="SidebarNav" Content="📊  Cargas y Combinaciones"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=CargasCombinaciones}"
+                                     ToolTip="Casos y combinaciones de carga del proyecto — base de diseño transversal a todos los módulos."/>
                         <RadioButton GroupName="SidebarNav" Content="🛡  Validación"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}"/>
                         <RadioButton GroupName="SidebarNav" Content="⚖  Reglamento"
@@ -911,6 +914,21 @@
                         </Style>
                     </ContentControl.Style>
                     <cad:CadView x:Name="CadEditorView" DataContext="{Binding}"/>
+                </ContentControl>
+
+                <!-- MODO Cargas y Combinaciones — casos y combinaciones de carga (Fase 2). -->
+                <ContentControl>
+                    <ContentControl.Style>
+                        <Style TargetType="{x:Type ContentControl}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ModoActivo}" Value="CargasCombinaciones">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ContentControl.Style>
+                    <v:CargasCombinacionesView DataContext="{Binding}"/>
                 </ContentControl>
 
                 <!-- MODO DLEditor (texto crudo) -->
