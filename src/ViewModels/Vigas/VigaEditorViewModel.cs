@@ -16,6 +16,7 @@ using LosasPlus.Cargas;
 using LosasPlus.Models;
 using LosasPlus.Services;
 using LosasPlus.Vigas;
+using LosasPlus.ViewModels.Rc;
 
 namespace LosasPlus.ViewModels.Vigas;
 
@@ -81,6 +82,8 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
 
         _proyecto.Combinaciones.Combinaciones.CollectionChanged += OnCombinacionesCambiaron;
 
+        DisenoSeccion = new RcSectionDesignViewModel(_pushUndoSnapshot);
+
         RefrescarOpcionesCombinacion();
         VigaActiva = _nivel.Vigas.FirstOrDefault();
     }
@@ -131,9 +134,20 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
             _tramoSeleccionado = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(CargasDelTramo));
+            OnPropertyChanged(nameof(HayTramoSeleccionado));
             CargaSeleccionada = value?.Cargas.FirstOrDefault();
+            DisenoSeccion.Retarget(value);
         }
     }
+
+    /// <summary><c>true</c> si hay un tramo seleccionado — habilita el editor de sección RC.</summary>
+    public bool HayTramoSeleccionado => _tramoSeleccionado is not null;
+
+    /// <summary>
+    /// VM hijo del editor de diseño de sección RC (Fase 4). Sigue siempre al
+    /// <see cref="TramoSeleccionado"/>; lo consume la ventana modal de diseño RC.
+    /// </summary>
+    public RcSectionDesignViewModel DisenoSeccion { get; }
 
     private ApoyoViga? _apoyoSeleccionado;
     public ApoyoViga? ApoyoSeleccionado

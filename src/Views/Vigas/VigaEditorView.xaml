@@ -86,6 +86,10 @@
                                        Style="{StaticResource EtiquetaSeccion}"/>
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
                                         HorizontalAlignment="Right">
+                                <Button Content="🔧 Sección RC" Style="{StaticResource BotonCompacto}"
+                                        Click="OnDisenarSeccionClick"
+                                        IsEnabled="{Binding HayTramoSeleccionado}"
+                                        ToolTip="Diseñar la sección de concreto reforzado del tramo seleccionado."/>
                                 <Button Content="+" Style="{StaticResource BotonCompacto}"
                                         Command="{Binding AgregarTramoCommand}" ToolTip="Añadir tramo"/>
                                 <Button Content="🗑" Style="{StaticResource BotonCompacto}"

@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using LosasPlus.ViewModels.Vigas;
+using LosasPlus.Views.Rc;
 
 namespace LosasPlus.Views.Vigas;
 
@@ -19,5 +20,19 @@ public partial class VigaEditorView : UserControl
     {
         if (((FrameworkElement)sender).DataContext is VigaEditorViewModel vm)
             vm.SnapshotAntesDeEditar();
+    }
+
+    /// <summary>
+    /// Abre la ventana modal de diseño de sección RC para el tramo seleccionado.
+    /// </summary>
+    private void OnDisenarSeccionClick(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).DataContext is not VigaEditorViewModel vm) return;
+        var ventana = new RcSectionDesignWindow
+        {
+            DataContext = vm.DisenoSeccion,
+            Owner       = Window.GetWindow(this),
+        };
+        ventana.ShowDialog();
     }
 }
