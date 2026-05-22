@@ -1,0 +1,65 @@
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+
+namespace LosasPlus.Columnas;
+
+/// <summary>
+/// Una columna de concreto reforzado, descrita por su altura libre, su sección
+/// transversal y la disposición de acero longitudinal. Es la entidad raíz del
+/// módulo de columnas (Fase 5 de la suite estructural).
+///
+/// <para>
+/// Cuelga de la jerarquía topológica <c>Edificio → Nivel → Columna</c>. El
+/// motor <c>ColumnaDesignEngine</c> consume <see cref="Geometria"/> y
+/// <see cref="Acero"/> para construir el diagrama de interacción P-M uniaxial.
+/// </para>
+///
+/// <para>Tipo puro de dominio — sin dependencias de WPF.</para>
+/// </summary>
+public partial class Columna : INotifyPropertyChanged
+{
+    private int _id;
+    private string _nombre = "Columna 1";
+    private double _altura = 3.0;             // m — altura libre por defecto
+    private SeccionColumna _geometria = new();
+    private RefuerzoColumna _acero = new();
+
+    /// <summary>Identificador de la columna dentro del nivel.</summary>
+    public int Id
+    {
+        get => _id;
+        set { _id = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Nombre descriptivo de la columna (p. ej. «C-1»).</summary>
+    public string Nombre
+    {
+        get => _nombre;
+        set { _nombre = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Altura libre de la columna entre niveles, en metros.</summary>
+    public double Altura
+    {
+        get => _altura;
+        set { _altura = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Sección transversal rectangular de la columna.</summary>
+    public SeccionColumna Geometria
+    {
+        get => _geometria;
+        set { _geometria = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Acero de refuerzo longitudinal — capas a profundidades conocidas.</summary>
+    public RefuerzoColumna Acero
+    {
+        get => _acero;
+        set { _acero = value; OnPropertyChanged(); }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+}

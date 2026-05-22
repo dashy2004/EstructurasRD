@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using LosasPlus.Columnas;
 using LosasPlus.Vigas;
 
 namespace LosasPlus.Models;
@@ -94,6 +95,14 @@ public partial class Nivel : INotifyPropertyChanged
     /// (los proyectos previos cargan con la colección vacía).
     /// </summary>
     public ObservableCollection<Viga> Vigas { get; } = new();
+
+    /// <summary>
+    /// Columnas de concreto reforzado de esta planta — el frente del módulo
+    /// de columnas de la Fase 5. Colección get-only con inicializador, aditiva
+    /// como <see cref="Vigas"/>: los proyectos previos a la Fase 5 cargan con
+    /// la colección vacía sin migración del esquema.
+    /// </summary>
+    public ObservableCollection<Columna> Columnas { get; } = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? name = null)
