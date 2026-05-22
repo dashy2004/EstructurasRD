@@ -5,6 +5,7 @@
         xmlns:m="clr-namespace:LosasPlus.Models"
         xmlns:v="clr-namespace:LosasPlus.Views"
         xmlns:cad="clr-namespace:LosasPlus.Views.Cad"
+        xmlns:vigas="clr-namespace:LosasPlus.Views.Vigas"
         xmlns:s="clr-namespace:LosasPlus.Services"
         xmlns:cmn="clr-namespace:MemoriaPlus.Common;assembly=MemoriaPlus.UI.Shared"
         xmlns:vws="clr-namespace:MemoriaPlus.Views;assembly=MemoriaPlus.UI.Shared"
@@ -140,6 +141,9 @@
                         <RadioButton GroupName="SidebarNav" Content="📊  Cargas y Combinaciones"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=CargasCombinaciones}"
                                      ToolTip="Casos y combinaciones de carga del proyecto — base de diseño transversal a todos los módulos."/>
+                        <RadioButton GroupName="SidebarNav" Content="📐  Vigas Continuas"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vigas}"
+                                     ToolTip="Editor de vigas continuas: análisis por rigidez directa y diagramas V(x), M(x) y δ(x)."/>
                         <RadioButton GroupName="SidebarNav" Content="🛡  Validación"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}"/>
                         <RadioButton GroupName="SidebarNav" Content="⚖  Reglamento"
@@ -929,6 +933,21 @@
                         </Style>
                     </ContentControl.Style>
                     <v:CargasCombinacionesView DataContext="{Binding}"/>
+                </ContentControl>
+
+                <!-- MODO Vigas — editor de vigas continuas y diagramas OxyPlot (Fase 3). -->
+                <ContentControl>
+                    <ContentControl.Style>
+                        <Style TargetType="{x:Type ContentControl}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ModoActivo}" Value="Vigas">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ContentControl.Style>
+                    <vigas:VigaEditorView DataContext="{Binding}"/>
                 </ContentControl>
 
                 <!-- MODO DLEditor (texto crudo) -->

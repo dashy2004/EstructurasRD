@@ -15,6 +15,7 @@ using LosasPlus.Models;
 using LosasPlus.Persistence;
 using LosasPlus.Services;
 using LosasPlus.Validation;
+using LosasPlus.ViewModels.Vigas;
 using MemoriaPlusVm = MemoriaPlus.ViewModels;  // ProyectoResumen vive en src.UI.Shared
 
 namespace LosasPlus.ViewModels;
@@ -147,6 +148,12 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// casos y combinaciones de carga del proyecto.
     /// </summary>
     public CargasCombinacionesViewModel CargasCombinaciones { get; private set; } = null!;
+
+    /// <summary>
+    /// Sub-VM del editor de vigas continuas (Fase 3): gestiona la viga activa,
+    /// su edición y el renderizado de diagramas analíticos con OxyPlot.
+    /// </summary>
+    public VigaEditorViewModel VigaEditor { get; private set; } = null!;
 
     public ICommand? IrABusquedaCommand { get; private set; }
     public ICommand? GenerarMemoriaCommand { get; private set; }
@@ -410,6 +417,15 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
                 _proyecto.Combinaciones.Combinaciones.Add(c);
             CargasCombinaciones.NotificarRestauracion();
 
+            // Restaurar las vigas del nivel por defecto (Fase 3) — Clear/re-add
+            // sobre la ObservableCollection estable, mismo patrón que Sistemas.
+            _proyecto.AsegurarEstructura();
+            var nivelRestaurado = _proyecto.Edificios[0].Niveles[0];
+            nivelRestaurado.Vigas.Clear();
+            foreach (var v in restored.Edificios[0].Niveles[0].Vigas)
+                nivelRestaurado.Vigas.Add(v);
+            VigaEditor.NotificarRestauracion();
+
             SistemaActivo = _proyecto.Sistemas.FirstOrDefault() ?? NuevoSistemaDemo();
             OnPropertyChanged(nameof(Proyecto));
             OnPropertyChanged(nameof(TituloVentana));
@@ -647,6 +663,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
 
         // ---- Cargas y Combinaciones (Fase 2) ----
         CargasCombinaciones = new CargasCombinacionesViewModel(_proyecto, PushUndoSnapshot);
+
+        // ---- Editor de vigas continuas (Fase 3) ----
+        VigaEditor = new VigaEditorViewModel(_proyecto, PushUndoSnapshot);
 
         // Cambios al nombre del proyecto refrescan el título de la ventana.
         _proyecto.PropertyChanged += (_, e) =>
@@ -1358,6 +1377,8 @@ public enum ModoSidebar
     Aceros,
     /// <summary>Casos y combinaciones de carga del proyecto (Fase 2).</summary>
     CargasCombinaciones,
+    /// <summary>Editor de vigas continuas y diagramas analíticos (Fase 3).</summary>
+    Vigas,
     Validacion,
     Busqueda,
     Configuracion,

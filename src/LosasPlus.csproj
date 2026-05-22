@@ -31,6 +31,10 @@
          LosasPlus.Core. -->
     <PackageReference Include="SharpVectors.Reloaded" Version="1.8.4.2" />
     <PackageReference Include="Docnet.Core" Version="2.6.0" />
+    <!-- OxyPlot.Wpf: gráficas 2D de los diagramas de viga (V, M, δ) — Fase 3.
+         Arrastra OxyPlot.Core (tipos puros, sin afinidad de UI/hilo) de forma
+         transitiva. Confinado a la capa de presentación; src.Core no lo ve. -->
+    <PackageReference Include="OxyPlot.Wpf" Version="2.2.0" />
   </ItemGroup>
 
   <ItemGroup>
