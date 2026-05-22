@@ -44,6 +44,8 @@ public partial class CasoCarga : INotifyPropertyChanged
     private string _codigo = "";
     private string _nombre = "";
     private TipoCasoCarga _tipo = TipoCasoCarga.Muerta;
+    private bool _fce;
+    private bool _fsis;
 
     /// <summary>
     /// Código corto y único del caso dentro del proyecto (p. ej. «D», «L»,
@@ -68,6 +70,26 @@ public partial class CasoCarga : INotifyPropertyChanged
     {
         get => _tipo;
         set { _tipo = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// Carga extraordinaria: habilita el aumento del esfuerzo admisible del
+    /// terreno por corta duración (flag FCE de los archivos DISEST .DZP/.CEZ).
+    /// </summary>
+    public bool Fce
+    {
+        get => _fce;
+        set { _fce = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// El caso es de origen sísmico (flag FSIS de los archivos DISEST
+    /// .DZP/.CEZ). Afecta los factores de combinación aplicables.
+    /// </summary>
+    public bool Fsis
+    {
+        get => _fsis;
+        set { _fsis = value; OnPropertyChanged(); }
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

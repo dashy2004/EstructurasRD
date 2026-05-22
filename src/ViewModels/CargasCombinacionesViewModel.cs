@@ -124,6 +124,17 @@ public sealed class CargasCombinacionesViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(Norma));
     }
 
+    /// <summary>
+    /// Parsea el texto de un archivo <c>.DZP</c>/<c>.CEZ</c> y construye el
+    /// ViewModel del modal de importación sobre el proyecto activo.
+    /// </summary>
+    public ImportadorCombinacionesViewModel CrearImportador(
+        string textoArchivo, FormatoCombinaciones formato, string nombreArchivo)
+    {
+        var archivo = ParserDzpCez.Parsear(textoArchivo, formato);
+        return new ImportadorCombinacionesViewModel(_proyecto, archivo, nombreArchivo, _pushUndoSnapshot);
+    }
+
     private void AgregarCaso()
     {
         _pushUndoSnapshot();
