@@ -242,6 +242,8 @@
                     <RowDefinition Height="1.15*"/>
                     <RowDefinition Height="8"/>
                     <RowDefinition Height="*"/>
+                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
                 <!-- Aviso de viga inestable -->
@@ -278,6 +280,11 @@
                 <!-- Gráfico 3: deflexión -->
                 <Border Grid.Row="5" Style="{StaticResource TarjetaSeccion}">
                     <oxy:PlotView Model="{Binding ModeloDeflexion}" Background="Transparent"/>
+                </Border>
+
+                <!-- Gráfico 4: ratio demanda/capacidad D/C -->
+                <Border Grid.Row="7" Style="{StaticResource TarjetaSeccion}">
+                    <oxy:PlotView Model="{Binding ModeloVerificacion}" Background="Transparent"/>
                 </Border>
             </Grid>
         </Grid>

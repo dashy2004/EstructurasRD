@@ -38,6 +38,37 @@ public class VigaEditorViewModelTests
         return viga;
     }
 
+    /// <summary>
+    /// Viga simplemente apoyada de un tramo con una sección RC modesta y una
+    /// carga «D» pesada — su envolvente de diseño supera la capacidad φMn.
+    /// </summary>
+    private static Viga VigaSobreesforzada()
+    {
+        var viga = new Viga { Id = 2, Nombre = "V-RC" };
+        var tramo = new TramoViga { Longitud = 6.0, ModuloElasticidad = 2.5e7, Inercia = 0.002 };
+        tramo.Cargas.Add(new CargaElemento(TipoCargaElemento.Distribuida, 50.0, "D"));
+        tramo.Seccion.Base = 0.30;
+        tramo.Seccion.Peralte = 0.60;
+        tramo.Seccion.Recubrimiento = 0.06;
+        tramo.Seccion.Fc = 28.0;
+        tramo.Seccion.Fy = 420.0;
+        tramo.Refuerzo.AreaAceroBot = 0.0006;
+        tramo.Refuerzo.AreaAceroTop = 0.0006;
+        viga.Tramos.Add(tramo);
+        viga.Apoyos.Add(new ApoyoViga(0.0, TipoApoyo.Fijo));
+        viga.Apoyos.Add(new ApoyoViga(6.0, TipoApoyo.Fijo));
+        return viga;
+    }
+
+    /// <summary>Viga con un solo apoyo — un mecanismo, no resoluble.</summary>
+    private static Viga VigaInestable()
+    {
+        var viga = new Viga { Id = 3, Nombre = "V-Mecanismo" };
+        viga.Tramos.Add(new TramoViga { Longitud = 6.0 });
+        viga.Apoyos.Add(new ApoyoViga(0.0, TipoApoyo.Fijo));
+        return viga;
+    }
+
     /// <summary>Máximo |M| entre las series de momento del diagrama de esfuerzos.</summary>
     private static double MaxAbsMomento(PlotModel modelo)
     {
@@ -153,5 +184,40 @@ public class VigaEditorViewModelTests
         Assert.Equal(TipoApoyo.Empotrado, vigas[0].Apoyos[0].Tipo);
         Assert.Single(vigas[0].Tramos[0].Cargas);
         Assert.Equal(15.0, vigas[0].Tramos[0].Cargas[0].Magnitud, precision: 6);
+    }
+
+    [Fact]
+    public async Task RecalcularAsync_con_viga_resoluble_refleja_la_verificacion_dc()
+    {
+        var proyecto = ProyectoFactory.NuevoProyectoSeedeado();
+        proyecto.AsegurarEstructura();
+        proyecto.Edificios[0].Niveles[0].Vigas.Add(VigaSobreesforzada());
+        var vm = Crear(proyecto, out _);
+
+        await vm.RecalcularAsync();
+
+        Assert.False(vm.EsInestable);
+        Assert.NotEmpty(vm.ModeloVerificacion.Series);       // la curva D/C(x)
+        Assert.NotEmpty(vm.ModeloVerificacion.Annotations);  // límite 1.0 + bandas
+        Assert.True(vm.RatioMaximoVerificacion > 1.0);
+        Assert.NotEmpty(vm.PuntosCriticos);
+        Assert.False(vm.VerificacionConforme);
+    }
+
+    [Fact]
+    public async Task RecalcularAsync_con_viga_inestable_deja_la_verificacion_vacia()
+    {
+        var proyecto = ProyectoFactory.NuevoProyectoSeedeado();
+        proyecto.AsegurarEstructura();
+        proyecto.Edificios[0].Niveles[0].Vigas.Add(VigaInestable());
+        var vm = Crear(proyecto, out _);
+
+        await vm.RecalcularAsync();
+
+        Assert.True(vm.EsInestable);
+        Assert.Empty(vm.ModeloVerificacion.Series);
+        Assert.Empty(vm.PuntosCriticos);
+        Assert.Equal(0.0, vm.RatioMaximoVerificacion);
+        Assert.True(vm.VerificacionConforme);
     }
 }

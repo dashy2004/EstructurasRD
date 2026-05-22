@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using LosasPlus.Rc;
+using LosasPlus.Vigas;
 
 namespace LosasPlus.Services;
 
@@ -33,6 +34,9 @@ public static class RcDesignEngine
 
     /// <summary>Deformación neta mínima de ductilidad para flexión (ACI 318-19 §9.3.3.1).</summary>
     private const double DeformacionMinimaDuctilidad = 0.004;
+
+    /// <summary>Tolerancia geométrica para localizar una estación dentro de un tramo (m).</summary>
+    private const double ToleranciaTramo = 1e-6;
 
     /// <summary>
     /// Calcula la capacidad nominal a flexión de la <paramref name="seccion"/>
@@ -152,6 +156,102 @@ public static class RcDesignEngine
     }
 
     /// <summary>
+    /// Verifica la demanda/capacidad a flexión de la <paramref name="viga"/>
+    /// completa: en cada estación de la <paramref name="envolvente"/> de diseño
+    /// compara el momento último gobernante contra la capacidad minorada φMn de
+    /// la sección del tramo que contiene esa estación, y devuelve el perfil de
+    /// ratios D/C a lo largo del eje longitudinal junto con el veredicto global
+    /// (Fase 4, Iteración 3).
+    ///
+    /// <para>
+    /// En cada estación se evalúan las dos direcciones: la demanda positiva
+    /// (momento de tracción inferior) contra el φMn del acero inferior y la
+    /// demanda negativa (tracción superior) contra el φMn del acero superior.
+    /// El ratio de la estación es el mayor de los dos D/C; la dirección
+    /// gobernante aporta el <see cref="PuntoVerificacionRc.MomentoUltimo"/> con
+    /// signo y las banderas normativas. Si la capacidad de diseño es nula con
+    /// demanda no nula, el ratio es <see cref="double.PositiveInfinity"/>.
+    /// </para>
+    ///
+    /// <para>
+    /// La capacidad se precalcula una sola vez por tramo y dirección — la
+    /// sección es constante dentro de cada tramo. Una estación que cae
+    /// exactamente sobre la frontera entre dos tramos se asigna al tramo
+    /// inferior. La verificación cubre sólo flexión: no incluye cortante ni
+    /// torsión.
+    /// </para>
+    /// </summary>
+    /// <param name="viga">La viga cuyos tramos aportan las secciones de capacidad.</param>
+    /// <param name="envolvente">
+    /// La envolvente de diseño de la Fase 3 — la demanda última por estación.
+    /// </param>
+    /// <returns>
+    /// El perfil de ratios D/C; <see cref="VerificacionViga.Vacia"/> si la viga
+    /// no tiene tramos o la envolvente no tiene estaciones.
+    /// </returns>
+    public static VerificacionViga VerificarVigaCompleta(Viga viga, EnvolventeViga envolvente)
+    {
+        ArgumentNullException.ThrowIfNull(viga);
+        ArgumentNullException.ThrowIfNull(envolvente);
+
+        var tramos = viga.Tramos;
+        if (tramos.Count == 0 || envolvente.Puntos.Count == 0)
+            return VerificacionViga.Vacia;
+
+        // --- Fronteras de tramo: sumas acumuladas de la longitud ---
+        var fronteras = new double[tramos.Count + 1];
+        for (int i = 0; i < tramos.Count; i++)
+            fronteras[i + 1] = fronteras[i] + tramos[i].Longitud;
+
+        // --- Capacidad φMn por tramo y dirección: la sección es constante en
+        //     cada tramo, así que se calcula una sola vez cada una ---
+        var capacidadPositiva = new ResultadoCapacidadRC[tramos.Count];
+        var capacidadNegativa = new ResultadoCapacidadRC[tramos.Count];
+        for (int i = 0; i < tramos.Count; i++)
+        {
+            capacidadPositiva[i] = CalcularCapacidad(
+                tramos[i].Seccion, tramos[i].Refuerzo, momentoPositivo: true);
+            capacidadNegativa[i] = CalcularCapacidad(
+                tramos[i].Seccion, tramos[i].Refuerzo, momentoPositivo: false);
+        }
+
+        // --- Verificación estación a estación de la envolvente ---
+        var puntos = new List<PuntoVerificacionRc>(envolvente.Puntos.Count);
+        double ratioMaximo = 0.0;
+        foreach (var punto in envolvente.Puntos)
+        {
+            int tramo = IndiceTramoEn(fronteras, punto.X);
+            var capPositiva = capacidadPositiva[tramo];
+            var capNegativa = capacidadNegativa[tramo];
+
+            // Demanda gobernante por dirección, en magnitud no negativa:
+            // positiva a tracción inferior, negativa a tracción superior.
+            double demandaPositiva = Math.Max(0.0, punto.MomentoMaximo);
+            double demandaNegativa = Math.Max(0.0, -punto.MomentoMinimo);
+
+            double dcPositivo = Ratio(demandaPositiva, capPositiva.MomentoDiseno);
+            double dcNegativo = Ratio(demandaNegativa, capNegativa.MomentoDiseno);
+
+            // La dirección de mayor D/C gobierna; en empate gobierna la positiva.
+            bool gobiernaPositivo = dcPositivo >= dcNegativo;
+            double ratio = gobiernaPositivo ? dcPositivo : dcNegativo;
+            var capGobernante = gobiernaPositivo ? capPositiva : capNegativa;
+
+            puntos.Add(new PuntoVerificacionRc(
+                X: punto.X,
+                MomentoUltimo: gobiernaPositivo ? demandaPositiva : -demandaNegativa,
+                MomentoResistente: capGobernante.MomentoDiseno,
+                RatioDemandaCapacidad: ratio,
+                CumpleCuantiaMinima: capGobernante.CumpleCuantiaMinima,
+                CumpleLimiteDeformacion: capGobernante.CumpleLimiteDeformacion));
+
+            if (ratio > ratioMaximo) ratioMaximo = ratio;
+        }
+
+        return new VerificacionViga(puntos, ratioMaximo, ratioMaximo <= 1.0);
+    }
+
+    /// <summary>
     /// Factor de reducción de resistencia φ en función de la deformación neta
     /// εt (ACI 318-19 §21.2): 0.65 en control de compresión, 0.90 en control de
     /// tracción, interpolación lineal en la transición.
@@ -171,5 +271,32 @@ public static class RcDesignEngine
         if (et >= limiteTraccion) return ClasificacionSeccion.TensionControlada;
         if (et <= ey) return ClasificacionSeccion.CompresionControlada;
         return ClasificacionSeccion.Transicion;
+    }
+
+    /// <summary>
+    /// Ratio demanda/capacidad de una dirección: la <paramref name="demanda"/>
+    /// dividida entre el momento de diseño <paramref name="momentoDiseno"/>. Es
+    /// 0 cuando no hay demanda y <see cref="double.PositiveInfinity"/> cuando
+    /// hay demanda pero la sección no aporta capacidad de diseño.
+    /// </summary>
+    private static double Ratio(double demanda, double momentoDiseno)
+    {
+        if (demanda <= 0.0) return 0.0;
+        if (momentoDiseno <= 0.0) return double.PositiveInfinity;
+        return demanda / momentoDiseno;
+    }
+
+    /// <summary>
+    /// Índice del tramo que contiene la abscisa <paramref name="x"/>. Una
+    /// estación sobre la frontera entre dos tramos se asigna al tramo inferior.
+    /// Réplica local de la localización de tramo de <c>VigaContinuaEngine</c>
+    /// —cuyo método equivalente es privado— para no acoplar los dos motores.
+    /// </summary>
+    private static int IndiceTramoEn(double[] fronteras, double x)
+    {
+        for (int i = 0; i < fronteras.Length - 1; i++)
+            if (x <= fronteras[i + 1] + ToleranciaTramo)
+                return i;
+        return fronteras.Length - 2;
     }
 }

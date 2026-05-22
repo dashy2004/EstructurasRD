@@ -14,6 +14,7 @@ using OxyPlot.Axes;
 using OxyPlot.Series;
 using LosasPlus.Cargas;
 using LosasPlus.Models;
+using LosasPlus.Rc;
 using LosasPlus.Services;
 using LosasPlus.Vigas;
 using LosasPlus.ViewModels.Rc;
@@ -44,6 +45,15 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
     private static readonly OxyColor ColorMomento   = OxyColor.FromRgb(0xC2, 0x41, 0x1E);
     private static readonly OxyColor ColorDeflexion = OxyColor.FromRgb(0x2E, 0x7D, 0x32);
     private static readonly OxyColor ColorCarga     = OxyColor.FromRgb(0xB5, 0x8A, 0x00);
+    private static readonly OxyColor ColorRatio     = OxyColor.FromRgb(0xD3, 0x2F, 0x2F);
+
+    /// <summary>
+    /// Tope de visualización del ratio D/C: un valor mayor —incluido el
+    /// infinito de una sección sin capacidad— se dibuja acotado a este tope
+    /// para que la curva no rompa el eje. El veredicto numérico real lo
+    /// conserva <see cref="RatioMaximoVerificacion"/>.
+    /// </summary>
+    private const double TopeVisualizacionRatio = 2.0;
 
     private readonly Proyecto _proyecto;
     private readonly Action _pushUndoSnapshot;
@@ -56,6 +66,7 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
     private Viga? _vigaEnganchada;
 
     private ResultadoViga? _resultado;
+    private VerificacionViga _verificacion = VerificacionViga.Vacia;
     private CancellationTokenSource? _ctsRecalculo;
     private Task _recalculoActual = Task.CompletedTask;
 
@@ -67,9 +78,10 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         _proyecto.AsegurarEstructura();
         _nivel = _proyecto.Edificios[0].Niveles[0];
 
-        ModeloViga      = CrearModeloBase("Modelo de la viga");
-        ModeloEsfuerzos = CrearModeloBase("Cortante V(x) y Momento M(x)");
-        ModeloDeflexion = CrearModeloBase("Deflexión δ(x)");
+        ModeloViga         = CrearModeloBase("Modelo de la viga");
+        ModeloEsfuerzos    = CrearModeloBase("Cortante V(x) y Momento M(x)");
+        ModeloDeflexion    = CrearModeloBase("Deflexión δ(x)");
+        ModeloVerificacion = CrearModeloBase("Ratio Demanda/Capacidad D/C(x)");
 
         NuevaVigaCommand     = new RelayCommand(_ => NuevaViga());
         EliminarVigaCommand  = new RelayCommand(_ => EliminarViga(),  _ => _vigaActiva is not null);
@@ -193,6 +205,25 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
 
     /// <summary>Diagrama de deflexión elástica δ(x).</summary>
     public PlotModel ModeloDeflexion { get; }
+
+    /// <summary>
+    /// Diagrama del perfil de ratios demanda/capacidad D/C(x) a flexión
+    /// (Fase 4, Iteración 3) — la verificación automática de la viga.
+    /// </summary>
+    public PlotModel ModeloVerificacion { get; }
+
+    /// <summary>
+    /// Estaciones sobreesforzadas a flexión — aquellas cuyo ratio D/C supera
+    /// 1.0. Vacía si la viga es conforme o no hay resultado.
+    /// </summary>
+    public IReadOnlyList<PuntoVerificacionRc> PuntosCriticos =>
+        _verificacion.Puntos.Where(p => p.RatioDemandaCapacidad > 1.0).ToList();
+
+    /// <summary>Ratio D/C máximo de toda la viga (0 si no hay verificación).</summary>
+    public double RatioMaximoVerificacion => _verificacion.RatioMaximo;
+
+    /// <summary><c>true</c> si ninguna estación de la viga supera D/C = 1.0.</summary>
+    public bool VerificacionConforme => _verificacion.Conforme;
 
     private bool _esInestable;
     /// <summary><c>true</c> si la viga activa es un mecanismo (no resoluble).</summary>
@@ -447,13 +478,22 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         var combinaciones = _proyecto.Combinaciones;
         try
         {
-            // El motor corre en hilo secundario; el ensamblado de series
-            // reanuda en el contexto capturado (UI en la app).
-            var resultado = await Task.Run(
-                () => VigaContinuaEngine.Resolver(viga, combinaciones), token);
+            // El motor analítico y la verificación D/C corren juntos en el
+            // hilo secundario; el ensamblado de series reanuda en el contexto
+            // capturado (UI en la app).
+            var (resultado, verificacion) = await Task.Run(() =>
+            {
+                var r = VigaContinuaEngine.Resolver(viga, combinaciones);
+                var env = r.Envolvente;
+                var v = env is not null
+                    ? RcDesignEngine.VerificarVigaCompleta(viga, env)
+                    : VerificacionViga.Vacia;
+                return (r, v);
+            }, token);
             if (token.IsCancellationRequested) return;
 
             _resultado = resultado;
+            _verificacion = verificacion;
             EsInestable = resultado.EsInestable;
             MensajeEstado = resultado.EsInestable
                 ? (resultado.Mensaje ?? "La viga es inestable.")
@@ -466,6 +506,7 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
                 _combinacionSeleccionada = OpcionEnvolvente;
                 OnPropertyChanged(nameof(CombinacionSeleccionada));
             }
+            NotificarVerificacion();
             ConstruirSeries();
         }
         catch (OperationCanceledException)
@@ -476,6 +517,8 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         {
             EsInestable = true;
             MensajeEstado = "Error al resolver la viga: " + ex.Message;
+            _verificacion = VerificacionViga.Vacia;
+            NotificarVerificacion();
         }
     }
 
@@ -488,19 +531,22 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         ConstruirModeloViga();
         ConstruirModeloEsfuerzos();
         ConstruirModeloDeflexion();
+        ConstruirModeloVerificacion();
     }
 
     private void LimpiarDiagramas()
     {
         _resultado = null;
+        _verificacion = VerificacionViga.Vacia;
         EsInestable = false;
         MensajeEstado = "";
-        foreach (var m in new[] { ModeloViga, ModeloEsfuerzos, ModeloDeflexion })
+        foreach (var m in new[] { ModeloViga, ModeloEsfuerzos, ModeloDeflexion, ModeloVerificacion })
         {
             m.Series.Clear();
             m.Annotations.Clear();
             m.InvalidatePlot(true);
         }
+        NotificarVerificacion();
     }
 
     private void ConstruirModeloViga()
@@ -661,6 +707,111 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
                 m.Series.Add(Linea(combo.Diagrama.Select(p => new DataPoint(p.X, p.Deflexion)), "δ(x)", ColorDeflexion));
         }
         m.InvalidatePlot(true);
+    }
+
+    private void ConstruirModeloVerificacion()
+    {
+        var m = ModeloVerificacion;
+        m.Series.Clear();
+        m.Axes.Clear();
+        m.Annotations.Clear();
+
+        var puntos = _verificacion.Puntos;
+        if (puntos.Count == 0)
+        {
+            m.InvalidatePlot(true);
+            return;
+        }
+
+        // Curva D/C(x): cada ordenada se acota al tope de visualización para
+        // que un ratio infinito (sección sin capacidad) no rompa el eje.
+        var serie = new LineSeries
+        {
+            Title = "D/C(x)",
+            Color = ColorRatio,
+            StrokeThickness = 1.8,
+        };
+        double ratioGraficadoMax = 0.0;
+        foreach (var p in puntos)
+        {
+            double y = Math.Min(p.RatioDemandaCapacidad, TopeVisualizacionRatio);
+            serie.Points.Add(new DataPoint(p.X, y));
+            if (y > ratioGraficadoMax) ratioGraficadoMax = y;
+        }
+
+        m.Axes.Add(Eje(AxisPosition.Bottom, "x (m)"));
+        var ejeY = Eje(AxisPosition.Left, "D/C");
+        ejeY.Minimum = 0.0;
+        // El máximo se deriva de la serie acotada, nunca del RatioMaximo crudo
+        // (que puede ser infinito); el piso 1.2 mantiene visible la línea 1.0.
+        ejeY.Maximum = Math.Max(1.2, ratioGraficadoMax * 1.1);
+        m.Axes.Add(ejeY);
+
+        // Bandas verticales translúcidas bajo la curva sobre cada tramo
+        // sobreesforzado (estaciones contiguas con D/C > 1).
+        foreach (var (inicio, fin) in TramosSobreesforzados(puntos))
+            m.Annotations.Add(new RectangleAnnotation
+            {
+                MinimumX = inicio,
+                MaximumX = fin,
+                Fill = OxyColor.FromAColor(38, ColorRatio),
+                StrokeThickness = 0.0,
+                Layer = AnnotationLayer.BelowSeries,
+            });
+
+        m.Series.Add(serie);
+
+        // Línea de referencia del límite reglamentario D/C = 1.0.
+        m.Annotations.Add(new LineAnnotation
+        {
+            Type = LineAnnotationType.Horizontal,
+            Y = 1.0,
+            Color = ColorRatio,
+            LineStyle = LineStyle.Dash,
+            StrokeThickness = 1.4,
+            Text = "D/C = 1.0",
+            TextColor = ColorRatio,
+        });
+
+        m.InvalidatePlot(true);
+    }
+
+    /// <summary>
+    /// Recorre las estaciones —ordenadas por abscisa— y agrupa las que superan
+    /// D/C = 1.0 en tramos contiguos. Cada tramo se extiende hasta el punto
+    /// medio con las estaciones conformes vecinas, de modo que una estación
+    /// sobreesforzada aislada también produce una banda visible.
+    /// </summary>
+    private static IEnumerable<(double Inicio, double Fin)> TramosSobreesforzados(
+        IReadOnlyList<PuntoVerificacionRc> puntos)
+    {
+        int i = 0;
+        while (i < puntos.Count)
+        {
+            if (puntos[i].RatioDemandaCapacidad <= 1.0) { i++; continue; }
+
+            int j = i;
+            while (j + 1 < puntos.Count && puntos[j + 1].RatioDemandaCapacidad > 1.0)
+                j++;
+
+            double inicio = i > 0
+                ? 0.5 * (puntos[i - 1].X + puntos[i].X)
+                : puntos[i].X;
+            double fin = j + 1 < puntos.Count
+                ? 0.5 * (puntos[j].X + puntos[j + 1].X)
+                : puntos[j].X;
+            yield return (inicio, fin);
+
+            i = j + 1;
+        }
+    }
+
+    /// <summary>Notifica las propiedades derivadas de la verificación D/C.</summary>
+    private void NotificarVerificacion()
+    {
+        OnPropertyChanged(nameof(PuntosCriticos));
+        OnPropertyChanged(nameof(RatioMaximoVerificacion));
+        OnPropertyChanged(nameof(VerificacionConforme));
     }
 
     // ---- Helpers de OxyPlot ----
