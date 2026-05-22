@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using LosasPlus.Vigas;
 
 namespace LosasPlus.Models;
 
@@ -85,6 +86,14 @@ public partial class Nivel : INotifyPropertyChanged
     /// — se rellena vía <c>Populate</c> al deserializar.
     /// </summary>
     public ObservableCollection<Sistema> Sistemas { get; } = new();
+
+    /// <summary>
+    /// Vigas continuas de esta planta — el frente estructural de vigas de la
+    /// Fase 3. Colección get-only con inicializador; se (de)serializa vía
+    /// <c>Populate</c> igual que <see cref="Sistemas"/>, de forma aditiva
+    /// (los proyectos previos cargan con la colección vacía).
+    /// </summary>
+    public ObservableCollection<Viga> Vigas { get; } = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? name = null)
