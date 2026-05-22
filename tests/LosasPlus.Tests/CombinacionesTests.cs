@@ -100,4 +100,65 @@ public class CombinacionesTests
         Assert.Contains(nameof(CombinacionCarga.Nombre), props);
         Assert.Contains(nameof(TerminoCombinacion.Factor), props);
     }
+
+    // =====================================================================
+    // Indexer de CombinacionCarga (Fase 2, Iteración 4) — acceso de la matriz
+    // de factores: get del factor por código de caso, set con upsert/borrado.
+    // =====================================================================
+
+    [Fact]
+    public void Indexer_get_devuelve_cero_cuando_no_hay_termino()
+    {
+        var combo = new CombinacionCarga();
+        Assert.Equal(0.0, combo["D"]);
+    }
+
+    [Fact]
+    public void Indexer_set_crea_un_termino_nuevo()
+    {
+        var combo = new CombinacionCarga();
+
+        combo["D"] = 1.4;
+
+        Assert.Single(combo.Terminos);
+        Assert.Equal("D", combo.Terminos[0].CodigoCaso);
+        Assert.Equal(1.4, combo.Terminos[0].Factor);
+        Assert.Equal(1.4, combo["D"]);
+    }
+
+    [Fact]
+    public void Indexer_set_actualiza_el_termino_existente_sin_duplicar()
+    {
+        var combo = new CombinacionCarga();
+        combo["D"] = 1.2;
+
+        combo["D"] = 1.4;
+
+        Assert.Single(combo.Terminos);
+        Assert.Equal(1.4, combo["D"]);
+    }
+
+    [Fact]
+    public void Indexer_set_a_cero_elimina_el_termino()
+    {
+        var combo = new CombinacionCarga();
+        combo["D"] = 1.4;
+
+        combo["D"] = 0.0;
+
+        Assert.Empty(combo.Terminos);
+        Assert.Equal(0.0, combo["D"]);
+    }
+
+    [Fact]
+    public void Indexer_set_notifica_el_cambio_del_indexer()
+    {
+        var combo = new CombinacionCarga();
+        var props = new List<string?>();
+        combo.PropertyChanged += (_, a) => props.Add(a.PropertyName);
+
+        combo["D"] = 1.4;
+
+        Assert.Contains("Item[]", props);
+    }
 }

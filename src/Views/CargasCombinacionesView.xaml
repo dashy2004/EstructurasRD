@@ -1,7 +1,9 @@
 <UserControl x:Class="LosasPlus.Views.CargasCombinacionesView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Background="{DynamicResource BgPrimary}">
+             xmlns:cargas="clr-namespace:LosasPlus.Cargas;assembly=LosasPlus.Core"
+             Background="{DynamicResource BgPrimary}"
+             Loaded="OnLoaded" Unloaded="OnUnloaded">
     <UserControl.Resources>
         <Style x:Key="EtiquetaSeccion" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="Bold"/>
@@ -15,178 +17,326 @@
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="FontSize" Value="12"/>
         </Style>
+        <Style x:Key="TarjetaSeccion" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource BgSecondary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12"/>
+        </Style>
+        <Style x:Key="CheckCentrado" TargetType="CheckBox">
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="FilaResumen" TargetType="DockPanel">
+            <Setter Property="Margin" Value="0,3"/>
+        </Style>
+        <Style x:Key="TabSecundario" TargetType="TabItem">
+            <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+            <Setter Property="Padding" Value="16,6"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
     </UserControl.Resources>
 
     <!-- El contenido se rebasa al sub-VM CargasCombinaciones del MainViewModel. -->
     <Grid DataContext="{Binding CargasCombinaciones}" Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Cabecera: título + selector de norma -->
+        <!-- Barra de herramientas -->
         <DockPanel Grid.Row="0" Margin="0,0,0,14">
             <TextBlock DockPanel.Dock="Left" Text="📊  Cargas y Combinaciones"
                        FontSize="18" FontWeight="SemiBold"
                        Foreground="{DynamicResource FgPrimary}" VerticalAlignment="Center"/>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="📥  Importar .DZP/.CEZ" Style="{StaticResource BotonCompacto}"
-                        Margin="0,0,14,0" Click="OnImportarClick"
+                <Button Content="📥  Importar DISEST" Style="{StaticResource BotonCompacto}"
+                        Click="OnImportarClick"
                         ToolTip="Importar casos y combinaciones desde un archivo DISEST .DZP o .CEZ."/>
-                <TextBlock Text="Norma:" Style="{StaticResource EtiquetaSeccion}" Margin="0,0,8,0"/>
-                <ComboBox Width="170" VerticalAlignment="Center"
+                <Button Content="📤  Exportar .DZP" Style="{StaticResource BotonCompacto}"
+                        Click="OnExportarClick"
+                        ToolTip="Exportar la base de cargas a un archivo DISEST .DZP."/>
+                <Button Content="⚙  Normalizar" Style="{StaticResource BotonCompacto}"
+                        Click="OnNormalizarClick"
+                        ToolTip="Re-sembrar los casos y combinaciones según la norma seleccionada."/>
+                <TextBlock Text="Norma:" Style="{StaticResource EtiquetaSeccion}" Margin="18,0,8,0"/>
+                <ComboBox Width="160" VerticalAlignment="Center"
                           ItemsSource="{Binding Normas}"
                           SelectedItem="{Binding Norma}"
                           ToolTip="Norma de la que provienen los factores de combinación."/>
             </StackPanel>
         </DockPanel>
 
-        <!-- Sección: casos de carga -->
-        <Border Grid.Row="1" Margin="0,0,0,12" Padding="12"
-                Background="{DynamicResource BgSecondary}"
-                BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="6">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <DockPanel Grid.Row="0" Margin="0,0,0,8">
-                    <TextBlock DockPanel.Dock="Left" Text="CASOS DE CARGA"
-                               Style="{StaticResource EtiquetaSeccion}"/>
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="+ Añadir Caso" Style="{StaticResource BotonCompacto}"
-                                Command="{Binding AgregarCasoCommand}"/>
-                        <Button Content="🗑 Eliminar Caso" Style="{StaticResource BotonCompacto}"
-                                Command="{Binding EliminarCasoCommand}"/>
-                    </StackPanel>
-                </DockPanel>
-                <DataGrid Grid.Row="1" MaxHeight="220"
-                          ItemsSource="{Binding Casos}"
-                          SelectedItem="{Binding CasoSeleccionado}"
-                          AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
-                          HeadersVisibility="Column" SelectionMode="Single" SelectionUnit="FullRow"
-                          BeginningEdit="OnBeginningEdit">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Código" Width="130" Binding="{Binding Codigo}"/>
-                        <DataGridTextColumn Header="Nombre" Width="*"  Binding="{Binding Nombre}"/>
-                        <DataGridTemplateColumn Header="Tipo" Width="170">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Tipo}" Margin="6,0" VerticalAlignment="Center"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                            <DataGridTemplateColumn.CellEditingTemplate>
-                                <DataTemplate>
-                                    <ComboBox ItemsSource="{Binding DataContext.TiposCaso, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                              SelectedItem="{Binding Tipo}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellEditingTemplate>
-                        </DataGridTemplateColumn>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </Grid>
-        </Border>
-
-        <!-- Sección: combinaciones (master-detail) -->
-        <Grid Grid.Row="2">
+        <!-- Cuerpo: columna central + panel lateral -->
+        <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="12"/>
-                <ColumnDefinition Width="1.2*"/>
+                <ColumnDefinition Width="280"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Maestro: lista de combinaciones -->
-            <Border Grid.Column="0" Padding="12"
-                    Background="{DynamicResource BgSecondary}"
-                    BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="6">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <DockPanel Grid.Row="0" Margin="0,0,0,8">
-                        <TextBlock DockPanel.Dock="Left" Text="COMBINACIONES"
-                                   Style="{StaticResource EtiquetaSeccion}"/>
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button Content="+ Añadir" Style="{StaticResource BotonCompacto}"
-                                    Command="{Binding AgregarCombinacionCommand}"/>
-                            <Button Content="🗑 Eliminar" Style="{StaticResource BotonCompacto}"
-                                    Command="{Binding EliminarCombinacionCommand}"/>
-                        </StackPanel>
-                    </DockPanel>
-                    <DataGrid Grid.Row="1"
-                              ItemsSource="{Binding Combinaciones}"
-                              SelectedItem="{Binding CombinacionSeleccionada}"
-                              AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
-                              HeadersVisibility="Column" SelectionMode="Single" SelectionUnit="FullRow"
-                              BeginningEdit="OnBeginningEdit">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Nombre" Width="*" Binding="{Binding Nombre}"/>
-                            <DataGridTemplateColumn Header="Tipo" Width="120">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding Tipo}" Margin="6,0" VerticalAlignment="Center"/>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                                <DataGridTemplateColumn.CellEditingTemplate>
-                                    <DataTemplate>
-                                        <ComboBox ItemsSource="{Binding DataContext.TiposCombinacion, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                  SelectedItem="{Binding Tipo}"/>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellEditingTemplate>
-                            </DataGridTemplateColumn>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
-            </Border>
+            <!-- ===== Columna central ===== -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-            <!-- Detalle: términos de la combinación seleccionada -->
-            <Border Grid.Column="2" Padding="12"
-                    Background="{DynamicResource BgSecondary}"
-                    BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="6">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <DockPanel Grid.Row="0" Margin="0,0,0,8">
-                        <TextBlock DockPanel.Dock="Left" Text="TÉRMINOS DE LA COMBINACIÓN"
-                                   Style="{StaticResource EtiquetaSeccion}"/>
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button Content="+ Añadir Término" Style="{StaticResource BotonCompacto}"
-                                    Command="{Binding AgregarTerminoCommand}"/>
-                            <Button Content="🗑 Eliminar" Style="{StaticResource BotonCompacto}"
-                                    Command="{Binding EliminarTerminoCommand}"/>
-                        </StackPanel>
-                    </DockPanel>
-                    <DataGrid Grid.Row="1"
-                              ItemsSource="{Binding CombinacionSeleccionada.Terminos}"
-                              SelectedItem="{Binding TerminoSeleccionado}"
-                              AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
-                              HeadersVisibility="Column" SelectionMode="Single" SelectionUnit="FullRow"
-                              BeginningEdit="OnBeginningEdit">
-                        <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="Caso" Width="*">
-                                <DataGridTemplateColumn.CellTemplate>
+                <!-- Casos de carga -->
+                <Border Grid.Row="0" Style="{StaticResource TarjetaSeccion}" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                            <TextBlock DockPanel.Dock="Left" Text="CASOS DE CARGA"
+                                       Style="{StaticResource EtiquetaSeccion}"/>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                        HorizontalAlignment="Right">
+                                <Button Content="+ Añadir Caso" Style="{StaticResource BotonCompacto}"
+                                        Command="{Binding AgregarCasoCommand}"/>
+                                <Button Content="🗑 Eliminar Caso" Style="{StaticResource BotonCompacto}"
+                                        Command="{Binding EliminarCasoCommand}"/>
+                            </StackPanel>
+                        </DockPanel>
+                        <DataGrid Grid.Row="1" MaxHeight="200"
+                                  ItemsSource="{Binding Casos}"
+                                  SelectedItem="{Binding CasoSeleccionado}"
+                                  AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                                  HeadersVisibility="Column" SelectionMode="Single" SelectionUnit="FullRow"
+                                  BeginningEdit="OnBeginningEdit">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Código" Width="90" Binding="{Binding Codigo}"/>
+                                <DataGridTextColumn Header="Nombre" Width="*"  Binding="{Binding Nombre}"/>
+                                <DataGridTemplateColumn Header="Tipo" Width="150">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Tipo}" Margin="6,0" VerticalAlignment="Center"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                    <DataGridTemplateColumn.CellEditingTemplate>
+                                        <DataTemplate>
+                                            <ComboBox ItemsSource="{Binding DataContext.TiposCaso, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                      SelectedItem="{Binding Tipo}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellEditingTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridCheckBoxColumn Header="FCE" Width="56" Binding="{Binding Fce}"
+                                                        ElementStyle="{StaticResource CheckCentrado}"
+                                                        EditingElementStyle="{StaticResource CheckCentrado}"/>
+                                <DataGridCheckBoxColumn Header="FSIS" Width="60" Binding="{Binding Fsis}"
+                                                        ElementStyle="{StaticResource CheckCentrado}"
+                                                        EditingElementStyle="{StaticResource CheckCentrado}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+
+                <!-- Matriz de factores -->
+                <Border Grid.Row="1" Style="{StaticResource TarjetaSeccion}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="MATRIZ DE FACTORES"
+                                   Style="{StaticResource EtiquetaSeccion}" Margin="0,0,0,8"/>
+                        <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0">
+                            <!-- Pestaña Servicio -->
+                            <TabItem Header="Servicio" Style="{StaticResource TabSecundario}">
+                                <Grid Margin="0,8,0,0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal"
+                                                HorizontalAlignment="Right" Margin="0,0,0,6">
+                                        <Button Content="+ Añadir" Style="{StaticResource BotonCompacto}"
+                                                Command="{Binding AgregarCombinacionCommand}"
+                                                CommandParameter="{x:Static cargas:TipoCombinacion.Servicio}"/>
+                                        <Button Content="🗑 Quitar" Style="{StaticResource BotonCompacto}"
+                                                Command="{Binding EliminarCombinacionCommand}"
+                                                CommandParameter="{Binding SelectedItem, ElementName=GridMatrizServicio}"/>
+                                    </StackPanel>
+                                    <DataGrid x:Name="GridMatrizServicio" Grid.Row="1"
+                                              ItemsSource="{Binding CombinacionesServicio}"
+                                              AutoGenerateColumns="False" CanUserAddRows="False"
+                                              CanUserDeleteRows="False" CanUserSortColumns="False"
+                                              CanUserReorderColumns="False" FrozenColumnCount="1"
+                                              HeadersVisibility="Column" SelectionMode="Single"
+                                              SelectionUnit="FullRow" BeginningEdit="OnBeginningEdit">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Combinación" Width="*" MinWidth="160"
+                                                                Binding="{Binding Nombre}"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Grid>
+                            </TabItem>
+                            <!-- Pestaña Últimas -->
+                            <TabItem Header="Últimas" Style="{StaticResource TabSecundario}">
+                                <Grid Margin="0,8,0,0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal"
+                                                HorizontalAlignment="Right" Margin="0,0,0,6">
+                                        <Button Content="+ Añadir" Style="{StaticResource BotonCompacto}"
+                                                Command="{Binding AgregarCombinacionCommand}"
+                                                CommandParameter="{x:Static cargas:TipoCombinacion.Ultima}"/>
+                                        <Button Content="🗑 Quitar" Style="{StaticResource BotonCompacto}"
+                                                Command="{Binding EliminarCombinacionCommand}"
+                                                CommandParameter="{Binding SelectedItem, ElementName=GridMatrizUltimas}"/>
+                                    </StackPanel>
+                                    <DataGrid x:Name="GridMatrizUltimas" Grid.Row="1"
+                                              ItemsSource="{Binding CombinacionesUltimas}"
+                                              AutoGenerateColumns="False" CanUserAddRows="False"
+                                              CanUserDeleteRows="False" CanUserSortColumns="False"
+                                              CanUserReorderColumns="False" FrozenColumnCount="1"
+                                              HeadersVisibility="Column" SelectionMode="Single"
+                                              SelectionUnit="FullRow" BeginningEdit="OnBeginningEdit">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Combinación" Width="*" MinWidth="160"
+                                                                Binding="{Binding Nombre}"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Grid>
+                            </TabItem>
+                        </TabControl>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- ===== Panel lateral: resumen y validación ===== -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Resumen -->
+                <Border Grid.Row="0" Style="{StaticResource TarjetaSeccion}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="RESUMEN" Style="{StaticResource EtiquetaSeccion}" Margin="0,0,0,8"/>
+                        <DockPanel Style="{StaticResource FilaResumen}">
+                            <TextBlock DockPanel.Dock="Left" Text="Casos de carga" FontSize="12"
+                                       Foreground="{DynamicResource FgSecondary}"/>
+                            <TextBlock Text="{Binding CantidadCasos}" HorizontalAlignment="Right"
+                                       FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource FgPrimary}"/>
+                        </DockPanel>
+                        <DockPanel Style="{StaticResource FilaResumen}">
+                            <TextBlock DockPanel.Dock="Left" Text="Combinaciones de servicio" FontSize="12"
+                                       Foreground="{DynamicResource FgSecondary}"/>
+                            <TextBlock Text="{Binding CantidadServicio}" HorizontalAlignment="Right"
+                                       FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource FgPrimary}"/>
+                        </DockPanel>
+                        <DockPanel Style="{StaticResource FilaResumen}">
+                            <TextBlock DockPanel.Dock="Left" Text="Combinaciones últimas" FontSize="12"
+                                       Foreground="{DynamicResource FgSecondary}"/>
+                            <TextBlock Text="{Binding CantidadUltimas}" HorizontalAlignment="Right"
+                                       FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource FgPrimary}"/>
+                        </DockPanel>
+                        <DockPanel Style="{StaticResource FilaResumen}">
+                            <TextBlock DockPanel.Dock="Left" Text="Total de combinaciones" FontSize="12"
+                                       Foreground="{DynamicResource FgSecondary}"/>
+                            <TextBlock Text="{Binding CantidadCombinaciones}" HorizontalAlignment="Right"
+                                       FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource FgPrimary}"/>
+                        </DockPanel>
+                        <Border Margin="0,10,0,0" Padding="8,6" CornerRadius="4"
+                                Background="{DynamicResource BgInput}">
+                            <TextBlock Text="{Binding EstadoValidacion}" TextWrapping="Wrap"
+                                       FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource FgPrimary}"/>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Alertas normativas -->
+                <Border Grid.Row="1" Style="{StaticResource TarjetaSeccion}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="ALERTAS NORMATIVAS" Style="{StaticResource EtiquetaSeccion}"
+                                   Margin="0,0,0,8"/>
+                        <TextBlock Text="Sin alertas — la base de cargas es conforme."
+                                   FontSize="11" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource FgMuted}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HayAlertas}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="240">
+                            <ItemsControl ItemsSource="{Binding AlertasNormativas}">
+                                <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding CodigoCaso}" Margin="6,0" VerticalAlignment="Center"/>
+                                        <Border Background="{DynamicResource BgInput}"
+                                                BorderBrush="{DynamicResource Border}"
+                                                BorderThickness="1" CornerRadius="4"
+                                                Padding="8,6" Margin="0,0,0,6">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="⚠" Margin="0,0,6,0"
+                                                           VerticalAlignment="Top"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding}"
+                                                           TextWrapping="Wrap" FontSize="11"
+                                                           Foreground="{DynamicResource FgSecondary}"/>
+                                            </Grid>
+                                        </Border>
                                     </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                                <DataGridTemplateColumn.CellEditingTemplate>
-                                    <DataTemplate>
-                                        <ComboBox ItemsSource="{Binding DataContext.Casos, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                  DisplayMemberPath="Codigo" SelectedValuePath="Codigo"
-                                                  SelectedValue="{Binding CodigoCaso}"/>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellEditingTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Factor" Width="110"
-                                                Binding="{Binding Factor, StringFormat=0.00}"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
-            </Border>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
+
+                <!-- Estructura del proyecto -->
+                <Border Grid.Row="2" Style="{StaticResource TarjetaSeccion}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="ESTRUCTURA" Style="{StaticResource EtiquetaSeccion}"
+                                   Margin="0,0,0,8"/>
+                        <TreeView Grid.Row="1" ItemsSource="{Binding Edificios}"
+                                  Background="Transparent" BorderThickness="0">
+                            <TreeView.ItemTemplate>
+                                <HierarchicalDataTemplate ItemsSource="{Binding Niveles}">
+                                    <TextBlock Text="{Binding Nombre, StringFormat=🏢  {0}}"
+                                               Foreground="{DynamicResource FgPrimary}" FontSize="12"/>
+                                    <HierarchicalDataTemplate.ItemTemplate>
+                                        <HierarchicalDataTemplate ItemsSource="{Binding Sistemas}">
+                                            <TextBlock Text="{Binding Nombre, StringFormat=▦  {0}}"
+                                                       Foreground="{DynamicResource FgSecondary}" FontSize="12"/>
+                                            <HierarchicalDataTemplate.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Nombre, StringFormat=▢  {0}}"
+                                                               Foreground="{DynamicResource FgMuted}" FontSize="12"/>
+                                                </DataTemplate>
+                                            </HierarchicalDataTemplate.ItemTemplate>
+                                        </HierarchicalDataTemplate>
+                                    </HierarchicalDataTemplate.ItemTemplate>
+                                </HierarchicalDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
+                    </Grid>
+                </Border>
+            </Grid>
         </Grid>
     </Grid>
 </UserControl>

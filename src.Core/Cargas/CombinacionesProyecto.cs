@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace LosasPlus.Cargas;
@@ -108,6 +109,35 @@ public partial class CombinacionCarga : INotifyPropertyChanged
     /// inicializador — <c>ProyectoSerializer</c> la rellena vía <c>Populate</c>.
     /// </summary>
     public ObservableCollection<TerminoCombinacion> Terminos { get; } = new();
+
+    /// <summary>
+    /// Factor del caso <paramref name="codigoCaso"/> en esta combinación: el
+    /// <see cref="TerminoCombinacion.Factor"/> del término con ese código, o
+    /// <c>0</c> si no hay término. El <c>set</c> hace upsert (o borra el
+    /// término si el factor es 0). Es el acceso que usa la matriz de factores
+    /// de la UI; los indexers no los serializa System.Text.Json.
+    /// </summary>
+    public double this[string codigoCaso]
+    {
+        get => Terminos.FirstOrDefault(t => t.CodigoCaso == codigoCaso)?.Factor ?? 0.0;
+        set
+        {
+            var termino = Terminos.FirstOrDefault(t => t.CodigoCaso == codigoCaso);
+            if (value == 0.0)
+            {
+                if (termino is not null) Terminos.Remove(termino);
+            }
+            else if (termino is not null)
+            {
+                termino.Factor = value;
+            }
+            else
+            {
+                Terminos.Add(new TerminoCombinacion(codigoCaso, value));
+            }
+            OnPropertyChanged("Item[]");
+        }
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? name = null)
