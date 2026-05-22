@@ -15,6 +15,7 @@ using LosasPlus.Models;
 using LosasPlus.Persistence;
 using LosasPlus.Services;
 using LosasPlus.Validation;
+using LosasPlus.ViewModels.Columnas;
 using LosasPlus.ViewModels.Vigas;
 using MemoriaPlusVm = MemoriaPlus.ViewModels;  // ProyectoResumen vive en src.UI.Shared
 
@@ -154,6 +155,12 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// su edición y el renderizado de diagramas analíticos con OxyPlot.
     /// </summary>
     public VigaEditorViewModel VigaEditor { get; private set; } = null!;
+
+    /// <summary>
+    /// Sub-VM del editor de columnas RC (Fase 5): gestiona la columna activa,
+    /// su edición y el renderizado del diagrama de interacción P-M con OxyPlot.
+    /// </summary>
+    public ColumnaEditorViewModel ColumnaEditor { get; private set; } = null!;
 
     public ICommand? IrABusquedaCommand { get; private set; }
     public ICommand? GenerarMemoriaCommand { get; private set; }
@@ -426,6 +433,14 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
                 nivelRestaurado.Vigas.Add(v);
             VigaEditor.NotificarRestauracion();
 
+            // Restaurar las columnas del nivel por defecto (Fase 5) — mismo
+            // patrón aditivo que vigas; la colección sobrevive el roundtrip
+            // JSON gracias a Populate (ver `Las_columnas_del_nivel_…`).
+            nivelRestaurado.Columnas.Clear();
+            foreach (var c in restored.Edificios[0].Niveles[0].Columnas)
+                nivelRestaurado.Columnas.Add(c);
+            ColumnaEditor.NotificarRestauracion();
+
             SistemaActivo = _proyecto.Sistemas.FirstOrDefault() ?? NuevoSistemaDemo();
             OnPropertyChanged(nameof(Proyecto));
             OnPropertyChanged(nameof(TituloVentana));
@@ -666,6 +681,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
 
         // ---- Editor de vigas continuas (Fase 3) ----
         VigaEditor = new VigaEditorViewModel(_proyecto, PushUndoSnapshot);
+
+        // ---- Editor de columnas RC (Fase 5) ----
+        ColumnaEditor = new ColumnaEditorViewModel(_proyecto, PushUndoSnapshot);
 
         // Cambios al nombre del proyecto refrescan el título de la ventana.
         _proyecto.PropertyChanged += (_, e) =>
@@ -1379,6 +1397,8 @@ public enum ModoSidebar
     CargasCombinaciones,
     /// <summary>Editor de vigas continuas y diagramas analíticos (Fase 3).</summary>
     Vigas,
+    /// <summary>Editor de columnas y diagrama de interacción P-M (Fase 5).</summary>
+    Columnas,
     Validacion,
     Busqueda,
     Configuracion,

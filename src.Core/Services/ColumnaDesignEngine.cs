@@ -106,25 +106,29 @@ public static class ColumnaDesignEngine
         var (nomRama2, disRama2) = BarrerRama(
             b, h, fc, fy, ey, beta1, capasReflejadas, topeDisenoKn, signoM: -1.0);
 
-        // --- Ensamblado con anclas terminales únicas en el eje M = 0 ---
-        // Tn de diseño usa φ tensión-controlada (εt → ∞): 0.90·Tn.
+        // --- Ensamblado en orden cíclico cerrado: P0 → ramal+ → Tn → ramal−
+        //     invertido → cierre en P0. Permite que el consumidor grafique las
+        //     curvas como un polígono continuo sin reordenar. Tn de diseño
+        //     usa φ tensión-controlada (εt → ∞): 0.90·Tn.
         double tnDisenoKn = 0.90 * tnKn;
 
-        var nominales = new List<PuntoInteraccion>(nomRama1.Count + nomRama2.Count + 2)
+        var nominales = new List<PuntoInteraccion>(nomRama1.Count + nomRama2.Count + 3)
         {
             new(0.0, p0Kn),
         };
         nominales.AddRange(nomRama1);
         nominales.Add(new PuntoInteraccion(0.0, tnKn));
-        nominales.AddRange(nomRama2);
+        nominales.AddRange(((IEnumerable<PuntoInteraccion>)nomRama2).Reverse());
+        nominales.Add(new PuntoInteraccion(0.0, p0Kn));
 
-        var disenos = new List<PuntoInteraccion>(disRama1.Count + disRama2.Count + 2)
+        var disenos = new List<PuntoInteraccion>(disRama1.Count + disRama2.Count + 3)
         {
             new(0.0, topeDisenoKn),
         };
         disenos.AddRange(disRama1);
         disenos.Add(new PuntoInteraccion(0.0, tnDisenoKn));
-        disenos.AddRange(disRama2);
+        disenos.AddRange(((IEnumerable<PuntoInteraccion>)disRama2).Reverse());
+        disenos.Add(new PuntoInteraccion(0.0, topeDisenoKn));
 
         return new DiagramaInteraccion2D(nominales, disenos, p0Kn, tnKn);
     }

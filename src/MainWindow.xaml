@@ -6,6 +6,7 @@
         xmlns:v="clr-namespace:LosasPlus.Views"
         xmlns:cad="clr-namespace:LosasPlus.Views.Cad"
         xmlns:vigas="clr-namespace:LosasPlus.Views.Vigas"
+        xmlns:cols="clr-namespace:LosasPlus.Views.Columnas"
         xmlns:s="clr-namespace:LosasPlus.Services"
         xmlns:cmn="clr-namespace:MemoriaPlus.Common;assembly=MemoriaPlus.UI.Shared"
         xmlns:vws="clr-namespace:MemoriaPlus.Views;assembly=MemoriaPlus.UI.Shared"
@@ -144,6 +145,9 @@
                         <RadioButton GroupName="SidebarNav" Content="📐  Vigas Continuas"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vigas}"
                                      ToolTip="Editor de vigas continuas: análisis por rigidez directa y diagramas V(x), M(x) y δ(x)."/>
+                        <RadioButton GroupName="SidebarNav" Content="🟦  Columnas"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Columnas}"
+                                     ToolTip="Editor de columnas RC: diagrama de interacción P-M uniaxial 2D según ACI 318-19."/>
                         <RadioButton GroupName="SidebarNav" Content="🛡  Validación"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}"/>
                         <RadioButton GroupName="SidebarNav" Content="⚖  Reglamento"
@@ -948,6 +952,21 @@
                         </Style>
                     </ContentControl.Style>
                     <vigas:VigaEditorView DataContext="{Binding}"/>
+                </ContentControl>
+
+                <!-- MODO Columnas — editor de columnas RC y diagrama de interacción P-M (Fase 5). -->
+                <ContentControl>
+                    <ContentControl.Style>
+                        <Style TargetType="{x:Type ContentControl}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ModoActivo}" Value="Columnas">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ContentControl.Style>
+                    <cols:ColumnaEditorView DataContext="{Binding}"/>
                 </ContentControl>
 
                 <!-- MODO DLEditor (texto crudo) -->
