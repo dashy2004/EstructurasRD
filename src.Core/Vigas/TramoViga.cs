@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using LosasPlus.Rc;
 
 namespace LosasPlus.Vigas;
 
@@ -25,6 +26,8 @@ public partial class TramoViga : INotifyPropertyChanged
     private double _peralte = 0.50;             // m
     private double _inercia = 0.003125;         // m⁴  (0.30·0.50³/12)
     private double _moduloElasticidad = 2.5e7;  // kN/m²  (≈ hormigón f'c 28 MPa)
+    private SeccionRC _seccion = new();
+    private RefuerzoLongitudinal _refuerzo = new();
 
     /// <summary>Longitud del tramo, en metros.</summary>
     public double Longitud
@@ -64,6 +67,23 @@ public partial class TramoViga : INotifyPropertyChanged
     {
         get => _moduloElasticidad;
         set { _moduloElasticidad = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// Sección de concreto reforzado del tramo para el diseño RC (Fase 4) —
+    /// geometría y materiales que evalúa <c>RcDesignEngine</c> a flexión.
+    /// </summary>
+    public SeccionRC Seccion
+    {
+        get => _seccion;
+        set { _seccion = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Acero de refuerzo longitudinal del tramo (Fase 4).</summary>
+    public RefuerzoLongitudinal Refuerzo
+    {
+        get => _refuerzo;
+        set { _refuerzo = value; OnPropertyChanged(); }
     }
 
     /// <summary>
