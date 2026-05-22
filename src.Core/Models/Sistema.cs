@@ -7,6 +7,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using LosasPlus.Models.Cad;
+using LosasPlus.Cargas;
 
 namespace LosasPlus.Models;
 
@@ -35,6 +36,10 @@ public partial class Proyecto : INotifyPropertyChanged
     private string _ubicacion = "";
     private string _descripcion = "";
     private DateTime _fechaCreacion = DateTime.Now;
+    // Backing field con un CombinacionesProyecto VACÍO. La siembra se hace en
+    // ProyectoFactory / la migración de ProyectoSerializer, nunca aquí — sembrar
+    // en el campo duplicaría al deserializar con Populate. Mismo patrón que Cargas.
+    private CombinacionesProyecto _combinaciones = new();
 
     /// <summary>
     /// Path al archivo de manifest <c>proyecto.lpx.json</c> O, en modo legacy,
@@ -113,6 +118,17 @@ public partial class Proyecto : INotifyPropertyChanged
             Edificios.Add(new Edificio());
         if (Edificios[0].Niveles.Count == 0)
             Edificios[0].Niveles.Add(new Nivel());
+    }
+
+    /// <summary>
+    /// Casos y combinaciones de carga del proyecto — base de diseño transversal
+    /// a todos los módulos (losas, vigas, columnas, zapatas). Fase 2 de la
+    /// suite estructural. Se siembra vía <see cref="ProyectoFactory"/>.
+    /// </summary>
+    public CombinacionesProyecto Combinaciones
+    {
+        get => _combinaciones;
+        set { _combinaciones = value; OnPropertyChanged(); }
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

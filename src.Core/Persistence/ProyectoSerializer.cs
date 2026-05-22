@@ -5,6 +5,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using LosasPlus.Cargas;
 using LosasPlus.Models;
 
 namespace LosasPlus.Persistence;
@@ -32,9 +33,10 @@ public static class ProyectoSerializer
     /// <summary>
     /// Versión actual del formato de archivo. Incrementar con cada cambio breaking.
     /// v1 → v2: jerarquía <c>Edificio → Nivel</c> entre <c>Proyecto</c> y
-    /// <c>Sistema</c>; los archivos v1 se migran automáticamente al cargar.
+    /// <c>Sistema</c>. v2 → v3: casos y combinaciones de carga. Los archivos
+    /// anteriores se migran automáticamente al cargar.
     /// </summary>
-    public const int FormatVersion = 2;
+    public const int FormatVersion = 3;
 
     /// <summary>Extensión canónica de archivos de proyecto Memoria Plus.</summary>
     public const string Extension = ".lpx.json";
@@ -112,6 +114,14 @@ public static class ProyectoSerializer
         var envelope = root.Deserialize<ProyectoEnvelope>(_opts);
         if (envelope is null)
             throw new InvalidProyectoFileException("El archivo está vacío o malformado.");
+
+        // Salvavidas retroactivo: los archivos anteriores a v3 no tienen casos
+        // ni combinaciones de carga. Se les inyecta la semilla por defecto para
+        // que ningún proyecto existente quede sin base de diseño (PROPUESTA Fase 2).
+        if (version < 3 && envelope.Proyecto is not null)
+            envelope.Proyecto.Combinaciones =
+                CombinacionesProyecto.SemillaPorDefecto(NormaCombinaciones.Asce7_05);
+
         return envelope;
     }
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json.Serialization;
+using LosasPlus.Cargas;
 
 namespace LosasPlus.Models;
 
@@ -216,6 +217,8 @@ public static class ProyectoFactory
     /// - <see cref="CargasGlobales.SemillaPorDefecto"/> ya cargada
     ///   (15 filas tabla h, 3 pesos propios entrepiso, 3 pesos propios techo,
     ///    cargas vivas R-001 y factores ACI 318-05).
+    /// - <see cref="CombinacionesProyecto.SemillaPorDefecto"/> ASCE 7-05
+    ///   (4 casos de carga + 8 combinaciones).
     /// - Materiales default (f'c 280 kg/cm², fy 4200 kg/cm²).
     /// </summary>
     /// <remarks>
@@ -227,6 +230,7 @@ public static class ProyectoFactory
     {
         var p = new Proyecto();
         p.Cargas = CargasGlobales.SemillaPorDefecto();
+        p.Combinaciones = CombinacionesProyecto.SemillaPorDefecto(NormaCombinaciones.Asce7_05);
         return p;
     }
 }
