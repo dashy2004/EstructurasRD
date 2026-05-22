@@ -11,19 +11,20 @@ using LosasPlus.Models.Cad;
 namespace LosasPlus.Models;
 
 /// <summary>
-/// Un proyecto agrupa varios <see cref="Sistema"/>, cada uno persistido en su propio
-/// archivo <c>.DL</c> dentro de una carpeta del proyecto. La estructura recomendada es:
+/// Un proyecto es la raíz del modelo de dominio. Contiene uno o más
+/// <see cref="Edificio"/>, cada uno con sus plantas (<see cref="Nivel"/>), y
+/// cada nivel con sus <see cref="Sistema"/>s de losas:
 /// <code>
-/// MiProyecto/
-///   proyecto.lpx.json     ← metadata del proyecto + lista de sistemas
-///   sistema_planta_baja.dl
-///   sistema_techo.dl
-///   ...
+/// Proyecto → Edificio → Nivel → Sistema → Losa
 /// </code>
-/// El archivo <c>proyecto.lpx.json</c> guarda metadata (autor, fecha, descripción) y
-/// la lista de archivos <c>.DL</c> con su nombre descriptivo. Cada <c>.DL</c> sigue
-/// siendo byte-compatible con <c>Losas.exe</c> (un sistema por archivo, lectura
-/// directa por el motor).
+/// El proyecto se persiste como un único archivo <c>.lpx.json</c> con metadata
+/// (autor, fecha, descripción) más el árbol de edificios. Cada <see cref="Sistema"/>
+/// sigue siendo exportable a un <c>.DL</c> byte-compatible con <c>Losas.exe</c>.
+///
+/// <para>
+/// La propiedad <see cref="Sistemas"/> es una <b>fachada de compatibilidad</b>
+/// que expone los sistemas del nivel por defecto — ver su documentación.
+/// </para>
 /// </summary>
 public partial class Proyecto : INotifyPropertyChanged
 {
@@ -66,7 +67,53 @@ public partial class Proyecto : INotifyPropertyChanged
         }
     }
 
-    public ObservableCollection<Sistema> Sistemas { get; } = new();
+    /// <summary>
+    /// Edificios del proyecto — el almacenamiento real de la jerarquía
+    /// <c>Edificio → Nivel → Sistema</c> (Fase 1 de la suite estructural).
+    /// Es lo que persiste el <c>.lpx.json</c> v2.
+    /// </summary>
+    /// <remarks>
+    /// Inicializador VACÍO a propósito: <c>ProyectoSerializer</c> usa
+    /// <c>PreferredObjectCreationHandling = Populate</c>, que rellena la
+    /// colección existente vía <c>.Add()</c>. Sembrar un edificio por defecto
+    /// aquí lo duplicaría al deserializar. La estructura por defecto se crea
+    /// perezosamente en <see cref="AsegurarEstructura"/>.
+    /// </remarks>
+    public ObservableCollection<Edificio> Edificios { get; } = new();
+
+    /// <summary>
+    /// Sistemas de losas del proyecto — <b>fachada de compatibilidad</b> que
+    /// expone los sistemas del primer <see cref="Nivel"/> del primer
+    /// <see cref="Edificio"/>. Devuelve la <see cref="ObservableCollection{T}"/>
+    /// real (no una copia): todo el código y los bindings previos a la
+    /// jerarquía <c>Edificio/Nivel</c> siguen funcionando sin cambios.
+    /// No se serializa (<see cref="JsonIgnoreAttribute"/>) — el árbol real
+    /// vive en <see cref="Edificios"/>.
+    /// </summary>
+    [JsonIgnore]
+    public ObservableCollection<Sistema> Sistemas
+    {
+        get
+        {
+            AsegurarEstructura();
+            return Edificios[0].Niveles[0].Sistemas;
+        }
+    }
+
+    /// <summary>
+    /// Garantiza que el proyecto tenga al menos un <see cref="Edificio"/> con
+    /// al menos un <see cref="Nivel"/>. Idempotente: no hace nada si la
+    /// estructura ya existe. La invoca el getter de <see cref="Sistemas"/> y
+    /// puede llamarse tras un <c>new Proyecto()</c> para materializar la
+    /// estructura por defecto.
+    /// </summary>
+    public void AsegurarEstructura()
+    {
+        if (Edificios.Count == 0)
+            Edificios.Add(new Edificio());
+        if (Edificios[0].Niveles.Count == 0)
+            Edificios[0].Niveles.Add(new Nivel());
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? n = null)

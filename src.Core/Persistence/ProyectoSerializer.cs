@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using LosasPlus.Models;
 
@@ -28,8 +29,12 @@ namespace LosasPlus.Persistence;
 /// </summary>
 public static class ProyectoSerializer
 {
-    /// <summary>Versión actual del formato de archivo. Incrementar con cada cambio breaking.</summary>
-    public const int FormatVersion = 1;
+    /// <summary>
+    /// Versión actual del formato de archivo. Incrementar con cada cambio breaking.
+    /// v1 → v2: jerarquía <c>Edificio → Nivel</c> entre <c>Proyecto</c> y
+    /// <c>Sistema</c>; los archivos v1 se migran automáticamente al cargar.
+    /// </summary>
+    public const int FormatVersion = 2;
 
     /// <summary>Extensión canónica de archivos de proyecto Memoria Plus.</summary>
     public const string Extension = ".lpx.json";
@@ -78,10 +83,68 @@ public static class ProyectoSerializer
     {
         if (string.IsNullOrWhiteSpace(json))
             throw new InvalidProyectoFileException("JSON vacío");
-        var envelope = JsonSerializer.Deserialize<ProyectoEnvelope>(json, _opts);
-        if (envelope?.Proyecto is null)
+        var envelope = DeserializarEnvelope(json);
+        if (envelope.Proyecto is null)
             throw new InvalidProyectoFileException("JSON sin proyecto válido");
         return envelope.Proyecto;
+    }
+
+    /// <summary>
+    /// Deserializa un <see cref="ProyectoEnvelope"/> desde JSON aplicando, si
+    /// hace falta, la migración de formato. Los archivos v1 (jerarquía plana
+    /// <c>proyecto.sistemas</c>) se transforman a v2 (<c>proyecto.edificios</c>)
+    /// sobre el JSON crudo, antes de materializar el modelo.
+    /// </summary>
+    private static ProyectoEnvelope DeserializarEnvelope(string json)
+    {
+        JsonNode? node = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions
+        {
+            CommentHandling     = JsonCommentHandling.Skip,
+            AllowTrailingCommas = true,
+        });
+        if (node is not JsonObject root)
+            throw new InvalidProyectoFileException("El archivo está vacío o malformado.");
+
+        int version = root["version"] is JsonValue v && v.TryGetValue<int>(out var ver) ? ver : 0;
+        if (version == 1)
+            MigrarV1aV2(root);
+
+        var envelope = root.Deserialize<ProyectoEnvelope>(_opts);
+        if (envelope is null)
+            throw new InvalidProyectoFileException("El archivo está vacío o malformado.");
+        return envelope;
+    }
+
+    /// <summary>
+    /// Migra el JSON de un proyecto del formato v1 al v2 <b>in situ</b>: el
+    /// array plano <c>proyecto.sistemas</c> se envuelve en un único
+    /// <c>Edificio</c> con un único <c>Nivel</c> que contiene todos los
+    /// sistemas heredados.
+    /// </summary>
+    private static void MigrarV1aV2(JsonObject root)
+    {
+        root["version"] = 2;
+
+        if (root["proyecto"] is not JsonObject proyecto)
+            return;   // sin proyecto — el caller valida y reporta el error
+
+        // DeepClone → nodo sin padre, re-ubicable bajo el nuevo nivel.
+        JsonArray sistemas = (proyecto["sistemas"] as JsonArray)?.DeepClone().AsArray()
+                             ?? new JsonArray();
+        proyecto.Remove("sistemas");
+
+        var nivel = new JsonObject
+        {
+            ["nombre"]   = "Nivel 1",
+            ["cota"]     = 0,
+            ["sistemas"] = sistemas,
+        };
+        var edificio = new JsonObject
+        {
+            ["nombre"]  = "Edificio 1",
+            ["niveles"] = new JsonArray(nivel),
+        };
+        proyecto["edificios"] = new JsonArray(edificio);
     }
 
     /// <summary>
@@ -123,9 +186,7 @@ public static class ProyectoSerializer
         var json = File.ReadAllText(path, Encoding.UTF8);
         try
         {
-            var envelope = JsonSerializer.Deserialize<ProyectoEnvelope>(json, _opts);
-            if (envelope is null)
-                throw new InvalidProyectoFileException("El archivo está vacío o malformado.");
+            var envelope = DeserializarEnvelope(json);
             if (envelope.Version > FormatVersion)
                 throw new InvalidProyectoFileException(
                     $"Versión del archivo ({envelope.Version}) superior a la soportada ({FormatVersion}). " +
@@ -175,12 +236,40 @@ public static class ProyectoSerializer
                     ? v.GetString() ?? ""
                     : "";
 
-            int CountSistemas() =>
-                proyectoEl.ValueKind == JsonValueKind.Object
-                && proyectoEl.TryGetProperty("sistemas", out var s)
-                && s.ValueKind == JsonValueKind.Array
-                    ? s.GetArrayLength()
-                    : 0;
+            // Conteo version-aware: v2 anida sistemas bajo edificios[].niveles[];
+            // v1 los lista planos en proyecto.sistemas.
+            int CountSistemas()
+            {
+                if (proyectoEl.ValueKind != JsonValueKind.Object) return 0;
+
+                if (proyectoEl.TryGetProperty("edificios", out var eds)
+                    && eds.ValueKind == JsonValueKind.Array)
+                {
+                    int total = 0;
+                    foreach (var ed in eds.EnumerateArray())
+                    {
+                        if (ed.ValueKind == JsonValueKind.Object
+                            && ed.TryGetProperty("niveles", out var nivs)
+                            && nivs.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var niv in nivs.EnumerateArray())
+                            {
+                                if (niv.ValueKind == JsonValueKind.Object
+                                    && niv.TryGetProperty("sistemas", out var sis)
+                                    && sis.ValueKind == JsonValueKind.Array)
+                                    total += sis.GetArrayLength();
+                            }
+                        }
+                    }
+                    return total;
+                }
+
+                if (proyectoEl.TryGetProperty("sistemas", out var s)
+                    && s.ValueKind == JsonValueKind.Array)
+                    return s.GetArrayLength();
+
+                return 0;
+            }
 
             return new ProyectoMetadata
             {
