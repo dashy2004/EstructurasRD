@@ -134,6 +134,189 @@ public static class ZapataDesignEngine
             porCombinacion, qMaxGlobal, qMinGlobal, esEstable);
     }
 
+    /// <summary>Recubrimiento mínimo en la cara inferior de zapatas (ACI 318-19 §20.5.1.3), en m.</summary>
+    private const double RecubrimientoZapata = 0.075;
+
+    /// <summary>Cuantía mínima de retracción/temperatura para Grade 60 (ACI 318-19 §13.3.3.1).</summary>
+    private const double CuantiaMinimaFlexion = 0.0018;
+
+    /// <summary>Factor de reducción de resistencia a cortante (ACI 318-19 §21.2).</summary>
+    private const double PhiCortante = 0.75;
+
+    /// <summary>Factor de reducción de resistencia a flexión (ACI 318-19 §21.2, tensión controlada).</summary>
+    private const double PhiFlexion = 0.90;
+
+    /// <summary>Factor α_s para columna interior en la ecuación de punzonamiento ACI 22.6.5.2.</summary>
+    private const double AlfaSColumnaInterior = 40.0;
+
+    /// <summary>
+    /// Verifica las tres fallas estructurales de Estado Límite Último (ELU)
+    /// de una <see cref="ZapataAislada"/> según ACI 318-19 (Fase 6,
+    /// Iteración 3): flexión en la cara del pedestal, cortante unidimensional
+    /// a una distancia <c>d</c> y punzonamiento biaxial a <c>d/2</c>.
+    ///
+    /// <para>
+    /// Procesa exclusivamente las combinaciones <c>Tipo == Ultima</c> y
+    /// excluye el peso permanente de los esfuerzos estructurales (el peso
+    /// propio del dado de concreto y el suelo de relleno se cancelan con la
+    /// presión recíproca del terreno justo debajo de la zapata). Aplica
+    /// <c>qu_max</c> uniforme conservador sobre las áreas tributarias.
+    /// </para>
+    /// </summary>
+    /// <param name="zapata">La zapata a verificar (geometría + cargas).</param>
+    /// <param name="combinaciones">Base de combinaciones del proyecto.</param>
+    /// <param name="fc">Resistencia especificada del concreto a compresión f'c, en MPa.</param>
+    /// <param name="fy">Esfuerzo de fluencia del acero de refuerzo fy, en MPa.</param>
+    public static ResultadoEstructuralZapata VerificarEstructuraZapata(
+        ZapataAislada zapata, CombinacionesProyecto combinaciones, double fc, double fy)
+    {
+        ArgumentNullException.ThrowIfNull(zapata);
+        ArgumentNullException.ThrowIfNull(combinaciones);
+
+        var g = zapata.Dimensiones;
+        if (g.LargoB <= 0.0 || g.AnchoL <= 0.0 || g.EspesorH <= 0.0 || fc <= 0.0 || fy <= 0.0)
+            return ResultadoEstructuralZapata.Vacio;
+
+        // --- Geometría ---
+        double B = g.LargoB;
+        double L = g.AnchoL;
+        double H = g.EspesorH;
+        double d = H - RecubrimientoZapata;
+        if (d <= 0.0) return ResultadoEstructuralZapata.Vacio;
+
+        double A = B * L;
+        double Wx = B * L * L / 6.0;
+        double Wy = L * B * B / 6.0;
+        double bCol = Math.Max(0.0, g.AnchoColumna);
+        double lCol = Math.Max(0.0, g.PeralteColumna);
+        double cX = (B - bCol) / 2.0;
+        double cY = (L - lCol) / 2.0;
+        if (cX < 0.0) cX = 0.0;
+        if (cY < 0.0) cY = 0.0;
+
+        // Perímetro crítico de punzonamiento a d/2 del pedestal (rectángulo
+        // concéntrico de lados b_col+d y l_col+d).
+        double ladoPerimX = bCol + d;
+        double ladoPerimY = lCol + d;
+        double b0 = 2.0 * (ladoPerimX + ladoPerimY);
+        double areaPerim = ladoPerimX * ladoPerimY;
+        double beta = Math.Max(bCol, lCol) > 0.0 && Math.Min(bCol, lCol) > 0.0
+            ? Math.Max(bCol, lCol) / Math.Min(bCol, lCol)
+            : 1.0;
+
+        // --- Acero mínimo reglamentario por metro de ancho ---
+        double AsMinPorMetro = CuantiaMinimaFlexion * 1.0 * H;          // m²/m
+        double aMin = AsMinPorMetro * fy / (0.85 * fc * 1.0);            // m (b=1m)
+        double phiMnMinPorMetro = PhiFlexion * AsMinPorMetro * fy * (d - aMin / 2.0) * 1000.0;
+            // kN·m/m   (m² · MPa · m · 10³ = m³·MPa·10³ = 10³ kN·m)
+
+        // --- Capacidades a cortante 1D (por dirección, dependen del ancho perpendicular) ---
+        double phiVcX = PhiCortante * 0.17 * Math.Sqrt(fc) * L * d * 1000.0;   // kN — corte sección X (ancho L)
+        double phiVcY = PhiCortante * 0.17 * Math.Sqrt(fc) * B * d * 1000.0;   // kN — corte sección Y (ancho B)
+
+        // --- Capacidad a punzonamiento (constante para la zapata) ---
+        double sqrtFc = Math.Sqrt(fc);
+        double vC1 = 0.17 * (1.0 + 2.0 / beta) * sqrtFc * b0 * d * 1000.0;
+        double vC2 = 0.083 * (2.0 + AlfaSColumnaInterior * d / b0) * sqrtFc * b0 * d * 1000.0;
+        double vC3 = 0.33 * sqrtFc * b0 * d * 1000.0;
+        double phiVcPunz = PhiCortante * Math.Min(vC1, Math.Min(vC2, vC3));
+
+        // --- Iterar combinaciones de tipo Ultima ---
+        var combosUltima = combinaciones.Combinaciones
+            .Where(c => c.Tipo == TipoCombinacion.Ultima)
+            .ToList();
+        if (combosUltima.Count == 0)
+            return ResultadoEstructuralZapata.Vacio with
+            {
+                LadoPerimetroX = ladoPerimX,
+                LadoPerimetroY = ladoPerimY,
+                AceroMinimoRequerido = AsMinPorMetro,
+            };
+
+        double ratioFlexMaxGlobal = 0.0;
+        double ratioCortMaxGlobal = 0.0;
+        double ratioPunzMaxGlobal = 0.0;
+        double ratioMaxGlobal = 0.0;
+        string nombreCritico = "";
+        double mUDetalle = 0.0;
+        double vUDetalle = 0.0;
+        double vUpDetalle = 0.0;
+
+        foreach (var combo in combosUltima)
+        {
+            // Cargas externas mayoradas — sin peso permanente.
+            double Pt = 0.0, Mxt = 0.0, Myt = 0.0;
+            foreach (var c in zapata.Cargas)
+            {
+                double factor = combo[c.CodigoCaso];
+                if (factor == 0.0) continue;
+                Pt += factor * c.P;
+                Mxt += factor * c.Mx;
+                Myt += factor * c.My;
+            }
+
+            // Presiones netas en las 4 esquinas.
+            double q1 = Pt / A + Mxt / Wx + Myt / Wy;
+            double q2 = Pt / A + Mxt / Wx - Myt / Wy;
+            double q3 = Pt / A - Mxt / Wx - Myt / Wy;
+            double q4 = Pt / A - Mxt / Wx + Myt / Wy;
+            double quMax = Math.Max(Math.Max(q1, q2), Math.Max(q3, q4));
+
+            // Si la combinación produce únicamente levantamiento, no hay
+            // esfuerzos estructurales que verificar — saltar.
+            if (quMax <= 0.0) continue;
+
+            // --- Flexión: M_u por metro de ancho, ratio contra φMn_min ---
+            double mUxPorMetro = quMax * cX * cX / 2.0;
+            double mUyPorMetro = quMax * cY * cY / 2.0;
+            double ratioFlexX = phiMnMinPorMetro > 0.0 ? mUxPorMetro / phiMnMinPorMetro : 0.0;
+            double ratioFlexY = phiMnMinPorMetro > 0.0 ? mUyPorMetro / phiMnMinPorMetro : 0.0;
+            double ratioFlex = Math.Max(ratioFlexX, ratioFlexY);
+            double mUDetalleCombo = Math.Max(mUxPorMetro, mUyPorMetro);
+
+            // --- Cortante 1D: V_u a una distancia d del pedestal ---
+            double vUx = quMax * L * Math.Max(0.0, cX - d);
+            double vUy = quMax * B * Math.Max(0.0, cY - d);
+            double ratioCortX = phiVcX > 0.0 ? vUx / phiVcX : 0.0;
+            double ratioCortY = phiVcY > 0.0 ? vUy / phiVcY : 0.0;
+            double ratioCort = Math.Max(ratioCortX, ratioCortY);
+            double vUDetalleCombo = Math.Max(vUx, vUy);
+
+            // --- Punzonamiento: V_up = qu_max · (A − área del perímetro) ---
+            double vUp = quMax * Math.Max(0.0, A - areaPerim);
+            double ratioPunz = phiVcPunz > 0.0 ? vUp / phiVcPunz : 0.0;
+
+            // --- Recordar la combinación crítica ---
+            double ratioCombo = Math.Max(ratioFlex, Math.Max(ratioCort, ratioPunz));
+            if (ratioCombo > ratioMaxGlobal)
+            {
+                ratioMaxGlobal = ratioCombo;
+                nombreCritico = combo.Nombre;
+                mUDetalle = mUDetalleCombo;
+                vUDetalle = vUDetalleCombo;
+                vUpDetalle = vUp;
+            }
+
+            if (ratioFlex > ratioFlexMaxGlobal) ratioFlexMaxGlobal = ratioFlex;
+            if (ratioCort > ratioCortMaxGlobal) ratioCortMaxGlobal = ratioCort;
+            if (ratioPunz > ratioPunzMaxGlobal) ratioPunzMaxGlobal = ratioPunz;
+        }
+
+        return new ResultadoEstructuralZapata(
+            RatioFlexion: ratioFlexMaxGlobal,
+            RatioCortante: ratioCortMaxGlobal,
+            RatioPunzonamiento: ratioPunzMaxGlobal,
+            RatioEstructuralMaximo: ratioMaxGlobal,
+            EstructuraConforme: ratioMaxGlobal <= 1.0,
+            NombreCombinacionCritica: nombreCritico,
+            MomentoUltimo: mUDetalle,
+            CortanteUltimo: vUDetalle,
+            PunzonamientoUltimo: vUpDetalle,
+            AceroMinimoRequerido: AsMinPorMetro,
+            LadoPerimetroX: ladoPerimX,
+            LadoPerimetroY: ladoPerimY);
+    }
+
     // ----- Helpers privados -----
 
     /// <summary>

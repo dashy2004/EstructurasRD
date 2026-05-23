@@ -43,6 +43,17 @@ public sealed class ZapataEditorViewModel : INotifyPropertyChanged
     private static readonly OxyColor ColorBandaTraccion    = OxyColor.FromRgb(0xBA, 0x1A, 0x1A);
     private static readonly OxyColor ColorConcreto         = OxyColor.FromRgb(0xBD, 0xBD, 0xBD);
     private static readonly OxyColor ColorPedestal         = OxyColor.FromRgb(0xC2, 0x8A, 0x1E);
+    private static readonly OxyColor ColorPerimetroPunzonamiento = OxyColor.FromRgb(0xD9, 0x76, 0x06);   // Warn (naranja)
+
+    /// <summary>
+    /// Resistencia del concreto a compresión asumida para la verificación
+    /// estructural ELU, en MPa. Iter 3 la fija como constante; iteración
+    /// futura puede exponerla en el dominio de la zapata.
+    /// </summary>
+    private const double FcMaterial = 28.0;
+
+    /// <summary>Esfuerzo de fluencia del acero asumido para ELU, en MPa.</summary>
+    private const double FyMaterial = 420.0;
 
     private readonly Proyecto _proyecto;
     private readonly Action _pushUndoSnapshot;
@@ -53,6 +64,7 @@ public sealed class ZapataEditorViewModel : INotifyPropertyChanged
     private ZapataAislada? _zapataEnganchada;
 
     private ResultadoPresionesZapata _resultado = ResultadoPresionesZapata.Vacio;
+    private ResultadoEstructuralZapata _resultadoEstructural = ResultadoEstructuralZapata.Vacio;
     private CancellationTokenSource? _ctsRecalculo;
     private Task _recalculoActual = Task.CompletedTask;
 
@@ -159,6 +171,30 @@ public sealed class ZapataEditorViewModel : INotifyPropertyChanged
 
     /// <summary><c>true</c> si todas las combinaciones de servicio satisfacen q_max ≤ q_adm.</summary>
     public bool EsEstable => _resultado.EsEstable;
+
+    /// <summary>Ratio D/C de flexión a la cara del pedestal (Fase 6 Iter 3 — ACI 318-19).</summary>
+    public double RatioFlexion => _resultadoEstructural.RatioFlexion;
+
+    /// <summary>Ratio D/C de cortante unidimensional a una distancia <c>d</c> del pedestal.</summary>
+    public double RatioCortante => _resultadoEstructural.RatioCortante;
+
+    /// <summary>Ratio D/C de punzonamiento biaxial a <c>d/2</c> del pedestal.</summary>
+    public double RatioPunzonamiento => _resultadoEstructural.RatioPunzonamiento;
+
+    /// <summary>Máximo de los tres ratios estructurales — el peor caso de la verificación ELU.</summary>
+    public double RatioEstructuralMaximo => _resultadoEstructural.RatioEstructuralMaximo;
+
+    /// <summary><c>true</c> si todos los ratios ELU son ≤ 1.0.</summary>
+    public bool EstructuraConforme => _resultadoEstructural.EstructuraConforme;
+
+    /// <summary><c>true</c> si <see cref="RatioFlexion"/> &gt; 1.0 — para el DataTrigger de la barra cromática.</summary>
+    public bool FlexionExcede => _resultadoEstructural.RatioFlexion > 1.0;
+
+    /// <summary><c>true</c> si <see cref="RatioCortante"/> &gt; 1.0.</summary>
+    public bool CortanteExcede => _resultadoEstructural.RatioCortante > 1.0;
+
+    /// <summary><c>true</c> si <see cref="RatioPunzonamiento"/> &gt; 1.0.</summary>
+    public bool PunzonamientoExcede => _resultadoEstructural.RatioPunzonamiento > 1.0;
 
     // ---- Comandos ----
 
@@ -320,12 +356,19 @@ public sealed class ZapataEditorViewModel : INotifyPropertyChanged
         var combinaciones = _proyecto.Combinaciones;
         try
         {
-            var resultado = await Task.Run(
-                () => ZapataDesignEngine.AnalizarPresionesDeContacto(zapata, combinaciones),
-                token);
+            // Análisis de presiones (Servicio) + verificación estructural (Ultima)
+            // corren juntos en el hilo secundario; el ensamblado de series
+            // reanuda en el contexto capturado (UI en la app).
+            var (presiones, estructural) = await Task.Run(() =>
+            {
+                var p = ZapataDesignEngine.AnalizarPresionesDeContacto(zapata, combinaciones);
+                var e = ZapataDesignEngine.VerificarEstructuraZapata(zapata, combinaciones, FcMaterial, FyMaterial);
+                return (p, e);
+            }, token);
             if (token.IsCancellationRequested) return;
 
-            _resultado = resultado;
+            _resultado = presiones;
+            _resultadoEstructural = estructural;
             RefrescarCombinacionesServicio();
             NotificarDiagnostico();
             ConstruirSeries();
@@ -362,6 +405,14 @@ public sealed class ZapataEditorViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(PresionMaximaGlobal));
         OnPropertyChanged(nameof(PresionMinimaGlobal));
         OnPropertyChanged(nameof(EsEstable));
+        OnPropertyChanged(nameof(RatioFlexion));
+        OnPropertyChanged(nameof(RatioCortante));
+        OnPropertyChanged(nameof(RatioPunzonamiento));
+        OnPropertyChanged(nameof(RatioEstructuralMaximo));
+        OnPropertyChanged(nameof(EstructuraConforme));
+        OnPropertyChanged(nameof(FlexionExcede));
+        OnPropertyChanged(nameof(CortanteExcede));
+        OnPropertyChanged(nameof(PunzonamientoExcede));
     }
 
     // ---- Construcción de las series OxyPlot ----
@@ -375,6 +426,7 @@ public sealed class ZapataEditorViewModel : INotifyPropertyChanged
     private void LimpiarDiagramas()
     {
         _resultado = ResultadoPresionesZapata.Vacio;
+        _resultadoEstructural = ResultadoEstructuralZapata.Vacio;
         CombinacionesServicio.Clear();
         _combinacionActiva = null;
         OnPropertyChanged(nameof(CombinacionActiva));
@@ -564,6 +616,26 @@ public sealed class ZapataEditorViewModel : INotifyPropertyChanged
         contornoPedestal.Points.Add(new DataPoint(+bCol / 2.0, +lCol / 2.0));
         contornoPedestal.Points.Add(new DataPoint(-bCol / 2.0, +lCol / 2.0));
         m.Annotations.Add(contornoPedestal);
+
+        // Perímetro crítico de punzonamiento (a d/2 del pedestal) — sólo si
+        // el motor estructural produjo un perímetro válido.
+        double ladoPerimX = _resultadoEstructural.LadoPerimetroX;
+        double ladoPerimY = _resultadoEstructural.LadoPerimetroY;
+        if (ladoPerimX > 0.0 && ladoPerimY > 0.0)
+        {
+            var perimetroCritico = new PolygonAnnotation
+            {
+                Fill = OxyColor.FromAColor(28, ColorPerimetroPunzonamiento),
+                Stroke = ColorPerimetroPunzonamiento,
+                StrokeThickness = 1.2,
+                LineStyle = LineStyle.Dash,
+            };
+            perimetroCritico.Points.Add(new DataPoint(-ladoPerimX / 2.0, -ladoPerimY / 2.0));
+            perimetroCritico.Points.Add(new DataPoint(+ladoPerimX / 2.0, -ladoPerimY / 2.0));
+            perimetroCritico.Points.Add(new DataPoint(+ladoPerimX / 2.0, +ladoPerimY / 2.0));
+            perimetroCritico.Points.Add(new DataPoint(-ladoPerimX / 2.0, +ladoPerimY / 2.0));
+            m.Annotations.Add(perimetroCritico);
+        }
 
         // Marcador de centroide.
         var centroide = new ScatterSeries
