@@ -55,12 +55,21 @@ internal static class SyncEscenaService
     // LineGeometryModel3D.Color es DependencyProperty con tipo
     // System.Windows.Media.Color (struct WPF). Instancias precreadas:
     // cada Element3D pinta su Color por valor, así que las constantes
-    // evitan asignaciones repetidas. Paleta Fase 3D-I2 alineada al
-    // briefing del usuario.
-    private static readonly Color ColorViga    = Color.FromArgb(0xFF, 0x4A, 0x90, 0xE2);   // azul estructural
-    private static readonly Color ColorColumna = Color.FromArgb(0xFF, 0xA0, 0xA0, 0xA0);   // gris claro metálico
-    private static readonly Color ColorZapata  = Color.FromArgb(0xFF, 0xD2, 0x84, 0x4A);   // marrón suave
-    private static readonly Color ColorMuro    = Color.FromArgb(0xFF, 0x2E, 0xCC, 0x71);   // verde esmeralda
+    // evitan asignaciones repetidas. Paleta alineada al briefing del
+    // usuario (Fase 3D-I2 / Fase 3D-I3).
+    internal static readonly Color ColorViga    = Color.FromArgb(0xFF, 0x4A, 0x90, 0xE2);   // azul estructural
+    internal static readonly Color ColorColumna = Color.FromArgb(0xFF, 0xA0, 0xA0, 0xA0);   // gris claro metálico
+    internal static readonly Color ColorZapata  = Color.FromArgb(0xFF, 0xD2, 0x84, 0x4A);   // marrón suave
+    internal static readonly Color ColorMuro    = Color.FromArgb(0xFF, 0x2E, 0xCC, 0x71);   // verde esmeralda
+
+    /// <summary>Color amarillo dorado corporativo de alta visibilidad para el elemento seleccionado.</summary>
+    internal static readonly Color ColorSeleccion = Color.FromArgb(0xFF, 0xFF, 0xD7, 0x00);
+
+    /// <summary>Grosor base (px) de las aristas wireframe en estado nominal.</summary>
+    internal const double ThicknessNominal = 1.5;
+
+    /// <summary>Grosor (px) de la arista resaltada — incrementado para alta visibilidad.</summary>
+    internal const double ThicknessSeleccionado = 3.0;
 
     /// <summary>
     /// Construye las mallas wireframe del proyecto y las inserta en
@@ -129,7 +138,7 @@ internal static class SyncEscenaService
                     {
                         Geometry  = malla.Geometria,
                         Color     = malla.Color,
-                        Thickness = 1.5,
+                        Thickness = ThicknessNominal,
                         Tag       = malla.Tag,
                     };
                     itemsEscena.Add(elemento);
@@ -147,7 +156,7 @@ internal static class SyncEscenaService
     /// elemento estructural. Mantiene la consistencia de la paleta entre
     /// el viewport 3D y cualquier futura leyenda de la UI.
     /// </summary>
-    private static Color ColorPorTipo(TipoElemento tipo) => tipo switch
+    internal static Color ColorPorTipo(TipoElemento tipo) => tipo switch
     {
         TipoElemento.Viga    => ColorViga,
         TipoElemento.Columna => ColorColumna,
@@ -155,6 +164,61 @@ internal static class SyncEscenaService
         TipoElemento.Muro    => ColorMuro,
         _                    => ColorColumna,   // fallback defensivo
     };
+
+    // ===================================================================
+    // ACTUALIZACIÓN VISUAL EN CALIENTE (Fase 3D-I3 — Selección)
+    // ===================================================================
+
+    /// <summary>
+    /// Aplica el resaltado cromático del elemento seleccionado sobre la
+    /// escena 3D existente sin reconstruir ninguna geometría. Itera la
+    /// colección visible, lee el <see cref="LineGeometryModel3D.Tag"/>
+    /// de cada modelo, y muta sólo <see cref="LineGeometryModel3D.Color"/>
+    /// y <see cref="LineGeometryModel3D.Thickness"/>:
+    /// <list type="bullet">
+    ///   <item>Modelo con <c>Tag == seleccionado</c> →
+    ///   <see cref="ColorSeleccion"/> (#FFFFD700) + thickness 3.0.</item>
+    ///   <item>Resto de modelos → su color nominal por tipo + thickness 1.5
+    ///   (restauración del estado base por si venían de un resaltado
+    ///   anterior).</item>
+    /// </list>
+    ///
+    /// <para>
+    /// El método es seguro de invocar repetidamente: la mutación es
+    /// idempotente para el modelo correcto. Debe ejecutarse en el hilo de
+    /// UI (los <see cref="Element3D"/> son <c>DependencyObject</c>).
+    /// </para>
+    ///
+    /// <para>
+    /// <b>Restricción crítica</b> (Plan Maestro): bajo ningún concepto
+    /// invoca a <see cref="GrafoProyectadoBuilder"/> ni recrea las
+    /// mallas — el cambio visual debe ser O(N) sobre la colección
+    /// existente, sin upload de buffers a GPU.
+    /// </para>
+    /// </summary>
+    public static void ActualizarResaltadoVisual(
+        ObservableElement3DCollection? itemsEscena, DomainKey? seleccionado)
+    {
+        if (itemsEscena is null) return;
+
+        foreach (var elemento in itemsEscena)
+        {
+            if (elemento is not LineGeometryModel3D linea) continue;
+            if (linea.Tag is not DomainKey tag) continue;
+
+            bool esSeleccionado = seleccionado.HasValue && tag.Equals(seleccionado.Value);
+            if (esSeleccionado)
+            {
+                linea.Color     = ColorSeleccion;
+                linea.Thickness = ThicknessSeleccionado;
+            }
+            else
+            {
+                linea.Color     = ColorPorTipo(tag.Tipo);
+                linea.Thickness = ThicknessNominal;
+            }
+        }
+    }
 
     // ===================================================================
     // TIPOS AUXILIARES (privados al servicio)

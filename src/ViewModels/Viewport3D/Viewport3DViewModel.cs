@@ -6,6 +6,7 @@ using System.Windows.Media.Media3D;
 using HelixToolkit.SharpDX;
 using HelixToolkit.Wpf.SharpDX;
 using LosasPlus.Models;
+using LosasPlus.Topologia;
 using HxCamera = HelixToolkit.Wpf.SharpDX.Camera;
 using HxPerspectiveCamera = HelixToolkit.Wpf.SharpDX.PerspectiveCamera;
 
@@ -44,6 +45,7 @@ public sealed class Viewport3DViewModel : INotifyPropertyChanged, IDisposable
     private bool _disposed;
     private bool _cargandoEscena;
     private HxCamera _camera;
+    private SeleccionService? _seleccionService;
 
     /// <summary>
     /// Construye el VM con instancias frescas de DirectX. La cámara arranca
@@ -125,6 +127,58 @@ public sealed class Viewport3DViewModel : INotifyPropertyChanged, IDisposable
     }
 
     /// <summary>
+    /// Servicio singleton de selección sincronizada (Fase 3D-I3). El
+    /// <c>MainViewModel</c> lo inyecta tras instanciar el VM. Cuando se
+    /// asigna, el VM se suscribe al evento <c>OnSeleccionCambiada</c>
+    /// para actualizar el resaltado visual en caliente sin reconstruir
+    /// la escena. Asignar <c>null</c> desuscribe limpiamente.
+    /// </summary>
+    public SeleccionService? SeleccionService
+    {
+        get => _seleccionService;
+        set
+        {
+            if (ReferenceEquals(_seleccionService, value)) return;
+            // Desuscribir del servicio anterior (si lo hay).
+            if (_seleccionService is not null)
+                _seleccionService.OnSeleccionCambiada -= AplicarResaltadoVisual;
+            _seleccionService = value;
+            // Suscribir al nuevo + sincronizar inmediatamente el estado actual.
+            if (_seleccionService is not null)
+            {
+                _seleccionService.OnSeleccionCambiada += AplicarResaltadoVisual;
+                AplicarResaltadoVisual(_seleccionService.ElementoSeleccionado);
+            }
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// Publica una nueva selección al <see cref="SeleccionService"/> si
+    /// está inyectado. Es llamado por el code-behind del viewport cuando
+    /// el <c>MouseDown3D</c> resuelve un <see cref="DomainKey"/> sobre un
+    /// modelo de la escena.
+    /// </summary>
+    /// <param name="seleccionado">Llave del elemento clickeado, o <c>null</c> para deseleccionar.</param>
+    /// <param name="emisor">Origen del cambio (típicamente la View 3D).</param>
+    public void NotificarSeleccionDesde3D(DomainKey? seleccionado, object? emisor)
+    {
+        _seleccionService?.FijarSeleccion(seleccionado, emisor);
+    }
+
+    /// <summary>
+    /// Aplica el resaltado cromático sobre la colección visible. Se invoca
+    /// como handler del evento <c>OnSeleccionCambiada</c> y también
+    /// internamente tras regenerar la escena (el grafo nuevo debe respetar
+    /// la selección activa).
+    /// </summary>
+    private void AplicarResaltadoVisual(DomainKey? seleccionado)
+    {
+        if (_disposed) return;
+        SyncEscenaService.ActualizarResaltadoVisual(ItemsEscena3D, seleccionado);
+    }
+
+    /// <summary>
     /// Regenera la escena 3D desde un <paramref name="proyecto"/> dado.
     /// Limpia <see cref="ItemsEscena3D"/> y delega al
     /// <see cref="SyncEscenaService"/> para que sintetice las mallas de
@@ -149,6 +203,12 @@ public sealed class Viewport3DViewModel : INotifyPropertyChanged, IDisposable
             if (proyecto is null) return;
             await SyncEscenaService.GenerarMallasProyectoAsync(proyecto, ItemsEscena3D)
                 .ConfigureAwait(true);
+
+            // Tras la regeneración, restituir el resaltado del elemento
+            // actualmente seleccionado (si lo hay) para no perder el estado
+            // visual de la última interacción del usuario.
+            if (_seleccionService is not null)
+                AplicarResaltadoVisual(_seleccionService.ElementoSeleccionado);
         }
         catch (Exception)
         {
@@ -176,6 +236,10 @@ public sealed class Viewport3DViewModel : INotifyPropertyChanged, IDisposable
         _disposed = true;
         try
         {
+            // Desuscribir del servicio de selección antes de tirar el VM
+            // para evitar callbacks sobre un estado parcialmente disposed.
+            if (_seleccionService is not null)
+                _seleccionService.OnSeleccionCambiada -= AplicarResaltadoVisual;
             ItemsEscena3D.Clear();
             EffectsManager.Dispose();
         }

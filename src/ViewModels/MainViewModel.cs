@@ -15,6 +15,7 @@ using LosasPlus.Models;
 using LosasPlus.Persistence;
 using LosasPlus.Services;
 using LosasPlus.Validation;
+using LosasPlus.Topologia;
 using LosasPlus.ViewModels.Auditoria;
 using LosasPlus.ViewModels.Columnas;
 using LosasPlus.ViewModels.Vigas;
@@ -211,6 +212,17 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// para liberar los recursos DirectX al cerrar el shell.
     /// </summary>
     public Viewport3DViewModel Viewport3D { get; private set; } = null!;
+
+    /// <summary>
+    /// Servicio singleton de selección sincronizada 3D ↔ paneles 2D
+    /// (Fase 3D-I3 del Plan Maestro de Expansión 3D). Está acoplado al
+    /// <see cref="Viewport3D"/> y al setter de <see cref="ModoActivo"/>:
+    /// un click en el viewport publica una <see cref="DomainKey"/> aquí, y
+    /// este shell reacciona cambiando de modo + enfocando el elemento en
+    /// su editor 2D correspondiente. La protección anti-recursión vive en
+    /// el propio <see cref="SeleccionService"/>.
+    /// </summary>
+    public SeleccionService Seleccion { get; } = new();
 
     public ICommand? IrABusquedaCommand { get; private set; }
     public ICommand? GenerarMemoriaCommand { get; private set; }
@@ -585,6 +597,89 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
 
     public Proyecto Proyecto => _proyecto;
 
+    // =====================================================================
+    // SELECCIÓN SINCRONIZADA 3D ↔ PANELES 2D (Fase 3D-I3)
+    // =====================================================================
+
+    /// <summary>
+    /// Reacciona a las publicaciones del <see cref="Seleccion"/>: cambia el
+    /// <see cref="ModoActivo"/> al panel correspondiente al tipo del
+    /// elemento clickeado en el viewport 3D y sincroniza el elemento
+    /// activo del editor 2D (ColumnaActiva / VigaActiva / ZapataActiva).
+    /// El flag interno <c>_actualizando</c> del <see cref="SeleccionService"/>
+    /// asegura que cualquier eco de los setters de los editores no
+    /// retroalimente el bus y no se produzca <c>StackOverflowException</c>.
+    /// </summary>
+    private void OnSeleccionCambiadaDelShell(DomainKey? seleccionado)
+    {
+        if (seleccionado is null) return;   // no-op: la deselección no cambia de modo
+        var key = seleccionado.Value;
+
+        switch (key.Tipo)
+        {
+            case TipoElemento.Columna:
+            {
+                var columna = BuscarColumnaPorId(key.Id);
+                if (columna is null) return;
+                ModoActivo = ModoSidebar.Columnas;
+                ColumnaEditor.ColumnaActiva = columna;
+                break;
+            }
+            case TipoElemento.Viga:
+            {
+                var viga = BuscarVigaPorId(key.Id);
+                if (viga is null) return;
+                ModoActivo = ModoSidebar.Vigas;
+                VigaEditor.VigaActiva = viga;
+                break;
+            }
+            case TipoElemento.Zapata:
+            {
+                var zapata = BuscarZapataPorId(key.Id);
+                if (zapata is null) return;
+                ModoActivo = ModoSidebar.Zapatas;
+                ZapataEditor.ZapataActiva = zapata;
+                break;
+            }
+            case TipoElemento.Muro:
+            {
+                // Los muros viven en el lienzo CAD (Sistema.Muros). El modo
+                // PlanoCad muestra el plano interactivo 2D donde se ven y
+                // editan. La inmutabilidad de muros se respeta: este
+                // callback NO los toca, sólo cambia el modo activo.
+                ModoActivo = ModoSidebar.PlanoCad;
+                break;
+            }
+        }
+    }
+
+    private LosasPlus.Columnas.Columna? BuscarColumnaPorId(int id)
+    {
+        foreach (var edif in _proyecto.Edificios)
+        foreach (var niv  in edif.Niveles)
+        foreach (var col  in niv.Columnas)
+            if (col.Id == id) return col;
+        return null;
+    }
+
+    private LosasPlus.Vigas.Viga? BuscarVigaPorId(int id)
+    {
+        foreach (var edif in _proyecto.Edificios)
+        foreach (var niv  in edif.Niveles)
+        foreach (var viga in niv.Vigas)
+            if (viga.Id == id) return viga;
+        return null;
+    }
+
+    private LosasPlus.Zapatas.ZapataAislada? BuscarZapataPorId(int id)
+    {
+        foreach (var edif in _proyecto.Edificios)
+        foreach (var niv  in edif.Niveles)
+        foreach (var zap  in niv.Zapatas)
+            if (zap.Id == id) return zap;
+        return null;
+    }
+
     /// <summary>
     /// Sistema actualmente activo (el que se edita en el Editor / Esquema / etc.).
     /// Cambiar este valor refresca todas las vistas suscritas vía NotifyPropertyChanged.
@@ -751,6 +846,14 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
 
         // ---- Visor 3D wireframe (Fase 3D-I1 del Plan de Expansión 3D) ----
         Viewport3D = new Viewport3DViewModel();
+        // Inyectar el servicio de selección al viewport (Fase 3D-I3): conecta
+        // el feed de clicks 3D con el bus central de selección. El propio
+        // setter del Viewport3D suscribe internamente OnSeleccionCambiada
+        // para mantener el resaltado cromático sincronizado.
+        Viewport3D.SeleccionService = Seleccion;
+        // Suscripción del shell al evento de selección — orquesta la
+        // redirección a la pestaña + editor 2D correspondiente.
+        Seleccion.OnSeleccionCambiada += OnSeleccionCambiadaDelShell;
 
         // Cambios al nombre del proyecto refrescan el título de la ventana.
         _proyecto.PropertyChanged += (_, e) =>

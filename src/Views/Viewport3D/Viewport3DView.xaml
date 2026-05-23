@@ -93,7 +93,8 @@
                             ShowCoordinateSystem="True"
                             ShowViewCube="True"
                             CameraMode="Inspect"
-                            ZoomExtentsWhenLoaded="True">
+                            ZoomExtentsWhenLoaded="True"
+                            MouseDown3D="OnViewportMouseDown3D">
                 <!-- Viewport3DX no expone ItemsSource directo: se envuelve la
                      colección reactiva en un GroupModel3D que sí lo expone.
                      Patrón documentado por los mantenedores de HelixToolkit. -->
