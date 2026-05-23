@@ -1,0 +1,104 @@
+<UserControl x:Class="LosasPlus.Views.Viewport3D.Viewport3DView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hx="http://helix-toolkit.org/wpf/SharpDX"
+             Background="{DynamicResource BgPrimary}">
+    <UserControl.Resources>
+        <Style x:Key="EtiquetaSeccion" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- DataContext del sub-VM Viewport3D: lo establece MainWindow al pegar el View. -->
+    <Grid DataContext="{Binding Viewport3D}" Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ===== Toolbar superior ===== -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock DockPanel.Dock="Left" Text="🧊  Vista 3D — Escena Estructural"
+                       FontSize="18" FontWeight="SemiBold"
+                       Foreground="{DynamicResource FgPrimary}" VerticalAlignment="Center"/>
+
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                        HorizontalAlignment="Right" VerticalAlignment="Center">
+                <!-- Progress indeterminado mientras el motor regenera la escena. -->
+                <ProgressBar Width="120" Height="6" IsIndeterminate="True"
+                             Margin="0,0,12,0" VerticalAlignment="Center"
+                             Foreground="{DynamicResource Accent}"
+                             Background="{DynamicResource BgInput}"
+                             BorderThickness="0">
+                    <ProgressBar.Style>
+                        <Style TargetType="ProgressBar">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CargandoEscena}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ProgressBar.Style>
+                </ProgressBar>
+
+                <TextBlock Text="Elementos:" Style="{StaticResource EtiquetaSeccion}" Margin="0,0,4,0"/>
+                <TextBlock VerticalAlignment="Center" Margin="0,0,12,0"
+                           FontFamily="JetBrains Mono, Consolas" FontSize="11"
+                           Foreground="{DynamicResource FgPrimary}"
+                           Text="{Binding ItemsEscena3D.Count, FallbackValue=0}"/>
+
+                <TextBlock Text="(viewport read-only — selección y edición desde paneles 2D)"
+                           VerticalAlignment="Center" FontSize="10"
+                           FontStyle="Italic"
+                           Foreground="{DynamicResource FgMuted}"/>
+            </StackPanel>
+        </DockPanel>
+
+        <!-- ===== Lienzo 3D (HelixToolkit.Wpf.SharpDX 3.1.2) ===== -->
+        <Border Grid.Row="1"
+                Background="{DynamicResource BgSecondary}"
+                BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                CornerRadius="6">
+            <!--
+                Configuración crítica (Plan Maestro Fase 3D-I1):
+
+                - EffectsManager: instancia gestionada por el VM (IDisposable
+                  en Viewport3DViewModel libera los recursos DirectX al cerrar).
+                - Camera: PerspectiveCamera del VM (también disposable).
+                - ItemsSource: ObservableElement3DCollection del VM, alimentada
+                  por SyncEscenaService en el hilo UI vía Dispatcher.Invoke.
+                - EnableSwapChainRendering=true: máxima tasa de refresco.
+                  Documentado por mantenedores: óptimo "if there is no WPF
+                  overlapping controls over viewport". Aquí no superponemos
+                  controles 2D sobre el viewport — el toolbar vive en Row 0.
+                - BackgroundColor=#FF1E1E1E: acopla con el tema oscuro
+                  corporativo (BgPrimary del Design System).
+                - ShowCoordinateSystem / ShowViewCube: ayudas visuales para
+                  orientación espacial del ingeniero.
+                - EnableD2DRendering=False: sin overlay 2D dentro del viewport;
+                  reduce coste CPU.
+                - AutoUpdateOctree=True: aceleración de hit-testing geométrico
+                  (lo usaremos en Fase 3D-I3 para selección).
+            -->
+            <hx:Viewport3DX x:Name="Viewport"
+                            EffectsManager="{Binding EffectsManager}"
+                            Camera="{Binding Camera}"
+                            EnableSwapChainRendering="True"
+                            EnableD2DRendering="False"
+                            BackgroundColor="#FF1E1E1E"
+                            ShowCoordinateSystem="True"
+                            ShowViewCube="True"
+                            CameraMode="Inspect"
+                            ZoomExtentsWhenLoaded="True">
+                <!-- Viewport3DX no expone ItemsSource directo: se envuelve la
+                     colección reactiva en un GroupModel3D que sí lo expone.
+                     Patrón documentado por los mantenedores de HelixToolkit. -->
+                <hx:GroupModel3D ItemsSource="{Binding ItemsEscena3D}"/>
+            </hx:Viewport3DX>
+        </Border>
+    </Grid>
+</UserControl>

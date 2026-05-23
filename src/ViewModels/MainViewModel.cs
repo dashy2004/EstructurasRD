@@ -18,6 +18,7 @@ using LosasPlus.Validation;
 using LosasPlus.ViewModels.Auditoria;
 using LosasPlus.ViewModels.Columnas;
 using LosasPlus.ViewModels.Vigas;
+using LosasPlus.ViewModels.Viewport3D;
 using LosasPlus.ViewModels.Zapatas;
 using MemoriaPlusVm = MemoriaPlus.ViewModels;  // ProyectoResumen vive en src.UI.Shared
 
@@ -66,6 +67,13 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             // del sub-VM mueve el ProgressBar indeterminado en la toolbar.
             if (value == ModoSidebar.Auditoria)
                 _ = Auditoria.ActualizarAuditoriaAsync();
+
+            // Al entrar al modo Vista 3D (Fase 3D-I1), regenerar la escena
+            // wireframe desde el proyecto en hilo secundario. Patrón idéntico
+            // al disparo de Auditoría: fire-and-forget, la bandera
+            // CargandoEscena del sub-VM activa el ProgressBar de la toolbar.
+            if (value == ModoSidebar.Vista3D)
+                _ = Viewport3D.RegenerarEscenaAsync(_proyecto);
         }
     }
 
@@ -194,6 +202,15 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// log filtrable al shell. Sólo lectura (sin Undo snapshot).
     /// </summary>
     public AuditoriaViewModel Auditoria { get; private set; } = null!;
+
+    /// <summary>
+    /// Sub-VM del Visor 3D wireframe (Fase 3D-I1 del Plan Maestro de
+    /// Expansión 3D). Es <b>sólo lectura</b>: observa el grafo del proyecto
+    /// y lo proyecta como segmentos de línea sobre un
+    /// <c>Viewport3DX</c> de HelixToolkit.Wpf.SharpDX 3.1.2. Es disposable
+    /// para liberar los recursos DirectX al cerrar el shell.
+    /// </summary>
+    public Viewport3DViewModel Viewport3D { get; private set; } = null!;
 
     public ICommand? IrABusquedaCommand { get; private set; }
     public ICommand? GenerarMemoriaCommand { get; private set; }
@@ -731,6 +748,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
 
         // ---- Dashboard de auditoría global del proyecto (Fase 7 Iter 2) ----
         Auditoria = new AuditoriaViewModel(_proyecto);
+
+        // ---- Visor 3D wireframe (Fase 3D-I1 del Plan de Expansión 3D) ----
+        Viewport3D = new Viewport3DViewModel();
 
         // Cambios al nombre del proyecto refrescan el título de la ventana.
         _proyecto.PropertyChanged += (_, e) =>
@@ -1450,6 +1470,8 @@ public enum ModoSidebar
     Zapatas,
     /// <summary>Dashboard de auditoría global del proyecto y log maestro de alertas (Fase 7 Iter 2).</summary>
     Auditoria,
+    /// <summary>Visor 3D wireframe sobre HelixToolkit.Wpf.SharpDX (Fase 3D-I1 — Plan de Expansión 3D).</summary>
+    Vista3D,
     Validacion,
     Busqueda,
     Configuracion,

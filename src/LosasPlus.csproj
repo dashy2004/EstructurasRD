@@ -35,6 +35,12 @@
          Arrastra OxyPlot.Core (tipos puros, sin afinidad de UI/hilo) de forma
          transitiva. Confinado a la capa de presentación; src.Core no lo ve. -->
     <PackageReference Include="OxyPlot.Wpf" Version="2.2.0" />
+    <!-- HelixToolkit.Wpf.SharpDX: motor 3D acelerado por DirectX 11 — Fase 3D-I1
+         del Plan Maestro de Expansión 3D (EstructurasRD). Arrastra
+         HelixToolkit.SharpDX.Core, HelixToolkit.Geometry y HelixToolkit.Maths
+         (todos tipos visuales/Geometry3D con afinidad UI). Vive sólo en `src/`;
+         `src.Core` no lo ve y permanece libre de dependencias gráficas. -->
+    <PackageReference Include="HelixToolkit.Wpf.SharpDX" Version="3.1.2" />
   </ItemGroup>
 
   <ItemGroup>

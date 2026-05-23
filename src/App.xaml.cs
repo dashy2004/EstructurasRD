@@ -2,12 +2,26 @@ using System;
 using System.IO;
 using System.Windows;
 using System.Windows.Media;
+using HelixToolkit.SharpDX.Utilities;
 using LosasPlus.Persistence;
 
 namespace LosasPlus;
 
 public partial class App : Application
 {
+    /// <summary>
+    /// Fuerza el uso de la GPU dedicada (NVIDIA) en laptops con gráficos
+    /// duales (Optimus). Esta variable estática se inicializa al cargar la
+    /// clase <c>App</c> — antes de que DirectX 11 se enganche al
+    /// <c>EffectsManager</c> de cualquier <c>Viewport3DX</c>. El selector
+    /// automático del manager por defecto no garantiza elegir la GPU
+    /// dedicada, así que esta export-table de NVAPI registrada al inicio del
+    /// proceso resuelve el problema documentado en HelixToolkit Issue
+    /// "Auto adapter selection does not guarantee Nvidia GPU".
+    /// Añadido en Fase 3D-I1 (Plan Maestro de Expansión 3D).
+    /// </summary>
+    private static readonly NVOptimusEnabler _nvOptimusEnabler = new();
+
     public enum ThemeKind { Dark, Light, Precision }
 
     private static ThemeKind _current = ThemeKind.Precision;

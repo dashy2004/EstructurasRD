@@ -27,7 +27,11 @@
          placeholders y rellenar tablas en la plantilla .docx. Version alineada
          con la transitiva que ClosedXML pide (>=3.1.1 <4.0.0). -->
     <PackageReference Include="DocumentFormat.OpenXml" Version="3.3.0" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.10.0" />
+    <!-- Alineación 4.11.0 forzada por HelixToolkit.SharpDX 3.1.2 (Fase 3D-I1):
+         arrastra Microsoft.CodeAnalysis.CSharp = 4.11.0, así que el Scripting
+         de Core debe coincidir para evitar NU1107. Cambio backwards-compatible
+         (la API de scripting que consume PluginHost no varió entre 4.10 y 4.11). -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.11.0" />
     <PackageReference Include="netDxf" Version="2023.11.10" />
     <PackageReference Include="System.Text.Encoding.CodePages" Version="8.0.0" />
     <PackageReference Include="System.Text.Json" Version="8.0.5" />

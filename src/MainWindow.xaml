@@ -9,6 +9,7 @@
         xmlns:cols="clr-namespace:LosasPlus.Views.Columnas"
         xmlns:zap="clr-namespace:LosasPlus.Views.Zapatas"
         xmlns:aud="clr-namespace:LosasPlus.Views.Auditoria"
+        xmlns:vp3d="clr-namespace:LosasPlus.Views.Viewport3D"
         xmlns:s="clr-namespace:LosasPlus.Services"
         xmlns:cmn="clr-namespace:MemoriaPlus.Common;assembly=MemoriaPlus.UI.Shared"
         xmlns:vws="clr-namespace:MemoriaPlus.Views;assembly=MemoriaPlus.UI.Shared"
@@ -156,6 +157,9 @@
                         <RadioButton GroupName="SidebarNav" Content="📊  Auditoría"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Auditoria}"
                                      ToolTip="Dashboard ejecutivo: auditoría cruzada del proyecto y log maestro de alertas estructurales (Fase 7)."/>
+                        <RadioButton GroupName="SidebarNav" Content="🧊  Vista 3D"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vista3D}"
+                                     ToolTip="Visualizador tridimensional alámbrico de la estructura (HelixToolkit.Wpf.SharpDX — Fase 3D-I1). Sólo lectura."/>
                         <RadioButton GroupName="SidebarNav" Content="🛡  Validación"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}"/>
                         <RadioButton GroupName="SidebarNav" Content="⚖  Reglamento"
@@ -1005,6 +1009,21 @@
                         </Style>
                     </ContentControl.Style>
                     <aud:AuditoriaView DataContext="{Binding}"/>
+                </ContentControl>
+
+                <!-- MODO Vista 3D — visor wireframe sobre HelixToolkit.Wpf.SharpDX (Fase 3D-I1). -->
+                <ContentControl>
+                    <ContentControl.Style>
+                        <Style TargetType="{x:Type ContentControl}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ModoActivo}" Value="Vista3D">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ContentControl.Style>
+                    <vp3d:Viewport3DView DataContext="{Binding}"/>
                 </ContentControl>
 
                 <!-- MODO DLEditor (texto crudo) -->
