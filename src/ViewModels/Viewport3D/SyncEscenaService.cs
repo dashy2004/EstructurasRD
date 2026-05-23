@@ -5,79 +5,129 @@ using System.Windows;
 using System.Windows.Media;          // Color de WPF (consumido por LineGeometryModel3D.Color)
 using System.Windows.Threading;
 using HelixToolkit;                  // Vector3Collection, IntCollection
-using HelixToolkit.SharpDX;          // LineGeometry3D
-using HelixToolkit.Wpf.SharpDX;      // LineGeometryModel3D
+using HelixToolkit.SharpDX;          // LineGeometry3D, Geometry3D
+using HelixToolkit.Wpf.SharpDX;      // LineGeometryModel3D, MeshGeometryModel3D, PhongMaterial(s)
 using LosasPlus.Models;
-using LosasPlus.Topologia;           // GrafoProyectadoBuilder, IGrafoEstructural, DomainKey, TipoElemento
+using LosasPlus.Topologia;
+using HxColor4 = HelixToolkit.Maths.Color4;
+using HxMeshGeometry3D = HelixToolkit.SharpDX.MeshGeometry3D;
+using NumericsVector3 = System.Numerics.Vector3;
 
 namespace LosasPlus.ViewModels.Viewport3D;
 
 /// <summary>
-/// Servicio puro que sintetiza la geometría wireframe 3D del proyecto a
+/// Servicio puro que sintetiza la geometría tridimensional del proyecto a
 /// partir del grafo estructural derivado en <c>src.Core</c>
-/// (<see cref="GrafoProyectadoBuilder"/> — Fase 3D-I2 del Plan Maestro).
+/// (<see cref="GrafoProyectadoBuilder"/>). Desde la Fase 3D-I4 del Plan
+/// Maestro la representación pasa de wireframe a <b>sólido extruido</b>
+/// usando <see cref="MeshGeometryModel3D"/> con cajas 3D orientadas por
+/// los ejes locales CSI.
 ///
 /// <para>
-/// <b>Pipeline</b> (Fase 3D-I2):
+/// <b>Construcción manual de mallas</b>: por la ambigüedad de namespaces
+/// entre <c>HelixToolkit.Geometry.MeshGeometry3D</c> (lo que produce el
+/// <c>MeshBuilder</c>) y <c>HelixToolkit.SharpDX.MeshGeometry3D</c> (lo
+/// que consume <see cref="MeshGeometryModel3D.Geometry"/>), las mallas
+/// se construyen vértice-por-vértice con <see cref="Vector3Collection"/>
+/// e <see cref="IntCollection"/> de SharpDX. Una caja se modela con 8
+/// vértices y 12 triángulos (24 vértices si quisiéramos normales planas
+/// por cara — para wireframe-solid suave con normales suavizadas, 8
+/// vértices son suficientes).
+/// </para>
+///
+/// <para>
+/// <b>Pipeline</b>:
 /// <list type="number">
 /// <item>El motor analítico <see cref="GrafoProyectadoBuilder.Construir"/>
-/// (puro, sin dependencias gráficas) corre en <see cref="Task.Run"/> y
 /// produce un <see cref="IGrafoEstructural"/> inmutable con nodos
-/// consolidados a tolerancia de 1 mm (default ETABS / SAP2000).</item>
-/// <item>Cada <see cref="AristaSintetica"/> del grafo se traduce a un
-/// par <see cref="LineGeometry3D"/> + color del tema, ambos
-/// thread-agnósticos.</item>
+/// consolidados a tolerancia de 1 mm.</item>
+/// <item>Por cada <see cref="AristaSintetica"/> se construye una caja 3D
+/// orientada al Eje1 del miembro con sección B×H (peralte ×
+/// ancho).</item>
+/// <item>Los muros siguen siendo wireframe en Parte A (sólido en Parte B).</item>
 /// <item>El swap a la <see cref="ObservableElement3DCollection"/> bindeada
 /// al <c>Viewport3DX</c> se realiza en el hilo de UI vía
 /// <see cref="Dispatcher.Invoke(Action, DispatcherPriority)"/>.</item>
 /// </list>
 /// </para>
-///
-/// <para>
-/// El <c>Tag</c> de cada <see cref="LineGeometryModel3D"/> es un
-/// <see cref="DomainKey"/> (Tipo + Id del elemento original), suficiente
-/// para que el hit-testing nativo de Fase 3D-I3 resuelva la selección
-/// hacia el modelo de dominio sin un diccionario auxiliar.
-/// </para>
-///
-/// <para>
-/// La grilla artificial de la Iteración 1 desapareció: ahora los muros
-/// se renderizan en sus coordenadas reales (vía <c>PuntoCad</c>),
-/// columnas y zapatas se distribuyen de forma <b>determinista</b> por
-/// su <c>Id</c> en la grilla virtual del builder (paso 6 m), y
-/// Columna(Id=N) / Zapata(Id=N) comparten nodo en la interfaz Z=Cota.
-/// </para>
 /// </summary>
 internal static class SyncEscenaService
 {
+    /// <summary>Sección de fallback B = H = 0.30 m para elementos sin dimensiones explícitas.</summary>
+    private const float SeccionFallbackM = 0.30f;
+
     // ---- Paleta de colores WPF Media (compartida estática) ----
-    //
-    // LineGeometryModel3D.Color es DependencyProperty con tipo
-    // System.Windows.Media.Color (struct WPF). Instancias precreadas:
-    // cada Element3D pinta su Color por valor, así que las constantes
-    // evitan asignaciones repetidas. Paleta alineada al briefing del
-    // usuario (Fase 3D-I2 / Fase 3D-I3).
     internal static readonly Color ColorViga    = Color.FromArgb(0xFF, 0x4A, 0x90, 0xE2);   // azul estructural
     internal static readonly Color ColorColumna = Color.FromArgb(0xFF, 0xA0, 0xA0, 0xA0);   // gris claro metálico
     internal static readonly Color ColorZapata  = Color.FromArgb(0xFF, 0xD2, 0x84, 0x4A);   // marrón suave
     internal static readonly Color ColorMuro    = Color.FromArgb(0xFF, 0x2E, 0xCC, 0x71);   // verde esmeralda
+    internal static readonly Color ColorSeleccion = Color.FromArgb(0xFF, 0xFF, 0xD7, 0x00); // oro alta visibilidad
 
-    /// <summary>Color amarillo dorado corporativo de alta visibilidad para el elemento seleccionado.</summary>
-    internal static readonly Color ColorSeleccion = Color.FromArgb(0xFF, 0xFF, 0xD7, 0x00);
-
-    /// <summary>Grosor base (px) de las aristas wireframe en estado nominal.</summary>
+    // ---- Constantes wireframe (muros — Parte A; pasan a mesh en Parte B) ----
     internal const double ThicknessNominal = 1.5;
-
-    /// <summary>Grosor (px) de la arista resaltada — incrementado para alta visibilidad.</summary>
     internal const double ThicknessSeleccionado = 3.0;
 
+    // ---- Materiales Phong precreados (compartidos estáticos) ----
+    internal static readonly PhongMaterial MaterialViga      = CrearMaterial(ColorViga,      "MatViga");
+    internal static readonly PhongMaterial MaterialColumna   = CrearMaterial(ColorColumna,   "MatColumna");
+    internal static readonly PhongMaterial MaterialZapata    = CrearMaterial(ColorZapata,    "MatZapata");
+    internal static readonly PhongMaterial MaterialMuro      = CrearMaterial(ColorMuro,      "MatMuro");
+    internal static readonly PhongMaterial MaterialSeleccion = CrearMaterial(ColorSeleccion, "MatSelec");
+
+    // Cintas de diagramas estructurales (Fase 3D-I4 Parte B). Tres
+    // estados cromáticos según el ratio D/C del miembro. Material con
+    // alta auto-iluminación (emissive ≈ diffuse) para que la cinta sea
+    // visible incluso en zonas de penumbra de la escena.
+    private static readonly Color ColorDiagramaConforme = Color.FromArgb(0xCC, 0x2E, 0xCC, 0x71); // verde 80%
+    private static readonly Color ColorDiagramaAlerta   = Color.FromArgb(0xCC, 0xF5, 0xB0, 0x41); // ámbar 80%
+    private static readonly Color ColorDiagramaCritico  = Color.FromArgb(0xCC, 0xE7, 0x4C, 0x3C); // rojo  80%
+
+    internal static readonly PhongMaterial MaterialDiagramaConforme = CrearMaterialEmisivo(ColorDiagramaConforme, "MatDiagOk");
+    internal static readonly PhongMaterial MaterialDiagramaAlerta   = CrearMaterialEmisivo(ColorDiagramaAlerta,   "MatDiagAlerta");
+    internal static readonly PhongMaterial MaterialDiagramaCritico  = CrearMaterialEmisivo(ColorDiagramaCritico,  "MatDiagErr");
+
     /// <summary>
-    /// Construye las mallas wireframe del proyecto y las inserta en
-    /// <paramref name="itemsEscena"/>. La colección debe estar vacía al
-    /// llamar (responsabilidad del VM). El método es seguro de invocar
-    /// desde el hilo de UI: el trabajo de geometría corre en
-    /// <see cref="Task.Run"/> y el swap a la colección se hace por
-    /// <see cref="Dispatcher.Invoke(Action, DispatcherPriority)"/>.
+    /// Material Phong con componente emisiva alta — usado para las cintas
+    /// de diagramas estructurales (M / V). El emissive ≈ diffuse hace que
+    /// la cinta se vea con su color saturado independientemente de la
+    /// iluminación de la escena, lo que la diferencia visualmente de la
+    /// estructura sólida adyacente.
+    /// </summary>
+    private static PhongMaterial CrearMaterialEmisivo(Color color, string nombre) => new()
+    {
+        Name              = nombre,
+        DiffuseColor      = ColorAFloat4(color),
+        EmissiveColor     = ColorAFloat4(MultiplicarColor(color, 0.75f)),
+        AmbientColor      = ColorAFloat4(MultiplicarColor(color, 0.30f)),
+        SpecularColor     = new HxColor4(0f, 0f, 0f, 1f),
+        SpecularShininess = 4f,
+    };
+
+    private static PhongMaterial CrearMaterial(Color color, string nombre) => new()
+    {
+        Name              = nombre,
+        DiffuseColor      = ColorAFloat4(color),
+        AmbientColor      = ColorAFloat4(MultiplicarColor(color, 0.40f)),
+        SpecularColor     = new HxColor4(0.25f, 0.25f, 0.25f, 1f),
+        SpecularShininess = 16f,
+    };
+
+    private static HxColor4 ColorAFloat4(Color c) =>
+        new(c.R / 255f, c.G / 255f, c.B / 255f, c.A / 255f);
+
+    private static Color MultiplicarColor(Color c, float k)
+    {
+        byte r = (byte)Math.Clamp(c.R * k, 0, 255);
+        byte g = (byte)Math.Clamp(c.G * k, 0, 255);
+        byte b = (byte)Math.Clamp(c.B * k, 0, 255);
+        return Color.FromArgb(c.A, r, g, b);
+    }
+
+    /// <summary>
+    /// Construye las mallas sólidas del proyecto y las inserta en
+    /// <paramref name="itemsEscena"/>. Patrón idéntico a Fases previas:
+    /// <see cref="Task.Run"/> para geometría thread-agnóstica + swap a UI
+    /// vía <see cref="Dispatcher.Invoke(Action, DispatcherPriority)"/>.
     /// </summary>
     public static Task GenerarMallasProyectoAsync(
         Proyecto proyecto,
@@ -89,112 +139,489 @@ internal static class SyncEscenaService
         return Task.Run(() =>
         {
             // ---- 1) PROYECCIÓN ANALÍTICA EN HILO SECUNDARIO ----
-            // El builder vive en src.Core y es puro: construye el grafo
-            // de nodos consolidados + aristas con tolerancia 1 mm.
             var grafo = GrafoProyectadoBuilder.Construir(proyecto);
-            var mallasPendientes = new List<MallaPendiente>(grafo.Aristas.Count);
-
-            // Indexación directa: GrafoProyectadoBuilder emite Ids de nodo
-            // monotónicos crecientes desde 0, por lo que grafo.Nodos[id]
-            // es siempre el nodo con Id=id. Esto evita un Dictionary o un
-            // .First(n => n.Id == ...) en el caliente del bucle.
+            var pendientes = new List<ElementoPendiente>(grafo.Aristas.Count);
             var nodosPorId = (IReadOnlyList<NodoSintetico>)grafo.Nodos;
 
             foreach (var arista in grafo.Aristas)
             {
                 var posI = nodosPorId[arista.IdInicio].Posicion;
                 var posJ = nodosPorId[arista.IdFin].Posicion;
+                var dims = DimensionesDeSeccion(proyecto, arista.Elemento);
 
-                var geom = new LineGeometry3D
+                switch (arista.Elemento.Tipo)
                 {
-                    Positions = new Vector3Collection { posI, posJ },
-                    Indices   = new IntCollection { 0, 1 },
-                };
+                    case TipoElemento.Viga:
+                    case TipoElemento.Columna:
+                        pendientes.Add(ElementoPendiente.ParaMesh(
+                            arista.Elemento,
+                            ConstruirCajaOrientada(posI, posJ, arista.Ejes, dims.B, dims.H),
+                            MaterialPorTipo(arista.Elemento.Tipo)));
+                        break;
 
-                mallasPendientes.Add(new MallaPendiente(
-                    Tag: arista.Elemento,
-                    Geometria: geom,
-                    Color: ColorPorTipo(arista.Elemento.Tipo)));
+                    case TipoElemento.Zapata:
+                        pendientes.Add(ElementoPendiente.ParaMesh(
+                            arista.Elemento,
+                            ConstruirCajaAxisAligned(posI, posJ, dims.B, dims.H),
+                            MaterialPorTipo(arista.Elemento.Tipo)));
+                        break;
+
+                    case TipoElemento.Muro:
+                        // Los muros se procesan en un bucle separado más
+                        // abajo — el builder emite 4 aristas por muro
+                        // (Fase 3D-I2) pero aquí sólo queremos UN prisma
+                        // por muro. La inmutabilidad del muro queda
+                        // garantizada porque sólo leemos el dominio.
+                        continue;
+                }
+            }
+
+            // Bucle independiente para muros: extrusión 3D del prisma
+            // rectangular (L × t × H) por cada muro del dominio (Fase 3D-I4
+            // Parte B). Garantiza una sola malla por muro independientemente
+            // de cuántas aristas auxiliares emita el grafo proyectado.
+            foreach (var ed in proyecto.Edificios)
+            {
+                foreach (var ni in ed.Niveles)
+                {
+                    double zBase = ni.Cota;
+                    foreach (var sis in ni.Sistemas)
+                    {
+                        foreach (var muro in sis.Muros)
+                        {
+                            pendientes.Add(ElementoPendiente.ParaMesh(
+                                new DomainKey(TipoElemento.Muro, muro.Id),
+                                ConstruirPrismaMuro(muro, zBase),
+                                MaterialMuro));
+                        }
+                    }
+                }
+            }
+
+            // Cintas de diagrama de momentos 3D por viga (Fase 3D-I4 Parte B).
+            // Para cada arista del grafo de tipo Viga generamos una cinta
+            // representativa con perfil parabólico (proxy visual estable
+            // hasta cablear VigaContinuaEngine en una iteración futura).
+            // Las cintas no son seleccionables — Tag = null para que el
+            // ActualizarResaltadoVisual las ignore.
+            foreach (var arista in grafo.Aristas)
+            {
+                if (arista.Elemento.Tipo != TipoElemento.Viga) continue;
+                var posI = nodosPorId[arista.IdInicio].Posicion;
+                var posJ = nodosPorId[arista.IdFin].Posicion;
+                var cinta = ConstruirCintaMomento(posI, posJ, arista.Ejes);
+                if (cinta is null) continue;
+                pendientes.Add(ElementoPendiente.ParaCinta(cinta, MaterialDiagramaConforme));
             }
 
             // ---- 2) SWAP AL HILO DE UI ----
-            // La instanciación de LineGeometryModel3D y el Add a la
-            // ObservableElement3DCollection tienen afinidad estricta al hilo
-            // de UI (ambos heredan de DependencyObject de WPF).
             var dispatcher = Application.Current?.Dispatcher;
             if (dispatcher is null)
             {
-                // Smoke test / xUnit sin Application: no hay UI thread; se
-                // ignora la inyección visual. El cálculo geométrico previo
-                // sigue siendo verificable.
+                // Smoke test / xUnit sin Application: no hay UI thread.
                 return;
             }
 
             dispatcher.Invoke(() =>
             {
-                foreach (var malla in mallasPendientes)
+                foreach (var p in pendientes)
                 {
-                    var elemento = new LineGeometryModel3D
+                    if (p.Mesh is not null && p.Material is not null)
                     {
-                        Geometry  = malla.Geometria,
-                        Color     = malla.Color,
-                        Thickness = ThicknessNominal,
-                        Tag       = malla.Tag,
-                    };
-                    itemsEscena.Add(elemento);
+                        var modelo = new MeshGeometryModel3D
+                        {
+                            Geometry              = p.Mesh,
+                            Material              = p.Material,
+                            Tag                   = p.Tag,
+                            // El winding de las cajas construidas
+                            // manualmente es CCW visto desde el exterior,
+                            // así que FrontCounterClockwise=true combina
+                            // con CullMode.Back para mostrar las caras
+                            // exteriores sin transparencias falsas.
+                            CullMode              = global::SharpDX.Direct3D11.CullMode.Back,
+                            FrontCounterClockwise = true,
+                        };
+                        itemsEscena.Add(modelo);
+                    }
+                    else if (p.Linea is not null)
+                    {
+                        var modelo = new LineGeometryModel3D
+                        {
+                            Geometry  = p.Linea,
+                            Color     = p.LineColor,
+                            Thickness = ThicknessNominal,
+                            Tag       = p.Tag,
+                        };
+                        itemsEscena.Add(modelo);
+                    }
                 }
             }, DispatcherPriority.Background);
         });
     }
 
     // ===================================================================
-    // PALETA CROMÁTICA
+    // EXTRUSIÓN DE MUROS (Fase 3D-I4 Parte B)
     // ===================================================================
 
     /// <summary>
-    /// Devuelve el <see cref="Color"/> WPF correspondiente al tipo de
-    /// elemento estructural. Mantiene la consistencia de la paleta entre
-    /// el viewport 3D y cualquier futura leyenda de la UI.
+    /// Prisma 3D rectangular para un muro: extrusión vertical del segmento
+    /// en planta (<c>PuntoInicio → PuntoFin</c>) por su espesor real
+    /// (<c>Muro.Espesor</c>) y altura (<c>Muro.Altura</c> o 3 m por
+    /// defecto). La base se ubica en Z = <c>Nivel.Cota</c>; la corona en
+    /// Z + Altura.
+    ///
+    /// <para>
+    /// Los 8 vértices se calculan desplazando ortogonalmente el eje del
+    /// muro una distancia ±t/2 en el plano XY usando el vector normal
+    /// perpendicular en planta, y luego proyectando verticalmente.
+    /// </para>
     /// </summary>
-    internal static Color ColorPorTipo(TipoElemento tipo) => tipo switch
+    internal static HxMeshGeometry3D ConstruirPrismaMuro(LosasPlus.Models.Cad.Muro muro, double zBase)
     {
-        TipoElemento.Viga    => ColorViga,
-        TipoElemento.Columna => ColorColumna,
-        TipoElemento.Zapata  => ColorZapata,
-        TipoElemento.Muro    => ColorMuro,
-        _                    => ColorColumna,   // fallback defensivo
-    };
+        double altura = muro.Altura > 0 ? muro.Altura : 3.0;
+        double espesor = muro.Espesor > 0 ? muro.Espesor : 0.15;
+
+        // Vector director del eje del muro en planta.
+        double dx = muro.PuntoFin.X - muro.PuntoInicio.X;
+        double dy = muro.PuntoFin.Y - muro.PuntoInicio.Y;
+        double longitud = Math.Sqrt(dx * dx + dy * dy);
+        if (longitud < 1e-6) longitud = 0.001;
+
+        // Vector unitario longitudinal y normal (rotación +90° en plano).
+        double ux = dx / longitud;
+        double uy = dy / longitud;
+        double nx = -uy;
+        double ny =  ux;
+
+        double offsetX = nx * (espesor * 0.5);
+        double offsetY = ny * (espesor * 0.5);
+
+        // 4 vértices de la base — orden cíclico antihorario visto desde +Z.
+        var b0 = new NumericsVector3((float)(muro.PuntoInicio.X - offsetX), (float)(muro.PuntoInicio.Y - offsetY), (float)zBase);
+        var b1 = new NumericsVector3((float)(muro.PuntoFin.X    - offsetX), (float)(muro.PuntoFin.Y    - offsetY), (float)zBase);
+        var b2 = new NumericsVector3((float)(muro.PuntoFin.X    + offsetX), (float)(muro.PuntoFin.Y    + offsetY), (float)zBase);
+        var b3 = new NumericsVector3((float)(muro.PuntoInicio.X + offsetX), (float)(muro.PuntoInicio.Y + offsetY), (float)zBase);
+
+        double zTop = zBase + altura;
+        var t0 = new NumericsVector3(b0.X, b0.Y, (float)zTop);
+        var t1 = new NumericsVector3(b1.X, b1.Y, (float)zTop);
+        var t2 = new NumericsVector3(b2.X, b2.Y, (float)zTop);
+        var t3 = new NumericsVector3(b3.X, b3.Y, (float)zTop);
+
+        var positions = new Vector3Collection { b0, b1, b2, b3, t0, t1, t2, t3 };
+
+        // Normales suavizadas: cada vértice toma la dirección desde el
+        // centro del prisma. Para un muro la diagonal es bastante asimétrica,
+        // así que esto produce un sombreado plano-aproximado coherente.
+        var centro = new NumericsVector3(
+            (b0.X + b2.X) * 0.5f, (b0.Y + b2.Y) * 0.5f, (float)((zBase + zTop) * 0.5));
+        var normals = new Vector3Collection(8);
+        foreach (var v in positions)
+        {
+            var n = v - centro;
+            float len = n.Length();
+            normals.Add(len > 1e-6f ? n / len : new NumericsVector3(0f, 0f, 1f));
+        }
+
+        // 12 triángulos — 2 por cada una de las 6 caras del prisma.
+        // Winding CCW visto desde el exterior (consistente con CullMode.Back +
+        // FrontCounterClockwise=true del visor).
+        var indices = new IntCollection
+        {
+            // Cara lateral 1 (b0→b1, normal -nx -ny aprox)
+            0, 1, 5,   0, 5, 4,
+            // Cara longitudinal exterior (b1→b2, normal +ux)
+            1, 2, 6,   1, 6, 5,
+            // Cara lateral 2 (b2→b3, normal +nx +ny)
+            2, 3, 7,   2, 7, 6,
+            // Cara longitudinal opuesta (b3→b0, normal -ux)
+            3, 0, 4,   3, 4, 7,
+            // Tapa superior (b → t)
+            4, 5, 6,   4, 6, 7,
+            // Base inferior (orden invertido para que la normal apunte -Z)
+            0, 3, 2,   0, 2, 1,
+        };
+
+        return new HxMeshGeometry3D
+        {
+            Positions       = positions,
+            Normals         = normals,
+            TriangleIndices = indices,
+        };
+    }
+
+    // ===================================================================
+    // CINTAS DE DIAGRAMAS DE MOMENTOS 3D (Fase 3D-I4 Parte B)
+    // ===================================================================
+
+    /// <summary>Número de estaciones de control a lo largo del eje de la viga.</summary>
+    private const int EstacionesCintaDiagrama = 12;
+
+    /// <summary>
+    /// Factor de escala visual del diagrama: la cinta se desplaza
+    /// perpendicularmente al eje en magnitud
+    /// <c>EscalaDiagramaM × valorNormalizado</c>. Mantenido como constante
+    /// porque la fase es estética; cuando se cablee <c>VigaContinuaEngine</c>
+    /// pasará a calibrarse contra el rango de momentos reales del proyecto.
+    /// </summary>
+    private const float EscalaDiagramaM = 0.75f;
+
+    /// <summary>
+    /// Construye una cinta 3D (quad strip) representativa del diagrama de
+    /// momentos elásticos para una viga. Mientras no se cablee
+    /// <see cref="LosasPlus.Vigas.VigaContinuaEngine"/>, usa un perfil
+    /// parabólico <c>M(t) = 4·t·(1 − t)</c> (viga simplemente apoyada
+    /// bajo carga distribuida uniforme) como proxy visual. La cinta se
+    /// extiende perpendicularmente al miembro a lo largo del Eje2 local.
+    /// </summary>
+    internal static HxMeshGeometry3D? ConstruirCintaMomento(
+        NumericsVector3 posI, NumericsVector3 posJ, EjesLocalesCSI ejes)
+    {
+        var delta = posJ - posI;
+        float longitud = delta.Length();
+        if (longitud < 0.1f) return null;   // viga demasiado corta para la cinta
+
+        var positions = new Vector3Collection(EstacionesCintaDiagrama * 2);
+        var normals   = new Vector3Collection(EstacionesCintaDiagrama * 2);
+        var indices   = new IntCollection((EstacionesCintaDiagrama - 1) * 6);
+
+        // La normal de los quads de la cinta es el Eje3 (perpendicular al
+        // plano 1-2). Todos los vértices comparten la misma normal — la
+        // cinta es plana en el plano 1-2 local del miembro.
+        var normalCinta = ejes.Eje3;
+
+        for (int i = 0; i < EstacionesCintaDiagrama; i++)
+        {
+            float t = i / (float)(EstacionesCintaDiagrama - 1);
+            // Perfil parabólico simétrico: 0 en los extremos, 1 en el centro.
+            float momentoNormalizado = 4f * t * (1f - t);
+            float desplazamiento = EscalaDiagramaM * momentoNormalizado;
+
+            var posEje = posI + (t * longitud) * ejes.Eje1;
+            // Convención: momento positivo desplaza la cinta en +Eje2.
+            var posCinta = posEje + desplazamiento * ejes.Eje2;
+
+            positions.Add(posEje);
+            positions.Add(posCinta);
+            normals.Add(normalCinta);
+            normals.Add(normalCinta);
+
+            if (i < EstacionesCintaDiagrama - 1)
+            {
+                int baseIdx = i * 2;
+                // Dos triángulos por segmento — winding CCW visto desde +Eje3.
+                indices.Add(baseIdx);
+                indices.Add(baseIdx + 2);
+                indices.Add(baseIdx + 3);
+                indices.Add(baseIdx);
+                indices.Add(baseIdx + 3);
+                indices.Add(baseIdx + 1);
+            }
+        }
+
+        return new HxMeshGeometry3D
+        {
+            Positions       = positions,
+            Normals         = normals,
+            TriangleIndices = indices,
+        };
+    }
+
+    // ===================================================================
+    // CONSTRUCCIÓN DE MALLAS (puramente analítica, thread-agnóstica)
+    // ===================================================================
+
+    /// <summary>
+    /// Caja 3D centrada en el punto medio del segmento i→j y orientada a
+    /// lo largo del <see cref="EjesLocalesCSI.Eje1"/>, con sección
+    /// transversal B (ancho, alineada al Eje3) × H (peralte, alineada
+    /// al Eje2). Construcción manual de 8 vértices + 12 triángulos +
+    /// normales suavizadas — sin <c>MeshBuilder</c> para evitar el
+    /// conflicto de namespaces entre el tipo de Geometry y SharpDX.
+    /// </summary>
+    internal static HxMeshGeometry3D ConstruirCajaOrientada(
+        NumericsVector3 posI, NumericsVector3 posJ, EjesLocalesCSI ejes,
+        float anchoB, float peralteH)
+    {
+        var centro = (posI + posJ) * 0.5f;
+        float largo = (posJ - posI).Length();
+        if (largo <= 1e-6f) largo = 0.1f;  // defensa contra segmentos degenerados
+
+        // Mitades de las tres dimensiones, expresadas en el sistema local.
+        float hx = largo * 0.5f;
+        float hy = peralteH * 0.5f;
+        float hz = anchoB * 0.5f;
+
+        var ex = ejes.Eje1;   // longitudinal
+        var ey = ejes.Eje2;   // peralte (típicamente "arriba" para horizontales)
+        var ez = ejes.Eje3;   // ancho (lateral)
+
+        return ConstruirCajaDesdeEjes(centro, ex, ey, ez, hx, hy, hz);
+    }
+
+    /// <summary>
+    /// Caja 3D alineada a ejes globales — para zapatas. <paramref name="posI"/>
+    /// es la base (Z menor) y <paramref name="posJ"/> el tope (Z mayor) del
+    /// grafo. El lado horizontal se aplica simétricamente en X e Y;
+    /// el espesor vertical viene de la diferencia <c>posJ.Z − posI.Z</c>.
+    /// </summary>
+    private static HxMeshGeometry3D ConstruirCajaAxisAligned(
+        NumericsVector3 posI, NumericsVector3 posJ, float ladoXY, float espesorZ)
+    {
+        var centro = (posI + posJ) * 0.5f;
+        float alturaZ = Math.Abs(posJ.Z - posI.Z);
+        if (alturaZ < 1e-3f) alturaZ = espesorZ;
+
+        var ex = new NumericsVector3(1f, 0f, 0f);
+        var ey = new NumericsVector3(0f, 1f, 0f);
+        var ez = new NumericsVector3(0f, 0f, 1f);
+
+        float hx = ladoXY * 0.5f;
+        float hy = ladoXY * 0.5f;
+        float hz = alturaZ * 0.5f;
+
+        return ConstruirCajaDesdeEjes(centro, ex, ey, ez, hx, hy, hz);
+    }
+
+    /// <summary>
+    /// Construye una caja paramétrica: 8 vértices, 12 triángulos (2 por
+    /// cada una de las 6 caras), normales suavizadas (promediadas en cada
+    /// vértice por las 3 caras adyacentes). El winding de los triángulos
+    /// es CCW visto desde el exterior, por lo que <c>CullMode.Back</c>
+    /// con <c>FrontCounterClockwise=true</c> renderiza las caras
+    /// exteriores correctamente.
+    /// </summary>
+    private static HxMeshGeometry3D ConstruirCajaDesdeEjes(
+        NumericsVector3 centro,
+        NumericsVector3 ex, NumericsVector3 ey, NumericsVector3 ez,
+        float hx, float hy, float hz)
+    {
+        // 8 vértices de la caja, etiquetados según signos (s1, s2, s3) de
+        // los desplazamientos a lo largo de ex/ey/ez.
+        var v000 = centro + (-hx * ex) + (-hy * ey) + (-hz * ez);
+        var v100 = centro + (+hx * ex) + (-hy * ey) + (-hz * ez);
+        var v110 = centro + (+hx * ex) + (+hy * ey) + (-hz * ez);
+        var v010 = centro + (-hx * ex) + (+hy * ey) + (-hz * ez);
+        var v001 = centro + (-hx * ex) + (-hy * ey) + (+hz * ez);
+        var v101 = centro + (+hx * ex) + (-hy * ey) + (+hz * ez);
+        var v111 = centro + (+hx * ex) + (+hy * ey) + (+hz * ez);
+        var v011 = centro + (-hx * ex) + (+hy * ey) + (+hz * ez);
+
+        var positions = new Vector3Collection { v000, v100, v110, v010, v001, v101, v111, v011 };
+
+        // Normales suavizadas (vértice = promedio de las 3 caras adyacentes,
+        // normalizado). Esto evita las facetas duras del flat-shading.
+        // Para una caja unitaria, la normal en cada esquina apunta hacia
+        // ese octante: (sign_x, sign_y, sign_z) / sqrt(3).
+        float invSqrt3 = 1.0f / MathF.Sqrt(3f);
+        var normals = new Vector3Collection
+        {
+            (-ex - ey - ez) * invSqrt3,   // v000
+            ( ex - ey - ez) * invSqrt3,   // v100
+            ( ex + ey - ez) * invSqrt3,   // v110
+            (-ex + ey - ez) * invSqrt3,   // v010
+            (-ex - ey + ez) * invSqrt3,   // v001
+            ( ex - ey + ez) * invSqrt3,   // v101
+            ( ex + ey + ez) * invSqrt3,   // v111
+            (-ex + ey + ez) * invSqrt3,   // v011
+        };
+
+        // 12 triángulos. Cada cara es un par de triángulos con winding CCW
+        // visto desde el EXTERIOR de la caja:
+        //   - Cara +X (v100, v110, v111, v101) — normal +ex.
+        //   - Cara -X (v000, v010, v011, v001) — normal -ex.
+        //   - Cara +Y (v110, v010, v011, v111) — normal +ey.
+        //   - Cara -Y (v000, v100, v101, v001) — normal -ey.
+        //   - Cara +Z (v001, v101, v111, v011) — normal +ez.
+        //   - Cara -Z (v000, v100, v110, v010) — normal -ez.
+        var indices = new IntCollection
+        {
+            // +X
+            1, 2, 6,   1, 6, 5,
+            // -X
+            0, 4, 7,   0, 7, 3,
+            // +Y
+            3, 7, 6,   3, 6, 2,
+            // -Y
+            0, 1, 5,   0, 5, 4,
+            // +Z
+            4, 5, 6,   4, 6, 7,
+            // -Z
+            0, 3, 2,   0, 2, 1,
+        };
+
+        return new HxMeshGeometry3D
+        {
+            Positions       = positions,
+            Normals         = normals,
+            TriangleIndices = indices,
+        };
+    }
+
+    // ===================================================================
+    // RESOLUCIÓN DE DIMENSIONES POR DOMAIN KEY
+    // ===================================================================
+
+    /// <summary>
+    /// Resuelve las dimensiones de sección (B, H) del elemento referenciado.
+    /// Si el dominio v3 no aporta dimensiones, usa <see cref="SeccionFallbackM"/>.
+    /// </summary>
+    private static (float B, float H) DimensionesDeSeccion(Proyecto proyecto, DomainKey key)
+    {
+        switch (key.Tipo)
+        {
+            case TipoElemento.Columna:
+                foreach (var ed in proyecto.Edificios)
+                foreach (var ni in ed.Niveles)
+                foreach (var co in ni.Columnas)
+                    if (co.Id == key.Id)
+                    {
+                        float b = (float)Math.Max(co.Geometria.Base,    0.10);
+                        float h = (float)Math.Max(co.Geometria.Peralte, 0.10);
+                        return (b, h);
+                    }
+                break;
+
+            case TipoElemento.Viga:
+                foreach (var ed in proyecto.Edificios)
+                foreach (var ni in ed.Niveles)
+                foreach (var vi in ni.Vigas)
+                    if (vi.Id == key.Id && vi.Tramos.Count > 0)
+                    {
+                        var s = vi.Tramos[0].Seccion;
+                        if (s is not null)
+                        {
+                            float b = (float)Math.Max(s.Base,    0.10);
+                            float h = (float)Math.Max(s.Peralte, 0.10);
+                            return (b, h);
+                        }
+                    }
+                break;
+
+            case TipoElemento.Zapata:
+                foreach (var ed in proyecto.Edificios)
+                foreach (var ni in ed.Niveles)
+                foreach (var za in ni.Zapatas)
+                    if (za.Id == key.Id)
+                    {
+                        float lado    = (float)Math.Max(za.Dimensiones.LargoB,   0.20);
+                        float espesor = (float)Math.Max(za.Dimensiones.EspesorH, 0.10);
+                        return (lado, espesor);
+                    }
+                break;
+        }
+        return (SeccionFallbackM, SeccionFallbackM);
+    }
 
     // ===================================================================
     // ACTUALIZACIÓN VISUAL EN CALIENTE (Fase 3D-I3 — Selección)
     // ===================================================================
 
     /// <summary>
-    /// Aplica el resaltado cromático del elemento seleccionado sobre la
-    /// escena 3D existente sin reconstruir ninguna geometría. Itera la
-    /// colección visible, lee el <see cref="LineGeometryModel3D.Tag"/>
-    /// de cada modelo, y muta sólo <see cref="LineGeometryModel3D.Color"/>
-    /// y <see cref="LineGeometryModel3D.Thickness"/>:
-    /// <list type="bullet">
-    ///   <item>Modelo con <c>Tag == seleccionado</c> →
-    ///   <see cref="ColorSeleccion"/> (#FFFFD700) + thickness 3.0.</item>
-    ///   <item>Resto de modelos → su color nominal por tipo + thickness 1.5
-    ///   (restauración del estado base por si venían de un resaltado
-    ///   anterior).</item>
-    /// </list>
-    ///
-    /// <para>
-    /// El método es seguro de invocar repetidamente: la mutación es
-    /// idempotente para el modelo correcto. Debe ejecutarse en el hilo de
-    /// UI (los <see cref="Element3D"/> son <c>DependencyObject</c>).
-    /// </para>
-    ///
-    /// <para>
-    /// <b>Restricción crítica</b> (Plan Maestro): bajo ningún concepto
-    /// invoca a <see cref="GrafoProyectadoBuilder"/> ni recrea las
-    /// mallas — el cambio visual debe ser O(N) sobre la colección
-    /// existente, sin upload de buffers a GPU.
-    /// </para>
+    /// Aplica el resaltado del elemento seleccionado mutando sólo
+    /// <see cref="MeshGeometryModel3D.Material"/> (sin reconstruir
+    /// mallas) o <see cref="LineGeometryModel3D.Color"/>+
+    /// <see cref="LineGeometryModel3D.Thickness"/>.
     /// </summary>
     public static void ActualizarResaltadoVisual(
         ObservableElement3DCollection? itemsEscena, DomainKey? seleccionado)
@@ -203,36 +630,82 @@ internal static class SyncEscenaService
 
         foreach (var elemento in itemsEscena)
         {
-            if (elemento is not LineGeometryModel3D linea) continue;
-            if (linea.Tag is not DomainKey tag) continue;
+            DomainKey? tag = elemento switch
+            {
+                MeshGeometryModel3D mesh  => mesh.Tag as DomainKey?,
+                LineGeometryModel3D linea => linea.Tag as DomainKey?,
+                _ => null,
+            };
+            if (tag is null) continue;
+            bool esSeleccionado = seleccionado.HasValue && tag.Value.Equals(seleccionado.Value);
 
-            bool esSeleccionado = seleccionado.HasValue && tag.Equals(seleccionado.Value);
-            if (esSeleccionado)
+            switch (elemento)
             {
-                linea.Color     = ColorSeleccion;
-                linea.Thickness = ThicknessSeleccionado;
-            }
-            else
-            {
-                linea.Color     = ColorPorTipo(tag.Tipo);
-                linea.Thickness = ThicknessNominal;
+                case MeshGeometryModel3D meshModel:
+                    meshModel.Material = esSeleccionado
+                        ? MaterialSeleccion
+                        : MaterialPorTipo(tag.Value.Tipo);
+                    break;
+
+                case LineGeometryModel3D lineModel:
+                    lineModel.Color     = esSeleccionado ? ColorSeleccion : ColorPorTipo(tag.Value.Tipo);
+                    lineModel.Thickness = esSeleccionado ? ThicknessSeleccionado : ThicknessNominal;
+                    break;
             }
         }
     }
+
+    // ===================================================================
+    // PALETA / MATERIALES POR TIPO
+    // ===================================================================
+
+    internal static Color ColorPorTipo(TipoElemento tipo) => tipo switch
+    {
+        TipoElemento.Viga    => ColorViga,
+        TipoElemento.Columna => ColorColumna,
+        TipoElemento.Zapata  => ColorZapata,
+        TipoElemento.Muro    => ColorMuro,
+        _                    => ColorColumna,
+    };
+
+    internal static PhongMaterial MaterialPorTipo(TipoElemento tipo) => tipo switch
+    {
+        TipoElemento.Viga    => MaterialViga,
+        TipoElemento.Columna => MaterialColumna,
+        TipoElemento.Zapata  => MaterialZapata,
+        TipoElemento.Muro    => MaterialMuro,
+        _                    => MaterialColumna,
+    };
 
     // ===================================================================
     // TIPOS AUXILIARES (privados al servicio)
     // ===================================================================
 
     /// <summary>
-    /// Bundle de datos thread-agnóstico que el hilo de trabajo pasa al
-    /// hilo de UI para construir el <see cref="LineGeometryModel3D"/>.
-    /// El <c>Tag</c> es un <see cref="DomainKey"/> proveniente del
-    /// grafo de <c>src.Core</c>; sustituye a la <c>EtiquetaElemento3D</c>
-    /// local de la Iteración 1 (ya eliminada).
+    /// Bundle thread-agnóstico que el hilo de trabajo pasa al hilo de UI.
+    /// Puede transportar una malla sólida con Tag (estructural —
+    /// seleccionable), una malla auxiliar sin Tag (cinta de diagrama
+    /// — no seleccionable) o una línea wireframe (legacy).
     /// </summary>
-    private readonly record struct MallaPendiente(
-        DomainKey Tag,
-        LineGeometry3D Geometria,
-        Color Color);
+    private readonly record struct ElementoPendiente(
+        DomainKey? Tag,
+        HxMeshGeometry3D? Mesh,
+        PhongMaterial? Material,
+        LineGeometry3D? Linea,
+        Color LineColor)
+    {
+        public static ElementoPendiente ParaMesh(DomainKey tag, HxMeshGeometry3D mesh, PhongMaterial mat)
+            => new(tag, mesh, mat, null, default);
+
+        /// <summary>
+        /// Malla auxiliar sin <see cref="DomainKey"/> (cinta de diagrama).
+        /// El Tag <c>null</c> hace que <c>ActualizarResaltadoVisual</c>
+        /// no la considere candidata a resaltado.
+        /// </summary>
+        public static ElementoPendiente ParaCinta(HxMeshGeometry3D mesh, PhongMaterial mat)
+            => new(null, mesh, mat, null, default);
+
+        public static ElementoPendiente ParaLinea(DomainKey tag, LineGeometry3D linea, Color color)
+            => new(tag, null, null, linea, color);
+    }
 }

@@ -18,6 +18,13 @@
     <Copyright>Motor de cálculo: © Francisco Eludino Perdomo. Wrapper: créditos al autor original.</Copyright>
   </PropertyGroup>
 
+  <!-- Expone tipos internal del ensamblado de UI al proyecto de tests para
+       que la suite xUnit pueda validar invariantes de los helpers geométricos
+       del SyncEscenaService (Fase 3D-I4) sin elevar los métodos a public. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="LosasPlus.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\src.Core\LosasPlus.Core.csproj" />
     <ProjectReference Include="..\src.UI.Shared\MemoriaPlus.UI.Shared.csproj" />

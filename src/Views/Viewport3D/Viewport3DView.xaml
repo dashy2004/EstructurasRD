@@ -95,6 +95,19 @@
                             CameraMode="Inspect"
                             ZoomExtentsWhenLoaded="True"
                             MouseDown3D="OnViewportMouseDown3D">
+                <!-- Iluminación de la escena (Fase 3D-I4 Parte C). Combina
+                     dos luces clásicas Phong:
+                     · AmbientLight3D #FF2D2D2D — gris oscuro continuo que
+                       evita que las caras opuestas a la direccional caigan
+                       en negro absoluto (preserva legibilidad de volumen).
+                     · DirectionalLight3D blanca con dirección oblicua
+                       descendente (-1, -1, -2) — modela las sombras propias
+                       de las aristas de columnas, vigas, zapatas y muros
+                       extruidos, dándole al concreto un aspecto sólido y
+                       diferenciable contra el fondo oscuro corporativo. -->
+                <hx:AmbientLight3D Color="#FF2D2D2D"/>
+                <hx:DirectionalLight3D Color="#FFFFFFFF" Direction="-1,-1,-2"/>
+
                 <!-- Viewport3DX no expone ItemsSource directo: se envuelve la
                      colección reactiva en un GroupModel3D que sí lo expone.
                      Patrón documentado por los mantenedores de HelixToolkit. -->
