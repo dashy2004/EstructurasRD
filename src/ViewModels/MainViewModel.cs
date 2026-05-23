@@ -17,6 +17,7 @@ using LosasPlus.Services;
 using LosasPlus.Validation;
 using LosasPlus.ViewModels.Columnas;
 using LosasPlus.ViewModels.Vigas;
+using LosasPlus.ViewModels.Zapatas;
 using MemoriaPlusVm = MemoriaPlus.ViewModels;  // ProyectoResumen vive en src.UI.Shared
 
 namespace LosasPlus.ViewModels;
@@ -161,6 +162,13 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// su edición y el renderizado del diagrama de interacción P-M con OxyPlot.
     /// </summary>
     public ColumnaEditorViewModel ColumnaEditor { get; private set; } = null!;
+
+    /// <summary>
+    /// Sub-VM del editor de zapatas aisladas (Fase 6): gestiona la zapata
+    /// activa, su edición y el renderizado del bar chart de presiones de
+    /// contacto + croquis 1:1 de la planta.
+    /// </summary>
+    public ZapataEditorViewModel ZapataEditor { get; private set; } = null!;
 
     public ICommand? IrABusquedaCommand { get; private set; }
     public ICommand? GenerarMemoriaCommand { get; private set; }
@@ -441,6 +449,14 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
                 nivelRestaurado.Columnas.Add(c);
             ColumnaEditor.NotificarRestauracion();
 
+            // Restaurar las zapatas del nivel por defecto (Fase 6) — mismo
+            // patrón aditivo que vigas/columnas; la colección sobrevive el
+            // roundtrip JSON gracias a Populate (ver `Las_zapatas_del_nivel_…`).
+            nivelRestaurado.Zapatas.Clear();
+            foreach (var z in restored.Edificios[0].Niveles[0].Zapatas)
+                nivelRestaurado.Zapatas.Add(z);
+            ZapataEditor.NotificarRestauracion();
+
             SistemaActivo = _proyecto.Sistemas.FirstOrDefault() ?? NuevoSistemaDemo();
             OnPropertyChanged(nameof(Proyecto));
             OnPropertyChanged(nameof(TituloVentana));
@@ -684,6 +700,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
 
         // ---- Editor de columnas RC (Fase 5) ----
         ColumnaEditor = new ColumnaEditorViewModel(_proyecto, PushUndoSnapshot);
+
+        // ---- Editor de zapatas aisladas (Fase 6) ----
+        ZapataEditor = new ZapataEditorViewModel(_proyecto, PushUndoSnapshot);
 
         // Cambios al nombre del proyecto refrescan el título de la ventana.
         _proyecto.PropertyChanged += (_, e) =>
@@ -1399,6 +1418,8 @@ public enum ModoSidebar
     Vigas,
     /// <summary>Editor de columnas y diagrama de interacción P-M (Fase 5).</summary>
     Columnas,
+    /// <summary>Editor de zapatas aisladas y bar chart de presiones de contacto (Fase 6).</summary>
+    Zapatas,
     Validacion,
     Busqueda,
     Configuracion,

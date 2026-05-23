@@ -1,0 +1,263 @@
+<UserControl x:Class="LosasPlus.Views.Zapatas.ZapataEditorView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:oxy="http://oxyplot.org/wpf"
+             Background="{DynamicResource BgPrimary}">
+    <UserControl.Resources>
+        <Style x:Key="EtiquetaSeccion" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="EtiquetaCampo" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+        </Style>
+        <Style x:Key="CampoNumerico" TargetType="TextBox">
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="Margin" Value="0,3"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="HorizontalContentAlignment" Value="Right"/>
+        </Style>
+        <Style x:Key="BotonCompacto" TargetType="Button">
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Margin" Value="6,0,0,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style x:Key="TarjetaSeccion" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource BgSecondary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10"/>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- DataContext del sub-VM ZapataEditor: lo establece MainWindow al pegar el View. -->
+    <Grid DataContext="{Binding ZapataEditor}" Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Barra de herramientas -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock DockPanel.Dock="Left" Text="🏗  Zapatas Aisladas"
+                       FontSize="18" FontWeight="SemiBold"
+                       Foreground="{DynamicResource FgPrimary}" VerticalAlignment="Center"/>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="➕  Nueva Zapata" Style="{StaticResource BotonCompacto}"
+                        Command="{Binding NuevaZapataCommand}"/>
+                <TextBlock Text="Zapata:" Style="{StaticResource EtiquetaSeccion}" Margin="16,0,8,0"/>
+                <ComboBox Width="160" VerticalAlignment="Center"
+                          ItemsSource="{Binding Zapatas}"
+                          SelectedItem="{Binding ZapataActiva}"
+                          DisplayMemberPath="Nombre"
+                          ToolTip="Zapata en edición."/>
+                <Button Content="🗑  Eliminar" Style="{StaticResource BotonCompacto}"
+                        Margin="16,0,0,0" Command="{Binding EliminarZapataCommand}"/>
+                <TextBlock Text="Combinación:" Style="{StaticResource EtiquetaSeccion}" Margin="16,0,8,0"/>
+                <ComboBox Width="200" VerticalAlignment="Center"
+                          ItemsSource="{Binding CombinacionesServicio}"
+                          SelectedItem="{Binding CombinacionActiva}"
+                          ToolTip="Combinación de servicio cuyas presiones de esquina se grafican."/>
+                <Border Margin="16,0,0,0" Padding="10,4" BorderThickness="1" CornerRadius="3"
+                        VerticalAlignment="Center"
+                        ToolTip="Presión máxima global de contacto — verde si la zapata es estable, rojo si alguna combinación excede la presión admisible.">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#1F06914A"/>
+                            <Setter Property="BorderBrush" Value="{DynamicResource Ok}"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding EsEstable}" Value="False">
+                                    <Setter Property="Background" Value="#1FBA1A1A"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource Err}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Foreground="{DynamicResource FgPrimary}" FontSize="12"
+                               Text="{Binding PresionMaximaGlobal, StringFormat={}q_max: {0:0.0} kN/m²}"/>
+                </Border>
+            </StackPanel>
+        </DockPanel>
+
+        <!-- Cuerpo: panel de datos + panel de gráficas -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="400"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- ===== Panel izquierdo: datos ===== -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- GEOMETRÍA -->
+                <Border Grid.Row="0" Style="{StaticResource TarjetaSeccion}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="GEOMETRÍA"
+                                   Style="{StaticResource EtiquetaSeccion}" Margin="0,0,0,6"/>
+                        <Grid Grid.Row="1" IsEnabled="{Binding HayZapataActiva}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="170"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Largo B (m)"
+                                       Style="{StaticResource EtiquetaCampo}"/>
+                            <TextBox  Grid.Row="0" Grid.Column="1" Style="{StaticResource CampoNumerico}"
+                                      Text="{Binding ZapataActiva.Dimensiones.LargoB, StringFormat=0.###, UpdateSourceTrigger=LostFocus}"
+                                      GotFocus="OnSnapshotAntesDeEditar"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Ancho L (m)"
+                                       Style="{StaticResource EtiquetaCampo}"/>
+                            <TextBox  Grid.Row="1" Grid.Column="1" Style="{StaticResource CampoNumerico}"
+                                      Text="{Binding ZapataActiva.Dimensiones.AnchoL, StringFormat=0.###, UpdateSourceTrigger=LostFocus}"
+                                      GotFocus="OnSnapshotAntesDeEditar"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Espesor H (m)"
+                                       Style="{StaticResource EtiquetaCampo}"/>
+                            <TextBox  Grid.Row="2" Grid.Column="1" Style="{StaticResource CampoNumerico}"
+                                      Text="{Binding ZapataActiva.Dimensiones.EspesorH, StringFormat=0.###, UpdateSourceTrigger=LostFocus}"
+                                      GotFocus="OnSnapshotAntesDeEditar"/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Profundidad Df (m)"
+                                       Style="{StaticResource EtiquetaCampo}"/>
+                            <TextBox  Grid.Row="3" Grid.Column="1" Style="{StaticResource CampoNumerico}"
+                                      Text="{Binding ZapataActiva.Dimensiones.ProfundidadDesplante, StringFormat=0.###, UpdateSourceTrigger=LostFocus}"
+                                      GotFocus="OnSnapshotAntesDeEditar"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Peralte columna (m)"
+                                       Style="{StaticResource EtiquetaCampo}"/>
+                            <TextBox  Grid.Row="4" Grid.Column="1" Style="{StaticResource CampoNumerico}"
+                                      Text="{Binding ZapataActiva.Dimensiones.PeralteColumna, StringFormat=0.###, UpdateSourceTrigger=LostFocus}"
+                                      GotFocus="OnSnapshotAntesDeEditar"/>
+
+                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Ancho columna (m)"
+                                       Style="{StaticResource EtiquetaCampo}"/>
+                            <TextBox  Grid.Row="5" Grid.Column="1" Style="{StaticResource CampoNumerico}"
+                                      Text="{Binding ZapataActiva.Dimensiones.AnchoColumna, StringFormat=0.###, UpdateSourceTrigger=LostFocus}"
+                                      GotFocus="OnSnapshotAntesDeEditar"/>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- TERRENO -->
+                <Border Grid.Row="2" Style="{StaticResource TarjetaSeccion}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="TERRENO"
+                                   Style="{StaticResource EtiquetaSeccion}" Margin="0,0,0,6"/>
+                        <Grid Grid.Row="1" IsEnabled="{Binding HayZapataActiva}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="170"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="q_adm (kN/m²)"
+                                       Style="{StaticResource EtiquetaCampo}"/>
+                            <TextBox  Grid.Row="0" Grid.Column="1" Style="{StaticResource CampoNumerico}"
+                                      Text="{Binding ZapataActiva.Suelo.PresionAdmisible, StringFormat=0.#, UpdateSourceTrigger=LostFocus}"
+                                      GotFocus="OnSnapshotAntesDeEditar"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="γ suelo (kN/m³)"
+                                       Style="{StaticResource EtiquetaCampo}"/>
+                            <TextBox  Grid.Row="1" Grid.Column="1" Style="{StaticResource CampoNumerico}"
+                                      Text="{Binding ZapataActiva.Suelo.PesoEspecificoSuelo, StringFormat=0.#, UpdateSourceTrigger=LostFocus}"
+                                      GotFocus="OnSnapshotAntesDeEditar"/>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- CARGAS -->
+                <Border Grid.Row="4" Style="{StaticResource TarjetaSeccion}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                            <TextBlock DockPanel.Dock="Left" Text="CARGAS POR CASO"
+                                       Style="{StaticResource EtiquetaSeccion}"/>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                        HorizontalAlignment="Right">
+                                <Button Content="+"  Style="{StaticResource BotonCompacto}"
+                                        Command="{Binding AgregarCargaCommand}"  ToolTip="Añadir carga"/>
+                                <Button Content="🗑" Style="{StaticResource BotonCompacto}"
+                                        Command="{Binding EliminarCargaCommand}" ToolTip="Eliminar carga"/>
+                            </StackPanel>
+                        </DockPanel>
+                        <DataGrid Grid.Row="1"
+                                  ItemsSource="{Binding Cargas}"
+                                  SelectedItem="{Binding CargaSeleccionada}"
+                                  AutoGenerateColumns="False" CanUserAddRows="False"
+                                  CanUserDeleteRows="False" HeadersVisibility="Column"
+                                  SelectionMode="Single" SelectionUnit="FullRow"
+                                  BeginningEdit="OnBeginningEdit">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Caso" Width="*"
+                                                    Binding="{Binding CodigoCaso}"/>
+                                <DataGridTextColumn Header="P (kN)" Width="*"
+                                                    Binding="{Binding P, StringFormat=0.#}"/>
+                                <DataGridTextColumn Header="Mx (kN·m)" Width="*"
+                                                    Binding="{Binding Mx, StringFormat=0.#}"/>
+                                <DataGridTextColumn Header="My (kN·m)" Width="*"
+                                                    Binding="{Binding My, StringFormat=0.#}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- ===== Panel derecho: diagramas ===== -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Bar chart de presiones de esquina -->
+                <Border Grid.Row="0" Style="{StaticResource TarjetaSeccion}">
+                    <oxy:PlotView Model="{Binding ModeloPresionesTerreno}" Background="Transparent"/>
+                </Border>
+
+                <!-- Croquis 1:1 de la planta -->
+                <Border Grid.Row="2" Style="{StaticResource TarjetaSeccion}">
+                    <oxy:PlotView Model="{Binding ModeloSeccionZapata}" Background="Transparent"/>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>
