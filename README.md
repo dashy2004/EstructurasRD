@@ -1,17 +1,37 @@
-<h1 align="center">LosasPlus &nbsp;/&nbsp; MemoriaPlus</h1>
+<h1 align="center">EstructurasRD</h1>
 
 <p align="center">
   <b>Suite de diseño estructural en .NET 8 / WPF para ingenieros civiles dominicanos.</b><br/>
-  Editor de losas con cálculo en vivo + generación automática de memoria de cálculo en formato <code>.docx</code>.<br/>
-  Conforme a R-001, R-024 y ACI 318.
+  Vigas continuas, columnas RC (P-M uniaxial 2D), zapatas aisladas (ELU biaxial),
+  auditoría cruzada del proyecto, memoria de cálculo <code>.docx</code>, y editor
+  de losas con cálculo en vivo (LosasPlus, motor Pieper-Martens).<br/>
+  Conforme a R-001, R-024 y ACI 318-19.
 </p>
 
 <p align="center">
-  <a href="https://github.com/dashy2004/LosasPlus/actions/workflows/ci.yml"><img alt="ci" src="https://github.com/dashy2004/LosasPlus/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="https://github.com/dashy2004/LosasPlus/actions/workflows/release.yml"><img alt="release" src="https://github.com/dashy2004/LosasPlus/actions/workflows/release.yml/badge.svg"></a>
-  <a href="LICENSE"><img alt="license MIT" src="https://img.shields.io/github/license/dashy2004/LosasPlus?color=blue"></a>
+  <sub>
+    <b>Módulos de la suite:</b>
+    <a href="src/">LosasPlus</a> (losas, Pieper-Martens) ·
+    <a href="src.Memoria/">MemoriaPlus</a> (memorias <code>.docx</code>) ·
+    Vigas Continuas · Columnas · Zapatas · Auditoría Cruzada
+  </sub>
+</p>
+
+<p align="center">
+  <sub>
+    <i>EstructurasRD</i> es la marca paraguas de la suite a partir de Fase 7 (rebrand).
+    El módulo histórico <code>LosasPlus</code> (motor de losas) conserva su nombre
+    como sub-marca y mantiene los namespaces <code>LosasPlus.*</code> en el código.
+    Ver <a href="docs/REBRANDING.md">docs/REBRANDING.md</a>.
+  </sub>
+</p>
+
+<p align="center">
+  <a href="https://github.com/dashy2004/EstructurasRD/actions/workflows/ci.yml"><img alt="ci" src="https://github.com/dashy2004/EstructurasRD/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/dashy2004/EstructurasRD/actions/workflows/release.yml"><img alt="release" src="https://github.com/dashy2004/EstructurasRD/actions/workflows/release.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="license MIT" src="https://img.shields.io/github/license/dashy2004/EstructurasRD?color=blue"></a>
   <a href="https://dotnet.microsoft.com/download/dotnet/8.0"><img alt=".NET 8" src="https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white"></a>
-  <a href="https://github.com/dashy2004/LosasPlus/releases"><img alt="latest release" src="https://img.shields.io/github/v/release/dashy2004/LosasPlus?include_prereleases&label=release&color=brightgreen"></a>
+  <a href="https://github.com/dashy2004/EstructurasRD/releases"><img alt="latest release" src="https://img.shields.io/github/v/release/dashy2004/EstructurasRD?include_prereleases&label=release&color=brightgreen"></a>
   <img alt="platform" src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6?logo=windows&logoColor=white">
 </p>
 
@@ -170,7 +190,7 @@ Convención de placeholders documentada en [`docs/referencia/README.md`](docs/re
 
 ## Instalación rápida (usuario final)
 
-Bajá la última release desde [Releases](https://github.com/dashy2004/LosasPlus/releases) y abrí cualquiera de las dos `.exe`. **No requiere instalar .NET ni nada más** — son ejecutables single-file self-contained (~180 MB cada uno).
+Bajá la última release desde [Releases](https://github.com/dashy2004/EstructurasRD/releases) y abrí cualquiera de las dos `.exe`. **No requiere instalar .NET ni nada más** — son ejecutables single-file self-contained (~180 MB cada uno).
 
 - **Windows 10/11 x64.**
 - Primer arranque tarda ~5 s mientras Windows extrae el runtime embebido.
@@ -185,8 +205,8 @@ standalone.
 ## Compilar desde fuente (desarrolladores)
 
 ```bash
-git clone https://github.com/dashy2004/LosasPlus.git
-cd LosasPlus
+git clone https://github.com/dashy2004/EstructurasRD.git
+cd EstructurasRD
 dotnet restore
 dotnet build LosasPlus.sln -c Release
 dotnet test  LosasPlus.sln -c Release

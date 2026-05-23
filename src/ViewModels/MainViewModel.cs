@@ -72,15 +72,25 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// <summary>Conveniencia para DataTriggers que muestran el top bar de acciones solo en Editor.</summary>
     public bool EsModoEditor => _modoActivo == ModoSidebar.Editor;
 
-    /// <summary>Texto de versión mostrado en el branding de la sidebar.</summary>
-    public string Version => "v0.5.0 — LosasPlus";
-
-    /// <summary>Copyright dinámico (año en curso) — bound al statusbar.</summary>
-    public string CopyrightTexto => $"© {DateTime.Now.Year} LosasPlus · motor: F. Perdomo (Pieper-Martens)";
+    /// <summary>
+    /// Texto de versión mostrado en el branding de la sidebar. Desde la Fase 0
+    /// de rebrand (post-Fase 7 Iter 2), el producto se presenta bajo la marca
+    /// paraguas <c>EstructurasRD</c>; <c>LosasPlus</c> persiste como módulo
+    /// histórico (motor losas Pieper-Martens de F. Perdomo) dentro de la suite.
+    /// </summary>
+    public string Version => "EstructurasRD v0.7.0 — Suite Estructural";
 
     /// <summary>
-    /// Título dinámico del Window. Refleja el nombre del proyecto activo y
-    /// si está guardado o no. Bound a Window.Title via {Binding TituloVentana}.
+    /// Copyright dinámico (año en curso) — bound al statusbar. Incluye tanto la
+    /// marca paraguas <c>EstructurasRD</c> como el módulo histórico
+    /// <c>LosasPlus</c> y el crédito del motor de cálculo de losas.
+    /// </summary>
+    public string CopyrightTexto => $"© {DateTime.Now.Year} EstructurasRD · LosasPlus · motor losas: F. Perdomo (Pieper-Martens)";
+
+    /// <summary>
+    /// Título dinámico del Window. Refleja la marca paraguas EstructurasRD, el
+    /// nombre del proyecto activo y si está guardado o no. Bound a
+    /// Window.Title via {Binding TituloVentana}.
     /// </summary>
     public string TituloVentana
     {
@@ -88,8 +98,8 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         {
             var nombre = string.IsNullOrWhiteSpace(_proyecto.Nombre) ? "(sin nombre)" : _proyecto.Nombre;
             if (string.IsNullOrEmpty(_proyecto.Archivo))
-                return $"LosasPlus · {nombre} · sin guardar";
-            return $"LosasPlus · {nombre} · {Path.GetFileName(_proyecto.Archivo)}";
+                return $"EstructurasRD · {nombre} · sin guardar";
+            return $"EstructurasRD · {nombre} · {Path.GetFileName(_proyecto.Archivo)}";
         }
     }
 
