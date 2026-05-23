@@ -110,6 +110,66 @@ public class ColumnaEditorViewModelTests
     }
 
     [Fact]
+    public async Task AgregarDemandaCommand_AnadeUnaDemandaYTomaSnapshot()
+    {
+        var vm = Crear(new Proyecto(), out var snapshots);
+        vm.NuevaColumnaCommand.Execute(null);
+        int snapshotsAntes = snapshots();
+
+        vm.AgregarDemandaCommand.Execute(null);
+        await vm.RecalcularAsync();
+
+        Assert.Equal(snapshotsAntes + 1, snapshots());
+        Assert.NotNull(vm.Demandas);
+        Assert.Single(vm.Demandas!);
+        Assert.NotNull(vm.DemandaSeleccionada);
+    }
+
+    [Fact]
+    public async Task AgregarDemandaFueraDeLimites_InvalidaConformidadGlobal()
+    {
+        var vm = Crear(new Proyecto(), out _);
+        vm.NuevaColumnaCommand.Execute(null);
+        await vm.RecalcularAsync();
+
+        // Sin demandas la columna es conforme por defecto (no hay nada que
+        // verificar).
+        Assert.True(vm.ColumnaConforme);
+        Assert.Equal(0.0, vm.RatioMaximoColumna);
+
+        vm.AgregarDemandaCommand.Execute(null);
+        vm.DemandaSeleccionada!.Pu = 10_000.0;   // muy por encima de P0
+        vm.DemandaSeleccionada.Mu = 0.0;
+        await vm.RecalcularAsync();
+
+        Assert.False(vm.ColumnaConforme);
+        Assert.True(vm.RatioMaximoColumna > 1.0);
+    }
+
+    [Fact]
+    public void DemandasDeLaColumna_SobrevivenUnRoundtripDeSerializacion()
+    {
+        var proyecto = new Proyecto();
+        proyecto.AsegurarEstructura();
+        var columna = new Columna { Nombre = "C-Dmd" };
+        columna.Acero.Capas.Add(new CapaAcero { Profundidad = 0.05, Area = 0.0003 });
+        columna.Demandas.Add(new DemandaColumna { NombreCombo = "1.4D",   Pu = 800.0, Mu = 45.0 });
+        columna.Demandas.Add(new DemandaColumna { NombreCombo = "0.9D+E", Pu = -50.0, Mu = 30.0 });
+        proyecto.Edificios[0].Niveles[0].Columnas.Add(columna);
+
+        var restaurado = ProyectoSerializer.FromJson(ProyectoSerializer.ToJson(proyecto));
+        var c = restaurado.Edificios[0].Niveles[0].Columnas[0];
+
+        Assert.Equal(2, c.Demandas.Count);
+        Assert.Equal("1.4D",   c.Demandas[0].NombreCombo);
+        Assert.Equal(800.0,    c.Demandas[0].Pu, precision: 6);
+        Assert.Equal(45.0,     c.Demandas[0].Mu, precision: 6);
+        Assert.Equal("0.9D+E", c.Demandas[1].NombreCombo);
+        Assert.Equal(-50.0,    c.Demandas[1].Pu, precision: 6);
+        Assert.Equal(30.0,     c.Demandas[1].Mu, precision: 6);
+    }
+
+    [Fact]
     public void LasColumnasDelNivel_SobrevivenAlAbrirElEditorTrasRoundtripJson()
     {
         // Verifica el camino aditivo: una columna persistida en JSON se carga

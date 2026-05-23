@@ -133,6 +133,90 @@ public static class ColumnaDesignEngine
         return new DiagramaInteraccion2D(nominales, disenos, p0Kn, tnKn);
     }
 
+    /// <summary>
+    /// Verifica un punto de demanda <c>(mu, pu)</c> contra la frontera de
+    /// diseño <c>CurvaDiseno</c> del <paramref name="diagrama"/> calculando
+    /// el <b>ratio de eficiencia radial D/C</b> (Fase 5, Iteración 3).
+    ///
+    /// <para>
+    /// Traza un rayo desde el origen <c>(0, 0)</c> que pasa por
+    /// <c>(mu, pu)</c>, calcula su intersección con el polígono de diseño
+    /// cerrado mediante un sistema lineal 2×2 por arista, y devuelve el
+    /// ratio como <c>1.0 / t</c>, donde <c>t</c> es el parámetro del rayo
+    /// tal que <c>(t·mu, t·pu)</c> cae sobre la frontera.
+    /// </para>
+    ///
+    /// <para>
+    /// Casos especiales: una demanda nula devuelve
+    /// <see cref="ResultadoVerificacionColumna.Seguro"/>; un diagrama sin
+    /// capacidad (vacío) o un caso degenerado donde el origen cae fuera del
+    /// polígono devuelve <see cref="ResultadoVerificacionColumna.SinCapacidad"/>
+    /// con <see cref="double.PositiveInfinity"/>.
+    /// </para>
+    /// </summary>
+    /// <param name="diagrama">Diagrama P-M con la frontera de diseño cerrada.</param>
+    /// <param name="mu">Momento flector último Mu, en kN·m (con signo).</param>
+    /// <param name="pu">Fuerza axial última Pu, en kN (positiva = compresión).</param>
+    public static ResultadoVerificacionColumna VerificarPuntoDemanda(
+        DiagramaInteraccion2D diagrama, double mu, double pu)
+    {
+        ArgumentNullException.ThrowIfNull(diagrama);
+
+        if (diagrama.CurvaDiseno.Count < 3)
+            return ResultadoVerificacionColumna.SinCapacidad;
+
+        // Demanda nula: la columna está descargada, ratio = 0 por definición.
+        const double tolDemandaNula = 1e-9;
+        if (Math.Abs(mu) < tolDemandaNula && Math.Abs(pu) < tolDemandaNula)
+            return ResultadoVerificacionColumna.Seguro;
+
+        var hit = IntersectarRayoConPoligono(diagrama.CurvaDiseno, mu, pu);
+        if (hit is null) return ResultadoVerificacionColumna.SinCapacidad;
+
+        double t = hit.Value.T;
+        double ratio = 1.0 / t;
+        return new ResultadoVerificacionColumna(
+            RatioEficiencia: ratio,
+            EsSeguro: ratio <= 1.0,
+            PuntoCapacidad: hit.Value.Punto);
+    }
+
+    /// <summary>
+    /// Encuentra el punto donde el rayo desde el origen en dirección
+    /// <c>(mu, pu)</c> intersecta el polígono cerrado
+    /// <paramref name="poligono"/>. Devuelve <c>(t, punto)</c> donde
+    /// <c>t > 0</c> es el parámetro del rayo y <c>punto = (t·mu, t·pu)</c>,
+    /// o <c>null</c> si no hay intersección válida (origen fuera del
+    /// polígono o todas las aristas paralelas al rayo).
+    /// </summary>
+    private static (double T, PuntoInteraccion Punto)? IntersectarRayoConPoligono(
+        IReadOnlyList<PuntoInteraccion> poligono, double mu, double pu)
+    {
+        const double tolParalela = 1e-12;
+        const double tolPositiva = 1e-12;
+
+        for (int i = 0; i < poligono.Count - 1; i++)
+        {
+            var a = poligono[i];
+            var b = poligono[i + 1];
+            double dmAB = b.Momento - a.Momento;
+            double dpAB = b.Carga - a.Carga;
+
+            // Sistema 2×2: t·mu − s·dmAB = a.M ; t·pu − s·dpAB = a.P.
+            // det = mu·(-dpAB) - (-dmAB)·pu = pu·dmAB - mu·dpAB.
+            double det = pu * dmAB - mu * dpAB;
+            if (Math.Abs(det) < tolParalela) continue;   // rayo paralelo a la arista
+
+            double t = (a.Carga * dmAB - a.Momento * dpAB) / det;
+            double s = (mu * a.Carga - pu * a.Momento) / det;
+
+            if (s >= 0.0 && s <= 1.0 && t > tolPositiva)
+                return (t, new PuntoInteraccion(t * mu, t * pu));
+        }
+
+        return null;
+    }
+
     // ----- Barrido de un ramal -----
 
     /// <summary>

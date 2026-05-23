@@ -60,6 +60,24 @@
                           ToolTip="Columna en edición."/>
                 <Button Content="🗑  Eliminar Columna" Style="{StaticResource BotonCompacto}"
                         Margin="16,0,0,0" Command="{Binding EliminarColumnaCommand}"/>
+                <Border Margin="16,0,0,0" Padding="10,4" BorderThickness="1" CornerRadius="3"
+                        VerticalAlignment="Center"
+                        ToolTip="Ratio máximo radial Demanda/Capacidad — verde si la columna es conforme, rojo si alguna demanda excede 1.0.">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#1F06914A"/>
+                            <Setter Property="BorderBrush" Value="{DynamicResource Ok}"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ColumnaConforme}" Value="False">
+                                    <Setter Property="Background" Value="#1FBA1A1A"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource Err}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Foreground="{DynamicResource FgPrimary}" FontSize="12"
+                               Text="{Binding RatioMaximoColumna, StringFormat={}D/C máx: {0:0.00}}"/>
+                </Border>
             </StackPanel>
         </DockPanel>
 
@@ -71,12 +89,14 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- ===== Panel izquierdo: parámetros + capas ===== -->
+            <!-- ===== Panel izquierdo: parámetros + capas + demandas ===== -->
             <Grid Grid.Column="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="8"/>
                     <RowDefinition Height="*"/>
+                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="1.2*"/>
                 </Grid.RowDefinitions>
 
                 <!-- PARÁMETROS: geometría + materiales -->
@@ -164,6 +184,43 @@
                                                     Binding="{Binding Profundidad, StringFormat=0.###}"/>
                                 <DataGridTextColumn Header="Area (m²)" Width="*"
                                                     Binding="{Binding Area, StringFormat=0.######}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+
+                <!-- DEMANDAS DE DISEÑO -->
+                <Border Grid.Row="4" Style="{StaticResource TarjetaSeccion}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                            <TextBlock DockPanel.Dock="Left" Text="DEMANDAS DE DISEÑO"
+                                       Style="{StaticResource EtiquetaSeccion}"/>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                        HorizontalAlignment="Right">
+                                <Button Content="+"  Style="{StaticResource BotonCompacto}"
+                                        Command="{Binding AgregarDemandaCommand}"  ToolTip="Añadir demanda"/>
+                                <Button Content="🗑" Style="{StaticResource BotonCompacto}"
+                                        Command="{Binding EliminarDemandaCommand}" ToolTip="Eliminar demanda"/>
+                            </StackPanel>
+                        </DockPanel>
+                        <DataGrid Grid.Row="1"
+                                  ItemsSource="{Binding Demandas}"
+                                  SelectedItem="{Binding DemandaSeleccionada}"
+                                  AutoGenerateColumns="False" CanUserAddRows="False"
+                                  CanUserDeleteRows="False" HeadersVisibility="Column"
+                                  SelectionMode="Single" SelectionUnit="FullRow"
+                                  BeginningEdit="OnBeginningEdit">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Combinación" Width="*"
+                                                    Binding="{Binding NombreCombo}"/>
+                                <DataGridTextColumn Header="Pu (kN)" Width="*"
+                                                    Binding="{Binding Pu, StringFormat=0.#}"/>
+                                <DataGridTextColumn Header="Mu (kN·m)" Width="*"
+                                                    Binding="{Binding Mu, StringFormat=0.#}"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Grid>

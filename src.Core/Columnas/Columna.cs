@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
@@ -58,6 +59,15 @@ public partial class Columna : INotifyPropertyChanged
         get => _acero;
         set { _acero = value; OnPropertyChanged(); }
     }
+
+    /// <summary>
+    /// Demandas actuantes (Pu, Mu) — pares de carga axial y momento últimos
+    /// que se verifican contra el diagrama de interacción P-M de diseño
+    /// (Fase 5, Iteración 3). Colección get-only con inicializador: se
+    /// (de)serializa vía <c>Populate</c> de forma aditiva y sobrevive los
+    /// proyectos creados antes de Iter 3 con la colección vacía.
+    /// </summary>
+    public ObservableCollection<DemandaColumna> Demandas { get; } = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? name = null)

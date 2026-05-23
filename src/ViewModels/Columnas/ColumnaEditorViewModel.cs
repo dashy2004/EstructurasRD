@@ -40,6 +40,8 @@ public sealed class ColumnaEditorViewModel : INotifyPropertyChanged
     private static readonly OxyColor ColorTopeAxial = OxyColor.FromRgb(0xB5, 0x8A, 0x00);
     private static readonly OxyColor ColorConcreto  = OxyColor.FromRgb(0xBD, 0xBD, 0xBD);
     private static readonly OxyColor ColorAcero     = OxyColor.FromRgb(0xC2, 0x8A, 0x1E);
+    private static readonly OxyColor ColorDemandaSegura   = OxyColor.FromRgb(0x06, 0x91, 0x4A);   // DynamicResource Ok
+    private static readonly OxyColor ColorDemandaExcedida = OxyColor.FromRgb(0xBA, 0x1A, 0x1A);   // DynamicResource Err
 
     private readonly Proyecto _proyecto;
     private readonly Action _pushUndoSnapshot;
@@ -47,6 +49,8 @@ public sealed class ColumnaEditorViewModel : INotifyPropertyChanged
 
     // Ítems del grafo de la columna activa con suscripción a PropertyChanged.
     private readonly List<CapaAcero> _capasEnganchadas = new();
+    private readonly List<DemandaColumna> _demandasEnganchadas = new();
+    private readonly Dictionary<DemandaColumna, ResultadoVerificacionColumna> _resultadosPorDemanda = new();
     private Columna? _columnaEnganchada;
 
     private DiagramaInteraccion2D _diagrama = DiagramaInteraccion2D.Vacio;
@@ -67,10 +71,12 @@ public sealed class ColumnaEditorViewModel : INotifyPropertyChanged
         // deforme con la relación de aspecto del control.
         ModeloSeccionTransversal.PlotType = PlotType.Cartesian;
 
-        NuevaColumnaCommand    = new RelayCommand(_ => NuevaColumna());
-        EliminarColumnaCommand = new RelayCommand(_ => EliminarColumna(), _ => _columnaActiva is not null);
-        AgregarCapaCommand     = new RelayCommand(_ => AgregarCapa(),     _ => _columnaActiva is not null);
-        EliminarCapaCommand    = new RelayCommand(_ => EliminarCapa(),    _ => _capaSeleccionada is not null);
+        NuevaColumnaCommand     = new RelayCommand(_ => NuevaColumna());
+        EliminarColumnaCommand  = new RelayCommand(_ => EliminarColumna(),  _ => _columnaActiva is not null);
+        AgregarCapaCommand      = new RelayCommand(_ => AgregarCapa(),      _ => _columnaActiva is not null);
+        EliminarCapaCommand     = new RelayCommand(_ => EliminarCapa(),     _ => _capaSeleccionada is not null);
+        AgregarDemandaCommand   = new RelayCommand(_ => AgregarDemanda(),   _ => _columnaActiva is not null);
+        EliminarDemandaCommand  = new RelayCommand(_ => EliminarDemanda(),  _ => _demandaSeleccionada is not null);
 
         ColumnaActiva = _nivel.Columnas.FirstOrDefault();
     }
@@ -79,6 +85,12 @@ public sealed class ColumnaEditorViewModel : INotifyPropertyChanged
 
     /// <summary>Columnas del nivel por defecto del proyecto.</summary>
     public ObservableCollection<Columna> Columnas => _nivel.Columnas;
+
+    /// <summary>
+    /// Demandas actuantes de la columna activa — pass-through null-safe que
+    /// alimenta el DataGrid de la tarjeta «DEMANDAS DE DISEÑO».
+    /// </summary>
+    public ObservableCollection<DemandaColumna>? Demandas => _columnaActiva?.Demandas;
 
     // ---- Selección ----
 
@@ -94,7 +106,9 @@ public sealed class ColumnaEditorViewModel : INotifyPropertyChanged
             RehookColumna(value);
             OnPropertyChanged();
             OnPropertyChanged(nameof(HayColumnaActiva));
+            OnPropertyChanged(nameof(Demandas));
             CapaSeleccionada = value?.Acero.Capas.FirstOrDefault();
+            DemandaSeleccionada = value?.Demandas.FirstOrDefault();
             SolicitarRecalculo();
         }
     }
@@ -108,6 +122,14 @@ public sealed class ColumnaEditorViewModel : INotifyPropertyChanged
     {
         get => _capaSeleccionada;
         set { _capaSeleccionada = value; OnPropertyChanged(); }
+    }
+
+    private DemandaColumna? _demandaSeleccionada;
+    /// <summary>Demanda seleccionada en el DataGrid (origen de Eliminar Demanda).</summary>
+    public DemandaColumna? DemandaSeleccionada
+    {
+        get => _demandaSeleccionada;
+        set { _demandaSeleccionada = value; OnPropertyChanged(); }
     }
 
     // ---- Diagramas OxyPlot ----
@@ -130,12 +152,29 @@ public sealed class ColumnaEditorViewModel : INotifyPropertyChanged
     /// <summary>Conteo de puntos de la curva nominal — útil para tests.</summary>
     public int CantidadPuntosCurva => _diagrama.CurvaNominal.Count;
 
+    /// <summary>
+    /// Ratio Demanda/Capacidad máximo radial sobre todas las demandas de la
+    /// columna activa — 0 si no hay demandas. Es el peor escenario de la
+    /// colección y se enlaza al chip cromático de la toolbar.
+    /// </summary>
+    public double RatioMaximoColumna =>
+        _resultadosPorDemanda.Values.Select(r => r.RatioEficiencia).DefaultIfEmpty(0.0).Max();
+
+    /// <summary>
+    /// <c>true</c> si todas las demandas caen dentro o sobre la frontera de
+    /// diseño (D/C ≤ 1.0). Sin demandas devuelve <c>true</c> (no hay nada
+    /// que verificar).
+    /// </summary>
+    public bool ColumnaConforme => _resultadosPorDemanda.Values.All(r => r.EsSeguro);
+
     // ---- Comandos ----
 
     public ICommand NuevaColumnaCommand { get; }
     public ICommand EliminarColumnaCommand { get; }
     public ICommand AgregarCapaCommand { get; }
     public ICommand EliminarCapaCommand { get; }
+    public ICommand AgregarDemandaCommand { get; }
+    public ICommand EliminarDemandaCommand { get; }
 
     /// <summary>
     /// Lo invoca el code-behind desde <c>DataGrid.BeginningEdit</c> y desde
@@ -154,8 +193,10 @@ public sealed class ColumnaEditorViewModel : INotifyPropertyChanged
         _columnaActiva = _nivel.Columnas.FirstOrDefault();
         OnPropertyChanged(nameof(ColumnaActiva));
         OnPropertyChanged(nameof(HayColumnaActiva));
+        OnPropertyChanged(nameof(Demandas));
         RehookColumna(_columnaActiva);
         CapaSeleccionada = _columnaActiva?.Acero.Capas.FirstOrDefault();
+        DemandaSeleccionada = _columnaActiva?.Demandas.FirstOrDefault();
         SolicitarRecalculo();
     }
 
@@ -207,6 +248,23 @@ public sealed class ColumnaEditorViewModel : INotifyPropertyChanged
         CapaSeleccionada = _columnaActiva.Acero.Capas.FirstOrDefault();
     }
 
+    private void AgregarDemanda()
+    {
+        if (_columnaActiva is null) return;
+        _pushUndoSnapshot();
+        var demanda = new DemandaColumna { NombreCombo = "U", Pu = 0.0, Mu = 0.0 };
+        _columnaActiva.Demandas.Add(demanda);
+        DemandaSeleccionada = demanda;
+    }
+
+    private void EliminarDemanda()
+    {
+        if (_columnaActiva is null || _demandaSeleccionada is null) return;
+        _pushUndoSnapshot();
+        _columnaActiva.Demandas.Remove(_demandaSeleccionada);
+        DemandaSeleccionada = _columnaActiva.Demandas.FirstOrDefault();
+    }
+
     // ---- Reactividad: enganche del grafo de la columna ----
 
     private void RehookColumna(Columna? columna)
@@ -217,9 +275,12 @@ public sealed class ColumnaEditorViewModel : INotifyPropertyChanged
             _columnaEnganchada.Geometria.PropertyChanged -= OnElementoCambiado;
             _columnaEnganchada.Acero.PropertyChanged -= OnElementoCambiado;
             _columnaEnganchada.Acero.Capas.CollectionChanged -= OnCapasCambiaron;
+            _columnaEnganchada.Demandas.CollectionChanged -= OnDemandasCambiaron;
         }
         foreach (var c in _capasEnganchadas) c.PropertyChanged -= OnElementoCambiado;
         _capasEnganchadas.Clear();
+        foreach (var d in _demandasEnganchadas) d.PropertyChanged -= OnElementoCambiado;
+        _demandasEnganchadas.Clear();
 
         _columnaEnganchada = columna;
         if (columna is null) return;
@@ -228,10 +289,16 @@ public sealed class ColumnaEditorViewModel : INotifyPropertyChanged
         columna.Geometria.PropertyChanged += OnElementoCambiado;
         columna.Acero.PropertyChanged += OnElementoCambiado;
         columna.Acero.Capas.CollectionChanged += OnCapasCambiaron;
+        columna.Demandas.CollectionChanged += OnDemandasCambiaron;
         foreach (var c in columna.Acero.Capas)
         {
             c.PropertyChanged += OnElementoCambiado;
             _capasEnganchadas.Add(c);
+        }
+        foreach (var d in columna.Demandas)
+        {
+            d.PropertyChanged += OnElementoCambiado;
+            _demandasEnganchadas.Add(d);
         }
     }
 
@@ -241,6 +308,15 @@ public sealed class ColumnaEditorViewModel : INotifyPropertyChanged
         if (_capaSeleccionada is not null && _columnaActiva is not null
             && !_columnaActiva.Acero.Capas.Contains(_capaSeleccionada))
             CapaSeleccionada = _columnaActiva.Acero.Capas.FirstOrDefault();
+        SolicitarRecalculo();
+    }
+
+    private void OnDemandasCambiaron(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        RehookColumna(_columnaActiva);
+        if (_demandaSeleccionada is not null && _columnaActiva is not null
+            && !_columnaActiva.Demandas.Contains(_demandaSeleccionada))
+            DemandaSeleccionada = _columnaActiva.Demandas.FirstOrDefault();
         SolicitarRecalculo();
     }
 
@@ -288,6 +364,8 @@ public sealed class ColumnaEditorViewModel : INotifyPropertyChanged
             if (token.IsCancellationRequested) return;
 
             _diagrama = diagrama;
+            // Verificación de las demandas en hilo de UI: O(N·aristas) trivial.
+            VerificarDemandasContraDiagrama();
             NotificarPropiedadesDiagnostico();
             ConstruirSeries();
         }
@@ -301,11 +379,21 @@ public sealed class ColumnaEditorViewModel : INotifyPropertyChanged
         }
     }
 
+    private void VerificarDemandasContraDiagrama()
+    {
+        _resultadosPorDemanda.Clear();
+        if (_columnaActiva is null) return;
+        foreach (var d in _columnaActiva.Demandas)
+            _resultadosPorDemanda[d] = ColumnaDesignEngine.VerificarPuntoDemanda(_diagrama, d.Mu, d.Pu);
+    }
+
     private void NotificarPropiedadesDiagnostico()
     {
         OnPropertyChanged(nameof(PnMaximoNominal));
         OnPropertyChanged(nameof(TraccionPuraNominal));
         OnPropertyChanged(nameof(CantidadPuntosCurva));
+        OnPropertyChanged(nameof(RatioMaximoColumna));
+        OnPropertyChanged(nameof(ColumnaConforme));
     }
 
     // ---- Construcción de las series OxyPlot ----
@@ -319,6 +407,7 @@ public sealed class ColumnaEditorViewModel : INotifyPropertyChanged
     private void LimpiarDiagramas()
     {
         _diagrama = DiagramaInteraccion2D.Vacio;
+        _resultadosPorDemanda.Clear();
         foreach (var m in new[] { ModeloDiagramaPM, ModeloSeccionTransversal })
         {
             m.Series.Clear();
@@ -377,6 +466,35 @@ public sealed class ColumnaEditorViewModel : INotifyPropertyChanged
             Text = $"φPn,max = {topeAxial:0} kN",
             TextColor = ColorTopeAxial,
         });
+
+        // Demandas (Mu, Pu) — verdes si caen dentro de la frontera (D/C ≤ 1)
+        // y rojas si la exceden. Dos ScatterSeries separadas para evitar la
+        // coloración per-point en OxyPlot.
+        var seguros = new ScatterSeries
+        {
+            Title = "Demanda D/C ≤ 1",
+            MarkerType = MarkerType.Circle,
+            MarkerSize = 7.0,
+            MarkerFill = ColorDemandaSegura,
+            MarkerStroke = ColorEje,
+            MarkerStrokeThickness = 0.8,
+        };
+        var excedidos = new ScatterSeries
+        {
+            Title = "Demanda D/C > 1",
+            MarkerType = MarkerType.Circle,
+            MarkerSize = 7.0,
+            MarkerFill = ColorDemandaExcedida,
+            MarkerStroke = ColorEje,
+            MarkerStrokeThickness = 0.8,
+        };
+        foreach (var (demanda, resultado) in _resultadosPorDemanda)
+        {
+            var serie = resultado.EsSeguro ? seguros : excedidos;
+            serie.Points.Add(new ScatterPoint(demanda.Mu, demanda.Pu));
+        }
+        if (seguros.Points.Count > 0) m.Series.Add(seguros);
+        if (excedidos.Points.Count > 0) m.Series.Add(excedidos);
 
         m.InvalidatePlot(true);
     }
