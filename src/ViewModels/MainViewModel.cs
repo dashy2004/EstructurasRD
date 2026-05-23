@@ -15,6 +15,7 @@ using LosasPlus.Models;
 using LosasPlus.Persistence;
 using LosasPlus.Services;
 using LosasPlus.Validation;
+using LosasPlus.ViewModels.Auditoria;
 using LosasPlus.ViewModels.Columnas;
 using LosasPlus.ViewModels.Vigas;
 using LosasPlus.ViewModels.Zapatas;
@@ -58,6 +59,13 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             _modoActivo = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(EsModoEditor));
+
+            // Al entrar al modo Auditoría (Fase 7 Iter 2), disparar el motor
+            // de auditoría cruzada en hilo secundario para refrescar el
+            // dashboard. Patrón fire-and-forget: la bandera EjecutandoAnalisis
+            // del sub-VM mueve el ProgressBar indeterminado en la toolbar.
+            if (value == ModoSidebar.Auditoria)
+                _ = Auditoria.ActualizarAuditoriaAsync();
         }
     }
 
@@ -169,6 +177,13 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// contacto + croquis 1:1 de la planta.
     /// </summary>
     public ZapataEditorViewModel ZapataEditor { get; private set; } = null!;
+
+    /// <summary>
+    /// Sub-VM del Dashboard Ejecutivo de Auditoría Global (Fase 7, Iter 2):
+    /// consume el motor <c>ProyectoAuditorEngine</c> y expone KPIs +
+    /// log filtrable al shell. Sólo lectura (sin Undo snapshot).
+    /// </summary>
+    public AuditoriaViewModel Auditoria { get; private set; } = null!;
 
     public ICommand? IrABusquedaCommand { get; private set; }
     public ICommand? GenerarMemoriaCommand { get; private set; }
@@ -703,6 +718,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
 
         // ---- Editor de zapatas aisladas (Fase 6) ----
         ZapataEditor = new ZapataEditorViewModel(_proyecto, PushUndoSnapshot);
+
+        // ---- Dashboard de auditoría global del proyecto (Fase 7 Iter 2) ----
+        Auditoria = new AuditoriaViewModel(_proyecto);
 
         // Cambios al nombre del proyecto refrescan el título de la ventana.
         _proyecto.PropertyChanged += (_, e) =>
@@ -1420,6 +1438,8 @@ public enum ModoSidebar
     Columnas,
     /// <summary>Editor de zapatas aisladas y bar chart de presiones de contacto (Fase 6).</summary>
     Zapatas,
+    /// <summary>Dashboard de auditoría global del proyecto y log maestro de alertas (Fase 7 Iter 2).</summary>
+    Auditoria,
     Validacion,
     Busqueda,
     Configuracion,

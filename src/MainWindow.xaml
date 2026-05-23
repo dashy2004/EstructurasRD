@@ -8,6 +8,7 @@
         xmlns:vigas="clr-namespace:LosasPlus.Views.Vigas"
         xmlns:cols="clr-namespace:LosasPlus.Views.Columnas"
         xmlns:zap="clr-namespace:LosasPlus.Views.Zapatas"
+        xmlns:aud="clr-namespace:LosasPlus.Views.Auditoria"
         xmlns:s="clr-namespace:LosasPlus.Services"
         xmlns:cmn="clr-namespace:MemoriaPlus.Common;assembly=MemoriaPlus.UI.Shared"
         xmlns:vws="clr-namespace:MemoriaPlus.Views;assembly=MemoriaPlus.UI.Shared"
@@ -152,6 +153,9 @@
                         <RadioButton GroupName="SidebarNav" Content="🏗  Zapatas"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Zapatas}"
                                      ToolTip="Editor de zapatas aisladas: presiones de contacto biaxiales y croquis 1:1 de la planta."/>
+                        <RadioButton GroupName="SidebarNav" Content="📊  Auditoría"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Auditoria}"
+                                     ToolTip="Dashboard ejecutivo: auditoría cruzada del proyecto y log maestro de alertas estructurales (Fase 7)."/>
                         <RadioButton GroupName="SidebarNav" Content="🛡  Validación"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}"/>
                         <RadioButton GroupName="SidebarNav" Content="⚖  Reglamento"
@@ -986,6 +990,21 @@
                         </Style>
                     </ContentControl.Style>
                     <zap:ZapataEditorView DataContext="{Binding}"/>
+                </ContentControl>
+
+                <!-- MODO Auditoría — dashboard ejecutivo + log maestro de alertas (Fase 7 Iter 2). -->
+                <ContentControl>
+                    <ContentControl.Style>
+                        <Style TargetType="{x:Type ContentControl}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ModoActivo}" Value="Auditoria">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ContentControl.Style>
+                    <aud:AuditoriaView DataContext="{Binding}"/>
                 </ContentControl>
 
                 <!-- MODO DLEditor (texto crudo) -->
