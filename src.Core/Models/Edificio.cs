@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using LosasPlus.Columnas;
 using LosasPlus.Vigas;
+using LosasPlus.Zapatas;
 
 namespace LosasPlus.Models;
 
@@ -103,6 +104,16 @@ public partial class Nivel : INotifyPropertyChanged
     /// la colección vacía sin migración del esquema.
     /// </summary>
     public ObservableCollection<Columna> Columnas { get; } = new();
+
+    /// <summary>
+    /// Zapatas aisladas de esta planta — el frente del módulo de
+    /// cimentaciones superficiales de la Fase 6. Colección get-only con
+    /// inicializador, aditiva como <see cref="Vigas"/> y <see cref="Columnas"/>;
+    /// los proyectos previos a la Fase 6 cargan con la colección vacía sin
+    /// migración del esquema (la deserialización JSON las rellena vía
+    /// <c>JsonObjectCreationHandling.Populate</c>).
+    /// </summary>
+    public ObservableCollection<ZapataAislada> Zapatas { get; } = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? name = null)
