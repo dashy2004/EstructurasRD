@@ -1329,6 +1329,17 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, MemoriaPlusVm.
         // canvas hace el render real. SeleccionService inyectado para
         // que el click en planta sincronice con el panel Elemento Activo.
         PlantaEstructural = new LosasPlus.ViewModels.PlantaEstructural.PlantaEstructuralViewModel(_proyecto, Seleccion);
+        // Sincronizar SistemaActivo: el shell mantiene un Sistema activo
+        // global; la Planta Estructural lo refleja para renderizar las
+        // losas + muros de ese sistema. Cuando el usuario cambia de
+        // Sistema en el ComboBox del header del shell, la Planta se
+        // actualiza automáticamente (Liga C 1.5).
+        PlantaEstructural.SistemaActivo = _sistemaActivo;
+        PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(SistemaActivo))
+                PlantaEstructural.SistemaActivo = _sistemaActivo;
+        };
 
         // ---- Visor 3D wireframe (Fase 3D-I1 del Plan de Expansión 3D) ----
         Viewport3D = new Viewport3DViewModel();

@@ -50,6 +50,7 @@
                 Proyecto="{Binding PlantaEstructural.Proyecto}"
                 NivelActivo="{Binding PlantaEstructural.NivelActivo}"
                 GrillaActiva="{Binding PlantaEstructural.GrillaActiva}"
+                SistemaActivo="{Binding PlantaEstructural.SistemaActivo}"
                 Revision="{Binding PlantaEstructural.Revision}"
                 Seleccion="{Binding PlantaEstructural.Seleccion}"/>
         </Border>

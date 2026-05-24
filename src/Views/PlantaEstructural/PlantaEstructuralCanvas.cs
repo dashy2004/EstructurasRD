@@ -6,6 +6,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using LosasPlus.Grillas;
 using LosasPlus.Models;
+using LosasPlus.Models.Cad;
+using LosasPlus.Services;
 using LosasPlus.Topologia;
 using LosasPlus.ViewModels;
 
@@ -56,6 +58,8 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
     private readonly VisualCollection _children;
     private readonly DrawingVisual    _layerFondo;
     private readonly DrawingVisual    _layerGrilla;
+    private readonly DrawingVisual    _layerLosas;
+    private readonly DrawingVisual    _layerMuros;
     private readonly DrawingVisual    _layerVigas;
     private readonly DrawingVisual    _layerColumnas;
     private readonly DrawingVisual    _layerZapatas;
@@ -79,6 +83,10 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
     { DashStyle = new DashStyle(new double[] { 4, 3 }, 0) };
     private static readonly Brush BrushEtiquetaColumna = Brushes.White;
     private static readonly Brush BrushEtiquetaViga    = new SolidColorBrush(Color.FromRgb(0xFD, 0xBA, 0x74));
+    private static readonly Brush BrushLosaRelleno     = new SolidColorBrush(Color.FromArgb(0x60, 0x2E, 0x7D, 0x32));
+    private static readonly Pen   PenLosaBorde         = new(new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32)), 1.5);
+    private static readonly Brush BrushEtiquetaLosa    = Brushes.White;
+    private static readonly Brush BrushMuro            = new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80));
 
     static PlantaEstructuralCanvas()
     {
@@ -91,6 +99,10 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
         PenZapata.Freeze();
         BrushEtiquetaColumna.Freeze();
         BrushEtiquetaViga.Freeze();
+        BrushLosaRelleno.Freeze();
+        PenLosaBorde.Freeze();
+        BrushEtiquetaLosa.Freeze();
+        BrushMuro.Freeze();
     }
 
     public PlantaEstructuralCanvas()
@@ -101,15 +113,23 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
 
         _layerFondo    = NuevaCapa();
         _layerGrilla   = NuevaCapa(_grupo);
+        _layerLosas    = NuevaCapa(_grupo);
+        _layerMuros    = NuevaCapa(_grupo);
         _layerVigas    = NuevaCapa(_grupo);
         _layerColumnas = NuevaCapa(_grupo);
         _layerZapatas  = NuevaCapa(_grupo);
 
+        // Orden Z (de abajo hacia arriba en la pantalla):
+        //   Fondo → Grilla → Losas → Muros → Zapatas → Vigas → Columnas
+        // Las columnas son lo más visible (encima de las vigas) y las
+        // losas son el "piso" del nivel sobre la grilla.
         _children = new VisualCollection(this)
         {
             _layerFondo,
             _layerGrilla,
-            _layerZapatas,   // zapatas debajo de las columnas
+            _layerLosas,
+            _layerMuros,
+            _layerZapatas,
             _layerVigas,
             _layerColumnas,
         };
@@ -147,6 +167,10 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
         DependencyProperty.Register(nameof(Seleccion), typeof(SeleccionService), typeof(PlantaEstructuralCanvas),
             new PropertyMetadata(null));
 
+    public static readonly DependencyProperty SistemaActivoProperty =
+        DependencyProperty.Register(nameof(SistemaActivo), typeof(Sistema), typeof(PlantaEstructuralCanvas),
+            new PropertyMetadata(null, (d, _) => ((PlantaEstructuralCanvas)d).Redibujar()));
+
     public Proyecto? Proyecto
     { get => (Proyecto?)GetValue(ProyectoProperty);   set => SetValue(ProyectoProperty, value); }
     public Nivel? NivelActivo
@@ -164,6 +188,8 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
     { get => (int)GetValue(RevisionProperty);           set => SetValue(RevisionProperty, value); }
     public SeleccionService? Seleccion
     { get => (SeleccionService?)GetValue(SeleccionProperty); set => SetValue(SeleccionProperty, value); }
+    public Sistema? SistemaActivo
+    { get => (Sistema?)GetValue(SistemaActivoProperty); set => SetValue(SistemaActivoProperty, value); }
 
     // ===== Hit-test internal map: rect en world coords → DomainKey =====
     private readonly List<(Rect WorldRect, DomainKey Key)> _hitRects = new();
@@ -173,6 +199,8 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
     {
         RenderFondo();
         RenderGrilla();
+        RenderLosas();
+        RenderMuros();
         RenderZapatas();
         RenderVigas();
         RenderColumnas();
@@ -217,6 +245,81 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
             dc.DrawLine(PenGrilla, p1, p2);
             DibujarEtiquetaEje(dc, ey.Nombre,
                 new Point(xMin * PxPorMetro - 18, ey.PosicionMetros * PxPorMetro));
+        }
+    }
+
+    /// <summary>
+    /// Renderiza las losas del <see cref="SistemaActivo"/> usando el
+    /// <see cref="LayoutSolver"/> existente (mismo motor que el Lienzo
+    /// CAD legacy). Y se NIEGA al colocar en el canvas porque el
+    /// LayoutSolver retorna coords con Y growing-down (convención de
+    /// pantalla) mientras este canvas usa Y growing-up (convención de
+    /// planos estructurales) — la inversión preserva la topología
+    /// relativa de las losas.
+    /// </summary>
+    private void RenderLosas()
+    {
+        _hitRects.RemoveAll(h => h.Key.Tipo == TipoElemento.Losa);
+        using var dc = _layerLosas.RenderOpen();
+        var sistema = SistemaActivo;
+        if (sistema is null || sistema.Losas.Count == 0) return;
+
+        var resultado = LayoutSolver.Solve(sistema);
+        foreach (var p in resultado.Placements)
+        {
+            // p.X / p.Y son la esquina sup-izquierda en metros con
+            // Y growing-down. Para nuestro canvas con Y growing-up,
+            // negamos Y y reflejamos también la altura: el "top" en
+            // el LayoutSolver corresponde al "bottom" en nuestro
+            // canvas. Para conservar la apariencia rectangular,
+            // dibujamos la losa con corner en (X, -(Y+Height)).
+            double x = p.X * PxPorMetro;
+            double y = -(p.Y + p.Losa.Ly) * PxPorMetro;
+            double w = p.Losa.Lx * PxPorMetro;
+            double h = p.Losa.Ly * PxPorMetro;
+            var rect = new Rect(x, y, w, h);
+            dc.DrawRectangle(BrushLosaRelleno, PenLosaBorde, rect);
+
+            // Etiqueta centrada — Id + dimensión + tipo.
+            string etiqueta = $"{p.Losa.Id}\n{p.Losa.Lx:F1}×{p.Losa.Ly:F1}\nTipo: {p.Losa.Tipo}";
+            DibujarEtiqueta(dc, etiqueta, new Point(x + w / 2, y + h / 2), BrushEtiquetaLosa, 9);
+
+            // Hit-test rect en world coords.
+            _hitRects.Add((
+                new Rect(p.X, -(p.Y + p.Losa.Ly), p.Losa.Lx, p.Losa.Ly),
+                new DomainKey(TipoElemento.Losa, p.Losa.Id)));
+        }
+    }
+
+    /// <summary>
+    /// Renderiza los muros del <see cref="SistemaActivo"/> como líneas
+    /// gruesas (espesor proporcional a <c>Muro.Espesor</c>). Y se
+    /// niega igual que en <see cref="RenderLosas"/>.
+    /// </summary>
+    private void RenderMuros()
+    {
+        _hitRects.RemoveAll(h => h.Key.Tipo == TipoElemento.Muro);
+        using var dc = _layerMuros.RenderOpen();
+        var sistema = SistemaActivo;
+        if (sistema is null || sistema.Muros.Count == 0) return;
+
+        foreach (var muro in sistema.Muros)
+        {
+            double espesorPx = Math.Max(2.0, muro.Espesor * PxPorMetro);
+            var pen = new Pen(BrushMuro, espesorPx) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+            pen.Freeze();
+            var p1 = new Point(muro.PuntoInicio.X * PxPorMetro, -muro.PuntoInicio.Y * PxPorMetro);
+            var p2 = new Point(muro.PuntoFin.X    * PxPorMetro, -muro.PuntoFin.Y    * PxPorMetro);
+            dc.DrawLine(pen, p1, p2);
+
+            // Hit-test: bounding box ampliada por espesor.
+            double xMin = Math.Min(muro.PuntoInicio.X, muro.PuntoFin.X) - muro.Espesor / 2;
+            double xMax = Math.Max(muro.PuntoInicio.X, muro.PuntoFin.X) + muro.Espesor / 2;
+            double yMin = Math.Min(-muro.PuntoInicio.Y, -muro.PuntoFin.Y) - muro.Espesor / 2;
+            double yMax = Math.Max(-muro.PuntoInicio.Y, -muro.PuntoFin.Y) + muro.Espesor / 2;
+            _hitRects.Add((
+                new Rect(xMin, yMin, xMax - xMin, yMax - yMin),
+                new DomainKey(TipoElemento.Muro, muro.Id)));
         }
     }
 

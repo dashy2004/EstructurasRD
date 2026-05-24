@@ -43,11 +43,28 @@ public sealed class PlantaEstructuralViewModel : INotifyPropertyChanged
         Seleccion = seleccion;
         // Inicializa al primer nivel del primer edificio si existe.
         _nivelActivo = proyecto.Edificios.FirstOrDefault()?.Niveles.FirstOrDefault();
-        // Suscribir cambios topológicos para refrescar el combobox.
-        if (proyecto.Edificios is INotifyCollectionChangedHelper)
+        // Default: primer Sistema del nivel activo (donde viven las losas
+        // del editor CAD legacy). Si no hay, queda null.
+        _sistemaActivo = _nivelActivo?.Sistemas.FirstOrDefault();
+    }
+
+    private Sistema? _sistemaActivo;
+
+    /// <summary>
+    /// Sistema cuyas losas + muros se renderizan en planta (mismo concepto
+    /// que <c>MainViewModel.SistemaActivo</c>; lo sincronizamos en C1.5
+    /// para que la Planta Estructural unifique la visualización CAD +
+    /// estructural sin necesidad de tener dos modos paralelos).
+    /// </summary>
+    public Sistema? SistemaActivo
+    {
+        get => _sistemaActivo;
+        set
         {
-            // El dominio no expone CollectionChanged público en Edificios;
-            // si en una iteración futura se agrega, se conecta aquí.
+            if (ReferenceEquals(_sistemaActivo, value)) return;
+            _sistemaActivo = value;
+            OnPropertyChanged();
+            InvalidarVista();
         }
     }
 
