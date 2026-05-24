@@ -15,6 +15,13 @@ public enum TipoElemento
     Zapata,
     /// <summary>Muro estructural CAD (<c>Sistema.Muros</c>).</summary>
     Muro,
+    /// <summary>
+    /// Losa rectangular del sistema CAD del nivel (<c>Sistema.Losas</c>) —
+    /// renderizada en 3D desde el Módulo 1 de la Fase 3D-II como prisma
+    /// extruido posicionado por <c>LayoutSolver</c>. NO participa del
+    /// grafo proyectado (es una entidad de superficie, no de eje).
+    /// </summary>
+    Losa,
 }
 
 /// <summary>

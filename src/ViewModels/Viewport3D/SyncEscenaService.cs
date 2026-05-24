@@ -8,6 +8,7 @@ using HelixToolkit;                  // Vector3Collection, IntCollection
 using HelixToolkit.SharpDX;          // LineGeometry3D, Geometry3D
 using HelixToolkit.Wpf.SharpDX;      // LineGeometryModel3D, MeshGeometryModel3D, PhongMaterial(s)
 using LosasPlus.Models;
+using LosasPlus.Services;         // LayoutSolver (posicionamiento topológico de losas)
 using LosasPlus.Topologia;
 using HxColor4 = HelixToolkit.Maths.Color4;
 using HxMeshGeometry3D = HelixToolkit.SharpDX.MeshGeometry3D;
@@ -61,6 +62,10 @@ internal static class SyncEscenaService
     internal static readonly Color ColorColumna = Color.FromArgb(0xFF, 0xA0, 0xA0, 0xA0);   // gris claro metálico
     internal static readonly Color ColorZapata  = Color.FromArgb(0xFF, 0xD2, 0x84, 0x4A);   // marrón suave
     internal static readonly Color ColorMuro    = Color.FromArgb(0xFF, 0x2E, 0xCC, 0x71);   // verde esmeralda
+    // Losas (Módulo 1 Fase 3D-II): alpha 0x66 (40%) para que vigas y muros
+    // bajo la losa sigan visibles. Gris azulado suave para que no compita
+    // visualmente con los miembros estructurales.
+    internal static readonly Color ColorLosa    = Color.FromArgb(0x66, 0xB0, 0xC0, 0xD0);
     internal static readonly Color ColorSeleccion = Color.FromArgb(0xFF, 0xFF, 0xD7, 0x00); // oro alta visibilidad
 
     // ---- Constantes wireframe (muros — Parte A; pasan a mesh en Parte B) ----
@@ -72,6 +77,7 @@ internal static class SyncEscenaService
     internal static readonly PhongMaterial MaterialColumna   = CrearMaterial(ColorColumna,   "MatColumna");
     internal static readonly PhongMaterial MaterialZapata    = CrearMaterial(ColorZapata,    "MatZapata");
     internal static readonly PhongMaterial MaterialMuro      = CrearMaterial(ColorMuro,      "MatMuro");
+    internal static readonly PhongMaterial MaterialLosa      = CrearMaterial(ColorLosa,      "MatLosa");
     internal static readonly PhongMaterial MaterialSeleccion = CrearMaterial(ColorSeleccion, "MatSelec");
 
     // Cintas de diagramas estructurales (Fase 3D-I4 Parte B). Tres
@@ -193,6 +199,31 @@ internal static class SyncEscenaService
                                 new DomainKey(TipoElemento.Muro, muro.Id),
                                 ConstruirPrismaMuro(muro, zBase),
                                 MaterialMuro));
+                        }
+                    }
+                }
+            }
+
+            // Losas (Módulo 1 Fase 3D-II): prisma rectangular extruido
+            // posicionado por LayoutSolver — el MISMO solver que el
+            // editor 2D de CadCanvasHost. La losa cuelga debajo de la
+            // cota del nivel (la superficie superior queda exactamente
+            // sobre Z = Cota). Hit-testing vía Tag(TipoElemento.Losa, Id).
+            foreach (var ed in proyecto.Edificios)
+            {
+                foreach (var ni in ed.Niveles)
+                {
+                    double zNivel = ni.Cota;
+                    foreach (var sis in ni.Sistemas)
+                    {
+                        if (sis.Losas.Count == 0) continue;
+                        var layout = LayoutSolver.Solve(sis);
+                        foreach (var p in layout.Placements)
+                        {
+                            pendientes.Add(ElementoPendiente.ParaMesh(
+                                new DomainKey(TipoElemento.Losa, p.Id),
+                                ConstruirPrismaLosa(p, zNivel),
+                                MaterialLosa));
                         }
                     }
                 }
@@ -348,6 +379,64 @@ internal static class SyncEscenaService
             Normals         = normals,
             TriangleIndices = indices,
         };
+    }
+
+    // ===================================================================
+    // EXTRUSIÓN DE LOSAS (Módulo 1 Fase 3D-II)
+    // ===================================================================
+
+    /// <summary>
+    /// Prisma rectangular axis-aligned para una <c>Losa</c> posicionada
+    /// por <see cref="LayoutSolver"/>. El sólido se construye con 8
+    /// vértices y 12 triángulos (winding CCW exterior, consistente con
+    /// <c>CullMode.Back + FrontCounterClockwise=true</c> del visor).
+    ///
+    /// <para>
+    /// Convención de cota: la <b>superficie superior</b> de la losa
+    /// queda exactamente en <c>Z = zNivel</c>, la base en
+    /// <c>Z = zNivel - Espesor</c>. La losa "cuelga" del nivel — su
+    /// centro está a media altura de espesor por debajo de la cota.
+    /// </para>
+    ///
+    /// <para>
+    /// Las coordenadas (X, Y) en planta vienen del <c>Placement</c> del
+    /// solver: esquina superior-izquierda en <c>(p.X, p.Y)</c>, ancho
+    /// <c>p.Width = Losa.Lx</c>, alto <c>p.Height = Losa.Ly</c>. El
+    /// sistema 2D del solver mapea directamente al sistema 3D global
+    /// (X→X, Y→Y) — convención consistente con la proyección de muros
+    /// en <see cref="GrafoProyectadoBuilder"/>.
+    /// </para>
+    /// </summary>
+    /// <param name="placement">
+    /// Placement del solver con (X, Y, Width, Height) en metros y
+    /// referencia a la Losa para extraer <c>Espesor</c>.
+    /// </param>
+    /// <param name="zNivel">Cota del nivel (Z superior de la losa), en metros.</param>
+    internal static HxMeshGeometry3D ConstruirPrismaLosa(
+        LayoutSolver.Placement placement, double zNivel)
+    {
+        // Fallback defensivo: si el espesor es cero o negativo (losa
+        // degenerada), usa 0.10 m para que el prisma sea visible.
+        double espesor = placement.Losa.Espesor > 0 ? placement.Losa.Espesor : 0.10;
+
+        // Centro del prisma en (X, Y, Z) — el (X, Y) cae al centroide
+        // del rectángulo, el Z queda a media altura entre base y corona.
+        var centro = new NumericsVector3(
+            (float)(placement.X + placement.Width  * 0.5),
+            (float)(placement.Y + placement.Height * 0.5),
+            (float)(zNivel - espesor * 0.5));
+
+        // Ejes alineados al sistema global — la losa no rota.
+        var ex = new NumericsVector3(1f, 0f, 0f);
+        var ey = new NumericsVector3(0f, 1f, 0f);
+        var ez = new NumericsVector3(0f, 0f, 1f);
+
+        // Mitades de cada dimensión.
+        float hx = (float)(placement.Width  * 0.5);
+        float hy = (float)(placement.Height * 0.5);
+        float hz = (float)(espesor          * 0.5);
+
+        return ConstruirCajaDesdeEjes(centro, ex, ey, ez, hx, hy, hz);
     }
 
     // ===================================================================
@@ -665,6 +754,7 @@ internal static class SyncEscenaService
         TipoElemento.Columna => ColorColumna,
         TipoElemento.Zapata  => ColorZapata,
         TipoElemento.Muro    => ColorMuro,
+        TipoElemento.Losa    => ColorLosa,
         _                    => ColorColumna,
     };
 
@@ -674,6 +764,7 @@ internal static class SyncEscenaService
         TipoElemento.Columna => MaterialColumna,
         TipoElemento.Zapata  => MaterialZapata,
         TipoElemento.Muro    => MaterialMuro,
+        TipoElemento.Losa    => MaterialLosa,
         _                    => MaterialColumna,
     };
 
