@@ -9,8 +9,9 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows;            // Application, MessageBox (export SAF)
+using System.Windows;            // Application, MessageBox (export SAF), WeakEventManager
 using System.Windows.Input;
+using System.Windows.Threading;  // DispatcherTimer — throttle de selección (Liga B B2)
 using LosasPlus.Generation;
 using LosasPlus.Models;
 using LosasPlus.Persistence;
@@ -19,6 +20,7 @@ using LosasPlus.Validation;
 using LosasPlus.Topologia;
 using LosasPlus.ViewModels.Auditoria;
 using LosasPlus.ViewModels.Columnas;
+using LosasPlus.ViewModels.Mensajeria;  // ElementoActivoViewModel (Liga B B2)
 using LosasPlus.ViewModels.Vigas;
 using LosasPlus.ViewModels.Viewport3D;
 using LosasPlus.ViewModels.Zapatas;
@@ -243,6 +245,48 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// el propio <see cref="SeleccionService"/>.
     /// </summary>
     public SeleccionService Seleccion { get; } = new();
+
+    // ===== Liga B paso B2 — Panel "Elemento Activo" =====================
+    //
+    // Throttle de 30 ms para coalescer ráfagas de selección (Shift+click,
+    // selección por ventana). El handler suscrito vía WeakEventManager
+    // sólo encola el último DomainKey pendiente; el Tick del timer es
+    // quien resuelve la entidad de dominio y publica el adapter
+    // ElementoActivoViewModel al binding tree del panel XAML.
+
+    private readonly DispatcherTimer _throttleSeleccion = new(DispatcherPriority.Background)
+    {
+        Interval = TimeSpan.FromMilliseconds(30),
+    };
+    private DomainKey? _ultimaSeleccionPendiente;
+    private bool       _hayPendiente;   // distingue "null intencional" vs "sin pending"
+    private ElementoActivoViewModel _elementoActivo = ElementoActivoViewModel.Vacio;
+
+    /// <summary>
+    /// Adapter read-only del elemento estructural actualmente seleccionado.
+    /// Se reemplaza completo en cada selección efectiva — la UI nunca
+    /// tiene referencia mutable al dominio. Cuando no hay selección o la
+    /// entidad fue eliminada concurrentemente, el valor degrada al
+    /// singleton <see cref="ElementoActivoViewModel.Vacio"/> (patrón
+    /// Null Object) y el panel XAML lo renderiza como placeholder
+    /// "Sin selección".
+    ///
+    /// <para>
+    /// La asignación es <c>private</c>: sólo el resolver interno
+    /// <c>ResolverYPublicarElementoActivo</c> la muta. El binding del
+    /// panel XAML es <c>OneWay</c> por diseño.
+    /// </para>
+    /// </summary>
+    public ElementoActivoViewModel ElementoActivo
+    {
+        get => _elementoActivo;
+        private set
+        {
+            if (ReferenceEquals(_elementoActivo, value)) return;
+            _elementoActivo = value;
+            OnPropertyChanged();
+        }
+    }
 
     public ICommand? IrABusquedaCommand { get; private set; }
     public ICommand? GenerarMemoriaCommand { get; private set; }
@@ -704,6 +748,75 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         }
     }
 
+    // ===================================================================
+    // Liga B paso B2 — handler débil + resolver defensivo
+    // ===================================================================
+
+    /// <summary>
+    /// Handler invocado por <c>WeakEventManager</c> ante cada disparo del
+    /// evento espejo <see cref="SeleccionService.SeleccionCambiada"/>.
+    /// Encola la última <see cref="DomainKey"/> y arranca el throttle si
+    /// no estaba ya activo. Si llegan 10 eventos en 5 ms (selección por
+    /// ventana), sólo la última key se resuelve en el Tick (≥30 ms más
+    /// tarde) — el resto se descartan silenciosamente.
+    /// </summary>
+    private void OnSeleccionCambiadaThrottleHandler(object? sender, SeleccionCambiadaEventArgs e)
+    {
+        _ultimaSeleccionPendiente = e.Seleccion;
+        _hayPendiente             = true;
+        if (!_throttleSeleccion.IsEnabled)
+            _throttleSeleccion.Start();
+    }
+
+    /// <summary>
+    /// Resuelve una <see cref="DomainKey"/> al adapter inmutable
+    /// correspondiente y la publica en <see cref="ElementoActivo"/>.
+    /// Aplica el patrón Null Object — si la entidad no existe en el
+    /// proyecto (eliminada concurrentemente, Id huérfano, tipo
+    /// desconocido) o el adapter lanza una excepción en cascada
+    /// (estado corrupto, race condition), degrada al singleton
+    /// <see cref="ElementoActivoViewModel.Vacio"/> sin propagar la
+    /// excepción al hilo UI.
+    /// </summary>
+    private void ResolverYPublicarElementoActivo(DomainKey? key)
+    {
+        if (key is null)
+        {
+            ElementoActivo = ElementoActivoViewModel.Vacio;
+            return;
+        }
+        try
+        {
+            object? entidad = key.Value.Tipo switch
+            {
+                TipoElemento.Columna => BuscarColumnaPorId(key.Value.Id),
+                TipoElemento.Viga    => BuscarVigaPorId(key.Value.Id),
+                TipoElemento.Zapata  => BuscarZapataPorId(key.Value.Id),
+                _                    => null,
+            };
+            if (entidad is null)
+            {
+                // Entidad eliminada o tipo no soportado por el panel.
+                ElementoActivo = ElementoActivoViewModel.Vacio;
+                return;
+            }
+            ElementoActivo = entidad switch
+            {
+                LosasPlus.Columnas.Columna c       => ElementoActivoViewModel.Adaptar(c),
+                LosasPlus.Vigas.Viga v             => ElementoActivoViewModel.Adaptar(v),
+                LosasPlus.Zapatas.ZapataAislada z  => ElementoActivoViewModel.Adaptar(z),
+                _                                  => ElementoActivoViewModel.Vacio,
+            };
+        }
+        catch
+        {
+            // Estado corrupto, race condition u overflow numérico →
+            // degradación silenciosa al Null Object. No propagar
+            // excepciones al hilo UI.
+            ElementoActivo = ElementoActivoViewModel.Vacio;
+        }
+    }
+
     private LosasPlus.Columnas.Columna? BuscarColumnaPorId(int id)
     {
         foreach (var edif in _proyecto.Edificios)
@@ -917,6 +1030,30 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         // Suscripción del shell al evento de selección — orquesta la
         // redirección a la pestaña + editor 2D correspondiente.
         Seleccion.OnSeleccionCambiada += OnSeleccionCambiadaDelShell;
+
+        // ---- Liga B paso B2: suscripción débil + throttle 30 ms ----
+        //
+        // Razón: el panel persistente "Elemento Activo" no debe retener
+        // el ciclo de vida del MainViewModel si el SeleccionService fuera
+        // promovido a singleton de aplicación (DI). WeakEventManager
+        // (built-in en WPF) mantiene la referencia al handler sólo
+        // mientras el subscriber esté vivo — el GC puede recogerlo
+        // libremente. El throttle 30 ms coalesce ráfagas (Shift+click,
+        // selección por ventana) en un solo Resolve+Publish.
+        WeakEventManager<SeleccionService, SeleccionCambiadaEventArgs>.AddHandler(
+            Seleccion,
+            nameof(SeleccionService.SeleccionCambiada),
+            OnSeleccionCambiadaThrottleHandler);
+
+        _throttleSeleccion.Tick += (_, _) =>
+        {
+            _throttleSeleccion.Stop();
+            var key = _ultimaSeleccionPendiente;
+            var hay = _hayPendiente;
+            _ultimaSeleccionPendiente = null;
+            _hayPendiente             = false;
+            if (hay) ResolverYPublicarElementoActivo(key);
+        };
 
         // Cambios al nombre del proyecto refrescan el título de la ventana.
         _proyecto.PropertyChanged += (_, e) =>

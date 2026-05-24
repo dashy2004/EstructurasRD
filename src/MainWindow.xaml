@@ -1475,6 +1475,23 @@
             </Grid>
 
             <!-- =========================================================
+                 PANEL PERSISTENTE "ELEMENTO ACTIVO" (Liga B paso B2)
+                 Overlay flotante en la esquina superior-derecha del área
+                 de contenido (Row="2"). Visible en todos los modos —
+                 muestra el adapter inmutable de MainViewModel.ElementoActivo
+                 (Columna/Viga/Zapata seleccionada o Null Object si no hay
+                 selección). Panel.ZIndex=20 lo coloca encima de todos los
+                 sub-modos. La suscripción del adapter al SeleccionService
+                 es débil (WeakEventManager) + throttled (30 ms).
+                 ========================================================= -->
+            <v:ElementoActivoPanel Grid.Row="2"
+                                   DataContext="{Binding ElementoActivo}"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Top"
+                                   Margin="0,12,24,0"
+                                   Panel.ZIndex="20"/>
+
+            <!-- =========================================================
                  LOG EXPANDIBLE: visible si LogToggle.IsChecked.
                  (Liga B5: Row="3" tras la inserción del banner en Row="0".)
                  ========================================================= -->

@@ -1,0 +1,71 @@
+<UserControl x:Class="LosasPlus.Views.ElementoActivoPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="240" MinHeight="100">
+    <!--
+        Panel persistente "Elemento Activo" (Liga B paso B2).
+
+        DataContext: ElementoActivoViewModel (DTO inmutable proyectado desde
+        Columna/Viga/ZapataAislada vía MainViewModel.ElementoActivo).
+
+        Binding tree exclusivamente sobre el adapter — la UI nunca posee
+        referencias mutables al dominio. Si el adapter es el Null Object
+        (EsVacio == true), el DataTrigger reduce la opacidad del border y
+        muestra el placeholder "Sin selección".
+    -->
+    <Border Background="{DynamicResource BgSecondary}"
+            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+            CornerRadius="6" Padding="10">
+        <Border.Style>
+            <Style TargetType="Border">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding EsVacio}" Value="True">
+                        <Setter Property="Opacity" Value="0.40"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
+        <StackPanel>
+            <!-- Header: Tipo · #Id -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                <TextBlock Text="{Binding Tipo}"
+                           FontWeight="Bold" FontSize="13"
+                           Foreground="{DynamicResource FgPrimary}"/>
+                <TextBlock Text=" · " Foreground="{DynamicResource FgMuted}"/>
+                <TextBlock Text="{Binding Id, StringFormat='#{0}'}"
+                           FontFamily="JetBrains Mono, Consolas"
+                           Foreground="{DynamicResource FgMuted}"/>
+            </StackPanel>
+
+            <!-- Nombre descriptivo del elemento (p. ej. "C-1") -->
+            <TextBlock Text="{Binding Nombre}" FontSize="12"
+                       Foreground="{DynamicResource FgPrimary}"
+                       Margin="0,0,0,4"/>
+
+            <!-- Dimensiones formateadas en mono-font (p. ej. "30×30 cm · H=3.00 m") -->
+            <TextBlock Text="{Binding Dimensiones}"
+                       FontFamily="JetBrains Mono, Consolas" FontSize="11"
+                       Foreground="{DynamicResource FgMuted}"
+                       TextWrapping="Wrap" Margin="0,0,0,6"/>
+
+            <!-- Ratio D/C — placeholder en 0.000 hasta que Liga B B4 lo conecte
+                 al RatioCalculator. Oculto cuando EsVacio == true. -->
+            <StackPanel Orientation="Horizontal">
+                <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding EsVacio}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </StackPanel.Style>
+                <TextBlock Text="D/C: " FontSize="11"
+                           Foreground="{DynamicResource FgMuted}"/>
+                <TextBlock Text="{Binding RatioDC, StringFormat=F3}"
+                           FontFamily="JetBrains Mono, Consolas" FontSize="11"
+                           Foreground="{DynamicResource FgPrimary}"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>

@@ -60,17 +60,36 @@ public sealed class SeleccionService : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Evento disparado <b>una sola vez</b> por mutación efectiva de la
-    /// selección. Los suscriptores reciben el nuevo <see cref="DomainKey"/>
-    /// (o <c>null</c> al deseleccionar). El emisor garantiza:
+    /// Evento legado disparado <b>una sola vez</b> por mutación efectiva
+    /// de la selección. Los suscriptores reciben el nuevo
+    /// <see cref="DomainKey"/> (o <c>null</c> al deseleccionar). El emisor
+    /// garantiza:
     /// <list type="bullet">
     ///   <item>No se dispara cuando el valor entrante es igual al actual
     ///   (idempotencia).</item>
     ///   <item>No se dispara durante una propagación en curso
     ///   (anti-recursión).</item>
     /// </list>
+    ///
+    /// <para>
+    /// Preservado por compatibilidad — el routing de modos del shell
+    /// (<c>OnSeleccionCambiadaDelShell</c> en <c>MainViewModel</c>)
+    /// y los consumidores históricos siguen suscritos a él.
+    /// </para>
     /// </summary>
     public event Action<DomainKey?>? OnSeleccionCambiada;
+
+    /// <summary>
+    /// Evento espejo CLR-standard (<see cref="EventHandler{T}"/>) que se
+    /// dispara <b>en paralelo</b> al legado <see cref="OnSeleccionCambiada"/>
+    /// dentro del mismo bloque <c>try/finally</c> anti-recursión de
+    /// <see cref="FijarSeleccion"/>. Existe para habilitar la suscripción
+    /// débil con <c>System.Windows.WeakEventManager&lt;TSource,TEventArgs&gt;</c>
+    /// — el <c>Action&lt;T&gt;</c> legado es incompatible con esa API
+    /// built-in. Liga B paso B2 (panel persistente "Elemento Activo")
+    /// es el primer consumidor.
+    /// </summary>
+    public event EventHandler<SeleccionCambiadaEventArgs>? SeleccionCambiada;
 
     /// <summary>
     /// <c>true</c> mientras un <see cref="FijarSeleccion"/> está
@@ -108,7 +127,12 @@ public sealed class SeleccionService : INotifyPropertyChanged
         {
             _actualizando = true;
             ElementoSeleccionado = nuevoSeleccionado;
+            // Disparo legado — preservado verbatim.
             OnSeleccionCambiada?.Invoke(nuevoSeleccionado);
+            // Disparo espejo CLR-standard (Liga B B2) — payload con la key
+            // y la fuente emisora para auditoría y filtrado de ecos.
+            SeleccionCambiada?.Invoke(
+                this, new SeleccionCambiadaEventArgs(nuevoSeleccionado, emisor));
         }
         finally
         {
