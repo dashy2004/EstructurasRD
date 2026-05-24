@@ -177,9 +177,21 @@ public static class GrafoProyectadoBuilder
         int idxSecuencialColumna = 0;
         foreach (var columna in nivel.Columnas)
         {
-            // Indexación determinista por Id (con fallback para Id <= 0).
-            int idGrilla = columna.Id > 0 ? columna.Id : (10_000 + idxSecuencialColumna);
-            var (x, y) = PosicionEnGrillaArtificial(idGrilla);
+            // Módulo 2C Fase 3D-II: si la columna trae coordenadas
+            // explícitas (creación interactiva con snap a grilla), las
+            // respetamos. Si no, fallback a la grilla artificial por Id
+            // (comportamiento legacy preservado para proyectos viejos).
+            double x, y;
+            if (columna.PosX.HasValue && columna.PosY.HasValue)
+            {
+                x = columna.PosX.Value;
+                y = columna.PosY.Value;
+            }
+            else
+            {
+                int idGrilla = columna.Id > 0 ? columna.Id : (10_000 + idxSecuencialColumna);
+                (x, y) = PosicionEnGrillaArtificial(idGrilla);
+            }
 
             // Si existe una zapata pareada por Id, sintetizar la zapata primero.
             // Su nodo superior coincide con la base de la columna en (X, Y, zNivel).
@@ -235,8 +247,19 @@ public static class GrafoProyectadoBuilder
         int idxSecuencialZapata = 0;
         foreach (var zapHuerfana in zapatasPorId.Values)
         {
-            int idGrilla = zapHuerfana.Id > 0 ? zapHuerfana.Id : (20_000 + idxSecuencialZapata);
-            var (x, y) = PosicionEnGrillaArtificial(idGrilla);
+            // Módulo 2C Fase 3D-II: idem para zapatas huérfanas — si
+            // traen coords explícitas las respetamos; sino, fallback.
+            double x, y;
+            if (zapHuerfana.PosX.HasValue && zapHuerfana.PosY.HasValue)
+            {
+                x = zapHuerfana.PosX.Value;
+                y = zapHuerfana.PosY.Value;
+            }
+            else
+            {
+                int idGrilla = zapHuerfana.Id > 0 ? zapHuerfana.Id : (20_000 + idxSecuencialZapata);
+                (x, y) = PosicionEnGrillaArtificial(idGrilla);
+            }
 
             double espesor = zapHuerfana.Dimensiones.EspesorH > 0
                 ? zapHuerfana.Dimensiones.EspesorH

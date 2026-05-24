@@ -26,6 +26,8 @@ public partial class ZapataAislada : INotifyPropertyChanged
     private string _nombre = "Zapata 1";
     private GeometriaZapata _dimensiones = new();
     private PropiedadesTerreno _suelo = new();
+    private double? _posX;                    // m — Módulo 2C Fase 3D-II (opcional)
+    private double? _posY;                    // m — idem
 
     /// <summary>Identificador de la zapata dentro del nivel.</summary>
     public int Id
@@ -53,6 +55,26 @@ public partial class ZapataAislada : INotifyPropertyChanged
     {
         get => _suelo;
         set { _suelo = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// Coordenada X de la zapata en el lienzo (m), opcional —
+    /// Módulo 2C Fase 3D-II del Plan Maestro. Si está poblada, el
+    /// <c>GrafoProyectadoBuilder</c> la usa para posicionar la zapata
+    /// en el visor 3D; si es <c>null</c>, fallback a la grilla
+    /// artificial por Id (comportamiento legacy preservado).
+    /// </summary>
+    public double? PosX
+    {
+        get => _posX;
+        set { _posX = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Coordenada Y de la zapata en el lienzo (m), opcional. Idem semántica que <see cref="PosX"/>.</summary>
+    public double? PosY
+    {
+        get => _posY;
+        set { _posY = value; OnPropertyChanged(); }
     }
 
     /// <summary>

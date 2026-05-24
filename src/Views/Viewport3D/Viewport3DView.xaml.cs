@@ -46,16 +46,44 @@ public partial class Viewport3DView : UserControl
     /// posteriores.
     /// </para>
     /// </summary>
-    private void OnViewportMouseDown3D(object sender, RoutedEventArgs e)
+    private async void OnViewportMouseDown3D(object sender, RoutedEventArgs e)
     {
         if (DataContext is not Viewport3DViewModel vm) return;
         if (e is not MouseDown3DEventArgs args) return;
-        if (args.HitTestResult is null) return;
 
-        if (args.HitTestResult.ModelHit is Element3D modelo && modelo.Tag is DomainKey key)
+        // ----- Modo Selección (Fase 3D-I3) — comportamiento legacy preservado.
+        if (vm.HerramientaActiva == ModoHerramienta3D.Seleccion)
         {
-            vm.NotificarSeleccionDesde3D(key, this);
+            if (args.HitTestResult is null) return;
+            if (args.HitTestResult.ModelHit is Element3D modelo && modelo.Tag is DomainKey key)
+                vm.NotificarSeleccionDesde3D(key, this);
+            return;
         }
+
+        // ----- Modo CrearColumna (Módulo 2C Fase 3D-II) — muta el dominio
+        // y refresca la escena instantáneamente.
+        if (vm.HerramientaActiva != ModoHerramienta3D.CrearColumna) return;
+
+        var main = vm.MainViewModel;
+        if (main is null) return;
+        var nivel = main.NivelActivo;
+        var edificio = main.Proyecto?.Edificios?.FirstOrDefault();
+        if (edificio is null || args.Viewport is null) return;
+
+        // Proyectar el click al plano horizontal Z = nivel.Cota.
+        var p3 = args.Viewport.UnProjectOnPlane(
+            args.Position, new Point3D(0, 0, nivel.Cota), new Vector3D(0, 0, 1));
+        if (!p3.HasValue) return;
+
+        // Mutación atómica del dominio: snap + Id autoincremental +
+        // columna + (zapata si nivel base).
+        GridCreationEngine.CrearColumnaConSnap(
+            nivel, edificio.Grillas, p3.Value.X, p3.Value.Y);
+
+        // Refresco asíncrono de la escena: el visor re-renderiza con el
+        // nuevo elemento (la columna aparece extruida instantáneamente
+        // en la posición magnetizada).
+        await vm.RegenerarEscenaAsync(main.Proyecto);
     }
 
     // ===================================================================

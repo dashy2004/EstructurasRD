@@ -24,6 +24,8 @@ public partial class Columna : INotifyPropertyChanged
     private double _altura = 3.0;             // m — altura libre por defecto
     private SeccionColumna _geometria = new();
     private RefuerzoColumna _acero = new();
+    private double? _posX;                    // m — Módulo 2C Fase 3D-II (opcional)
+    private double? _posY;                    // m — idem
 
     /// <summary>Identificador de la columna dentro del nivel.</summary>
     public int Id
@@ -58,6 +60,30 @@ public partial class Columna : INotifyPropertyChanged
     {
         get => _acero;
         set { _acero = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// Coordenada X de la columna en el lienzo (m), opcional —
+    /// Módulo 2C Fase 3D-II del Plan Maestro. Si está poblada, el
+    /// <c>GrafoProyectadoBuilder</c> la usa para posicionar la columna
+    /// en el visor 3D; si es <c>null</c>, fallback a la grilla
+    /// artificial por Id (comportamiento legacy preservado).
+    /// </summary>
+    public double? PosX
+    {
+        get => _posX;
+        set { _posX = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// Coordenada Y de la columna en el lienzo (m), opcional. Idem
+    /// semántica que <see cref="PosX"/> — ambos deben estar no-null
+    /// para que el builder respete la posición real.
+    /// </summary>
+    public double? PosY
+    {
+        get => _posY;
+        set { _posY = value; OnPropertyChanged(); }
     }
 
     /// <summary>
