@@ -9,69 +9,53 @@
         <conv:NaNToTextConverter x:Key="NaNToText"/>
     </UserControl.Resources>
     <!--
-        Panel persistente "Elemento Activo" (Liga B paso B2).
-
-        DataContext: ElementoActivoViewModel (DTO inmutable proyectado desde
-        Columna/Viga/ZapataAislada vía MainViewModel.ElementoActivo).
-
-        Binding tree exclusivamente sobre el adapter — la UI nunca posee
-        referencias mutables al dominio. Si el adapter es el Null Object
-        (EsVacio == true), el DataTrigger reduce la opacidad del border y
-        muestra el placeholder "Sin selección".
+        Panel persistente "Elemento Activo" (Liga B paso B2 + hotfix
+        de visibilidad). DataContext: ElementoActivoViewModel. Colores
+        literales (no DynamicResource) para garantizar contraste sobre
+        cualquier tema corporativo. Border SIEMPRE visible — cuando el
+        adapter es Vacio (Null Object), sólo el texto cambia a placeholder
+        gris, pero el contenedor sigue claramente delimitado.
     -->
-    <Border Background="{DynamicResource BgSecondary}"
-            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+    <Border Background="#FF1F2937"
+            BorderBrush="#FF4B5563" BorderThickness="1"
             CornerRadius="6" Padding="10">
-        <Border.Style>
-            <Style TargetType="Border">
-                <Style.Triggers>
-                    <DataTrigger Binding="{Binding EsVacio}" Value="True">
-                        <Setter Property="Opacity" Value="0.40"/>
-                    </DataTrigger>
-                </Style.Triggers>
-            </Style>
-        </Border.Style>
         <StackPanel>
             <!-- Header: Tipo · #Id -->
             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                <TextBlock Text="ELEMENTO ACTIVO"
+                           FontSize="9" FontWeight="Bold"
+                           Foreground="#FF9CA3AF"
+                           Margin="0,0,8,0" VerticalAlignment="Center"/>
                 <TextBlock Text="{Binding Tipo}"
                            FontWeight="Bold" FontSize="13"
-                           Foreground="{DynamicResource FgPrimary}"/>
-                <TextBlock Text=" · " Foreground="{DynamicResource FgMuted}"/>
+                           Foreground="#FFE5E7EB"/>
+                <TextBlock Text=" · " Foreground="#FF6B7280"/>
                 <TextBlock Text="{Binding Id, StringFormat='#{0}'}"
                            FontFamily="JetBrains Mono, Consolas"
-                           Foreground="{DynamicResource FgMuted}"/>
+                           Foreground="#FF9CA3AF"/>
             </StackPanel>
 
             <!-- Nombre descriptivo del elemento (p. ej. "C-1") -->
             <TextBlock Text="{Binding Nombre}" FontSize="12"
-                       Foreground="{DynamicResource FgPrimary}"
-                       Margin="0,0,0,4"/>
+                       Foreground="#FFE5E7EB"
+                       Margin="0,4,0,4"/>
 
             <!-- Dimensiones formateadas en mono-font (p. ej. "30×30 cm · H=3.00 m") -->
             <TextBlock Text="{Binding Dimensiones}"
                        FontFamily="JetBrains Mono, Consolas" FontSize="11"
-                       Foreground="{DynamicResource FgMuted}"
+                       Foreground="#FF9CA3AF"
                        TextWrapping="Wrap" Margin="0,0,0,6"/>
 
-            <!-- Ratio D/C — placeholder en 0.000 hasta que Liga B B4 lo conecte
-                 al RatioCalculator. Oculto cuando EsVacio == true. -->
+            <!-- Ratio D/C — visible siempre (incluso cuando EsVacio).
+                 Cuando RatioDC = 0 o NaN, el converter lo renderiza
+                 como "—" para no confundir al usuario. -->
             <StackPanel Orientation="Horizontal">
-                <StackPanel.Style>
-                    <Style TargetType="StackPanel">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding EsVacio}" Value="True">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </StackPanel.Style>
                 <TextBlock Text="D/C: " FontSize="11"
-                           Foreground="{DynamicResource FgMuted}"/>
+                           Foreground="#FF9CA3AF"/>
                 <TextBlock Text="{Binding RatioDC, Converter={StaticResource NaNToText}}"
                            ToolTip="Si aparece '—', el cálculo no está disponible (sin demandas, datos inválidos o cómputo en curso)."
                            FontFamily="JetBrains Mono, Consolas" FontSize="11"
-                           Foreground="{DynamicResource FgPrimary}"/>
+                           Foreground="#FFE5E7EB"/>
             </StackPanel>
         </StackPanel>
     </Border>

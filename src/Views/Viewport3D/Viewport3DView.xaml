@@ -95,7 +95,7 @@
             <hx:Viewport3DX x:Name="Viewport"
                             EffectsManager="{Binding EffectsManager}"
                             Camera="{Binding Camera}"
-                            EnableSwapChainRendering="True"
+                            EnableSwapChainRendering="False"
                             EnableD2DRendering="False"
                             BackgroundColor="#FF1E1E1E"
                             ShowCoordinateSystem="True"
