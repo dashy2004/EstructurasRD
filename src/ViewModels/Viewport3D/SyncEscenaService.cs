@@ -82,6 +82,13 @@ internal static class SyncEscenaService
     internal static readonly PhongMaterial MaterialMuro      = CrearMaterial(ColorMuro,      "MatMuro");
     internal static readonly PhongMaterial MaterialLosa      = CrearMaterial(ColorLosa,      "MatLosa");
     internal static readonly PhongMaterial MaterialSeleccion = CrearMaterial(ColorSeleccion, "MatSelec");
+    // Cursor guía 3D (Módulo 2 Parte B Fase 3D-II): oro semitransparente
+    // (alpha 50%) para que el ingeniero vea el cubo indicador SIN tapar
+    // la geometría que está debajo. Construido derivando del color oro
+    // existente con alpha reducido.
+    internal static readonly PhongMaterial MaterialCursorGuia = CrearMaterial(
+        Color.FromArgb(0x80, ColorSeleccion.R, ColorSeleccion.G, ColorSeleccion.B),
+        "MatCursorGuia");
 
     // Cintas de diagramas estructurales (Fase 3D-I4 Parte B). Tres
     // estados cromáticos según el ratio D/C del miembro. Material con
@@ -851,6 +858,30 @@ internal static class SyncEscenaService
         /// </summary>
         public static ElementoPendiente ParaBillboard(NumericsVector3 posicion, string texto)
             => new(null, null, null, null, default, posicion, texto);
+    }
+
+    // ===================================================================
+    // CURSOR GUÍA 3D (Módulo 2 Parte B Fase 3D-II)
+    // ===================================================================
+
+    /// <summary>
+    /// Construye un cubo paramétrico centrado en el origen con
+    /// <paramref name="ladoM"/> metros de lado — la geometría del
+    /// cursor guía oro que el code-behind del visor 3D mueve por
+    /// transformación para indicar al usuario dónde caería un click
+    /// de creación. Reutiliza <c>ConstruirCajaDesdeEjes</c> con ejes
+    /// axis-aligned y mitades iguales.
+    /// </summary>
+    /// <param name="ladoM">Lado del cubo, en metros. Default 0.25 m.</param>
+    internal static HxMeshGeometry3D ConstruirCajaUnitaria(float ladoM = 0.25f)
+    {
+        float h = ladoM * 0.5f;
+        return ConstruirCajaDesdeEjes(
+            centro: new NumericsVector3(0f, 0f, 0f),
+            ex:     new NumericsVector3(1f, 0f, 0f),
+            ey:     new NumericsVector3(0f, 1f, 0f),
+            ez:     new NumericsVector3(0f, 0f, 1f),
+            hx: h, hy: h, hz: h);
     }
 
     // ===================================================================

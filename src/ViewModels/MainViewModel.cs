@@ -607,6 +607,37 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
 
     public Proyecto Proyecto => _proyecto;
 
+    /// <summary>
+    /// Nivel activo del shell — el viewport 3D usa esta referencia para
+    /// proyectar el cursor sobre el plano horizontal correspondiente
+    /// (<c>Z = NivelActivo.Cota</c>) y para decidir si la creación
+    /// interactiva debe inyectar zapata pareada (sólo en nivel base,
+    /// <c>Cota == 0</c>). Módulo 2 Parte B Fase 3D-II.
+    ///
+    /// <para>
+    /// Default: <c>Proyecto.Edificios[0].Niveles[0]</c> tras asegurar
+    /// la estructura. El editor 2D (CadEditor) NO la sincroniza
+    /// todavía — eso es alcance de una iteración posterior.
+    /// </para>
+    /// </summary>
+    private Nivel? _nivelActivo;
+    public Nivel NivelActivo
+    {
+        get
+        {
+            if (_nivelActivo is not null) return _nivelActivo;
+            _proyecto.AsegurarEstructura();
+            _nivelActivo = _proyecto.Edificios[0].Niveles[0];
+            return _nivelActivo;
+        }
+        set
+        {
+            if (ReferenceEquals(_nivelActivo, value)) return;
+            _nivelActivo = value;
+            OnPropertyChanged();
+        }
+    }
+
     // =====================================================================
     // SELECCIÓN SINCRONIZADA 3D ↔ PANELES 2D (Fase 3D-I3)
     // =====================================================================
@@ -862,6 +893,12 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         // setter del Viewport3D suscribe internamente OnSeleccionCambiada
         // para mantener el resaltado cromático sincronizado.
         Viewport3D.SeleccionService = Seleccion;
+        // Módulo 2 Parte B Fase 3D-II: el code-behind del visor 3D
+        // necesita resolver NivelActivo + Proyecto a través del VM
+        // padre para los handlers MouseMove3D / MouseDown3D del modo
+        // autoría. Lo inyectamos aquí en lugar de tirar de
+        // Application.Current para preservar testabilidad.
+        Viewport3D.MainViewModel = this;
         // Suscripción del shell al evento de selección — orquesta la
         // redirección a la pestaña + editor 2D correspondiente.
         Seleccion.OnSeleccionCambiada += OnSeleccionCambiadaDelShell;

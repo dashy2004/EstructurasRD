@@ -94,7 +94,8 @@
                             ShowViewCube="True"
                             CameraMode="Inspect"
                             ZoomExtentsWhenLoaded="True"
-                            MouseDown3D="OnViewportMouseDown3D">
+                            MouseDown3D="OnViewportMouseDown3D"
+                            MouseMove3D="OnViewportMouseMove3D">
                 <!-- Iluminación de la escena (Fase 3D-I4 Parte C). Combina
                      dos luces clásicas Phong:
                      · AmbientLight3D #FF2D2D2D — gris oscuro continuo que
@@ -112,6 +113,14 @@
                      colección reactiva en un GroupModel3D que sí lo expone.
                      Patrón documentado por los mantenedores de HelixToolkit. -->
                 <hx:GroupModel3D ItemsSource="{Binding ItemsEscena3D}"/>
+
+                <!-- Cursor guía 3D (Módulo 2 Parte B Fase 3D-II): cubo oro
+                     0.25 m de lado que el code-behind mueve vía Transform
+                     en cada MouseMove3D cuando HerramientaActiva != Selección.
+                     Inicialmente Hidden + sin Geometry; la primera vez que
+                     el handler lo necesita lo inicializa perezosamente
+                     (geometría + material). -->
+                <hx:MeshGeometryModel3D x:Name="CursorGuia3D" Visibility="Hidden"/>
             </hx:Viewport3DX>
         </Border>
     </Grid>

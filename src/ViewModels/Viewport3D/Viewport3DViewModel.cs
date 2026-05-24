@@ -13,6 +13,25 @@ using HxPerspectiveCamera = HelixToolkit.Wpf.SharpDX.PerspectiveCamera;
 namespace LosasPlus.ViewModels.Viewport3D;
 
 /// <summary>
+/// Modos de interacción del cursor en el visor 3D (Módulo 2 Parte B
+/// Fase 3D-II). Cuando <see cref="Seleccion"/> está activo, el viewport
+/// se comporta como hasta ahora: el click selecciona un elemento. Con
+/// las otras opciones, el viewport entra en modo autoría — el cursor
+/// muestra un cubo guía oro que hace snap a las intersecciones de la
+/// grilla estructural y el click materializa una nueva entidad (la
+/// mutación de dominio llega en Parte C).
+/// </summary>
+public enum ModoHerramienta3D
+{
+    /// <summary>Selección bidireccional 3D ↔ paneles 2D (default).</summary>
+    Seleccion,
+    /// <summary>Cada click crea una <c>Columna</c> en el nivel activo.</summary>
+    CrearColumna,
+    /// <summary>Cada click crea una <c>Viga</c> en el nivel activo.</summary>
+    CrearViga,
+}
+
+/// <summary>
 /// ViewModel del visor 3D de la suite (Fase 3D-I1 del Plan Maestro de
 /// Expansión 3D). Es de <b>sólo lectura</b>: observa el grafo del proyecto y
 /// proyecta su geometría como wireframe (<see cref="LineGeometryModel3D"/>)
@@ -46,6 +65,8 @@ public sealed class Viewport3DViewModel : INotifyPropertyChanged, IDisposable
     private bool _cargandoEscena;
     private HxCamera _camera;
     private SeleccionService? _seleccionService;
+    private ModoHerramienta3D _herramientaActiva = ModoHerramienta3D.Seleccion;
+    private MainViewModel? _mainViewModel;
 
     /// <summary>
     /// Construye el VM con instancias frescas de DirectX. La cámara arranca
@@ -149,6 +170,43 @@ public sealed class Viewport3DViewModel : INotifyPropertyChanged, IDisposable
                 _seleccionService.OnSeleccionCambiada += AplicarResaltadoVisual;
                 AplicarResaltadoVisual(_seleccionService.ElementoSeleccionado);
             }
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// Herramienta de interacción activa en el viewport 3D (Módulo 2
+    /// Parte B Fase 3D-II). <see cref="ModoHerramienta3D.Seleccion"/>
+    /// por defecto — preserva el comportamiento de Fase 3D-I3. Las
+    /// otras opciones habilitan el cursor guía oro + snap a grilla en
+    /// el code-behind del <c>Viewport3DView</c>.
+    /// </summary>
+    public ModoHerramienta3D HerramientaActiva
+    {
+        get => _herramientaActiva;
+        set
+        {
+            if (_herramientaActiva == value) return;
+            _herramientaActiva = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// Referencia al <see cref="LosasPlus.ViewModels.MainViewModel"/>
+    /// padre (Módulo 2 Parte B Fase 3D-II) — la inyecta el ctor del
+    /// shell para que el code-behind del visor 3D pueda leer
+    /// <c>NivelActivo</c> y <c>Proyecto.Edificios</c> sin colgarse de
+    /// <c>Application.Current</c>. Opcional para que el VM siga siendo
+    /// construible standalone en tests xUnit.
+    /// </summary>
+    public MainViewModel? MainViewModel
+    {
+        get => _mainViewModel;
+        set
+        {
+            if (ReferenceEquals(_mainViewModel, value)) return;
+            _mainViewModel = value;
             OnPropertyChanged();
         }
     }

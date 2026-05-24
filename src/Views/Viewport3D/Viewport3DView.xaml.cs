@@ -1,6 +1,9 @@
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media.Media3D;
 using HelixToolkit.Wpf.SharpDX;
+using LosasPlus.Grillas;
 using LosasPlus.Topologia;
 using LosasPlus.ViewModels.Viewport3D;
 
@@ -53,5 +56,97 @@ public partial class Viewport3DView : UserControl
         {
             vm.NotificarSeleccionDesde3D(key, this);
         }
+    }
+
+    // ===================================================================
+    // CURSOR GUÍA + SNAP (Módulo 2 Parte B Fase 3D-II)
+    // ===================================================================
+
+    /// <summary>
+    /// Marca <c>true</c> tras la primera invocación de
+    /// <see cref="InicializarCursorGuia"/> — la geometría y el material
+    /// del cubo guía sólo se construyen una vez y se reutilizan en
+    /// cada <c>MouseMove3D</c>. Sin esto reconstruiríamos la malla
+    /// cientos de veces por segundo.
+    /// </summary>
+    private bool _cursorGuiaInicializado;
+
+    /// <summary>
+    /// Construye perezosamente la geometría + material del cubo cursor
+    /// guía (cubo de 0.25 m con <see cref="SyncEscenaService.MaterialCursorGuia"/>
+    /// = oro 50% alpha). Idempotente — segundas invocaciones son no-op.
+    /// </summary>
+    private void InicializarCursorGuia()
+    {
+        if (_cursorGuiaInicializado) return;
+        CursorGuia3D.Geometry = SyncEscenaService.ConstruirCajaUnitaria(ladoM: 0.25f);
+        CursorGuia3D.Material = SyncEscenaService.MaterialCursorGuia;
+        CursorGuia3D.CullMode = global::SharpDX.Direct3D11.CullMode.Back;
+        CursorGuia3D.FrontCounterClockwise = true;
+        _cursorGuiaInicializado = true;
+    }
+
+    /// <summary>
+    /// Handler del evento <c>MouseMove3D</c> del <c>Viewport3DX</c>
+    /// (Módulo 2 Parte B Fase 3D-II). Si la herramienta activa es
+    /// distinta de <see cref="ModoHerramienta3D.Seleccion"/>:
+    ///
+    /// <list type="number">
+    ///   <item>Proyecta la posición del mouse al plano horizontal
+    ///   <c>Z = NivelActivo.Cota</c> vía
+    ///   <c>Viewport3DX.UnProjectOnPlane</c>.</item>
+    ///   <item>Invoca <see cref="GridSnapEngine.CalcularSnapAGrilla"/>
+    ///   con la grilla del primer edificio del proyecto.</item>
+    ///   <item>Mueve el <c>CursorGuia3D</c> mediante un
+    ///   <see cref="TranslateTransform3D"/> a la coordenada
+    ///   resultante (magnetizada si está dentro del radio o libre
+    ///   si no) y lo hace visible.</item>
+    /// </list>
+    ///
+    /// <para>
+    /// En modo <see cref="ModoHerramienta3D.Seleccion"/> el cursor se
+    /// oculta (no-op). Si el VM padre no está cableado o no hay nivel
+    /// activo, se hace early-return sin riesgo.
+    /// </para>
+    /// </summary>
+    private void OnViewportMouseMove3D(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not Viewport3DViewModel vm) return;
+
+        // Modo Selección → cursor oculto, sin proyección.
+        if (vm.HerramientaActiva == ModoHerramienta3D.Seleccion)
+        {
+            CursorGuia3D.Visibility = Visibility.Hidden;
+            return;
+        }
+
+        // Resolver nivel activo y grilla del primer edificio. Es la
+        // convención M2: edificio[0] es el activo (multi-edificio se
+        // arquitecta en una fase futura).
+        var main = vm.MainViewModel;
+        if (main is null) return;
+        var nivel = main.NivelActivo;
+        var edificio = main.Proyecto?.Edificios?.FirstOrDefault();
+        if (edificio is null) return;
+
+        if (e is not MouseMove3DEventArgs args || args.Viewport is null) return;
+
+        // Proyectar el mouse al plano horizontal Z=Cota del nivel activo.
+        // UnProjectOnPlane requiere un punto del plano + su normal (+Z).
+        var planoPunto  = new Point3D(0, 0, nivel.Cota);
+        var planoNormal = new Vector3D(0, 0, 1);
+        var p3 = args.Viewport.UnProjectOnPlane(args.Position, planoPunto, planoNormal);
+        if (!p3.HasValue) return;
+
+        // Snap a la intersección de la grilla más cercana (dentro de
+        // tolerancia) o conservar la posición libre.
+        var (x, y, _) = GridSnapEngine.CalcularSnapAGrilla(
+            p3.Value.X, p3.Value.Y, edificio.Grillas);
+
+        // Asegurar que la geometría + material existan + mover el cubo
+        // y hacerlo visible.
+        InicializarCursorGuia();
+        CursorGuia3D.Transform   = new TranslateTransform3D(x, y, nivel.Cota);
+        CursorGuia3D.Visibility  = Visibility.Visible;
     }
 }
