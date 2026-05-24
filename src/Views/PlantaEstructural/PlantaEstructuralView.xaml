@@ -2,7 +2,11 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:planta="clr-namespace:LosasPlus.Views.PlantaEstructural"
+             xmlns:conv="clr-namespace:LosasPlus.Converters"
              Background="{DynamicResource BgPrimary}">
+    <UserControl.Resources>
+        <conv:EnumToBooleanConverter x:Key="EnumToBoolean"/>
+    </UserControl.Resources>
     <!--
         Vista de planta estructural 2D (Liga C paso C1). DataContext:
         MainViewModel. La toolbar superior expone el selector de nivel
@@ -41,18 +45,63 @@
         </DockPanel>
 
         <!-- ===== Canvas 2D ===== -->
-        <Border Grid.Row="1"
-                Background="#FF1A1A1A"
-                BorderBrush="{DynamicResource Border}" BorderThickness="1"
-                CornerRadius="6"
-                ClipToBounds="True">
-            <planta:PlantaEstructuralCanvas
-                Proyecto="{Binding PlantaEstructural.Proyecto}"
-                NivelActivo="{Binding PlantaEstructural.NivelActivo}"
-                GrillaActiva="{Binding PlantaEstructural.GrillaActiva}"
-                SistemaActivo="{Binding PlantaEstructural.SistemaActivo}"
-                Revision="{Binding PlantaEstructural.Revision}"
-                Seleccion="{Binding PlantaEstructural.Seleccion}"/>
-        </Border>
+        <Grid Grid.Row="1">
+            <Border Background="#FF1A1A1A"
+                    BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                    CornerRadius="6"
+                    ClipToBounds="True">
+                <planta:PlantaEstructuralCanvas x:Name="Canvas"
+                    Proyecto="{Binding PlantaEstructural.Proyecto}"
+                    NivelActivo="{Binding PlantaEstructural.NivelActivo}"
+                    GrillaActiva="{Binding PlantaEstructural.GrillaActiva}"
+                    SistemaActivo="{Binding PlantaEstructural.SistemaActivo}"
+                    Revision="{Binding PlantaEstructural.Revision}"
+                    Seleccion="{Binding PlantaEstructural.Seleccion}"
+                    HerramientaActiva="{Binding PlantaEstructural.HerramientaActiva, Mode=TwoWay}"/>
+            </Border>
+
+            <!-- Toolbar flotante de herramientas (Liga C paso C2) — mismo
+                 patrón que el viewport 3D B3. RadioButtons bindean a
+                 PlantaEstructural.HerramientaActiva vía EnumToBooleanConverter.
+                 Snap a grilla está activo por default; Shift mientras
+                 arrastra/crea desactiva el snap temporalmente. -->
+            <Border HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Margin="0,16,16,0" Padding="8"
+                    Background="#E62A2A2A" CornerRadius="8" Panel.ZIndex="10">
+                <StackPanel Orientation="Vertical" MinWidth="180">
+                    <TextBlock Text="HERRAMIENTAS PLANTA"
+                               FontSize="10" FontWeight="Bold"
+                               Foreground="#FFCCCCCC" Margin="0,0,0,6"/>
+                    <RadioButton GroupName="HerramientasPlanta"
+                                 Content="🔍  Selección / Mover"
+                                 Foreground="#FFEEEEEE" Margin="0,0,0,4"
+                                 ToolTip="Click selecciona. Arrastrar una columna/zapata mueve su posición en planta. Snap a grilla activo por defecto (mantén Shift para libre)."
+                                 IsChecked="{Binding PlantaEstructural.HerramientaActiva,
+                                     Converter={StaticResource EnumToBoolean},
+                                     ConverterParameter=Seleccion}"/>
+                    <RadioButton GroupName="HerramientasPlanta"
+                                 Content="🟨  Crear Columna"
+                                 Foreground="#FFEEEEEE" Margin="0,0,0,4"
+                                 ToolTip="1 click crea una columna en el nivel activo. Snap a la intersección de grilla más cercana."
+                                 IsChecked="{Binding PlantaEstructural.HerramientaActiva,
+                                     Converter={StaticResource EnumToBoolean},
+                                     ConverterParameter=CrearColumna}"/>
+                    <RadioButton GroupName="HerramientasPlanta"
+                                 Content="🟧  Crear Viga"
+                                 Foreground="#FFEEEEEE" Margin="0,0,0,4"
+                                 ToolTip="2 clicks (inicio + fin). Snap a grilla en ambos endpoints."
+                                 IsChecked="{Binding PlantaEstructural.HerramientaActiva,
+                                     Converter={StaticResource EnumToBoolean},
+                                     ConverterParameter=CrearViga}"/>
+                    <RadioButton GroupName="HerramientasPlanta"
+                                 Content="🗑  Borrar elemento"
+                                 Foreground="#FFEEEEEE" Margin="0,0,0,4"
+                                 ToolTip="Click sobre columna/viga/zapata para eliminarla. Muros y losas blindados."
+                                 IsChecked="{Binding PlantaEstructural.HerramientaActiva,
+                                     Converter={StaticResource EnumToBoolean},
+                                     ConverterParameter=BorrarElemento}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>

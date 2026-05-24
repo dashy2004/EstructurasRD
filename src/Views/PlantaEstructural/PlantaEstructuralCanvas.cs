@@ -4,12 +4,16 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using LosasPlus.Columnas;
 using LosasPlus.Grillas;
 using LosasPlus.Models;
 using LosasPlus.Models.Cad;
+using LosasPlus.Servicios;
 using LosasPlus.Services;
 using LosasPlus.Topologia;
 using LosasPlus.ViewModels;
+using LosasPlus.ViewModels.PlantaEstructural;
+using LosasPlus.Zapatas;
 
 namespace LosasPlus.Views.PlantaEstructural;
 
@@ -171,6 +175,12 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
         DependencyProperty.Register(nameof(SistemaActivo), typeof(Sistema), typeof(PlantaEstructuralCanvas),
             new PropertyMetadata(null, (d, _) => ((PlantaEstructuralCanvas)d).Redibujar()));
 
+    public static readonly DependencyProperty HerramientaActivaProperty =
+        DependencyProperty.Register(nameof(HerramientaActiva), typeof(ModoHerramientaPlanta), typeof(PlantaEstructuralCanvas),
+            new FrameworkPropertyMetadata(ModoHerramientaPlanta.Seleccion,
+                FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
+                (d, _) => ((PlantaEstructuralCanvas)d).ResetEstadoEdicion()));
+
     public Proyecto? Proyecto
     { get => (Proyecto?)GetValue(ProyectoProperty);   set => SetValue(ProyectoProperty, value); }
     public Nivel? NivelActivo
@@ -190,6 +200,21 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
     { get => (SeleccionService?)GetValue(SeleccionProperty); set => SetValue(SeleccionProperty, value); }
     public Sistema? SistemaActivo
     { get => (Sistema?)GetValue(SistemaActivoProperty); set => SetValue(SistemaActivoProperty, value); }
+    public ModoHerramientaPlanta HerramientaActiva
+    { get => (ModoHerramientaPlanta)GetValue(HerramientaActivaProperty); set => SetValue(HerramientaActivaProperty, value); }
+
+    // ===== Estado de la state machine de edición C2 =====
+    private DomainKey? _dragKey;
+    private Point      _dragOffset;   // offset world meters (cursor → centro elemento)
+    private (double X, double Y)? _vigaP1;   // primer click memorizado para CrearViga
+    private readonly IAutoria3DService _autoriaService = new GridAutoria3DService();
+
+    private void ResetEstadoEdicion()
+    {
+        _dragKey  = null;
+        _vigaP1   = null;
+        Cursor    = Cursors.Arrow;
+    }
 
     // ===== Hit-test internal map: rect en world coords → DomainKey =====
     private readonly List<(Rect WorldRect, DomainKey Key)> _hitRects = new();
@@ -498,6 +523,8 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
 
     private void OnMouseDown(object sender, MouseButtonEventArgs e)
     {
+        // Pan: rueda media o Ctrl+arrastre — siempre disponible
+        // independientemente de la herramienta activa.
         if (e.ChangedButton == MouseButton.Middle ||
             (e.ChangedButton == MouseButton.Left && Keyboard.Modifiers == ModifierKeys.Control))
         {
@@ -509,12 +536,76 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
             e.Handled = true;
             return;
         }
-        if (e.ChangedButton == MouseButton.Left)
+        if (e.ChangedButton != MouseButton.Left) return;
+        Focus();
+
+        var pixelPos = e.GetPosition(this);
+        var (xM, yM) = PixelToWorldMetros(pixelPos);
+
+        switch (HerramientaActiva)
         {
-            Focus();
-            HitTestYSeleccionar(e.GetPosition(this));
-            e.Handled = true;
+            case ModoHerramientaPlanta.Seleccion:
+                // Hit-test: si cae en columna/zapata, comenzar drag.
+                var hit = BuscarElementoBajoMouse(xM, yM);
+                if (hit is { } key)
+                {
+                    Seleccion?.FijarSeleccion(key, this);
+                    if (key.Tipo == TipoElemento.Columna || key.Tipo == TipoElemento.Zapata)
+                    {
+                        // Capturar centro del elemento para calcular offset del drag.
+                        var (cx, cy) = ResolverCentroElemento(key);
+                        _dragKey    = key;
+                        _dragOffset = new Point(xM - cx, yM - cy);
+                        CaptureMouse();
+                        Cursor = Cursors.SizeAll;
+                    }
+                }
+                break;
+
+            case ModoHerramientaPlanta.CrearColumna:
+                {
+                    var nivel = NivelActivo;
+                    var grilla = GrillaActiva;
+                    if (nivel is null || grilla is null) return;
+                    var (sx, sy) = AplicarSnap(xM, yM, grilla.Value);
+                    GridCreationEngine.CrearColumnaConSnap(nivel, grilla.Value, sx, sy);
+                    Redibujar();
+                }
+                break;
+
+            case ModoHerramientaPlanta.CrearViga:
+                {
+                    var nivel = NivelActivo;
+                    var grilla = GrillaActiva;
+                    if (nivel is null || grilla is null) return;
+                    var (sx, sy) = AplicarSnap(xM, yM, grilla.Value);
+                    if (_vigaP1 is null)
+                    {
+                        _vigaP1 = (sx, sy);
+                        return;
+                    }
+                    var p1 = _vigaP1.Value;
+                    _vigaP1 = null;
+                    _autoriaService.CrearVigaConSnap(nivel, grilla.Value, p1.X, p1.Y, sx, sy);
+                    Redibujar();
+                }
+                break;
+
+            case ModoHerramientaPlanta.BorrarElemento:
+                {
+                    var hitKey = BuscarElementoBajoMouse(xM, yM);
+                    if (hitKey is null) return;
+                    var proy = Proyecto;
+                    if (proy is null) return;
+                    _autoriaService.BorrarElementoPorKey(proy, hitKey.Value);
+                    // Limpiar selección si era el borrado.
+                    if (Seleccion?.ElementoSeleccionado == hitKey)
+                        Seleccion.LimpiarSeleccion(this);
+                    Redibujar();
+                }
+                break;
         }
+        e.Handled = true;
     }
 
     private void OnMouseMove(object sender, MouseEventArgs e)
@@ -524,6 +615,23 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
             var p = e.GetPosition(this);
             _translate.X = _panInicialX + (p.X - start.X);
             _translate.Y = _panInicialY + (p.Y - start.Y);
+            return;
+        }
+
+        // Drag de columna/zapata en modo Selección.
+        if (_dragKey is { } key && HerramientaActiva == ModoHerramientaPlanta.Seleccion)
+        {
+            var (xM, yM) = PixelToWorldMetros(e.GetPosition(this));
+            double nuevoX = xM - _dragOffset.X;
+            double nuevoY = yM - _dragOffset.Y;
+            // Snap default ON, Shift override.
+            if ((Keyboard.Modifiers & ModifierKeys.Shift) == 0 && GrillaActiva is { } g)
+            {
+                var (sx, sy, _) = GridSnapEngine.CalcularSnapAGrilla(nuevoX, nuevoY, g);
+                nuevoX = sx; nuevoY = sy;
+            }
+            AplicarMovimientoElemento(key, nuevoX, nuevoY);
+            Redibujar();
         }
     }
 
@@ -535,27 +643,108 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
             ReleaseMouseCapture();
             Cursor = Cursors.Arrow;
             e.Handled = true;
+            return;
+        }
+        if (_dragKey is not null)
+        {
+            _dragKey = null;
+            ReleaseMouseCapture();
+            Cursor = Cursors.Arrow;
+            e.Handled = true;
         }
     }
 
-    private void HitTestYSeleccionar(Point pixelPos)
+    // ===== Helpers de hit-test, snap y mutación de posición =====
+
+    private (double xM, double yM) PixelToWorldMetros(Point pixelPos)
     {
-        // Pixel → world (m): invertir TransformGroup.
         double xWorldPx = (pixelPos.X - _translate.X) / _scale.ScaleX;
         double yWorldPx = (pixelPos.Y - _translate.Y) / _scale.ScaleY;
-        double xM = xWorldPx / PxPorMetro;
-        double yM = yWorldPx / PxPorMetro;
+        return (xWorldPx / PxPorMetro, yWorldPx / PxPorMetro);
+    }
 
-        DomainKey? mejor = null;
-        // Iterar en orden inverso (los últimos dibujados son más prioritarios:
-        // columnas > vigas > zapatas en el orden de _children).
+    private static (double X, double Y) AplicarSnap(double x, double y, GrillaEstructural grilla)
+    {
+        if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0) return (x, y);
+        var (sx, sy, _) = GridSnapEngine.CalcularSnapAGrilla(x, y, grilla);
+        return (sx, sy);
+    }
+
+    private DomainKey? BuscarElementoBajoMouse(double xM, double yM)
+    {
         for (int i = _hitRects.Count - 1; i >= 0; i--)
         {
             var (rect, key) = _hitRects[i];
-            if (rect.Contains(xM, yM)) { mejor = key; break; }
+            if (rect.Contains(xM, yM)) return key;
         }
-        if (mejor.HasValue)
-            Seleccion?.FijarSeleccion(mejor.Value, this);
+        return null;
+    }
+
+    private (double X, double Y) ResolverCentroElemento(DomainKey key)
+    {
+        var nivel = NivelActivo;
+        if (nivel is null) return (0, 0);
+        switch (key.Tipo)
+        {
+            case TipoElemento.Columna:
+                foreach (var c in nivel.Columnas)
+                    if (c.Id == key.Id) return ResolverPosColumna(c, nivel);
+                break;
+            case TipoElemento.Zapata:
+                foreach (var z in nivel.Zapatas)
+                    if (z.Id == key.Id) return ResolverPosZapata(z, nivel);
+                break;
+        }
+        return (0, 0);
+    }
+
+    private void AplicarMovimientoElemento(DomainKey key, double nuevoX, double nuevoY)
+    {
+        var nivel = NivelActivo;
+        if (nivel is null) return;
+        switch (key.Tipo)
+        {
+            case TipoElemento.Columna:
+                foreach (var c in nivel.Columnas)
+                {
+                    if (c.Id != key.Id) continue;
+                    c.PosX = nuevoX;
+                    c.PosY = nuevoY;
+                    // Si hay zapata pareada (mismo Id en nivel base), arrastrarla también.
+                    foreach (var z in nivel.Zapatas)
+                        if (z.Id == c.Id) { z.PosX = nuevoX; z.PosY = nuevoY; }
+                    return;
+                }
+                break;
+            case TipoElemento.Zapata:
+                foreach (var z in nivel.Zapatas)
+                {
+                    if (z.Id != key.Id) continue;
+                    z.PosX = nuevoX;
+                    z.PosY = nuevoY;
+                    return;
+                }
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Tecla Delete (cuando el canvas tiene focus) elimina el elemento
+    /// seleccionado actualmente en el SeleccionService. Liga C paso C2 —
+    /// shortcut clásico CAD.
+    /// </summary>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Key != Key.Delete) return;
+        var key = Seleccion?.ElementoSeleccionado;
+        if (key is null) return;
+        var proy = Proyecto;
+        if (proy is null) return;
+        _autoriaService.BorrarElementoPorKey(proy, key.Value);
+        Seleccion?.LimpiarSeleccion(this);
+        Redibujar();
+        e.Handled = true;
     }
 
     // ===== Plomería de FrameworkElement =====

@@ -9,6 +9,24 @@ using LosasPlus.Topologia;
 namespace LosasPlus.ViewModels.PlantaEstructural;
 
 /// <summary>
+/// Modos de interacción de la herramienta activa en la Planta
+/// Estructural (Liga C paso C2). Mismo concepto que
+/// <c>ModoHerramienta3D</c> del viewport 3D B3, pero aplicado al
+/// canvas 2D.
+/// </summary>
+public enum ModoHerramientaPlanta
+{
+    /// <summary>Selección + drag para mover columnas/zapatas existentes.</summary>
+    Seleccion,
+    /// <summary>1 click crea una nueva Columna en el nivel activo (con snap a grilla).</summary>
+    CrearColumna,
+    /// <summary>2 clicks (inicio + fin) crea una nueva Viga con snap a grilla en ambos extremos.</summary>
+    CrearViga,
+    /// <summary>1 click sobre un elemento estructural lo elimina (Ghost Deletion via IAutoria3DService).</summary>
+    BorrarElemento,
+}
+
+/// <summary>
 /// ViewModel del modo "Planta Estructural" — vista 2D estática del
 /// nivel activo (Liga C paso C1). Expone al canvas:
 /// <list type="bullet">
@@ -49,6 +67,23 @@ public sealed class PlantaEstructuralViewModel : INotifyPropertyChanged
     }
 
     private Sistema? _sistemaActivo;
+    private ModoHerramientaPlanta _herramienta = ModoHerramientaPlanta.Seleccion;
+
+    /// <summary>
+    /// Herramienta activa de la toolbar (Liga C paso C2). El canvas
+    /// observa esta propiedad para conmutar entre los handlers de
+    /// click/drag (Selección/Crear*/Borrar).
+    /// </summary>
+    public ModoHerramientaPlanta HerramientaActiva
+    {
+        get => _herramienta;
+        set
+        {
+            if (_herramienta == value) return;
+            _herramienta = value;
+            OnPropertyChanged();
+        }
+    }
 
     /// <summary>
     /// Sistema cuyas losas + muros se renderizan en planta (mismo concepto
