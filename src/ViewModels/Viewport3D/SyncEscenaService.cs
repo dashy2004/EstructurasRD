@@ -884,6 +884,34 @@ internal static class SyncEscenaService
             hx: h, hy: h, hz: h);
     }
 
+    /// <summary>
+    /// Construye una geometría de línea de 2 vértices entre dos puntos
+    /// del espacio 3D. Usada por el code-behind del visor 3D para
+    /// renderizar el preview live de viga durante el flow de 2 clicks
+    /// de <c>ModoHerramienta3D.CrearViga</c> (Liga B paso B3). El
+    /// consumidor envuelve esta geometría en un
+    /// <see cref="LineGeometryModel3D"/> ya instanciado en el XAML con
+    /// material naranja.
+    /// </summary>
+    internal static LineGeometry3D ConstruirLineaProvisional(
+        NumericsVector3 p1, NumericsVector3 p2)
+    {
+        var pts = new Vector3Collection { p1, p2 };
+        return new LineGeometry3D
+        {
+            Positions = pts,
+            Indices   = new IntCollection { 0, 1 },
+        };
+    }
+
+    /// <summary>
+    /// Color naranja saturado para el preview de viga durante el flow
+    /// 2-click (Liga B B3). Coherente con el banner naranja de B5 — el
+    /// usuario asocia naranja con "modo autoría 3D activo".
+    /// </summary>
+    internal static readonly Color ColorVigaPreview =
+        Color.FromArgb(0xFF, 0xE6, 0x7E, 0x22);
+
     // ===================================================================
     // GRILLAS ESTRUCTURALES (Módulo 2 Fase 3D-II)
     // ===================================================================

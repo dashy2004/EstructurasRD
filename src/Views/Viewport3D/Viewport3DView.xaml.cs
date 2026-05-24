@@ -1,11 +1,15 @@
+using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Media3D;
 using HelixToolkit.Wpf.SharpDX;
+using LosasPlus.Comandos;
 using LosasPlus.Grillas;
 using LosasPlus.Topologia;
+using LosasPlus.ViewModels;
 using LosasPlus.ViewModels.Viewport3D;
+using NumericsVector3 = System.Numerics.Vector3;
 
 namespace LosasPlus.Views.Viewport3D;
 
@@ -46,10 +50,22 @@ public partial class Viewport3DView : UserControl
     /// posteriores.
     /// </para>
     /// </summary>
+    // ===================================================================
+    // ESTADO INTERNO DEL FLOW 2-CLICK PARA CREARVIGA (Liga B B3)
+    // ===================================================================
+
+    /// <summary>
+    /// Primer endpoint memorizado durante el flow 2-click de CrearViga.
+    /// <c>null</c> cuando no hay click pendiente. Tras el segundo click,
+    /// se resetea a <c>null</c> y se oculta el preview line.
+    /// </summary>
+    private (double X, double Y)? _vigaP1;
+
     private async void OnViewportMouseDown3D(object sender, RoutedEventArgs e)
     {
         if (DataContext is not Viewport3DViewModel vm) return;
         if (e is not MouseDown3DEventArgs args) return;
+        var main = vm.MainViewModel;
 
         // ----- Modo Selección (Fase 3D-I3) — comportamiento legacy preservado.
         if (vm.HerramientaActiva == ModoHerramienta3D.Seleccion)
@@ -60,30 +76,65 @@ public partial class Viewport3DView : UserControl
             return;
         }
 
-        // ----- Modo CrearColumna (Módulo 2C Fase 3D-II) — muta el dominio
-        // y refresca la escena instantáneamente.
-        if (vm.HerramientaActiva != ModoHerramienta3D.CrearColumna) return;
+        // ----- Modo BorrarElemento (Liga B B3) — 1 click sobre Element3D
+        // con Tag DomainKey dispara el comando resiliente del MainViewModel.
+        // Click en vacío es no-op silencioso. El servicio aplica Ghost
+        // Deletion: éxito silencioso si la entidad ya no existe.
+        if (vm.HerramientaActiva == ModoHerramienta3D.BorrarElemento)
+        {
+            if (main is null) return;
+            if (args.HitTestResult?.ModelHit is Element3D mod && mod.Tag is DomainKey k)
+            {
+                var borrarArgs = new BorrarElementoCommandArgs(Guid.NewGuid(), k);
+                main.BorrarElementoCommand?.Execute(borrarArgs);
+            }
+            return;
+        }
 
-        var main = vm.MainViewModel;
+        // ----- Modos CrearColumna y CrearViga necesitan proyectar al plano del nivel.
         if (main is null) return;
         var nivel = main.NivelActivo;
         var edificio = main.Proyecto?.Edificios?.FirstOrDefault();
         if (edificio is null || args.Viewport is null) return;
 
-        // Proyectar el click al plano horizontal Z = nivel.Cota.
         var p3 = args.Viewport.UnProjectOnPlane(
             args.Position, new Point3D(0, 0, nivel.Cota), new Vector3D(0, 0, 1));
         if (!p3.HasValue) return;
 
-        // Mutación atómica del dominio: snap + Id autoincremental +
-        // columna + (zapata si nivel base).
-        GridCreationEngine.CrearColumnaConSnap(
-            nivel, edificio.Grillas, p3.Value.X, p3.Value.Y);
+        // ----- Modo CrearColumna (Módulo 2C Fase 3D-II) — preservado.
+        if (vm.HerramientaActiva == ModoHerramienta3D.CrearColumna)
+        {
+            GridCreationEngine.CrearColumnaConSnap(
+                nivel, edificio.Grillas, p3.Value.X, p3.Value.Y);
+            await vm.RegenerarEscenaAsync(main.Proyecto);
+            return;
+        }
 
-        // Refresco asíncrono de la escena: el visor re-renderiza con el
-        // nuevo elemento (la columna aparece extruida instantáneamente
-        // en la posición magnetizada).
-        await vm.RegenerarEscenaAsync(main.Proyecto);
+        // ----- Modo CrearViga (Liga B B3) — state machine 2-click.
+        if (vm.HerramientaActiva == ModoHerramienta3D.CrearViga)
+        {
+            if (_vigaP1 is null)
+            {
+                // Primer click: memorizar P1. El preview live se renderiza
+                // en OnViewportMouseMove3D mientras _vigaP1 != null.
+                _vigaP1 = (p3.Value.X, p3.Value.Y);
+                return;
+            }
+            // Segundo click: emitir comando resiliente al MainViewModel
+            // (validación + idempotencia + mutación vía IAutoria3DService +
+            // sweep en caso de fallo). El handler limpia el preview y el
+            // memo del primer click ANTES de emitir, para que un error
+            // del comando no deje estado huérfano.
+            var p1 = _vigaP1.Value;
+            _vigaP1 = null;
+            VigaPreviewLine.Visibility = Visibility.Hidden;
+
+            var cmdArgs = new CrearVigaCommandArgs(
+                Guid.NewGuid(),
+                p1.X, p1.Y,
+                p3.Value.X, p3.Value.Y);
+            main.CrearVigaCommand?.Execute(cmdArgs);
+        }
     }
 
     // ===================================================================
@@ -141,10 +192,14 @@ public partial class Viewport3DView : UserControl
     {
         if (DataContext is not Viewport3DViewModel vm) return;
 
-        // Modo Selección → cursor oculto, sin proyección.
-        if (vm.HerramientaActiva == ModoHerramienta3D.Seleccion)
+        // Modo Selección o Borrar → cursor oculto, sin proyección,
+        // limpiar memo del primer click si veníamos de CrearViga.
+        if (vm.HerramientaActiva == ModoHerramienta3D.Seleccion
+            || vm.HerramientaActiva == ModoHerramienta3D.BorrarElemento)
         {
             CursorGuia3D.Visibility = Visibility.Hidden;
+            VigaPreviewLine.Visibility = Visibility.Hidden;
+            _vigaP1 = null;
             return;
         }
 
@@ -171,10 +226,26 @@ public partial class Viewport3DView : UserControl
         var (x, y, _) = GridSnapEngine.CalcularSnapAGrilla(
             p3.Value.X, p3.Value.Y, edificio.Grillas);
 
-        // Asegurar que la geometría + material existan + mover el cubo
-        // y hacerlo visible.
+        // Asegurar que la geometría + material del cubo guía existan +
+        // mover el cubo y hacerlo visible.
         InicializarCursorGuia();
         CursorGuia3D.Transform   = new TranslateTransform3D(x, y, nivel.Cota);
         CursorGuia3D.Visibility  = Visibility.Visible;
+
+        // ---- Preview live de viga durante 2-click (Liga B B3) ----
+        // Si estamos en CrearViga con el primer click ya memorizado,
+        // dibujar segmento desde P1 hasta el cursor snap-magnetizado.
+        if (vm.HerramientaActiva == ModoHerramienta3D.CrearViga && _vigaP1 is not null)
+        {
+            var p1 = _vigaP1.Value;
+            VigaPreviewLine.Geometry = SyncEscenaService.ConstruirLineaProvisional(
+                new NumericsVector3((float)p1.X, (float)p1.Y, (float)nivel.Cota),
+                new NumericsVector3((float)x,    (float)y,    (float)nivel.Cota));
+            VigaPreviewLine.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            VigaPreviewLine.Visibility = Visibility.Hidden;
+        }
     }
 }

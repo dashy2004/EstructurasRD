@@ -288,6 +288,82 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         }
     }
 
+    // ===== Liga B paso B3 — Toolbar 3D extendida + comandos resilientes ===
+    //
+    // - IAutoria3DService: directiva 3 de B3 — la mutación pasa por un
+    //   servicio de dominio ABSTRACTO en lugar de invocar engines
+    //   estáticos. Property settable para inyección de mocks en tests.
+    // - HashSet de transacciones: directiva 1 — idempotencia por Guid
+    //   con eviction simple cuando se llena.
+    // - HerramientaAutoria3D: directiva 3 — proxy bidireccional al
+    //   sub-VM gráfico. La toolbar bindea aquí, NO al Viewport3D, lo
+    //   que desacopla la UI de la capa de presentación 3D.
+
+    private LosasPlus.Servicios.IAutoria3DService _autoriaService =
+        new LosasPlus.Servicios.GridAutoria3DService();
+    private readonly HashSet<Guid> _transaccionesProcesadas = new();
+    private const int LimiteTransacciones = 256;
+    private ModoHerramienta3D _herramientaAutoria3D = ModoHerramienta3D.Seleccion;
+
+    /// <summary>
+    /// Servicio abstracto de autoría 3D inyectable. Default es
+    /// <see cref="LosasPlus.Servicios.GridAutoria3DService"/>. Los tests
+    /// reemplazan con mocks para verificar contratos sin levantar
+    /// hilo UI ni HelixToolkit. Liga B paso B3 — directiva 3.
+    /// </summary>
+    public LosasPlus.Servicios.IAutoria3DService AutoriaService
+    {
+        get => _autoriaService;
+        set => _autoriaService = value ?? throw new ArgumentNullException(nameof(value));
+    }
+
+    /// <summary>
+    /// Property proxy bidireccional con
+    /// <c>Viewport3D.HerramientaActiva</c> — la toolbar XAML bindea AQUÍ
+    /// (al <c>MainViewModel</c>) y NO directamente al sub-VM gráfico,
+    /// satisfaciendo la directiva 3 de B3 (desacoplamiento toolbar↔
+    /// Viewport3D). El setter sincroniza ambos sentidos: al cambiar el
+    /// proxy, se actualiza el sub-VM; al cambiar el sub-VM desde el
+    /// code-behind (ej. ESC), se actualiza el proxy vía PropertyChanged.
+    /// </summary>
+    public ModoHerramienta3D HerramientaAutoria3D
+    {
+        get => _herramientaAutoria3D;
+        set
+        {
+            if (_herramientaAutoria3D == value) return;
+            _herramientaAutoria3D = value;
+            if (Viewport3D is not null && Viewport3D.HerramientaActiva != value)
+                Viewport3D.HerramientaActiva = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// Crea una nueva viga entre dos puntos del plano del nivel activo.
+    /// Payload: <see cref="LosasPlus.Comandos.CrearVigaCommandArgs"/>
+    /// (DTO inmutable con TransactionId para idempotencia). El comando
+    /// es fire-and-forget — el handler async corre en background y
+    /// marshala el refresh de escena al hilo UI vía Dispatcher.
+    /// </summary>
+    public ICommand? CrearVigaCommand { get; private set; }
+
+    /// <summary>
+    /// Elimina el elemento identificado por
+    /// <see cref="LosasPlus.Comandos.BorrarElementoCommandArgs.Target"/>.
+    /// Aplica Ghost Deletion: éxito silencioso si la entidad ya no
+    /// existe. Tras la mutación (o no-op), barre ghost artifacts vía
+    /// <c>LimpiarSeleccion</c> + <c>RegenerarEscenaAsync</c>.
+    /// </summary>
+    public ICommand? BorrarElementoCommand { get; private set; }
+
+    /// <summary>
+    /// Setea <see cref="HerramientaAutoria3D"/> al valor pasado como
+    /// parámetro (<see cref="ModoHerramienta3D"/>). Usado por accesos
+    /// alternativos al RadioButton (atajos de teclado, botones extra).
+    /// </summary>
+    public ICommand? CambiarHerramientaCommand { get; private set; }
+
     public ICommand? IrABusquedaCommand { get; private set; }
     public ICommand? GenerarMemoriaCommand { get; private set; }
     public ICommand? AutoBalanceoCommand { get; private set; }
@@ -817,6 +893,143 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         }
     }
 
+    // ===================================================================
+    // Liga B paso B3 — async impls de los comandos resilientes
+    // ===================================================================
+
+    /// <summary>
+    /// Ejecuta <c>CrearVigaCommand</c> en background y marshala el
+    /// refresh de escena al hilo UI vía Dispatcher.Invoke. Aplica las
+    /// 4 directivas de B3:
+    /// <list type="number">
+    ///   <item>Idempotencia vía HashSet de TransactionIds.</item>
+    ///   <item>Validación de payload (longitud, NaN) en la frontera.</item>
+    ///   <item>Mutación canalizada por <see cref="AutoriaService"/>
+    ///   (servicio de dominio abstracto, no engine directo).</item>
+    ///   <item>Try/catch global con sweep de ghost artifacts ante fallo.</item>
+    /// </list>
+    /// </summary>
+    private async Task EjecutarCrearVigaAsync(LosasPlus.Comandos.CrearVigaCommandArgs args)
+    {
+        // Directiva 1a: idempotencia.
+        if (!RegistrarTransaccion(args.TransactionId))
+        {
+            Log($"CrearViga ignorado: transacción duplicada {args.TransactionId}.");
+            return;
+        }
+        // Directiva 1b: validación defensiva en la frontera (segunda
+        // barrera además de la del engine). NaN se propaga a través de
+        // Math.Sqrt — comparar < 0.01 también descarta NaN porque
+        // (NaN < x) es false; usamos IsNaN explícito para claridad.
+        double dx = args.X2 - args.X1, dy = args.Y2 - args.Y1;
+        double longitud = Math.Sqrt(dx * dx + dy * dy);
+        if (double.IsNaN(longitud) || double.IsInfinity(longitud) || longitud < 0.01)
+        {
+            Log($"CrearViga rechazado: longitud degenerada {longitud:F4} m (payload {args.TransactionId}).");
+            return;
+        }
+        try
+        {
+            // El nivel destino es el activo al momento de la invocación
+            // (sin race: la latencia click→comando es del orden de μs).
+            var nivel = NivelActivo;
+            var edif  = _proyecto.Edificios.FirstOrDefault();
+            if (edif is null)
+            {
+                Log("CrearViga: proyecto sin edificio activo, abortando.");
+                return;
+            }
+            var grilla = edif.Grillas;
+
+            // Directiva 3: mutación vía servicio abstracto, no engine directo.
+            LosasPlus.Vigas.Viga? viga = null;
+            await Task.Run(() =>
+                viga = _autoriaService.CrearVigaConSnap(
+                    nivel, grilla, args.X1, args.Y1, args.X2, args.Y2));
+
+            if (viga is null)
+            {
+                Log("CrearViga: motor rechazó payload tras snap (longitud post-magnetización degenerada).");
+                return;
+            }
+            Log($"CrearViga: V-{viga.Id} creada en nivel '{nivel.Nombre}' (L={viga.Tramos[0].Longitud:F2} m).");
+            await Viewport3D.RegenerarEscenaAsync(_proyecto);
+        }
+        catch (Exception ex)
+        {
+            // Directiva 4: sweep transaccional ante fallo inesperado.
+            Log($"CrearViga falló inesperadamente: {ex.Message}. Iniciando barrido de ghost artifacts.");
+            await BarrerGhostArtifactsAsync();
+        }
+    }
+
+    /// <summary>
+    /// Ejecuta <c>BorrarElementoCommand</c> con semánticas Ghost
+    /// Deletion: éxito silencioso si la entidad no existe. Tras la
+    /// mutación (o no-op) barre ghost artifacts del viewport.
+    /// </summary>
+    private async Task EjecutarBorrarElementoAsync(LosasPlus.Comandos.BorrarElementoCommandArgs args)
+    {
+        // Directiva 1a: idempotencia.
+        if (!RegistrarTransaccion(args.TransactionId))
+        {
+            Log($"Borrar ignorado: transacción duplicada {args.TransactionId}.");
+            return;
+        }
+        try
+        {
+            bool removido = false;
+            // Directiva 3: mutación vía servicio abstracto.
+            // Directiva 2: el servicio aplica Ghost Deletion internamente
+            // — retorna false si no encontró el elemento, sin throw.
+            await Task.Run(() =>
+                removido = _autoriaService.BorrarElementoPorKey(_proyecto, args.Target));
+
+            Log(removido
+                ? $"Borrar: {args.Target.Tipo} #{args.Target.Id} removido."
+                : $"Borrar: {args.Target.Tipo} #{args.Target.Id} no existía (Ghost Deletion — éxito silencioso).");
+
+            // Sweep tras toda operación de borrado — la selección
+            // probablemente apuntaba al elemento borrado.
+            await BarrerGhostArtifactsAsync();
+        }
+        catch (Exception ex)
+        {
+            // Directiva 4: sweep transaccional ante fallo inesperado.
+            Log($"Borrar falló inesperadamente: {ex.Message}. Iniciando barrido de ghost artifacts.");
+            await BarrerGhostArtifactsAsync();
+        }
+    }
+
+    /// <summary>
+    /// Registra una transacción en el HashSet idempotente. Retorna
+    /// <c>false</c> si el Guid ya estaba registrado (segunda invocación
+    /// ignorada). Eviction simple: cuando se llena, clear completo. Sin
+    /// LRU sofisticado — el HashSet rinde para el rate de clicks humano.
+    /// </summary>
+    private bool RegistrarTransaccion(Guid id)
+    {
+        if (_transaccionesProcesadas.Contains(id)) return false;
+        if (_transaccionesProcesadas.Count >= LimiteTransacciones)
+            _transaccionesProcesadas.Clear();
+        _transaccionesProcesadas.Add(id);
+        return true;
+    }
+
+    /// <summary>
+    /// Helper de la directiva 4 (sincro de emergencia): limpia la
+    /// selección activa (lo que dispara <c>SeleccionCambiada</c> →
+    /// throttle B2 → <c>ElementoActivo = Vacio</c>) y regenera la
+    /// escena 3D completa para que no queden <c>Element3D</c> fantasmas
+    /// referenciando entidades ya removidas del dominio. Es el barrido
+    /// de "Ghost Artifacts" pedido por el usuario.
+    /// </summary>
+    private async Task BarrerGhostArtifactsAsync()
+    {
+        Seleccion.LimpiarSeleccion(this);
+        await Viewport3D.RegenerarEscenaAsync(_proyecto);
+    }
+
     private LosasPlus.Columnas.Columna? BuscarColumnaPorId(int id)
     {
         foreach (var edif in _proyecto.Edificios)
@@ -1053,6 +1266,30 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             _ultimaSeleccionPendiente = null;
             _hayPendiente             = false;
             if (hay) ResolverYPublicarElementoActivo(key);
+        };
+
+        // ---- Liga B paso B3: comandos de mutación resilientes ----
+        //
+        // Los handlers son fire-and-forget (RelayCommand sync que dispara
+        // Task.Run interno). El try/catch global vive dentro del async
+        // impl — directiva 4 (sweep transaccional de ghost artifacts).
+        CrearVigaCommand = new RelayCommand(
+            args => _ = EjecutarCrearVigaAsync((LosasPlus.Comandos.CrearVigaCommandArgs)args!));
+        BorrarElementoCommand = new RelayCommand(
+            args => _ = EjecutarBorrarElementoAsync((LosasPlus.Comandos.BorrarElementoCommandArgs)args!));
+        CambiarHerramientaCommand = new RelayCommand(
+            arg => HerramientaAutoria3D = (ModoHerramienta3D)arg!);
+
+        // Sincronizar el proxy ante cambios del sub-VM (ej. ESC vuelve
+        // a Selección desde el handler de B5). El setter del proxy
+        // verifica idempotencia para no recursar.
+        Viewport3D.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(Viewport3DViewModel.HerramientaActiva))
+            {
+                if (HerramientaAutoria3D != Viewport3D.HerramientaActiva)
+                    HerramientaAutoria3D = Viewport3D.HerramientaActiva;
+            }
         };
 
         // Cambios al nombre del proyecto refrescan el título de la ventana.

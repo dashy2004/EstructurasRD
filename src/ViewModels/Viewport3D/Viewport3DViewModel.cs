@@ -27,8 +27,21 @@ public enum ModoHerramienta3D
     Seleccion,
     /// <summary>Cada click crea una <c>Columna</c> en el nivel activo.</summary>
     CrearColumna,
-    /// <summary>Cada click crea una <c>Viga</c> en el nivel activo.</summary>
+    /// <summary>
+    /// Flow de 2 clicks: el primero memoriza el punto inicial y se
+    /// renderiza un preview live de línea provisional desde ese punto al
+    /// cursor; el segundo materializa la <c>Viga</c> en el nivel activo
+    /// vía el comando resiliente del MainViewModel (Liga B paso B3).
+    /// </summary>
     CrearViga,
+    /// <summary>
+    /// Cada click sobre un <c>Element3D</c> con <c>Tag</c> de tipo
+    /// <see cref="LosasPlus.Topologia.DomainKey"/> elimina la entidad
+    /// correspondiente vía <c>BorrarElementoCommand</c> del MainViewModel
+    /// (Liga B paso B3). Click en vacío es no-op silencioso. Muros y
+    /// losas blindados — el servicio de dominio retorna no-op declarado.
+    /// </summary>
+    BorrarElemento,
 }
 
 /// <summary>

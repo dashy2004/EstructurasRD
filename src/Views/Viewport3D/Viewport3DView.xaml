@@ -129,41 +129,63 @@
                      el handler lo necesita lo inicializa perezosamente
                      (geometría + material). -->
                 <hx:MeshGeometryModel3D x:Name="CursorGuia3D" Visibility="Hidden"/>
+
+                <!-- Preview line para flow de 2 clicks en CrearViga (Liga B
+                     paso B3): tras el primer click, el handler MouseMove3D
+                     actualiza esta línea con un segmento desde P1 hasta el
+                     cursor (snap-magnetizado). Naranja saturado coherente
+                     con el banner de modo autoría. Hidden hasta que haya
+                     primer click memorizado. -->
+                <hx:LineGeometryModel3D x:Name="VigaPreviewLine"
+                                        Color="#FFE67E22"
+                                        Thickness="2"
+                                        Visibility="Hidden"/>
             </hx:Viewport3DX>
         </Border>
 
-        <!-- ===== Toolbar flotante de herramientas (Módulo 2C Fase 3D-II) =====
-             Posicionada en la esquina superior-derecha del viewport. Los 3
-             RadioButtons bindean a HerramientaActiva vía EnumToBooleanConverter.
-             "Crear Viga" queda deshabilitado (placeholder hasta una iteración
-             futura — vigas requieren 2 clicks inicio + fin). -->
+        <!-- ===== Toolbar flotante de herramientas (Módulo 2C → Liga B B3) =====
+             Posicionada en la esquina superior-derecha del viewport. Los 4
+             RadioButtons bindean a MainViewModel.HerramientaAutoria3D vía
+             RelativeSource AncestorType=Window — DIRECTIVA 3 de B3: la
+             toolbar nunca toca el Viewport3D directamente, todo cambio de
+             estado pasa por el MainViewModel. -->
         <Border HorizontalAlignment="Right" VerticalAlignment="Top"
                 Margin="0,16,16,0" Padding="8"
                 Background="#E62A2A2A" CornerRadius="8" Panel.ZIndex="10">
-            <StackPanel Orientation="Vertical" MinWidth="160">
+            <StackPanel Orientation="Vertical" MinWidth="180">
                 <TextBlock Text="HERRAMIENTAS 3D"
                            FontSize="10" FontWeight="Bold"
                            Foreground="#FFCCCCCC" Margin="0,0,0,6"/>
                 <RadioButton GroupName="Herramientas3D"
                              Content="🔍  Selección"
                              Foreground="#FFEEEEEE" Margin="0,0,0,4"
-                             IsChecked="{Binding HerramientaActiva,
+                             IsChecked="{Binding DataContext.HerramientaAutoria3D,
+                                 RelativeSource={RelativeSource AncestorType=Window},
                                  Converter={StaticResource EnumToBoolean},
                                  ConverterParameter=Seleccion}"/>
                 <RadioButton GroupName="Herramientas3D"
                              Content="🟨  Crear Columna"
                              Foreground="#FFEEEEEE" Margin="0,0,0,4"
-                             IsChecked="{Binding HerramientaActiva,
+                             IsChecked="{Binding DataContext.HerramientaAutoria3D,
+                                 RelativeSource={RelativeSource AncestorType=Window},
                                  Converter={StaticResource EnumToBoolean},
                                  ConverterParameter=CrearColumna}"/>
                 <RadioButton GroupName="Herramientas3D"
                              Content="🟧  Crear Viga"
-                             Foreground="#FF888888"
-                             IsEnabled="False"
-                             ToolTip="Diferido — las vigas requieren 2 clicks (inicio + fin) en una iteración posterior."
-                             IsChecked="{Binding HerramientaActiva,
+                             Foreground="#FFEEEEEE" Margin="0,0,0,4"
+                             ToolTip="2 clicks (inicio + fin). El primer click memoriza P1 y dibuja una línea naranja provisional desde P1 al cursor. El segundo click materializa la viga."
+                             IsChecked="{Binding DataContext.HerramientaAutoria3D,
+                                 RelativeSource={RelativeSource AncestorType=Window},
                                  Converter={StaticResource EnumToBoolean},
                                  ConverterParameter=CrearViga}"/>
+                <RadioButton GroupName="Herramientas3D"
+                             Content="🗑  Borrar elemento"
+                             Foreground="#FFEEEEEE" Margin="0,0,0,4"
+                             ToolTip="Click sobre un elemento estructural (columna/viga/zapata) lo elimina. Click en vacío es no-op silencioso. Muros y losas blindados."
+                             IsChecked="{Binding DataContext.HerramientaAutoria3D,
+                                 RelativeSource={RelativeSource AncestorType=Window},
+                                 Converter={StaticResource EnumToBoolean},
+                                 ConverterParameter=BorrarElemento}"/>
             </StackPanel>
         </Border>
         </Grid>
