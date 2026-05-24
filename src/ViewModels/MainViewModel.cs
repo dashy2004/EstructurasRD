@@ -155,6 +155,16 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     public ICommand? AbrirShortcutsCommand     { get; private set; }
     public ICommand? AplicarBulkCommand        { get; private set; }
 
+    // ---- Modo de creación 3D (Módulo 2 Fase 3D-II, Liga B paso B5) ----
+    /// <summary>
+    /// Restablece <see cref="Viewport3DViewModel.HerramientaActiva"/> al modo
+    /// Selección — sale de cualquier herramienta de autoría 3D (CrearColumna,
+    /// CrearViga). Bound a la tecla ESC en <c>Window.InputBindings</c> para
+    /// que el ingeniero pueda abortar la herramienta de creación de inmediato
+    /// sin tener que ir al toolbar flotante del visor.
+    /// </summary>
+    public ICommand? SalirModoCreacion3DCommand { get; private set; }
+
     // ---- Exportación SAF 2.2.0 (Fase INTEROP-I1) ----
     /// <summary>
     /// Comando que dispara el diálogo de guardado SAF + el export en
@@ -853,6 +863,11 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         AbrirShortcutsCommand = new RelayCommand(_ => AbrirShortcutsModal());
         AplicarBulkCommand   = new RelayCommand(_ => AplicarBulk(), _ => MostrarBulkPanel);
         ExportarSafCommand   = new RelayCommand(_ => EjecutarExportarSafCommand());
+        SalirModoCreacion3DCommand = new RelayCommand(_ =>
+        {
+            Viewport3D.HerramientaActiva =
+                LosasPlus.ViewModels.Viewport3D.ModoHerramienta3D.Seleccion;
+        });
 
         // ---- Búsqueda global (commit 35) ----
         Busqueda = new MemoriaPlusVm.BusquedaViewModel(

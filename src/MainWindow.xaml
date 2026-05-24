@@ -28,6 +28,10 @@
         <KeyBinding Modifiers="Ctrl" Key="Z" Command="{Binding UndoCommand}"/>
         <KeyBinding Modifiers="Ctrl" Key="Y" Command="{Binding RedoCommand}"/>
         <KeyBinding Modifiers="Ctrl" Key="OemQuestion" Command="{Binding AbrirShortcutsCommand}"/>
+        <!-- Liga B paso B5 (Fase 3D-II): ESC sale de cualquier herramienta
+             de creación 3D activa, volviendo al modo Selección. Atajo
+             estándar CAD/BIM para abortar comandos de autoría. -->
+        <KeyBinding Key="Escape" Command="{Binding SalirModoCreacion3DCommand}"/>
     </Window.InputBindings>
 
     <Window.DataContext>
@@ -229,6 +233,7 @@
              ============================================================= -->
         <Grid Grid.Row="1">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>  <!-- banner modo creación 3D (Liga B5) -->
                 <RowDefinition Height="Auto"/>  <!-- top action bar -->
                 <RowDefinition Height="*"/>     <!-- content switch -->
                 <RowDefinition Height="Auto"/>  <!-- log expandible -->
@@ -236,10 +241,55 @@
             </Grid.RowDefinitions>
 
             <!-- =========================================================
+                 BANNER MODO DE CREACIÓN 3D (Liga B paso B5, Módulo 2 Fase 3D-II)
+                 Se muestra SÓLO cuando Viewport3D.HerramientaActiva != Selección.
+                 Indica al ingeniero que está en modo de autoría 3D y que puede
+                 abortar con ESC (binding declarado arriba en Window.InputBindings).
+                 Color naranja saturado de alta visibilidad técnica.
+                 ========================================================= -->
+            <Border Grid.Row="0" Padding="14,6"
+                    Background="#FFE67E22"
+                    BorderBrush="#FFCC6600" BorderThickness="0,0,0,1">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Viewport3D.HerramientaActiva}" Value="CrearColumna">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Viewport3D.HerramientaActiva}" Value="CrearViga">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <DockPanel LastChildFill="False">
+                    <TextBlock DockPanel.Dock="Left"
+                               Foreground="White" FontWeight="SemiBold" FontSize="13"
+                               VerticalAlignment="Center">
+                        <TextBlock.Text>
+                            <PriorityBinding>
+                                <Binding Path="Viewport3D.HerramientaActiva"
+                                         StringFormat="🟨  MODO DE AUTORÍA 3D ACTIVO — {0}"/>
+                            </PriorityBinding>
+                        </TextBlock.Text>
+                    </TextBlock>
+                    <TextBlock DockPanel.Dock="Right"
+                               Text="Pulsa  ⎋ ESC  para volver a Selección"
+                               Foreground="#FFFFE5C7"
+                               FontFamily="JetBrains Mono, Consolas"
+                               FontSize="11" FontStyle="Italic"
+                               VerticalAlignment="Center"/>
+                </DockPanel>
+            </Border>
+
+            <!-- =========================================================
                  TOP ACTION BAR: menús File/Engine/Export + path Losas.exe +
                  botón Lanzar motor. Visible en TODOS los modos.
+                 (Liga B5: ahora ocupa Row="1" tras la inserción del banner
+                  de modo de creación 3D en Row="0".)
                  ========================================================= -->
-            <Border Grid.Row="0" Padding="16,8"
+            <Border Grid.Row="1" Padding="16,8"
                     Background="{DynamicResource BgInput}"
                     BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
                 <DockPanel LastChildFill="True">
@@ -332,8 +382,10 @@
                  CONTENT SWITCH por ModoActivo. Cada modo es una Grid con
                  el contenido del antiguo TabItem. Visible solo si su modo
                  está activo (DataTrigger).
+                 (Liga B5: ahora ocupa Row="2" tras la inserción del banner
+                  de modo de creación 3D en Row="0".)
                  ========================================================= -->
-            <Grid Grid.Row="1">
+            <Grid Grid.Row="2">
 
                 <!-- MODO Explorador (commit 32): hub de proyectos recientes (.lpx.json).
                      Encima del listado, sección "Proyecto activo" para renombrar y
@@ -1424,8 +1476,9 @@
 
             <!-- =========================================================
                  LOG EXPANDIBLE: visible si LogToggle.IsChecked.
+                 (Liga B5: Row="3" tras la inserción del banner en Row="0".)
                  ========================================================= -->
-            <Border Grid.Row="2"
+            <Border Grid.Row="3"
                     Background="#0F172A"
                     BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0"
                     Visibility="{Binding ElementName=LogToggle, Path=IsChecked, Converter={StaticResource BoolToCollapsedIfFalse}}"
@@ -1441,8 +1494,9 @@
 
             <!-- =========================================================
                  STATUSBAR inferior dinámico.
+                 (Liga B5: Row="4" tras la inserción del banner en Row="0".)
                  ========================================================= -->
-            <Border Grid.Row="3" Padding="16,6"
+            <Border Grid.Row="4" Padding="16,6"
                     Background="{DynamicResource BgInput}"
                     BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
                 <DockPanel LastChildFill="True">
