@@ -33,10 +33,13 @@ public static class ProyectoSerializer
     /// <summary>
     /// Versión actual del formato de archivo. Incrementar con cada cambio breaking.
     /// v1 → v2: jerarquía <c>Edificio → Nivel</c> entre <c>Proyecto</c> y
-    /// <c>Sistema</c>. v2 → v3: casos y combinaciones de carga. Los archivos
-    /// anteriores se migran automáticamente al cargar.
+    /// <c>Sistema</c>. v2 → v3: casos y combinaciones de carga.
+    /// v3 → v4: grillas estructurales por edificio (Módulo 2 Fase 3D-II) —
+    /// migración LAZY (no se reescribe el JSON crudo; el salvavidas
+    /// post-deserialización inyecta la grilla default 3×3 si está ausente).
+    /// Los archivos anteriores se migran automáticamente al cargar.
     /// </summary>
-    public const int FormatVersion = 3;
+    public const int FormatVersion = 4;
 
     /// <summary>Extensión canónica de archivos de proyecto Memoria Plus.</summary>
     public const string Extension = ".lpx.json";
@@ -121,6 +124,17 @@ public static class ProyectoSerializer
         if (version < 3 && envelope.Proyecto is not null)
             envelope.Proyecto.Combinaciones =
                 CombinacionesProyecto.SemillaPorDefecto(NormaCombinaciones.Asce7_05);
+
+        // Salvavidas v3 → v4 (Módulo 2 Fase 3D-II): los archivos previos NO
+        // traen `edificios[i].grillas`. El campo deserializa a una grilla
+        // VACÍA por la inicialización default del Edificio. Aquí detectamos
+        // ese vacío y reinyectamos la default 3×3 (A/B/C × 1/2/3 a 6 m).
+        // Idempotente — si la grilla viene poblada, no se toca.
+        if (envelope.Proyecto is not null)
+        {
+            foreach (var ed in envelope.Proyecto.Edificios)
+                ed.RestaurarGrillaDefaultSiVacia();
+        }
 
         return envelope;
     }

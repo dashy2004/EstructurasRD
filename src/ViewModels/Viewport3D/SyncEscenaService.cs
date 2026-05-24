@@ -7,6 +7,7 @@ using System.Windows.Threading;
 using HelixToolkit;                  // Vector3Collection, IntCollection
 using HelixToolkit.SharpDX;          // LineGeometry3D, Geometry3D
 using HelixToolkit.Wpf.SharpDX;      // LineGeometryModel3D, MeshGeometryModel3D, PhongMaterial(s)
+using LosasPlus.Grillas;          // GrillaEstructural, EjeNombrado (Módulo 2 Fase 3D-II)
 using LosasPlus.Models;
 using LosasPlus.Services;         // LayoutSolver (posicionamiento topológico de losas)
 using LosasPlus.Topologia;
@@ -66,6 +67,8 @@ internal static class SyncEscenaService
     // bajo la losa sigan visibles. Gris azulado suave para que no compita
     // visualmente con los miembros estructurales.
     internal static readonly Color ColorLosa    = Color.FromArgb(0x66, 0xB0, 0xC0, 0xD0);
+    // Grillas (Módulo 2 Fase 3D-II): gris tenue para no competir con miembros.
+    internal static readonly Color ColorGrilla  = Color.FromArgb(0x99, 0x90, 0x90, 0x90);
     internal static readonly Color ColorSeleccion = Color.FromArgb(0xFF, 0xFF, 0xD7, 0x00); // oro alta visibilidad
 
     // ---- Constantes wireframe (muros — Parte A; pasan a mesh en Parte B) ----
@@ -229,6 +232,21 @@ internal static class SyncEscenaService
                 }
             }
 
+            // Grillas estructurales (Módulo 2 Fase 3D-II): líneas grises +
+            // etiquetas billboard A/B/C × 1/2/3 sobre el plano de cada nivel.
+            // El usuario las usa como referencia visual y, en modo de
+            // creación, el cursor 3D hace snap magnético a sus intersecciones.
+            foreach (var ed in proyecto.Edificios)
+            {
+                if (ed.Grillas.EstaVacia) continue;
+                var ext = CalcularExtensionGrilla(ed.Grillas);
+                foreach (var ni in ed.Niveles)
+                {
+                    foreach (var pendiente in ConstruirGrillaParaNivel(ed.Grillas, ni.Cota, ext))
+                        pendientes.Add(pendiente);
+                }
+            }
+
             // Cintas de diagrama de momentos 3D por viga (Fase 3D-I4 Parte B).
             // Para cada arista del grafo de tipo Viga generamos una cinta
             // representativa con perfil parabólico (proxy visual estable
@@ -282,6 +300,24 @@ internal static class SyncEscenaService
                             Color     = p.LineColor,
                             Thickness = ThicknessNominal,
                             Tag       = p.Tag,
+                        };
+                        itemsEscena.Add(modelo);
+                    }
+                    else if (p.BillboardTexto is not null && p.BillboardPos.HasValue)
+                    {
+                        // Etiqueta billboard 3D (Módulo 2 Fase 3D-II): el texto
+                        // siempre orientado a la cámara. Sin Tag — no
+                        // seleccionable; sirve como rotulación pura.
+                        // HelixToolkit.SharpDX.TextInfo (no System.Globalization).
+                        var billboard = new BillboardSingleText3D
+                        {
+                            TextInfo = new HelixToolkit.SharpDX.TextInfo(
+                                p.BillboardTexto, p.BillboardPos.Value),
+                        };
+                        var modelo = new BillboardTextModel3D
+                        {
+                            Geometry = billboard,
+                            Tag      = null,
                         };
                         itemsEscena.Add(modelo);
                     }
@@ -783,7 +819,9 @@ internal static class SyncEscenaService
         HxMeshGeometry3D? Mesh,
         PhongMaterial? Material,
         LineGeometry3D? Linea,
-        Color LineColor)
+        Color LineColor,
+        NumericsVector3? BillboardPos = null,
+        string? BillboardTexto = null)
     {
         public static ElementoPendiente ParaMesh(DomainKey tag, HxMeshGeometry3D mesh, PhongMaterial mat)
             => new(tag, mesh, mat, null, default);
@@ -798,5 +836,116 @@ internal static class SyncEscenaService
 
         public static ElementoPendiente ParaLinea(DomainKey tag, LineGeometry3D linea, Color color)
             => new(tag, null, null, linea, color);
+
+        /// <summary>
+        /// Línea wireframe sin DomainKey (grilla auxiliar — no
+        /// seleccionable). Módulo 2 Fase 3D-II.
+        /// </summary>
+        public static ElementoPendiente ParaLineaSinTag(LineGeometry3D linea, Color color)
+            => new(null, null, null, linea, color);
+
+        /// <summary>
+        /// Etiqueta billboard 3D (texto que siempre mira a la cámara) —
+        /// usado para las marcas A/B/C × 1/2/3 de las grillas
+        /// estructurales. Sin Tag (no seleccionable).
+        /// </summary>
+        public static ElementoPendiente ParaBillboard(NumericsVector3 posicion, string texto)
+            => new(null, null, null, null, default, posicion, texto);
+    }
+
+    // ===================================================================
+    // GRILLAS ESTRUCTURALES (Módulo 2 Fase 3D-II)
+    // ===================================================================
+
+    /// <summary>
+    /// Margen lateral (m) por fuera del bounding box de la grilla — las
+    /// líneas se extienden este margen extra en cada dirección para que
+    /// los nodos de esquina queden visibles y las etiquetas no choquen
+    /// con miembros estructurales del perímetro.
+    /// </summary>
+    private const double MargenExtensionGrillaM = 1.5;
+
+    /// <summary>
+    /// Calcula el bounding box de la grilla en el plano XY (rango de
+    /// coordenadas en cada dirección) con un margen lateral añadido.
+    /// El render extiende las líneas a estos extremos.
+    /// </summary>
+    private static (double xMin, double xMax, double yMin, double yMax)
+        CalcularExtensionGrilla(GrillaEstructural grilla)
+    {
+        double xMin = 0, xMax = 0, yMin = 0, yMax = 0;
+        bool primero = true;
+        foreach (var ex in grilla.EjesX)
+        {
+            if (primero) { xMin = xMax = ex.PosicionMetros; primero = false; }
+            else { if (ex.PosicionMetros < xMin) xMin = ex.PosicionMetros;
+                   if (ex.PosicionMetros > xMax) xMax = ex.PosicionMetros; }
+        }
+        primero = true;
+        foreach (var ey in grilla.EjesY)
+        {
+            if (primero) { yMin = yMax = ey.PosicionMetros; primero = false; }
+            else { if (ey.PosicionMetros < yMin) yMin = ey.PosicionMetros;
+                   if (ey.PosicionMetros > yMax) yMax = ey.PosicionMetros; }
+        }
+        // Margen lateral simétrico — las líneas se proyectan más allá del
+        // último eje para que el cierre visual sea limpio.
+        return (xMin - MargenExtensionGrillaM, xMax + MargenExtensionGrillaM,
+                yMin - MargenExtensionGrillaM, yMax + MargenExtensionGrillaM);
+    }
+
+    /// <summary>
+    /// Produce todos los <see cref="ElementoPendiente"/> de la grilla
+    /// estructural sobre el plano <c>Z = zNivel</c>: una
+    /// <see cref="LineGeometry3D"/> por cada EjeX (atravesando todo el
+    /// rango Y) + una por cada EjeY (atravesando todo el rango X) + una
+    /// etiqueta billboard al extremo de cada eje con su nombre
+    /// (A/B/C × 1/2/3).
+    ///
+    /// <para>Tag <c>null</c> en todos los elementos — las grillas no
+    /// son seleccionables.</para>
+    /// </summary>
+    private static IEnumerable<ElementoPendiente> ConstruirGrillaParaNivel(
+        GrillaEstructural grilla, double zNivel,
+        (double xMin, double xMax, double yMin, double yMax) ext)
+    {
+        // Líneas verticales (EjeX): atraviesan el rango Y completo.
+        foreach (var ex in grilla.EjesX)
+        {
+            var pts = new Vector3Collection
+            {
+                new((float)ex.PosicionMetros, (float)ext.yMin, (float)zNivel),
+                new((float)ex.PosicionMetros, (float)ext.yMax, (float)zNivel),
+            };
+            var linea = new LineGeometry3D
+            {
+                Positions = pts,
+                Indices   = new IntCollection { 0, 1 },
+            };
+            yield return ElementoPendiente.ParaLineaSinTag(linea, ColorGrilla);
+            // Etiqueta al extremo Y máximo (un poco más allá del margen).
+            yield return ElementoPendiente.ParaBillboard(
+                new NumericsVector3((float)ex.PosicionMetros, (float)(ext.yMax + 0.5), (float)zNivel),
+                ex.Nombre);
+        }
+        // Líneas horizontales (EjeY): atraviesan el rango X completo.
+        foreach (var ey in grilla.EjesY)
+        {
+            var pts = new Vector3Collection
+            {
+                new((float)ext.xMin, (float)ey.PosicionMetros, (float)zNivel),
+                new((float)ext.xMax, (float)ey.PosicionMetros, (float)zNivel),
+            };
+            var linea = new LineGeometry3D
+            {
+                Positions = pts,
+                Indices   = new IntCollection { 0, 1 },
+            };
+            yield return ElementoPendiente.ParaLineaSinTag(linea, ColorGrilla);
+            // Etiqueta al extremo X mínimo (a la izquierda del margen).
+            yield return ElementoPendiente.ParaBillboard(
+                new NumericsVector3((float)(ext.xMin - 0.5), (float)ey.PosicionMetros, (float)zNivel),
+                ey.Nombre);
+        }
     }
 }

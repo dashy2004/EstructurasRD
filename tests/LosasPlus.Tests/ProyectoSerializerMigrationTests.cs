@@ -162,8 +162,12 @@ public class ProyectoSerializerMigrationTests : IDisposable
     [Fact]
     public void Load_de_version_futura_lanza_excepcion()
     {
+        // Usar `FormatVersion + 1` para que el test sobreviva bumps
+        // futuros del esquema (v3→v4 en Módulo 2 Parte A Fase 3D-II:
+        // el literal "4" pasó de ser versión futura a versión vigente).
         var path = TempFile();
-        File.WriteAllText(path, "{ \"version\": 4, \"proyecto\": { \"nombre\": \"X\" } }");
+        int futura = ProyectoSerializer.FormatVersion + 1;
+        File.WriteAllText(path, $"{{ \"version\": {futura}, \"proyecto\": {{ \"nombre\": \"X\" }} }}");
 
         Assert.Throws<InvalidProyectoFileException>(() => ProyectoSerializer.Load(path));
     }

@@ -1,7 +1,9 @@
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using LosasPlus.Columnas;
+using LosasPlus.Grillas;
 using LosasPlus.Vigas;
 using LosasPlus.Zapatas;
 
@@ -45,6 +47,37 @@ public partial class Edificio : INotifyPropertyChanged
     /// la rellena vía <c>Populate</c> al deserializar.
     /// </summary>
     public ObservableCollection<Nivel> Niveles { get; } = new();
+
+    /// <summary>
+    /// Sistema de ejes estructurales (grillas A/B/C × 1/2/3) del edificio
+    /// — Módulo 2 Fase 3D-II del Plan Maestro. El visor 3D usa estas
+    /// líneas para snap magnético del cursor durante la creación
+    /// interactiva de columnas, vigas y zapatas.
+    ///
+    /// <para>
+    /// Inicializado como GRILLA VACÍA por compatibilidad con la
+    /// migración lazy del serializer: archivos v3 antiguos no traen
+    /// grilla en el JSON, y el deserializer reinyecta
+    /// <see cref="GrillaEstructural.Default"/> tras detectar lista
+    /// vacía. Proyectos nuevos creados vía <c>ProyectoFactory</c>
+    /// reciben la default 3×3 a 6 m.
+    /// </para>
+    /// </summary>
+    public GrillaEstructural Grillas { get; set; } = new GrillaEstructural(new List<EjeNombrado>(), new List<EjeNombrado>());
+
+    /// <summary>
+    /// Salvavidas usado por <c>ProyectoSerializer</c> tras deserializar:
+    /// si la grilla del edificio está vacía (archivo v3 sin metadata de
+    /// grilla), la reasigna al default 3×3. Operación idempotente.
+    /// </summary>
+    public void RestaurarGrillaDefaultSiVacia()
+    {
+        if (Grillas.EstaVacia)
+        {
+            Grillas = GrillaEstructural.Default();
+            OnPropertyChanged(nameof(Grillas));
+        }
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? name = null)
