@@ -1,0 +1,129 @@
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using LosasPlus.Grillas;
+using LosasPlus.Models;
+using LosasPlus.Topologia;
+
+namespace LosasPlus.ViewModels.PlantaEstructural;
+
+/// <summary>
+/// ViewModel del modo "Planta Estructural" — vista 2D estática del
+/// nivel activo (Liga C paso C1). Expone al canvas:
+/// <list type="bullet">
+///   <item><see cref="NivelActivo"/>: nivel cuyas columnas/vigas/zapatas
+///   se renderizan.</item>
+///   <item><see cref="NivelesDisponibles"/>: lista de todos los niveles
+///   del proyecto, alimentando el combobox de selección.</item>
+///   <item><see cref="GrillaActiva"/>: grilla estructural del edificio
+///   (A/B/C × 1/2/3) para dibujar los ejes.</item>
+///   <item><see cref="Revision"/>: token entero incrementado cada vez
+///   que cambia la selección de nivel o el proyecto muta — el canvas
+///   bindea a esto via DependencyProperty para disparar un redraw.</item>
+///   <item><see cref="Seleccion"/>: servicio singleton inyectado para
+///   que el canvas publique <c>DomainKey</c> al hacer click en un
+///   elemento estructural.</item>
+/// </list>
+///
+/// <para>
+/// El VM no muta el dominio en C1 — la edición por drag/2-click llegará
+/// en C2. Aquí solo observa.
+/// </para>
+/// </summary>
+public sealed class PlantaEstructuralViewModel : INotifyPropertyChanged
+{
+    private readonly Proyecto _proyecto;
+    private Nivel? _nivelActivo;
+    private int _revision;
+
+    public PlantaEstructuralViewModel(Proyecto proyecto, SeleccionService seleccion)
+    {
+        _proyecto = proyecto;
+        Seleccion = seleccion;
+        // Inicializa al primer nivel del primer edificio si existe.
+        _nivelActivo = proyecto.Edificios.FirstOrDefault()?.Niveles.FirstOrDefault();
+        // Suscribir cambios topológicos para refrescar el combobox.
+        if (proyecto.Edificios is INotifyCollectionChangedHelper)
+        {
+            // El dominio no expone CollectionChanged público en Edificios;
+            // si en una iteración futura se agrega, se conecta aquí.
+        }
+    }
+
+    /// <summary>
+    /// Singleton de selección compartido con el resto del shell — el
+    /// canvas publica aquí los clicks, y el panel "Elemento Activo"
+    /// + el routing de modos del MainViewModel reaccionan.
+    /// </summary>
+    public SeleccionService Seleccion { get; }
+
+    /// <summary>
+    /// Nivel cuyas entidades se renderizan. Cambiar este valor dispara
+    /// un incremento de <see cref="Revision"/> y, por extensión, un
+    /// redraw del canvas.
+    /// </summary>
+    public Nivel? NivelActivo
+    {
+        get => _nivelActivo;
+        set
+        {
+            if (ReferenceEquals(_nivelActivo, value)) return;
+            _nivelActivo = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(GrillaActiva));
+            InvalidarVista();
+        }
+    }
+
+    /// <summary>
+    /// Lista observable de todos los niveles del proyecto — alimenta
+    /// el combobox de la toolbar. Se computa on-demand desde
+    /// <see cref="Proyecto.Edificios"/>.
+    /// </summary>
+    public ObservableCollection<Nivel> NivelesDisponibles
+    {
+        get
+        {
+            var lista = new ObservableCollection<Nivel>();
+            foreach (var edif in _proyecto.Edificios)
+                foreach (var n in edif.Niveles)
+                    lista.Add(n);
+            return lista;
+        }
+    }
+
+    /// <summary>
+    /// Grilla estructural del edificio activo (primer edificio por
+    /// convención M2). <c>null</c> si no hay edificios.
+    /// </summary>
+    public GrillaEstructural? GrillaActiva
+        => _proyecto.Edificios.FirstOrDefault()?.Grillas;
+
+    /// <summary>
+    /// Token entero — incrementado cada vez que el canvas debe
+    /// re-renderizarse. El canvas lo bindea via DependencyProperty;
+    /// su PropertyChanged callback dispara la invalidación visual.
+    /// </summary>
+    public int Revision
+    {
+        get => _revision;
+        private set { _revision = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Dispara un redraw del canvas incrementando el token.</summary>
+    public void InvalidarVista() => Revision++;
+
+    /// <summary>
+    /// Proyecto raíz — expuesto para que el canvas resuelva las
+    /// colecciones del nivel y el grafo proyectado.
+    /// </summary>
+    public Proyecto Proyecto => _proyecto;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+    // Helper marker — vacío por ahora (placeholder para extensión futura).
+    private interface INotifyCollectionChangedHelper { }
+}

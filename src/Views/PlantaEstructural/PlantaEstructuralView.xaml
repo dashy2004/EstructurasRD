@@ -1,0 +1,57 @@
+<UserControl x:Class="LosasPlus.Views.PlantaEstructural.PlantaEstructuralView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:planta="clr-namespace:LosasPlus.Views.PlantaEstructural"
+             Background="{DynamicResource BgPrimary}">
+    <!--
+        Vista de planta estructural 2D (Liga C paso C1). DataContext:
+        MainViewModel. La toolbar superior expone el selector de nivel
+        (combobox bindeado a PlantaEstructural.NivelActivo). El canvas
+        debajo recibe los bindings necesarios para renderizar grilla +
+        columnas + vigas + zapatas del nivel seleccionado.
+
+        En esta primera iteración el canvas es READ-ONLY: solo permite
+        zoom (rueda) + pan (rueda media o Ctrl+arrastre) + click-select
+        (sincroniza con el panel "Elemento Activo" del shell).
+    -->
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ===== Toolbar superior ===== -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock DockPanel.Dock="Left" Text="📐  Planta Estructural"
+                       FontSize="18" FontWeight="SemiBold"
+                       Foreground="{DynamicResource FgPrimary}" VerticalAlignment="Center"/>
+
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                        HorizontalAlignment="Right" VerticalAlignment="Center">
+                <TextBlock Text="Nivel:" VerticalAlignment="Center" Margin="0,0,8,0"
+                           Foreground="{DynamicResource FgMuted}" FontSize="12"/>
+                <ComboBox Width="180" Height="26" VerticalAlignment="Center"
+                          ItemsSource="{Binding PlantaEstructural.NivelesDisponibles}"
+                          SelectedItem="{Binding PlantaEstructural.NivelActivo}"
+                          DisplayMemberPath="Nombre"/>
+                <TextBlock Text="  ·  Zoom rueda, pan rueda media (o Ctrl+arrastre), click sobre elemento para seleccionar"
+                           VerticalAlignment="Center" FontSize="10" FontStyle="Italic"
+                           Foreground="{DynamicResource FgMuted}" Margin="12,0,0,0"/>
+            </StackPanel>
+        </DockPanel>
+
+        <!-- ===== Canvas 2D ===== -->
+        <Border Grid.Row="1"
+                Background="#FF1A1A1A"
+                BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                CornerRadius="6"
+                ClipToBounds="True">
+            <planta:PlantaEstructuralCanvas
+                Proyecto="{Binding PlantaEstructural.Proyecto}"
+                NivelActivo="{Binding PlantaEstructural.NivelActivo}"
+                GrillaActiva="{Binding PlantaEstructural.GrillaActiva}"
+                Revision="{Binding PlantaEstructural.Revision}"
+                Seleccion="{Binding PlantaEstructural.Seleccion}"/>
+        </Border>
+    </Grid>
+</UserControl>

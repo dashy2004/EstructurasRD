@@ -236,6 +236,14 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, MemoriaPlusVm.
     public Viewport3DViewModel Viewport3D { get; private set; } = null!;
 
     /// <summary>
+    /// Sub-VM de la vista de planta estructural 2D (Liga C paso C1).
+    /// Expone el nivel activo + la grilla del edificio para que el
+    /// <c>PlantaEstructuralView</c> renderice columnas, vigas y zapatas
+    /// del nivel sobre un canvas 2D con zoom/pan.
+    /// </summary>
+    public LosasPlus.ViewModels.PlantaEstructural.PlantaEstructuralViewModel PlantaEstructural { get; private set; } = null!;
+
+    /// <summary>
     /// Servicio singleton de selección sincronizada 3D ↔ paneles 2D
     /// (Fase 3D-I3 del Plan Maestro de Expansión 3D). Está acoplado al
     /// <see cref="Viewport3D"/> y al setter de <see cref="ModoActivo"/>:
@@ -1316,6 +1324,12 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, MemoriaPlusVm.
         // ---- Dashboard de auditoría global del proyecto (Fase 7 Iter 2) ----
         Auditoria = new AuditoriaViewModel(_proyecto);
 
+        // ---- Vista de planta estructural 2D (Liga C paso C1) ----
+        // VM ligero — sólo observa el proyecto + el nivel activo. El
+        // canvas hace el render real. SeleccionService inyectado para
+        // que el click en planta sincronice con el panel Elemento Activo.
+        PlantaEstructural = new LosasPlus.ViewModels.PlantaEstructural.PlantaEstructuralViewModel(_proyecto, Seleccion);
+
         // ---- Visor 3D wireframe (Fase 3D-I1 del Plan de Expansión 3D) ----
         Viewport3D = new Viewport3DViewModel();
         // Inyectar el servicio de selección al viewport (Fase 3D-I3): conecta
@@ -2190,6 +2204,15 @@ public enum ModoSidebar
     Auditoria,
     /// <summary>Visor 3D wireframe sobre HelixToolkit.Wpf.SharpDX (Fase 3D-I1 — Plan de Expansión 3D).</summary>
     Vista3D,
+    /// <summary>
+    /// Vista 2D de planta estructural del nivel activo (Liga C paso C1):
+    /// renderiza grillas A/B/C × 1/2/3 + columnas como cuadrados +
+    /// vigas como líneas + zapatas como rectángulos punteados. Click
+    /// selecciona el elemento (sincroniza con el panel "Elemento
+    /// Activo" y el editor 2D correspondiente). Selector de nivel
+    /// propio en la toolbar.
+    /// </summary>
+    PlantaEstructural,
     Validacion,
     Busqueda,
     Configuracion,
