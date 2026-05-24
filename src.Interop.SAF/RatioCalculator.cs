@@ -24,6 +24,7 @@
 // =====================================================================
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using LosasPlus.Columnas;
 using LosasPlus.Models;
 using LosasPlus.Services;
@@ -36,8 +37,15 @@ namespace LosasPlus.Interop.SAF;
 /// Calcula los ratios D/C de Vigas, Columnas y Zapatas de un proyecto
 /// invocando los motores estáticos del dominio. Devuelve un mapa
 /// inmutable <see cref="DomainKey"/> → ratio máximo del elemento.
+///
+/// <para>
+/// Visibilidad <c>public</c> desde Liga B paso B4 — el shell
+/// <c>MainViewModel</c> consume <see cref="CalcularRatioPorElemento"/>
+/// vía <c>IRatioCalculatorService</c> para alimentar el panel
+/// persistente "Elemento Activo".
+/// </para>
 /// </summary>
-internal static class RatioCalculator
+public static class RatioCalculator
 {
     /// <summary>
     /// Resistencia del concreto por defecto cuando el dominio no la
@@ -85,6 +93,84 @@ internal static class RatioCalculator
         }
 
         return ratios;
+    }
+
+    /// <summary>
+    /// Calcula el ratio D/C de un único elemento identificado por
+    /// <paramref name="key"/>. Liga B paso B4 — alimenta el panel
+    /// "Elemento Activo" del shell sin recomputar todo el proyecto.
+    ///
+    /// <para>
+    /// <b>Semánticas defensivas</b>: NUNCA lanza excepción. Retorna
+    /// <see cref="double.NaN"/> ante cualquier condición errónea:
+    /// elemento no encontrado, tipo no soportado (Muro/Losa), helper
+    /// del engine que retorna 0.0 (interpretado como "sin demandas
+    /// válidas o error interno"), o singularidad numérica catchada
+    /// por el try/catch global. La UI mapea NaN al placeholder "—".
+    /// </para>
+    ///
+    /// <para>
+    /// <b>Diferencia con <see cref="CalcularRatiosPorElemento"/></b>:
+    /// el método batch retorna <c>0.0</c> tanto para "sin demandas"
+    /// como para "exception". El método per-elemento mapea ambos a
+    /// NaN porque la UI necesita distinguir "calculado limítrofe"
+    /// (ratio ~0) de "no calculable" (NaN). Si una iteración futura
+    /// quiere distinguir las dos causas, los helpers privados deberían
+    /// retornar <c>double?</c> — fuera de alcance B4.
+    /// </para>
+    /// </summary>
+    public static double CalcularRatioPorElemento(
+        Proyecto proyecto, DomainKey key,
+        double fcGlobal = FcGlobalPorDefecto,
+        double fyGlobal = FyGlobalPorDefecto)
+    {
+        ArgumentNullException.ThrowIfNull(proyecto);
+        try
+        {
+            foreach (var edif in proyecto.Edificios)
+            foreach (var niv in edif.Niveles)
+            {
+                switch (key.Tipo)
+                {
+                    case TipoElemento.Viga:
+                    {
+                        var v = niv.Vigas.FirstOrDefault(x => x.Id == key.Id);
+                        if (v is not null)
+                        {
+                            double r = CalcularRatioVigaSeguro(v, proyecto.Combinaciones);
+                            return r == 0.0 ? double.NaN : r;
+                        }
+                        break;
+                    }
+                    case TipoElemento.Columna:
+                    {
+                        var c = niv.Columnas.FirstOrDefault(x => x.Id == key.Id);
+                        if (c is not null)
+                        {
+                            double r = CalcularRatioColumnaSeguro(c);
+                            return r == 0.0 ? double.NaN : r;
+                        }
+                        break;
+                    }
+                    case TipoElemento.Zapata:
+                    {
+                        var z = niv.Zapatas.FirstOrDefault(x => x.Id == key.Id);
+                        if (z is not null)
+                        {
+                            double r = CalcularRatioZapataSeguro(z, proyecto.Combinaciones, fcGlobal, fyGlobal);
+                            return r == 0.0 ? double.NaN : r;
+                        }
+                        break;
+                    }
+                    // Muro y Losa quedan fuera de alcance — retornan NaN.
+                }
+            }
+        }
+        catch
+        {
+            // Defensa última — singularidades inesperadas degradadas a NaN.
+        }
+        return double.NaN;
     }
 
     // =================================================================

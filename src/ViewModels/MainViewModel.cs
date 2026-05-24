@@ -28,7 +28,7 @@ using MemoriaPlusVm = MemoriaPlus.ViewModels;  // ProyectoResumen vive en src.UI
 
 namespace LosasPlus.ViewModels;
 
-public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHost, MemoriaPlusVm.IBusquedaHost
+public class MainViewModel : INotifyPropertyChanged, IDisposable, MemoriaPlusVm.IValidacionHost, MemoriaPlusVm.IBusquedaHost
 {
     private readonly Proyecto _proyecto = new();
     private Sistema _sistemaActivo = NuevoSistemaDemo();
@@ -262,6 +262,17 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     private bool       _hayPendiente;   // distingue "null intencional" vs "sin pending"
     private ElementoActivoViewModel _elementoActivo = ElementoActivoViewModel.Vacio;
 
+    // ===== Liga B paso B4 — coordinator del cómputo asíncrono de Ratio D/C ====
+    //
+    // El coordinator encapsula el CTS lifecycle + Task.Run + dispose
+    // según las 4 directivas (UI thread libre, cancelación secuencial,
+    // exception isolation, memory eviction). El service es swappable
+    // vía property para inyectar mocks en tests — el setter recrea el
+    // coordinator con el nuevo service (disposing del previo).
+    private IRatioCalculatorService _ratioService = new DefaultRatioCalculator();
+    private RatioComputacionCoordinator _ratioCoordinator =
+        new(new DefaultRatioCalculator());
+
     /// <summary>
     /// Adapter read-only del elemento estructural actualmente seleccionado.
     /// Se reemplaza completo en cada selección efectiva — la UI nunca
@@ -285,6 +296,28 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             if (ReferenceEquals(_elementoActivo, value)) return;
             _elementoActivo = value;
             OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// Servicio de cálculo de Ratio D/C inyectable (Liga B paso B4).
+    /// Default: <see cref="DefaultRatioCalculator"/> que delega al
+    /// <c>RatioCalculator</c> del proyecto SAF interop. Los tests
+    /// reemplazan con mocks para validar el coordinator sin levantar
+    /// los engines reales del dominio.
+    /// </summary>
+    public IRatioCalculatorService RatioService
+    {
+        get => _ratioService;
+        set
+        {
+            _ratioService = value ?? throw new ArgumentNullException(nameof(value));
+            // Reemplazar el coordinator con uno que use el service nuevo;
+            // el anterior se cancela y libera sus recursos antes de la
+            // sustitución. Tests reactivos sin race.
+            var nuevo = new RatioComputacionCoordinator(value);
+            var anterior = System.Threading.Interlocked.Exchange(ref _ratioCoordinator, nuevo);
+            anterior?.Dispose();
         }
     }
 
@@ -883,6 +916,28 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
                 LosasPlus.Zapatas.ZapataAislada z  => ElementoActivoViewModel.Adaptar(z),
                 _                                  => ElementoActivoViewModel.Vacio,
             };
+
+            // ----- Liga B paso B4: lanzar cómputo asíncrono del Ratio D/C ----
+            //
+            // Tras publicar el DTO base (con RatioDC = 0.0), pedir al
+            // coordinator el cálculo real en background. El callback
+            // marshala al hilo UI y reemplaza el DTO sólo si la
+            // selección actual sigue siendo la misma key (race-safe
+            // contra cambios de selección durante el cómputo).
+            if (!_elementoActivo.EsVacio)
+            {
+                var keyValor = key.Value;
+                _ = _ratioCoordinator.ComputarAsync(_proyecto, keyValor,
+                    onCompletado: (k, ratio) =>
+                    {
+                        var dispatcher = Application.Current?.Dispatcher;
+                        if (dispatcher is not null)
+                            dispatcher.Invoke(() => ActualizarRatioSiSeleccionActual(k, ratio));
+                        else
+                            // En xUnit (sin WPF Application) ejecutar directo.
+                            ActualizarRatioSiSeleccionActual(k, ratio);
+                    });
+            }
         }
         catch
         {
@@ -891,6 +946,40 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             // excepciones al hilo UI.
             ElementoActivo = ElementoActivoViewModel.Vacio;
         }
+    }
+
+    /// <summary>
+    /// Callback del coordinator: actualiza el <see cref="ElementoActivo"/>
+    /// con el ratio computado SOLO si la selección actual sigue siendo
+    /// el mismo elemento (race-safety contra cambios concurrentes).
+    /// Liga B paso B4.
+    /// </summary>
+    private void ActualizarRatioSiSeleccionActual(DomainKey k, double ratio)
+    {
+        var actual = _elementoActivo;
+        if (actual.EsVacio) return;
+        if (actual.Id != k.Id) return;
+        var tipoActual = actual.Tipo switch
+        {
+            "Viga"    => TipoElemento.Viga,
+            "Columna" => TipoElemento.Columna,
+            "Zapata"  => TipoElemento.Zapata,
+            _         => (TipoElemento?)null,
+        };
+        if (tipoActual != k.Tipo) return;
+        ElementoActivo = actual.ConRatioDC(ratio);
+    }
+
+    /// <summary>
+    /// Libera recursos administrativos del VM: detiene el throttle de
+    /// selección de B2 y cancela+dispone el coordinator de cómputo
+    /// asíncrono de Ratio de B4. Llamado típicamente desde
+    /// <c>MainWindow.OnClosed</c>. Idempotente.
+    /// </summary>
+    public void Dispose()
+    {
+        _throttleSeleccion.Stop();
+        _ratioCoordinator.Dispose();
     }
 
     // ===================================================================

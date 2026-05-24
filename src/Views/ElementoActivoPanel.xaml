@@ -1,7 +1,13 @@
 <UserControl x:Class="LosasPlus.Views.ElementoActivoPanel"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:LosasPlus.Converters"
              Width="240" MinHeight="100">
+    <UserControl.Resources>
+        <!-- Liga B B4: NaN/Infinity → "—" (em-dash). Valores finitos
+             formateados con F3 en cultura invariante. -->
+        <conv:NaNToTextConverter x:Key="NaNToText"/>
+    </UserControl.Resources>
     <!--
         Panel persistente "Elemento Activo" (Liga B paso B2).
 
@@ -62,7 +68,8 @@
                 </StackPanel.Style>
                 <TextBlock Text="D/C: " FontSize="11"
                            Foreground="{DynamicResource FgMuted}"/>
-                <TextBlock Text="{Binding RatioDC, StringFormat=F3}"
+                <TextBlock Text="{Binding RatioDC, Converter={StaticResource NaNToText}}"
+                           ToolTip="Si aparece '—', el cálculo no está disponible (sin demandas, datos inválidos o cómputo en curso)."
                            FontFamily="JetBrains Mono, Consolas" FontSize="11"
                            Foreground="{DynamicResource FgPrimary}"/>
             </StackPanel>

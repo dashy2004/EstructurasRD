@@ -147,4 +147,21 @@ public sealed class ElementoActivoViewModel
         string dim    = $"{z.Dimensiones.LargoB * 100:F0}×{z.Dimensiones.AnchoL * 100:F0} cm · h={z.Dimensiones.EspesorH * 100:F0} cm";
         return new ElementoActivoViewModel("Zapata", z.Id, nombre, dim, ratioDC: 0.0, esVacio: false);
     }
+
+    /// <summary>
+    /// Devuelve una nueva instancia idéntica a la actual pero con
+    /// <see cref="RatioDC"/> reemplazado por <paramref name="r"/> —
+    /// usada por Liga B paso B4 para enriquecer el DTO con el ratio
+    /// computado asincrónicamente sin romper la inmutabilidad
+    /// estructural del adapter (B2).
+    ///
+    /// <para>
+    /// El binding tree se entera del cambio porque
+    /// <c>MainViewModel.ElementoActivo</c> reemplaza la referencia
+    /// completa — <c>PropertyChanged(nameof(ElementoActivo))</c>
+    /// dispara la re-renderización del panel.
+    /// </para>
+    /// </summary>
+    public ElementoActivoViewModel ConRatioDC(double r)
+        => new(Tipo, Id, Nombre, Dimensiones, ratioDC: r, esVacio: EsVacio);
 }
