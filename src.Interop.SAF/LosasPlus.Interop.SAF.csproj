@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>LosasPlus.Interop.SAF</AssemblyName>
+    <RootNamespace>LosasPlus.Interop.SAF</RootNamespace>
+    <Version>0.1.0</Version>
+    <Authors>EstructurasRD</Authors>
+    <Product>LosasPlus.Interop.SAF</Product>
+    <Description>
+      Capa de interoperabilidad SAF (Structural Analysis Format 2.2.0) para EstructurasRD.
+      Mapea el grafo estructural sintético (LosasPlus.Topologia.IGrafoEstructural) a
+      objetos del SDK oficial StructuralAnalysisFormat 1.7.3 y exporta el modelo a
+      archivo .xlsx consumible por SCIA Engineer / RFEM / Frilo / RISA. Inyecta una
+      hoja extra "EstructurasRD_Design" para datos lossy (refuerzo + factores ACI 318-19)
+      que sobreviven al roundtrip dentro de la suite.
+    </Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\src.Core\LosasPlus.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- SDK oficial de SCIA / Nemetschek para SAF — incluye EPPlus 4.5.3.3 LGPL,
+         FluentValidation y UnitsNet de forma transitiva. -->
+    <PackageReference Include="StructuralAnalysisFormat" Version="1.7.3" />
+    <PackageReference Include="StructuralAnalysisFormat.Bootstrappers.SimpleInjector5" Version="1.7.3" />
+  </ItemGroup>
+
+</Project>

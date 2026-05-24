@@ -20,6 +20,10 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\LosasPlus.csproj" />
     <ProjectReference Include="..\..\src.Memoria\MemoriaPlus.App.csproj" />
+    <!-- Capa de interop SAF (Fase INTEROP-I1). La suite la usa para
+         testear SafExporter end-to-end y para reabrir el .xlsx
+         resultante con EPPlus (transitivo via SDK SAF). -->
+    <ProjectReference Include="..\..\src.Interop.SAF\LosasPlus.Interop.SAF.csproj" />
   </ItemGroup>
 
   <ItemGroup>

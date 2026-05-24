@@ -277,6 +277,9 @@
                             <Separator/>
                             <MenuItem Header="Exportar CSV..." Click="OnExportCsvClick"/>
                             <MenuItem Header="Exportar XLSX..." Click="OnExportXlsxClick"/>
+                            <Separator/>
+                            <MenuItem Header="Exportar SAF (.xlsx)..." Click="OnExportSafClick"
+                                      ToolTip="Exporta el modelo al estándar SAF 2.2.0 con hoja custom EstructurasRD_Design — compatible con SCIA Engineer / RFEM / Frilo."/>
                         </MenuItem>
                     </Menu>
 

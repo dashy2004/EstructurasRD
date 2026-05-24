@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;            // Application, MessageBox (export SAF)
 using System.Windows.Input;
 using LosasPlus.Generation;
 using LosasPlus.Models;
@@ -153,6 +154,15 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     public ICommand? RedoCommand               { get; private set; }
     public ICommand? AbrirShortcutsCommand     { get; private set; }
     public ICommand? AplicarBulkCommand        { get; private set; }
+
+    // ---- Exportación SAF 2.2.0 (Fase INTEROP-I1) ----
+    /// <summary>
+    /// Comando que dispara el diálogo de guardado SAF + el export en
+    /// background. La lógica vive en <see cref="EjecutarExportarSafCommand"/>.
+    /// El menú de la shell (MainWindow.xaml.cs) lo invoca vía Click handler
+    /// para mantener consistencia con los hermanos Exportar CSV/XLSX.
+    /// </summary>
+    public ICommand? ExportarSafCommand        { get; private set; }
 
     // ---- Validación normativa (commit 33) ----
     /// <summary>
@@ -811,6 +821,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         RedoCommand          = new RelayCommand(_ => Redo(), _ => PuedeRedo);
         AbrirShortcutsCommand = new RelayCommand(_ => AbrirShortcutsModal());
         AplicarBulkCommand   = new RelayCommand(_ => AplicarBulk(), _ => MostrarBulkPanel);
+        ExportarSafCommand   = new RelayCommand(_ => EjecutarExportarSafCommand());
 
         // ---- Búsqueda global (commit 35) ----
         Busqueda = new MemoriaPlusVm.BusquedaViewModel(
@@ -1320,6 +1331,95 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             StatusPersistencia = $"Error al guardar: {ex.Message}";
             Log("Error guardando .lpx: " + ex.Message);
         }
+    }
+
+    // =====================================================================
+    // EXPORT SAF 2.2.0 — Fase INTEROP-I1 (Parte C)
+    //
+    // El usuario invoca el comando vía MenuItem (MainWindow.xaml.cs →
+    // OnExportSafClick → ExportarSafCommand.Execute(null)). El comando
+    // abre un SaveFileDialog corporativo y dispara el export en background
+    // con Task.Run, marshaling éxito/error de vuelta al hilo UI vía el
+    // Dispatcher.
+    // =====================================================================
+
+    /// <summary>
+    /// Lanza el SaveFileDialog del export SAF y, si el usuario confirma,
+    /// fire-and-forget hacia <see cref="EjecutarExportSafAsync"/>. El
+    /// RelayCommand sync regresa de inmediato; las excepciones internas
+    /// quedan atrapadas dentro del Task.
+    /// </summary>
+    private void EjecutarExportarSafCommand()
+    {
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Title           = "EstructurasRD — Exportar Proyecto a SAF",
+            Filter          = "Formato de Análisis Estructural (.xlsx)|*.xlsx",
+            FileName        = SugerirNombreSaf(),
+            AddExtension    = true,
+            DefaultExt      = ".xlsx",
+            OverwritePrompt = true,
+        };
+        if (dlg.ShowDialog() != true) return;
+
+        // Fire-and-forget. La task atrapa toda excepción y marshalea al UI.
+        _ = EjecutarExportSafAsync(dlg.FileName);
+    }
+
+    /// <summary>
+    /// Ejecuta el export en un hilo de fondo (<c>Task.Run</c>) y marshalea
+    /// la actualización de <see cref="Ocupado"/> + <see cref="Log"/> +
+    /// <see cref="StatusPersistencia"/> + MessageBox de error al hilo UI
+    /// vía <c>Application.Current.Dispatcher.Invoke</c>.
+    /// </summary>
+    /// <param name="rutaXlsx">Ruta absoluta del archivo .xlsx destino.</param>
+    private async Task EjecutarExportSafAsync(string rutaXlsx)
+    {
+        Ocupado = true;
+        StatusPersistencia = "Exportando SAF…";
+        try
+        {
+            await Task.Run(() =>
+                LosasPlus.Interop.SAF.SafExporter.Exportar(_proyecto, rutaXlsx));
+
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                StatusPersistencia = $"SAF exportado: {Path.GetFileName(rutaXlsx)}";
+                Log($"SAF 2.2.0 exportado en {rutaXlsx}.");
+            });
+        }
+        catch (Exception ex)
+        {
+            // El motor ya envuelve los errores I/O en InvalidOperationException
+            // con mensajes amigables. Para cualquier otro caso, reportamos
+            // el mensaje crudo al usuario sin tirar la app.
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                StatusPersistencia = $"Error al exportar SAF: {ex.Message}";
+                Log("Error exportando SAF: " + ex.Message);
+                MessageBox.Show(
+                    $"No se pudo exportar el archivo SAF.\n\n{ex.Message}",
+                    "Exportar SAF",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            });
+        }
+        finally
+        {
+            Application.Current.Dispatcher.Invoke(() => Ocupado = false);
+        }
+    }
+
+    /// <summary>
+    /// Sugiere un nombre de archivo basado en <c>Proyecto.Nombre</c>
+    /// (fallback: "EstructurasRD"). Mirror de <see cref="SugerirNombreLpx"/>.
+    /// </summary>
+    private string SugerirNombreSaf()
+    {
+        string baseNombre = string.IsNullOrWhiteSpace(_proyecto.Nombre)
+            ? "EstructurasRD"
+            : _proyecto.Nombre;
+        return baseNombre + ".saf.xlsx";
     }
 
     /// <summary>Pregunta destino con SaveFileDialog y guarda. Bound a Ctrl+Shift+S.</summary>

@@ -28,6 +28,11 @@
   <ItemGroup>
     <ProjectReference Include="..\src.Core\LosasPlus.Core.csproj" />
     <ProjectReference Include="..\src.UI.Shared\MemoriaPlus.UI.Shared.csproj" />
+    <!-- Capa de interop SAF 2.2.0 (Fase INTEROP-I1 del Plan Maestro 3D —
+         EstructurasRD). El shell la consume para resolver SafExporter
+         desde el ExportarSafCommand. La capa de interop es net8.0 puro,
+         sin afinidad UI — sólo arrastra el SDK SAF + EPPlus transitivos. -->
+    <ProjectReference Include="..\src.Interop.SAF\LosasPlus.Interop.SAF.csproj" />
   </ItemGroup>
 
   <ItemGroup>

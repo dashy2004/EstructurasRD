@@ -383,6 +383,15 @@ public partial class MainWindow : Window
         await Vm.ExportarXlsxAsync(dlg.FileName, png);
     }
 
+    // Export SAF 2.2.0 — Fase INTEROP-I1. Pass-through al ExportarSafCommand
+    // de la VM: el command abre el SaveFileDialog corporativo y dispara el
+    // export en background con marshaling al hilo UI. Mantiene el mismo
+    // patrón de Click-handler que los hermanos CSV/XLSX.
+    private void OnExportSafClick(object sender, RoutedEventArgs e)
+    {
+        Vm.ExportarSafCommand?.Execute(null);
+    }
+
     private void OnTrustPluginClick(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement fe && fe.Tag is string fullPath)
