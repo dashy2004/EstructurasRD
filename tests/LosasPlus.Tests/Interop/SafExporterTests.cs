@@ -455,6 +455,54 @@ public class SafExporterTests : IDisposable
     }
 
     // =================================================================
+    // TEST 15 — Patch Deuda I1: hojas baseline aparecen tras el patch
+    //           de constantes mecánicas del material C30/37.
+    // =================================================================
+
+    [Fact]
+    public void Exportar_ProyectoConElementos_GeneraHojasBaselineCompletas()
+    {
+        // Tras poblar EModulus + GModulus + PoissonCoefficient + UnitMass
+        // en SafMapper.ConstruirMaterialConcretoPorDefecto, el validador
+        // FluentValidation del SDK SAF acepta el material — y por cascada
+        // las secciones y miembros que lo referencian. El .xlsx ya no
+        // queda con sólo la hoja custom; las hojas SAF baseline rellenas
+        // se renderizan también. SCIA Engineer / RFEM ahora pueden abrir
+        // el archivo y ver la geometría sin perder el roundtrip visual.
+        var proyecto = ProyectoFactory.NuevoProyectoSeedeado();
+        var edificio = new Edificio();
+        var nivel    = new Nivel();
+        nivel.Columnas.Add(new Columna
+        {
+            Id     = 1,
+            Nombre = "C-1",
+            Altura = 3.0,
+            // Geometria default (SeccionColumna 0.40×0.40, fc=28 MPa)
+            // basta para que la sección sea válida bajo Parametric.
+        });
+        edificio.Niveles.Add(nivel);
+        proyecto.Edificios.Add(edificio);
+
+        SafExporter.Exportar(proyecto, _tempPath);
+
+        using var pkg = new ExcelPackage(new FileInfo(_tempPath));
+        int total = pkg.Workbook.Worksheets.Count;
+        string inventario = string.Join(", ", pkg.Workbook.Worksheets.Select(w => w.Name));
+
+        // Tras el patch: esperamos al menos 3 hojas (custom + material +
+        // alguna otra: sección, point connection, curve member).
+        Assert.True(total >= 3,
+            $"Esperaba ≥ 3 hojas tras el patch de material (real: {total}). Inventario: [{inventario}].");
+
+        // Validación específica: la hoja SAF de Material debe existir —
+        // ese fue el bloqueo principal del validador antes del patch.
+        bool hayHojaMaterial = pkg.Workbook.Worksheets
+            .Any(w => w.Name.IndexOf("Material", StringComparison.OrdinalIgnoreCase) >= 0);
+        Assert.True(hayHojaMaterial,
+            $"Debe existir una hoja SAF de Material. Inventario: [{inventario}].");
+    }
+
+    // =================================================================
     // Helpers privados — fixtures inline mínimos
     // =================================================================
 

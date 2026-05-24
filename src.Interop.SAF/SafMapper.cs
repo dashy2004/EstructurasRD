@@ -204,12 +204,57 @@ public static class SafMapper
     // MATERIAL
     // =================================================================
 
+    /// <summary>
+    /// Construye el material default de concreto C30/37 con TODAS las
+    /// constantes mecánicas exigidas por el validador FluentValidation
+    /// del SDK SAF (Patch Deuda I1 — Fase INTEROP-I1).
+    ///
+    /// <para>
+    /// Antes del patch este método sólo poblaba <c>Name</c> y <c>Type</c>;
+    /// el validador del SDK rechazaba el material por inconsistencia y, en
+    /// cascada, descartaba TODAS las hojas baseline del .xlsx (secciones y
+    /// miembros quedaban huérfanos). Resultado: el archivo sólo contenía
+    /// la hoja custom EstructurasRD_Design — SCIA Engineer / RFEM no veían
+    /// nada al abrirlo.
+    /// </para>
+    ///
+    /// <para>
+    /// Valores nominales adoptados (Eurocódigo 2 §3.1.3 / ACI 318-19 §19.2.2):
+    /// <list type="bullet">
+    ///   <item>E = 33 GPa — módulo de elasticidad del concreto C30/37
+    ///   (ACI: Ec ≈ 4700·√f'c con f'c = 30 MPa).</item>
+    ///   <item>ν = 0.2 — coeficiente de Poisson del concreto no agrietado
+    ///   (EC2 §3.1.3(4)).</item>
+    ///   <item>ρ = 2500 kg/m³ — densidad del concreto armado estándar.</item>
+    ///   <item>G = E / (2(1+ν)) = 13.75 GPa — derivado por la relación
+    ///   elástica clásica de sólido isótropo.</item>
+    /// </list>
+    /// </para>
+    /// </summary>
     private static SafLibraries.ExcelStructuralMaterial ConstruirMaterialConcretoPorDefecto()
-        => new SafLibraries.ExcelStructuralMaterial
+    {
+        // Constantes nominales (no varían con el proyecto — el material
+        // por defecto representa siempre el mismo C30/37 estándar).
+        const double EmGPa            = 33.0;       // Módulo de elasticidad
+        const double PoissonNu        = 0.2;        // Coeficiente de Poisson
+        const double DensityKgPerM3   = 2500.0;     // Densidad másica
+        const double ThermalAlphaPerC = 10e-6;      // Coef. expansión térmica (EC2)
+        // G = E / (2(1+ν)) — relación clásica para sólido elástico isótropo.
+        const double GmGPa            = EmGPa / (2.0 * (1.0 + PoissonNu));
+
+        return new SafLibraries.ExcelStructuralMaterial
         {
-            Name = MaterialConcretoPorDefecto,
-            Type = SafEnums.ExcelMaterialType.Concrete,
+            Name               = MaterialConcretoPorDefecto,
+            Quality            = MaterialConcretoPorDefecto,   // calidad EN/ACI
+            Type               = SafEnums.ExcelMaterialType.Concrete,
+            EModulus           = Pressure.FromGigapascals(EmGPa),
+            GModulus           = Pressure.FromGigapascals(GmGPa),
+            PoissonCoefficient = PoissonNu,
+            UnitMass           = Density.FromKilogramsPerCubicMeter(DensityKgPerM3),
+            ThermalExpansion   = CoefficientOfThermalExpansion.FromInverseDegreeCelsius(
+                                     ThermalAlphaPerC),
         };
+    }
 
     // =================================================================
     // SECCIONES — catálogo de-duplicado por (b, h)
@@ -268,11 +313,16 @@ public static class SafMapper
         // FormCode es int? en el SDK (acepta valores propios + estándar);
         // se castea explícitamente desde la enum. Parameters es Length[]
         // — para sección rectangular SAF 2.2.0: Parameters[0]=B, [1]=H.
+        // Shape es REQUERIDO por el validador FluentValidation (sin él
+        // descarta la sección y por cascada la baseline entera) —
+        // ExcelProfileLibraryId.Rectangle identifica el perfil rectangular
+        // sólido estándar.
         var seccion = new SafLibraries.ExcelStructuralCrossSection
         {
             Name             = nombre,
             Material         = MaterialConcretoPorDefecto,
             CrossSectionType = SafEnums.ExcelCrossSectionType.Parametric,
+            Shape            = SafEnums.ExcelProfileLibraryId.Rectangle,
             FormCode         = (int?)SafEnums.ExcelFormCode.FullRectangularSection,
             Parameters       = new[]
             {
@@ -324,6 +374,13 @@ public static class SafMapper
         // desde la colección Nodes. Por eso pasamos los nombres por Nodes.
         // Type es ExcelFlexibleEnum<ExcelMember1DType> — wrapper que admite
         // valores fuera de la enum (campo "otro" para extensibilidad SAF).
+        //
+        // Segments y LCSAdjustmentLCS son REQUERIDOS por el validador:
+        //   - Segments: lista de ExcelCurveShape — un miembro recto entre
+        //     dos nodos consecutivos requiere un solo segmento Line.
+        //   - LCSAdjustmentLCS: tipo de sistema local — Standard usa la
+        //     convención por defecto del SDK (equivalente a nuestra CSI
+        //     ya validada en Parte A).
         var tipo1D = esViga ? SafEnums.ExcelMember1DType.Beam
                             : SafEnums.ExcelMember1DType.Column;
         return new SafElements.ExcelStructuralCurveMember
@@ -332,6 +389,20 @@ public static class SafMapper
             Type                  = new SafSubtypes.ExcelFlexibleEnum<SafEnums.ExcelMember1DType>(tipo1D),
             CrossSection          = nombreSeccion,
             Nodes                 = new[] { nodoIni, nodoFin },
+            Segments              = new[]
+            {
+                new SafSubtypes.ExcelCurveShape(SafEnums.ExcelCurveGeometricalShape.Line),
+            },
+            // VectorY: el sistema local se orienta vía un vector hacia +Y.
+            // (Standard fue marcada obsoleta por SCIA en 1.7.x — "Is the
+            // same as VectorY". Usamos el nombre nuevo.) El validador
+            // SAF exige adicionalmente las coordenadas LCS no nulas;
+            // cero significa "sin offset" — el sistema local cae sobre
+            // el eje longitudinal del miembro tal cual.
+            LCSAdjustmentLCS      = SafEnums.ExcelCurveLCSType.VectorY,
+            LCSAdjustmentX        = Length.Zero,
+            LCSAdjustmentY        = Length.Zero,
+            LCSAdjustmentZ        = Length.Zero,
             LCSAdjustmentRotation = Angle.FromDegrees(0.0),
         };
     }
