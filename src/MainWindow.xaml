@@ -1510,7 +1510,24 @@
                                    HorizontalAlignment="Right"
                                    VerticalAlignment="Top"
                                    Margin="0,12,24,0"
-                                   Panel.ZIndex="20"/>
+                                   Panel.ZIndex="20">
+                <!-- Visible SÓLO cuando hay un elemento estructural
+                     seleccionado. Si EsVacio == true (Null Object del
+                     adapter) el panel se colapsa para no tapar la
+                     toolbar/botones del shell. Reaparece automáticamente
+                     al clickear cualquier viga/columna/zapata/losa/muro
+                     en el visor 3D o la Planta Estructural. -->
+                <v:ElementoActivoPanel.Style>
+                    <Style TargetType="v:ElementoActivoPanel">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding EsVacio}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </v:ElementoActivoPanel.Style>
+            </v:ElementoActivoPanel>
 
             <!-- =========================================================
                  LOG EXPANDIBLE: visible si LogToggle.IsChecked.
