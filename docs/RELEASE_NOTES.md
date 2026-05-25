@@ -1,4 +1,20 @@
-# Notas de Lanzamiento — LosasPlus v1.3.0
+# Notas de Lanzamiento — Suite EstructurasRD
+
+## Releases publicados
+
+| Versión | Marca | Documento detallado | Resumen |
+|---|---|---|---|
+| **v0.8.0** | EstructurasRD | [`RELEASE_NOTES_v0.8.0.md`](RELEASE_NOTES_v0.8.0.md) | Liga B (UI Optimization) + Liga C (Planta Estructural editora) + Fase 3D-II MVP. 853 tests verdes. Módulos columnas/vigas/losas/zapatas **en prueba**. Adopción futura del nuevo Código de Construcción dominicano planificada. |
+| v1.3.0 | LosasPlus legacy | (este documento — sección histórica) | Epics v1.2 & v1.3: ergonomía interactiva, PDF Underlay y automatización geométrica de losas. 584 tests verdes. |
+
+> Para el **release activo** consulte
+> [`RELEASE_NOTES_v0.8.0.md`](RELEASE_NOTES_v0.8.0.md). El contenido a
+> continuación documenta el último release histórico bajo la marca
+> *LosasPlus* (pre-rebrand).
+
+---
+
+# (Histórico) Notas de Lanzamiento — LosasPlus v1.3.0
 
 ### Epics v1.2 & v1.3 · Ergonomía Interactiva, PDF Underlay y Automatización Geométrica
 
