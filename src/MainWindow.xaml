@@ -130,54 +130,114 @@
                                     </Setter.Value>
                                 </Setter>
                             </Style>
+                            <!-- Liga D D1: separadores verticales entre grupos
+                                 de categoría en la nav horizontal. -->
+                            <Style x:Key="NavSeparador" TargetType="Border">
+                                <Setter Property="Width" Value="1"/>
+                                <Setter Property="Height" Value="20"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Background" Value="{DynamicResource Border}"/>
+                                <Setter Property="Opacity" Value="0.4"/>
+                                <Setter Property="Margin" Value="8,0"/>
+                            </Style>
+                            <!-- Headers ALL-CAPS pequeños sobre cada grupo
+                                 (overlay arriba del RadioButton del grupo). -->
+                            <Style x:Key="NavCategoria" TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{DynamicResource FgMuted}"/>
+                                <Setter Property="FontSize" Value="8"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Margin" Value="6,0,4,0"/>
+                                <Setter Property="Opacity" Value="0.7"/>
+                            </Style>
                         </StackPanel.Resources>
+                        <!-- ============================================================
+                             Liga D paso D1 — sidebar HORIZONTAL agrupada por
+                             categoría con separadores verticales + chips de
+                             categoría ALL-CAPS. Los 19 RadioButtons originales
+                             quedan en orden funcional dentro de 7 grupos:
+                             PROYECTO · LOSAS · MODELO · ANÁLISIS · VISUALIZACIÓN
+                             · NORMATIVA · SISTEMA. Todos preservan
+                             GroupName="SidebarNav" para mutua-exclusión.
+                             ============================================================ -->
+
+                        <!-- 📁 PROYECTO -->
+                        <TextBlock Text="PROYECTO" Style="{StaticResource NavCategoria}"/>
                         <RadioButton GroupName="SidebarNav" Content="📂  Explorador"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Explorador}"/>
                         <RadioButton GroupName="SidebarNav" Content="🔍  Búsqueda"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Busqueda}"/>
+                        <Border Style="{StaticResource NavSeparador}"/>
+
+                        <!-- 🧮 LOSAS (Legacy LosasPlus) -->
+                        <TextBlock Text="LOSAS" Style="{StaticResource NavCategoria}"/>
                         <RadioButton GroupName="SidebarNav" Content="✎  Editor"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Editor}"/>
                         <RadioButton GroupName="SidebarNav" Content="🗺  Lienzo CAD"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}"
                                      ToolTip="Editor visual CAD: importá un plano .DXF de referencia y visualizá las losas. Único entorno gráfico."/>
-                        <RadioButton GroupName="SidebarNav" Content="▤  Editor .DL"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DLEditor}"/>
-                        <RadioButton GroupName="SidebarNav" Content="⇲  Salida .TXT"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Salida}"/>
+                        <RadioButton GroupName="SidebarNav" Content="▤  .DL"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DLEditor}"
+                                     ToolTip="Editor .DL"/>
+                        <RadioButton GroupName="SidebarNav" Content="⇲  .TXT"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Salida}"
+                                     ToolTip="Salida .TXT"/>
                         <RadioButton GroupName="SidebarNav" Content="🔩  Aceros"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Aceros}"
                                      ToolTip="Diseño de aceros distribuidos por losa basado en los momentos importados del .TXT. Próximamente."/>
-                        <RadioButton GroupName="SidebarNav" Content="📊  Cargas y Combinaciones"
+                        <Border Style="{StaticResource NavSeparador}"/>
+
+                        <!-- 🏗 MODELO ESTRUCTURAL -->
+                        <TextBlock Text="MODELO" Style="{StaticResource NavCategoria}"/>
+                        <RadioButton GroupName="SidebarNav" Content="📊  Cargas"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=CargasCombinaciones}"
-                                     ToolTip="Casos y combinaciones de carga del proyecto — base de diseño transversal a todos los módulos."/>
-                        <RadioButton GroupName="SidebarNav" Content="📐  Vigas Continuas"
+                                     ToolTip="Cargas y Combinaciones — base de diseño transversal a todos los módulos."/>
+                        <RadioButton GroupName="SidebarNav" Content="📐  Vigas"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vigas}"
-                                     ToolTip="Editor de vigas continuas: análisis por rigidez directa y diagramas V(x), M(x) y δ(x)."/>
+                                     ToolTip="Vigas Continuas — análisis por rigidez directa y diagramas V(x), M(x), δ(x)."/>
                         <RadioButton GroupName="SidebarNav" Content="🟦  Columnas"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Columnas}"
                                      ToolTip="Editor de columnas RC: diagrama de interacción P-M uniaxial 2D según ACI 318-19."/>
                         <RadioButton GroupName="SidebarNav" Content="🏗  Zapatas"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Zapatas}"
                                      ToolTip="Editor de zapatas aisladas: presiones de contacto biaxiales y croquis 1:1 de la planta."/>
+                        <Border Style="{StaticResource NavSeparador}"/>
+
+                        <!-- 📊 ANÁLISIS -->
+                        <TextBlock Text="ANÁLISIS" Style="{StaticResource NavCategoria}"/>
                         <RadioButton GroupName="SidebarNav" Content="📊  Auditoría"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Auditoria}"
                                      ToolTip="Dashboard ejecutivo: auditoría cruzada del proyecto y log maestro de alertas estructurales (Fase 7)."/>
+                        <RadioButton GroupName="SidebarNav" Content="🛡  Validación"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}"/>
+                        <Border Style="{StaticResource NavSeparador}"/>
+
+                        <!-- 🎨 VISUALIZACIÓN -->
+                        <TextBlock Text="VISUAL" Style="{StaticResource NavCategoria}"/>
                         <RadioButton GroupName="SidebarNav" Content="🧊  Vista 3D"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vista3D}"
                                      ToolTip="Visualizador tridimensional alámbrico de la estructura (HelixToolkit.Wpf.SharpDX — Fase 3D-I1). Sólo lectura."/>
-                        <RadioButton GroupName="SidebarNav" Content="📐  Planta Estructural"
+                        <RadioButton GroupName="SidebarNav" Content="📐  Planta"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlantaEstructural}"
-                                     ToolTip="Vista 2D estructural por nivel: grilla A/B/C × 1/2/3, columnas, vigas y zapatas con click-selección sincronizada (Liga C paso C1)."/>
-                        <RadioButton GroupName="SidebarNav" Content="🛡  Validación"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}"/>
+                                     ToolTip="Planta Estructural — vista 2D por nivel: grilla A/B/C × 1/2/3, columnas, vigas y zapatas con click-selección sincronizada (Liga C)."/>
+                        <Border Style="{StaticResource NavSeparador}"/>
+
+                        <!-- ⚖ NORMATIVA -->
+                        <TextBlock Text="NORMATIVA" Style="{StaticResource NavCategoria}"/>
                         <RadioButton GroupName="SidebarNav" Content="⚖  Reglamento"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Reglamento}"/>
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Reglamento}"
+                                     ToolTip="Reglamentos soportados: ACI 318-19, R-001, R-033 y MIVHED (en estudio)."/>
+                        <Border Style="{StaticResource NavSeparador}"/>
+
+                        <!-- ⚙ SISTEMA -->
+                        <TextBlock Text="SISTEMA" Style="{StaticResource NavCategoria}"/>
                         <RadioButton GroupName="SidebarNav" Content="⚙  Configuración"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Configuracion}"/>
                         <RadioButton GroupName="SidebarNav" Content="◆  Plugins"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Plugins}"/>
-                        <RadioButton GroupName="SidebarNav" Content="ℹ  Acerca de"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Acerca}"/>
+                        <RadioButton GroupName="SidebarNav" Content="ℹ  Acerca"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Acerca}"
+                                     ToolTip="Acerca de EstructurasRD v0.8.0"/>
                     </StackPanel>
                 </ScrollViewer>
 
@@ -1386,7 +1446,7 @@
                                            AparienciaCambiada="OnAparienciaCambiada"/>
                 </ContentControl>
 
-                <!-- MODO Acerca de -->
+                <!-- MODO Acerca de — actualizado Liga D paso D3 para EstructurasRD v0.8.0 -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <ScrollViewer.Style>
                         <Style TargetType="{x:Type ScrollViewer}">
@@ -1399,58 +1459,112 @@
                         </Style>
                     </ScrollViewer.Style>
                     <StackPanel Margin="32,24" MaxWidth="900">
-                        <TextBlock Text="LosasPlus" FontSize="24" FontWeight="Bold"
+                        <TextBlock Text="EstructurasRD" FontSize="32" FontWeight="Bold"
                                    Foreground="{DynamicResource FgPrimary}"/>
-                        <TextBlock Text="Capa de UI, edición, visualización y exportación construida sobre el motor original."
-                                   Margin="0,4,0,0" Foreground="{DynamicResource FgSecondary}"/>
-
-                        <Separator Margin="0,16,0,16"/>
-                        <TextBlock Text="Crédito principal" FontWeight="Bold" FontSize="14"
-                                   Foreground="{DynamicResource FgPrimary}"/>
-                        <TextBlock TextWrapping="Wrap" Margin="0,4,0,0"
+                        <TextBlock Text="Suite de Diseño Estructural · v0.8.0"
+                                   FontSize="14" Foreground="{DynamicResource FgMuted}"
+                                   Margin="0,4,0,4"/>
+                        <TextBlock TextWrapping="Wrap"
                                    Foreground="{DynamicResource FgSecondary}">
-                            El motor de cálculo es obra de <Run FontWeight="Bold">Francisco Eludino Perdomo</Run>
-                            (Losas v5.00, febrero 2011). El método implementado es el de Pieper-Martens
-                            (TU Braunschweig), adaptado por el autor para el análisis de losas continuas
-                            apoyadas en tres y cuatro bordes. Contacto del autor original:
-                            <Run Text=" fa.perdomo@gmail.com" FontStyle="Italic"/>.
+                            Marca paraguas que integra el motor histórico
+                            <Run FontWeight="Bold">LosasPlus</Run> (Pieper-Martens, F. Perdomo, 2011)
+                            con módulos nuevos: vigas continuas, diseño RC ACI 318-19, columnas con
+                            diagrama P-M, zapatas con presiones biaxiales, auditoría cruzada, visor 3D
+                            HelixToolkit, planta estructural editable, export SAF 2.2.0.
                         </TextBlock>
 
-                        <Separator Margin="0,16,0,16"/>
-                        <TextBlock Text="Alcance del wrapper" FontWeight="Bold" FontSize="14"
+                        <!-- ====== Acciones rápidas: GitHub + PDFs MIVHED ====== -->
+                        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                            <Button Content="🚀 Ver release v0.8.0 en GitHub"
+                                    Padding="12,6"
+                                    Click="OnVerReleaseGitHubClick"
+                                    ToolTip="Abre https://github.com/dashy2004/EstructurasRD/releases/tag/v0.8.0"/>
+                            <Button Content="📄 Abrir MIVHED Tomo 1 Vol 1"
+                                    Padding="12,6" Margin="8,0,0,0"
+                                    Click="OnAbrirMivhedPdfClick" Tag="T1V1"
+                                    ToolTip="Abre el PDF del Nuevo Código de Construcción Dominicano con el visor del sistema."/>
+                            <Button Content="📄 Abrir MIVHED Vol 1 Tomo 2"
+                                    Padding="12,6" Margin="8,0,0,0"
+                                    Click="OnAbrirMivhedPdfClick" Tag="V1T2"/>
+                        </StackPanel>
+
+                        <!-- ====== Reglamentos soportados ====== -->
+                        <Separator Margin="0,24,0,16"/>
+                        <TextBlock Text="Reglamentos soportados" FontWeight="Bold" FontSize="16"
                                    Foreground="{DynamicResource FgPrimary}"/>
-                        <TextBlock TextWrapping="Wrap" Margin="0,4,0,0"
-                                   Foreground="{DynamicResource FgSecondary}">
-                            El presente programa NO modifica el binario original. Genera el archivo .DL
-                            de entrada conforme al formato documentado por el autor en Losas.hlp,
-                            permite lanzar Losas.exe (la ejecución del cálculo es manual desde la GUI
-                            nativa del programa, ver <Run FontStyle="Italic">docs/RUNNER_BEHAVIOR.md</Run>)
-                            e importar el .TXT resultante para visualizar y exportar. Agrega capas de:
-                            edición estructurada con catálogo de tipos, esquema visual, preview del .TXT
-                            de salida, exportación a CSV/XLSX, panel del Reglamento de Construcción Dominicano
-                            y arquitectura de plugins .csx en sandbox Roslyn.
+                        <Grid Margin="0,12,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="140"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="ACI 318-19" FontWeight="SemiBold" Margin="0,2"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="Building Code Requirements for Structural Concrete" Margin="0,2" Foreground="{DynamicResource FgMuted}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="✓ Implementado" Margin="0,2" Foreground="{DynamicResource Ok}"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="R-001 (MOPC)" FontWeight="SemiBold" Margin="0,2"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="Reglamento Dominicano para Análisis y Diseño Sísmico" Margin="0,2" Foreground="{DynamicResource FgMuted}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Text="✓ Implementado" Margin="0,2" Foreground="{DynamicResource Ok}"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="R-033 (MOPC)" FontWeight="SemiBold" Margin="0,2"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="Reglamento para Diseño y Construcción en Hormigón Armado" Margin="0,2" Foreground="{DynamicResource FgMuted}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="2" Text="✓ Referencia" Margin="0,2" Foreground="{DynamicResource Ok}"/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="MIVHED Tomo 1 V1" FontWeight="SemiBold" Margin="0,2"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" Text="Análisis y Diseño Estructural de Edificaciones — Tomo 1 Vol 1" Margin="0,2" Foreground="{DynamicResource FgMuted}"/>
+                            <TextBlock Grid.Row="3" Grid.Column="2" Text="🧪 En estudio" Margin="0,2" Foreground="{DynamicResource Warn}"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="MIVHED Vol 1 T2" FontWeight="SemiBold" Margin="0,2"/>
+                            <TextBlock Grid.Row="4" Grid.Column="1" Text="Análisis y Diseño Estructural de Edificaciones — Vol 1 Tomo 2" Margin="0,2" Foreground="{DynamicResource FgMuted}"/>
+                            <TextBlock Grid.Row="4" Grid.Column="2" Text="🧪 En estudio" Margin="0,2" Foreground="{DynamicResource Warn}"/>
+                        </Grid>
+                        <TextBlock TextWrapping="Wrap" Margin="0,12,0,0" FontSize="11"
+                                   Foreground="{DynamicResource FgMuted}" FontStyle="Italic">
+                            "En estudio" significa que el PDF se incorporó al catálogo del modo
+                            <Run FontWeight="SemiBold">Reglamento</Run> y puede consultarse desde ahí,
+                            pero las fórmulas y coeficientes específicos del MIVHED aún NO están
+                            implementados en los motores de cálculo. La integración llegará cuando el
+                            código sea publicado oficialmente.
                         </TextBlock>
 
-                        <Separator Margin="0,16,0,16"/>
-                        <TextBlock Text="Limitaciones del motor (según el autor)" FontWeight="Bold" FontSize="14"
+                        <!-- ====== Stack técnico ====== -->
+                        <Separator Margin="0,24,0,16"/>
+                        <TextBlock Text="Stack técnico" FontWeight="Bold" FontSize="16"
                                    Foreground="{DynamicResource FgPrimary}"/>
-                        <TextBlock TextWrapping="Wrap" Margin="0,4,0,0"
+                        <TextBlock TextWrapping="Wrap" Margin="0,8,0,0"
                                    Foreground="{DynamicResource FgSecondary}">
-                            · Carga viva ≤ 2/3 de la carga total (sin factorizar). · Apoyos lineales
-                            rígidos (vigas con peralte &gt; 4·h o cumplimiento del §13.6.1.6 ACI 318-08).
-                            · No verifica fuerza cortante. · No calcula deformaciones.
+                            WPF .NET 8 · MVVM puro · OxyPlot 2.2.0 ·
+                            HelixToolkit.Wpf.SharpDX 3.1.2 ·
+                            StructuralAnalysisFormat SDK 1.7.3 ·
+                            Docnet.Core 2.6.0 · EPPlus · netDxf · CommunityToolkit.Mvvm ·
+                            xUnit 2.9 (853 tests verdes) · Roslyn scripting (sandbox plugins).
                         </TextBlock>
 
-                        <Separator Margin="0,16,0,16"/>
-                        <TextBlock Text="Autor del wrapper LosasPlus" FontWeight="Bold" FontSize="14"
+                        <!-- ====== Créditos ====== -->
+                        <Separator Margin="0,24,0,16"/>
+                        <TextBlock Text="Créditos" FontWeight="Bold" FontSize="16"
                                    Foreground="{DynamicResource FgPrimary}"/>
-                        <TextBlock TextWrapping="Wrap" Margin="0,4,0,0"
+                        <TextBlock TextWrapping="Wrap" Margin="0,8,0,8"
                                    Foreground="{DynamicResource FgSecondary}">
-                            Esta capa de UI/edición/exportación fue construida por
-                            <Run FontWeight="Bold">Emil Guillen De la Cruz</Run> como aporte al ecosistema
-                            de herramientas estructurales en República Dominicana. El motor de cálculo
-                            sigue siendo obra exclusiva de F. Perdomo; LosasPlus se ofrece como sugerencia
-                            de modernización al autor original.
+                            <Run FontWeight="Bold">Motor original de losas (Pieper-Martens):</Run>
+                            Francisco Eludino Perdomo — <Run FontStyle="Italic">Losas v5.00</Run>, febrero 2011.
+                            Adaptación TU Braunschweig para losas continuas apoyadas en tres y cuatro bordes.
+                            Contacto: <Run FontStyle="Italic">fa.perdomo@gmail.com</Run>.
+                        </TextBlock>
+                        <TextBlock TextWrapping="Wrap"
+                                   Foreground="{DynamicResource FgSecondary}">
+                            <Run FontWeight="Bold">Suite EstructurasRD + integración 3D + SAF + Planta Estructural:</Run>
+                            Emil Guillén De La Cruz — capa de UI/edición/visualización + módulos nuevos
+                            (vigas, columnas, zapatas, auditoría, viewport 3D, export SAF 2.2.0,
+                            planta estructural editable). Contacto:
+                            <Run FontStyle="Italic">emilgdc@gmail.com</Run>.
                         </TextBlock>
                         <Grid Margin="0,12,0,0">
                             <Grid.ColumnDefinitions>
@@ -1469,7 +1583,7 @@
                             </TextBlock>
                             <TextBlock Grid.Row="1" Grid.Column="0" Text="GitHub" Foreground="{DynamicResource FgMuted}"/>
                             <TextBlock Grid.Row="1" Grid.Column="1">
-                                <Hyperlink NavigateUri="https://github.com/dashy2004" RequestNavigate="OnContactNavigate">@dashy2004</Hyperlink>
+                                <Hyperlink NavigateUri="https://github.com/dashy2004/EstructurasRD" RequestNavigate="OnContactNavigate">github.com/dashy2004/EstructurasRD</Hyperlink>
                             </TextBlock>
                             <TextBlock Grid.Row="2" Grid.Column="0" Text="YouTube" Foreground="{DynamicResource FgMuted}"/>
                             <TextBlock Grid.Row="2" Grid.Column="1">
@@ -1481,15 +1595,18 @@
                             </TextBlock>
                         </Grid>
 
-                        <Separator Margin="0,16,0,16"/>
+                        <!-- ====== Aviso legal ====== -->
+                        <Separator Margin="0,24,0,16"/>
                         <TextBlock Text="Aviso legal" FontWeight="Bold" FontSize="14"
                                    Foreground="{DynamicResource FgPrimary}"/>
                         <TextBlock TextWrapping="Wrap" Margin="0,4,0,0" Foreground="{DynamicResource Warn}">
-                            La distribución y uso público de este wrapper junto con el binario original
-                            requieren autorización de F. Perdomo. La presente compilación es una capa
-                            externa que respeta y atribuye la autoría del motor de cálculo. El código
-                            fuente del wrapper es de Emil Guillen De la Cruz y se entrega como
-                            sugerencia/aporte sin reclamar derechos sobre el motor original.
+                            EstructurasRD se distribuye como pre-release con módulos en fase de prueba.
+                            Los resultados estructurales deben validarse contra software comercial
+                            (ETABS, SAFE, RFEM) antes de aprobar cualquier diseño para construcción.
+                            El motor histórico LosasPlus (binario Losas.exe) es obra de F. Perdomo y
+                            su distribución pública requiere autorización del autor. La capa de UI/
+                            edición/exportación + módulos nuevos son obra de Emil Guillén; el código
+                            fuente vive en GitHub bajo la organización dashy2004.
                         </TextBlock>
                     </StackPanel>
                 </ScrollViewer>
@@ -1507,9 +1624,9 @@
                  ========================================================= -->
             <v:ElementoActivoPanel Grid.Row="2"
                                    DataContext="{Binding ElementoActivo}"
-                                   HorizontalAlignment="Right"
+                                   HorizontalAlignment="Left"
                                    VerticalAlignment="Top"
-                                   Margin="0,12,24,0"
+                                   Margin="24,12,0,0"
                                    Panel.ZIndex="20">
                 <!-- Visible SÓLO cuando hay un elemento estructural
                      seleccionado. Si EsVacio == true (Null Object del

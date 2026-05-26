@@ -1,12 +1,38 @@
 {
   "_meta": {
     "fuente": "Compilación de referencias normativas vigentes para diseño estructural en República Dominicana, con énfasis en losas de hormigón armado. Las páginas y secciones referenciadas se verificaron contra los PDFs originales provistos por el usuario.",
-    "version": 2,
+    "version": 3,
     "actualizado": "May 2026",
     "extension": "Ampliable vía plugin con hook 'register-norma'.",
     "carpeta_pdfs_default": "%USERPROFILE%\\OneDrive - INTEC\\BIBLIOTECA\\REGLAMENTOS\\NORMATIVAS DE CONTRUCCION"
   },
   "normas": [
+    {
+      "codigo": "MIVHED-T1-V1",
+      "titulo": "Análisis y Diseño Estructural de Edificaciones — Tomo 1, Volumen 1",
+      "edicion": "MIVHED · Ministerio de Vivienda y Edificaciones · Nuevo Código de Construcción Dominicano · 2024-2026 (en estudio)",
+      "ambito": "Análisis y diseño estructural · NUEVO REGLAMENTO RD",
+      "archivo": "MIVHED-Analisis-y-Diseno-Estructural-de-Edificaciones-Tomo-1-Vol-1.pdf",
+      "url": "https://mivhed.gob.do/",
+      "resumen": "Nuevo Código de Construcción Dominicano — Tomo 1 Volumen 1. Compendio normativo del MIVHED que sustituye/complementa los R-001 y R-033 históricos del MOPC. Tomo 1 cubre los criterios generales de análisis y diseño estructural de edificaciones: clasificación, cargas, combinaciones, métodos de análisis y disposiciones generales para diseño por sismicidad. EstructurasRD lo incorpora como referencia de consulta — la adopción de fórmulas/coeficientes específicos en los engines RC se difiere a una iteración posterior cuando se publique la versión oficial definitiva.",
+      "secciones_relevantes": [
+        "(pendiente catalogación detallada — uso como referencia integral durante la fase de estudio del documento)"
+      ],
+      "aplicacion_losas": "Este reglamento se proyecta como sustituto unificado del R-033 (losas/hormigón) y parte del R-001 (sismo) del MOPC. Cuando esté oficialmente publicado y vigente, los engines RcDesignEngine / ColumnaDesignEngine / ZapataDesignEngine incorporarán sus fórmulas y coeficientes como capa adicional sin reescribir el dominio."
+    },
+    {
+      "codigo": "MIVHED-V1-T2",
+      "titulo": "Análisis y Diseño Estructural de Edificaciones — Volumen 1, Tomo 2",
+      "edicion": "MIVHED · Ministerio de Vivienda y Edificaciones · Nuevo Código de Construcción Dominicano · 2024-2026 (en estudio)",
+      "ambito": "Análisis y diseño estructural · NUEVO REGLAMENTO RD",
+      "archivo": "MIVHED-Analisis-y-Diseno-Estructural-de-Edificaciones-Vol-1-Tomo-2.pdf",
+      "url": "https://mivhed.gob.do/",
+      "resumen": "Nuevo Código de Construcción Dominicano — Volumen 1 Tomo 2. Continuación del Tomo 1 con disposiciones específicas de diseño por materiales (hormigón armado, acero, mampostería) y por sistema estructural. EstructurasRD lo incorpora como referencia de consulta — la adopción de sus tablas y verificaciones específicas en los motores de diseño se difiere a una iteración posterior.",
+      "secciones_relevantes": [
+        "(pendiente catalogación detallada — uso como referencia integral durante la fase de estudio del documento)"
+      ],
+      "aplicacion_losas": "Cuando esté oficialmente publicado, sus disposiciones para losas, vigas, columnas y zapatas serán incorporadas a los respectivos engines de diseño de la suite EstructurasRD junto con MIVHED Tomo 1 Vol 1."
+    },
     {
       "codigo": "R-033",
       "titulo": "Reglamento para Diseño y Construcción de Estructuras en Hormigón Armado",

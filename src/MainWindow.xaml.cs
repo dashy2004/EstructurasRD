@@ -574,6 +574,77 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    // ===================================================================
+    // Liga D paso D3 — handlers del nuevo "Acerca de"
+    // ===================================================================
+
+    /// <summary>
+    /// Abre la página del GitHub Release v0.8.0 en el browser del sistema.
+    /// </summary>
+    private void OnVerReleaseGitHubClick(object sender, RoutedEventArgs e)
+    {
+        const string url = "https://github.com/dashy2004/EstructurasRD/releases/tag/v0.8.0";
+        try
+        {
+            System.Diagnostics.Process.Start(
+                new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (System.Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"No se pudo abrir el browser.\n\n{ex.Message}\n\nURL: {url}",
+                "Ver release",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>
+    /// Abre uno de los PDFs del MIVHED (Tomo 1 V1 ó Vol 1 T2) con el visor
+    /// del sistema. La carpeta se resuelve via
+    /// <see cref="LosasPlus.Services.ReglamentoService.ResolveCarpetaPdfs"/>
+    /// (preferencia del usuario o default %USERPROFILE%\OneDrive*\BIBLIOTECA\
+    /// REGLAMENTOS\NORMATIVAS DE CONTRUCCION\). El Tag del botón indica
+    /// cuál PDF abrir: "T1V1" o "V1T2".
+    /// </summary>
+    private void OnAbrirMivhedPdfClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Button btn) return;
+        string variante = btn.Tag as string ?? "T1V1";
+        string archivo = variante == "V1T2"
+            ? "MIVHED-Analisis-y-Diseno-Estructural-de-Edificaciones-Vol-1-Tomo-2.pdf"
+            : "MIVHED-Analisis-y-Diseno-Estructural-de-Edificaciones-Tomo-1-Vol-1.pdf";
+
+        string carpeta = LosasPlus.Services.ReglamentoService.ResolveCarpetaPdfs();
+        string fullPath = System.IO.Path.Combine(carpeta, archivo);
+
+        if (!System.IO.File.Exists(fullPath))
+        {
+            System.Windows.MessageBox.Show(
+                $"No se encontró el PDF MIVHED en la carpeta configurada.\n\n" +
+                $"Ruta esperada:\n{fullPath}\n\n" +
+                $"Configurá la carpeta de reglamentos en el modo 'Reglamento' " +
+                $"(botón Examinar) o copiá el archivo a esa ubicación.",
+                "PDF MIVHED no encontrado",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Information);
+            return;
+        }
+        try
+        {
+            System.Diagnostics.Process.Start(
+                new System.Diagnostics.ProcessStartInfo(fullPath) { UseShellExecute = true });
+        }
+        catch (System.Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"No se pudo abrir el PDF.\n\n{ex.Message}",
+                "Abrir PDF MIVHED",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Error);
+        }
+    }
+
     /// <summary>
     /// Doble-click en una fila de proyectos recientes (Explorador): abre el
     /// proyecto y cambia a modo Editor. Equivalente al AbrirEnEditorCommand
