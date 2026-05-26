@@ -2,61 +2,118 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:conv="clr-namespace:LosasPlus.Converters"
-             Width="240" MinHeight="100">
+             Width="240" MinHeight="40">
     <UserControl.Resources>
-        <!-- Liga B B4: NaN/Infinity → "—" (em-dash). Valores finitos
-             formateados con F3 en cultura invariante. -->
+        <!-- Liga B B4: NaN/Infinity → "—" (em-dash). -->
         <conv:NaNToTextConverter x:Key="NaNToText"/>
+
+        <!-- Estilo minimalista para los botones del header (minimizar/restaurar). -->
+        <Style x:Key="HeaderBtnStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#FF9CA3AF"/>
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="Height" Value="18"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontFamily" Value="Segoe UI Symbol"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}"
+                                BorderThickness="0" CornerRadius="3">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#FF374151"/>
+                                <Setter Property="Foreground" Value="#FFE5E7EB"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
     <!--
-        Panel persistente "Elemento Activo" (Liga B paso B2 + hotfix
-        de visibilidad). DataContext: ElementoActivoViewModel. Colores
-        literales (no DynamicResource) para garantizar contraste sobre
-        cualquier tema corporativo. Border SIEMPRE visible — cuando el
-        adapter es Vacio (Null Object), sólo el texto cambia a placeholder
-        gris, pero el contenedor sigue claramente delimitado.
+        Panel persistente "Elemento Activo" — ahora movible + minimizable.
+        El usuario arrastra por el HEADER (cursor SizeAll) para reposicionarlo
+        donde quiera dentro del shell. Doble-click en el header alterna
+        minimizar/restaurar (también botón [—] / [□] explícito).
+        Cuando está minimizado, el body se colapsa y queda sólo la barra
+        superior con tipo + Id (~30px de alto).
     -->
     <Border Background="#FF1F2937"
             BorderBrush="#FF4B5563" BorderThickness="1"
-            CornerRadius="6" Padding="10">
-        <StackPanel>
-            <!-- Header: Tipo · #Id -->
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                <TextBlock Text="ELEMENTO ACTIVO"
-                           FontSize="9" FontWeight="Bold"
-                           Foreground="#FF9CA3AF"
-                           Margin="0,0,8,0" VerticalAlignment="Center"/>
-                <TextBlock Text="{Binding Tipo}"
-                           FontWeight="Bold" FontSize="13"
-                           Foreground="#FFE5E7EB"/>
-                <TextBlock Text=" · " Foreground="#FF6B7280"/>
-                <TextBlock Text="{Binding Id, StringFormat='#{0}'}"
-                           FontFamily="JetBrains Mono, Consolas"
-                           Foreground="#FF9CA3AF"/>
-            </StackPanel>
+            CornerRadius="6">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>  <!-- Header arrastrable -->
+                <RowDefinition Height="Auto"/>  <!-- Body colapsable -->
+            </Grid.RowDefinitions>
 
-            <!-- Nombre descriptivo del elemento (p. ej. "C-1") -->
-            <TextBlock Text="{Binding Nombre}" FontSize="12"
-                       Foreground="#FFE5E7EB"
-                       Margin="0,4,0,4"/>
+            <!-- ===== Header arrastrable (con cursor SizeAll) ===== -->
+            <Grid x:Name="DragHandle" Grid.Row="0"
+                  Background="#FF111827"
+                  Cursor="SizeAll"
+                  MouseLeftButtonDown="OnHeaderMouseDown"
+                  MouseLeftButtonUp="OnHeaderMouseUp"
+                  MouseMove="OnHeaderMouseMove">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-            <!-- Dimensiones formateadas en mono-font (p. ej. "30×30 cm · H=3.00 m") -->
-            <TextBlock Text="{Binding Dimensiones}"
-                       FontFamily="JetBrains Mono, Consolas" FontSize="11"
-                       Foreground="#FF9CA3AF"
-                       TextWrapping="Wrap" Margin="0,0,0,6"/>
+                <!-- Tipo + Id en la izquierda -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal"
+                            Margin="10,6,4,6" VerticalAlignment="Center">
+                    <TextBlock Text="ELEMENTO ACTIVO"
+                               FontSize="9" FontWeight="Bold"
+                               Foreground="#FF9CA3AF"
+                               Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding Tipo}"
+                               FontWeight="Bold" FontSize="13"
+                               Foreground="#FFE5E7EB"/>
+                    <TextBlock Text=" · " Foreground="#FF6B7280"/>
+                    <TextBlock Text="{Binding Id, StringFormat='#{0}'}"
+                               FontFamily="JetBrains Mono, Consolas"
+                               Foreground="#FF9CA3AF"/>
+                </StackPanel>
 
-            <!-- Ratio D/C — visible siempre (incluso cuando EsVacio).
-                 Cuando RatioDC = 0 o NaN, el converter lo renderiza
-                 como "—" para no confundir al usuario. -->
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="D/C: " FontSize="11"
-                           Foreground="#FF9CA3AF"/>
-                <TextBlock Text="{Binding RatioDC, Converter={StaticResource NaNToText}}"
-                           ToolTip="Si aparece '—', el cálculo no está disponible (sin demandas, datos inválidos o cómputo en curso)."
+                <!-- Botón minimizar/restaurar en la derecha -->
+                <Button x:Name="BtnMinimize" Grid.Column="1"
+                        Style="{StaticResource HeaderBtnStyle}"
+                        Margin="0,0,6,0"
+                        Click="OnToggleMinimizeClick"
+                        ToolTip="Minimizar / restaurar (también doble-click en el header)"
+                        Content="—"/>
+            </Grid>
+
+            <!-- ===== Body colapsable ===== -->
+            <StackPanel x:Name="Body" Grid.Row="1" Margin="10,8,10,10">
+                <!-- Nombre descriptivo del elemento (p. ej. "C-1") -->
+                <TextBlock Text="{Binding Nombre}" FontSize="12"
+                           Foreground="#FFE5E7EB"
+                           Margin="0,0,0,4"/>
+
+                <!-- Dimensiones formateadas en mono-font -->
+                <TextBlock Text="{Binding Dimensiones}"
                            FontFamily="JetBrains Mono, Consolas" FontSize="11"
-                           Foreground="#FFE5E7EB"/>
+                           Foreground="#FF9CA3AF"
+                           TextWrapping="Wrap" Margin="0,0,0,6"/>
+
+                <!-- Ratio D/C (NaN/0.0 → "—" via converter) -->
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="D/C: " FontSize="11"
+                               Foreground="#FF9CA3AF"/>
+                    <TextBlock Text="{Binding RatioDC, Converter={StaticResource NaNToText}}"
+                               ToolTip="Si aparece '—', el cálculo no está disponible (sin demandas, datos inválidos o cómputo en curso)."
+                               FontFamily="JetBrains Mono, Consolas" FontSize="11"
+                               Foreground="#FFE5E7EB"/>
+                </StackPanel>
             </StackPanel>
-        </StackPanel>
+        </Grid>
     </Border>
 </UserControl>
