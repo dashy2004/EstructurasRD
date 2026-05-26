@@ -147,7 +147,8 @@ internal static class SyncEscenaService
     /// </summary>
     public static Task GenerarMallasProyectoAsync(
         Proyecto proyecto,
-        ObservableElement3DCollection itemsEscena)
+        ObservableElement3DCollection itemsEscena,
+        ModoDiagrama3D modoDiagrama = ModoDiagrama3D.Ninguno)
     {
         if (proyecto is null) throw new ArgumentNullException(nameof(proyecto));
         if (itemsEscena is null) throw new ArgumentNullException(nameof(itemsEscena));
@@ -254,20 +255,26 @@ internal static class SyncEscenaService
                 }
             }
 
-            // Cintas de diagrama de momentos 3D por viga (Fase 3D-I4 Parte B).
-            // Para cada arista del grafo de tipo Viga generamos una cinta
-            // representativa con perfil parabólico (proxy visual estable
-            // hasta cablear VigaContinuaEngine en una iteración futura).
-            // Las cintas no son seleccionables — Tag = null para que el
-            // ActualizarResaltadoVisual las ignore.
-            foreach (var arista in grafo.Aristas)
+            // Cintas de diagrama 3D por viga (Liga E paso E4 — antes:
+            // Fase 3D-I4 Parte B placeholder con parábola).
+            // Sólo se generan si modoDiagrama != Ninguno. El perfil real
+            // se computa vía VigaContinuaEngine.Resolver y se normaliza al
+            // máximo absoluto del campo seleccionado (M/V/δ). Si el motor
+            // falla o la viga es inestable, fallback a la parábola
+            // simétrica (placeholder histórico).
+            if (modoDiagrama != ModoDiagrama3D.Ninguno)
             {
-                if (arista.Elemento.Tipo != TipoElemento.Viga) continue;
-                var posI = nodosPorId[arista.IdInicio].Posicion;
-                var posJ = nodosPorId[arista.IdFin].Posicion;
-                var cinta = ConstruirCintaMomento(posI, posJ, arista.Ejes);
-                if (cinta is null) continue;
-                pendientes.Add(ElementoPendiente.ParaCinta(cinta, MaterialDiagramaConforme));
+                foreach (var arista in grafo.Aristas)
+                {
+                    if (arista.Elemento.Tipo != TipoElemento.Viga) continue;
+                    var posI = nodosPorId[arista.IdInicio].Posicion;
+                    var posJ = nodosPorId[arista.IdFin].Posicion;
+                    var perfil = ExtraerPerfilNormalizado(
+                        proyecto, arista.Elemento.Id, modoDiagrama);
+                    var cinta = ConstruirCintaMomento(posI, posJ, arista.Ejes, perfil);
+                    if (cinta is null) continue;
+                    pendientes.Add(ElementoPendiente.ParaCinta(cinta, MaterialDiagramaConforme));
+                }
             }
 
             // ---- 2) SWAP AL HILO DE UI ----
@@ -506,8 +513,69 @@ internal static class SyncEscenaService
     /// bajo carga distribuida uniforme) como proxy visual. La cinta se
     /// extiende perpendicularmente al miembro a lo largo del Eje2 local.
     /// </summary>
+    /// <summary>
+    /// Extrae el perfil normalizado [-1, +1] del campo seleccionado
+    /// (Momento / Cortante / Deflexión) para la viga con
+    /// <paramref name="idViga"/>, resolviéndola con
+    /// <see cref="LosasPlus.Services.VigaContinuaEngine.Resolver"/>.
+    /// Devuelve <c>null</c> si la viga no existe en el proyecto, está
+    /// inestable, o el motor lanzó. El consumidor cae a la parábola
+    /// histórica via fallback dentro de <see cref="ConstruirCintaMomento"/>.
+    /// Liga E paso E4.
+    /// </summary>
+    private static IReadOnlyList<float>? ExtraerPerfilNormalizado(
+        Proyecto proyecto, int idViga, ModoDiagrama3D modo)
+    {
+        try
+        {
+            // Buscar la viga por Id en todos los niveles.
+            LosasPlus.Vigas.Viga? viga = null;
+            foreach (var ed in proyecto.Edificios)
+                foreach (var ni in ed.Niveles)
+                    foreach (var v in ni.Vigas)
+                        if (v.Id == idViga) { viga = v; goto encontrada; }
+            encontrada:
+            if (viga is null) return null;
+
+            var res = LosasPlus.Services.VigaContinuaEngine.Resolver(viga, proyecto.Combinaciones);
+            if (res.EsInestable || res.Envolvente is null) return null;
+            var puntos = res.Envolvente.Puntos;
+            if (puntos.Count < 2) return null;
+
+            // Para cada punto, tomar el valor extremo (máximo absoluto) según el modo.
+            double max = 0.0;
+            var crudos = new double[puntos.Count];
+            for (int i = 0; i < puntos.Count; i++)
+            {
+                var p = puntos[i];
+                double val = modo switch
+                {
+                    ModoDiagrama3D.Momento   => System.Math.Abs(p.MomentoMaximo)  > System.Math.Abs(p.MomentoMinimo)  ? p.MomentoMaximo  : p.MomentoMinimo,
+                    ModoDiagrama3D.Cortante  => System.Math.Abs(p.CortanteMaximo) > System.Math.Abs(p.CortanteMinimo) ? p.CortanteMaximo : p.CortanteMinimo,
+                    ModoDiagrama3D.Deflexion => System.Math.Abs(p.DeflexionMaxima) > System.Math.Abs(p.DeflexionMinima) ? p.DeflexionMaxima : p.DeflexionMinima,
+                    _                        => 0.0,
+                };
+                crudos[i] = val;
+                double abs = System.Math.Abs(val);
+                if (abs > max) max = abs;
+            }
+            if (max < 1e-9) return null;   // viga sin esfuerzos significativos
+
+            // Normalizar al rango [-1, +1] dividiendo por el máximo absoluto.
+            var perfil = new float[puntos.Count];
+            for (int i = 0; i < puntos.Count; i++)
+                perfil[i] = (float)(crudos[i] / max);
+            return perfil;
+        }
+        catch
+        {
+            return null;   // fallback silencioso a la parábola
+        }
+    }
+
     internal static HxMeshGeometry3D? ConstruirCintaMomento(
-        NumericsVector3 posI, NumericsVector3 posJ, EjesLocalesCSI ejes)
+        NumericsVector3 posI, NumericsVector3 posJ, EjesLocalesCSI ejes,
+        IReadOnlyList<float>? perfilNormalizado = null)
     {
         var delta = posJ - posI;
         float longitud = delta.Length();
@@ -525,8 +593,23 @@ internal static class SyncEscenaService
         for (int i = 0; i < EstacionesCintaDiagrama; i++)
         {
             float t = i / (float)(EstacionesCintaDiagrama - 1);
-            // Perfil parabólico simétrico: 0 en los extremos, 1 en el centro.
-            float momentoNormalizado = 4f * t * (1f - t);
+            // Liga E paso E4: si vino un perfil real desde la envolvente
+            // del VigaContinuaEngine, samplear linealmente en las
+            // EstacionesCintaDiagrama estaciones. Sino, fallback a la
+            // parábola simétrica histórica (placeholder).
+            float momentoNormalizado;
+            if (perfilNormalizado is { Count: > 0 } perfil)
+            {
+                double tD = (double)i / (EstacionesCintaDiagrama - 1) * (perfil.Count - 1);
+                int i0 = (int)System.Math.Floor(tD);
+                int i1 = System.Math.Min(perfil.Count - 1, i0 + 1);
+                float frac = (float)(tD - i0);
+                momentoNormalizado = perfil[i0] * (1f - frac) + perfil[i1] * frac;
+            }
+            else
+            {
+                momentoNormalizado = 4f * t * (1f - t);
+            }
             float desplazamiento = EscalaDiagramaM * momentoNormalizado;
 
             var posEje = posI + (t * longitud) * ejes.Eje1;

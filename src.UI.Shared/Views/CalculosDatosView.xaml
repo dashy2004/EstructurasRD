@@ -1,0 +1,85 @@
+<UserControl x:Class="MemoriaPlus.Views.CalculosDatosView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
+             d:DataContext="{d:DesignInstance Type=vm:ConfiguracionViewModel}"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             Background="{StaticResource SurfaceBrush}">
+    <ScrollViewer Padding="32,24" VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="720">
+            <TextBlock Text="Cálculos &amp; datos"
+                       FontSize="22" FontWeight="Bold"
+                       Foreground="{StaticResource OnSurfaceBrush}"
+                       Margin="0,0,0,4"/>
+            <TextBlock Text="Preferencias del usuario para formato numérico, cultura, sistema de unidades y respaldo automático del proyecto. Liga E paso E2."
+                       Foreground="{StaticResource OnSurfaceVariantBrush}" TextWrapping="Wrap"
+                       Margin="0,0,0,16"/>
+
+            <!-- Formato decimales -->
+            <TextBlock Text="Decimales mostrados" FontWeight="SemiBold" Margin="0,16,0,4"/>
+            <TextBlock Text="Número de decimales en valores numéricos visibles (1-4)."
+                       Foreground="{StaticResource OnSurfaceVariantBrush}" FontSize="11"
+                       TextWrapping="Wrap" Margin="0,0,0,6"/>
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Right" Width="40" TextAlignment="Right"
+                           Text="{Binding Preferencias.Decimales}"
+                           FontFamily="{StaticResource FontFamilyMono}"
+                           Foreground="{StaticResource PrimaryBrush}"/>
+                <Slider Minimum="1" Maximum="4" TickFrequency="1" IsSnapToTickEnabled="True"
+                        Value="{Binding Preferencias.Decimales, Mode=TwoWay}"/>
+            </DockPanel>
+
+            <!-- Cultura -->
+            <TextBlock Text="Cultura (formato de números y fechas)" FontWeight="SemiBold" Margin="0,20,0,4"/>
+            <TextBlock Text="Define el separador decimal y el formato de fechas. Default es-DO (Dominicana)."
+                       Foreground="{StaticResource OnSurfaceVariantBrush}" FontSize="11"
+                       TextWrapping="Wrap" Margin="0,0,0,6"/>
+            <ComboBox SelectedValuePath="Content"
+                      SelectedValue="{Binding Preferencias.Cultura, Mode=TwoWay}"
+                      Width="220" HorizontalAlignment="Left">
+                <ComboBoxItem Content="es-DO"/>
+                <ComboBoxItem Content="es-ES"/>
+                <ComboBoxItem Content="en-US"/>
+            </ComboBox>
+
+            <!-- Sistema de unidades -->
+            <TextBlock Text="Sistema de unidades" FontWeight="SemiBold" Margin="0,20,0,4"/>
+            <TextBlock Text="Sólo SI por ahora. Imperial requiere conversiones en los motores y se difiere a una iteración futura."
+                       Foreground="{StaticResource OnSurfaceVariantBrush}" FontSize="11"
+                       TextWrapping="Wrap" Margin="0,0,0,6"/>
+            <StackPanel Orientation="Horizontal">
+                <RadioButton GroupName="Unidades" Content="SI (m, kN, °C)"
+                             IsChecked="True"/>
+                <RadioButton GroupName="Unidades" Content="Imperial (ft, kip, °F)"
+                             IsEnabled="False" Margin="16,0,0,0"
+                             ToolTip="Próximamente — los motores RC requieren conversión completa."/>
+            </StackPanel>
+
+            <!-- Auto-backup -->
+            <TextBlock Text="Auto-backup del proyecto" FontWeight="SemiBold" Margin="0,20,0,4"/>
+            <TextBlock Text="Intervalo (en minutos) en que se guarda automáticamente un snapshot del proyecto en %AppData%\LosasPlus\backups\. Cero desactiva el auto-backup. Próximamente integrado al loop del shell."
+                       Foreground="{StaticResource OnSurfaceVariantBrush}" FontSize="11"
+                       TextWrapping="Wrap" Margin="0,0,0,6"/>
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Right" Width="70" TextAlignment="Right"
+                           Text="{Binding Preferencias.AutoBackupMinutos, StringFormat='{}{0} min'}"
+                           FontFamily="{StaticResource FontFamilyMono}"
+                           Foreground="{StaticResource PrimaryBrush}"/>
+                <Slider Minimum="0" Maximum="30" TickFrequency="5" IsSnapToTickEnabled="True"
+                        Value="{Binding Preferencias.AutoBackupMinutos, Mode=TwoWay}"/>
+            </DockPanel>
+
+            <!-- Botones -->
+            <StackPanel Orientation="Horizontal" Margin="0,24,0,0">
+                <Button Content="💾 Guardar preferencias"
+                        Padding="14,6"
+                        Command="{Binding GuardarPreferenciasCommand}"/>
+                <Button Content="↺ Restaurar valores por defecto"
+                        Padding="14,6" Margin="8,0,0,0"
+                        Command="{Binding RestaurarPreferenciasCommand}"/>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

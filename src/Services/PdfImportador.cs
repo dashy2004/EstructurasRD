@@ -214,6 +214,113 @@ public static class PdfImportador
         return bmp;
     }
 
+    // =====================================================================
+    // Liga E paso E1 — API multipágina para el PdfViewerControl del
+    // modo Reglamento. Reutiliza el mismo pipeline de rasterización pero
+    // permite navegar páginas N (no sólo la primera).
+    // =====================================================================
+
+    /// <summary>
+    /// Cuenta el número total de páginas del PDF en <paramref name="path"/>.
+    /// Apertura natural (sin factor de escala) → <c>IDocReader.GetPageCount()</c>.
+    /// Async para no bloquear el hilo UI durante la apertura del documento.
+    /// Devuelve 0 si el PDF no se puede abrir.
+    /// </summary>
+    public static Task<int> ContarPaginasAsync(string path) => Task.Run(() =>
+    {
+        try
+        {
+            using var doc = DocLib.Instance.GetDocReader(path, new PageDimensions());
+            return doc.GetPageCount();
+        }
+        catch
+        {
+            return 0;
+        }
+    });
+
+    /// <summary>
+    /// Rasteriza una página específica del PDF (índice 0-based) a
+    /// <see cref="BitmapSource"/> congelado. Mismo pipeline que
+    /// <see cref="RasterizarPrimeraPaginaAsync"/>: factor proporcional para
+    /// alcanzar <paramref name="anchoObjetivoPx"/>, salvavidas 1:1 si el
+    /// factor produce buffer vacío, cap de 30 MPx, BGRA32 frozen.
+    ///
+    /// <para>
+    /// Devuelve <c>null</c> si el índice está fuera de rango, el PDF no
+    /// existe, o Docnet falla en todas las estrategias.
+    /// </para>
+    /// </summary>
+    public static Task<BitmapSource?> RasterizarPaginaAsync(
+        string path, int indicePagina,
+        int anchoObjetivoPx = 1600, bool invertColors = false) => Task.Run<BitmapSource?>(() =>
+    {
+        try
+        {
+            // Validar índice y descubrir dimensiones de la página objetivo.
+            int natW, natH;
+            using (var docNatural = DocLib.Instance.GetDocReader(path, new PageDimensions()))
+            {
+                int total = docNatural.GetPageCount();
+                if (indicePagina < 0 || indicePagina >= total) return null;
+                using var pageNatural = docNatural.GetPageReader(indicePagina);
+                natW = pageNatural.GetPageWidth();
+                natH = pageNatural.GetPageHeight();
+            }
+
+            // Fallback ANSI D para PDFs sin /MediaBox explícito.
+            const int AnsiDWidthPx96  = 3456;
+            const int AnsiDHeightPx96 = 2304;
+            if (natW <= 0 || natH <= 0) { natW = AnsiDWidthPx96; natH = AnsiDHeightPx96; }
+
+            // Factor proporcional clampeado + cap de 30 MPx (igual que el legacy).
+            double factor = Math.Clamp((double)anchoObjetivoPx / natW, 0.1, 5.0);
+            const double MaxMegapixeles = 30_000_000.0;
+            double areaPx = (double)natW * natH * factor * factor;
+            if (areaPx > MaxMegapixeles)
+                factor *= Math.Sqrt(MaxMegapixeles / areaPx);
+
+            BitmapSource? bmp;
+            try { bmp = RasterizarPaginaIndice(path, indicePagina, new PageDimensions(factor), invertColors); }
+            catch { bmp = null; }
+
+            // Salvavidas 1:1 si el factor falló.
+            if (bmp is null)
+            {
+                try { bmp = RasterizarPaginaIndice(path, indicePagina, new PageDimensions(1.0), invertColors); }
+                catch { return null; }
+            }
+            return bmp;
+        }
+        catch
+        {
+            return null;
+        }
+    });
+
+    /// <summary>
+    /// Variante de <see cref="RasterizarPagina"/> que abre la página
+    /// indicada por <paramref name="indicePagina"/> (0-based). Mantiene
+    /// el mismo contrato de retorno (null si dimensiones inválidas o
+    /// buffer vacío).
+    /// </summary>
+    private static BitmapSource? RasterizarPaginaIndice(
+        string path, int indicePagina, PageDimensions pd, bool invertColors)
+    {
+        using var doc = DocLib.Instance.GetDocReader(path, pd);
+        using var page = doc.GetPageReader(indicePagina);
+        int wPx = page.GetPageWidth();
+        int hPx = page.GetPageHeight();
+        if (wPx <= 0 || hPx <= 0) return null;
+        byte[] bgra = page.GetImage();
+        if (bgra is null || bgra.Length < 4) return null;
+        if (invertColors) InvertirBgra(bgra);
+        var bmp = BitmapSource.Create(
+            wPx, hPx, 96, 96, PixelFormats.Bgra32, null, bgra, wPx * 4);
+        bmp.Freeze();
+        return bmp;
+    }
+
     /// <summary>
     /// Invierte los canales B/G/R del buffer BGRA (Parche v1.2.2 — modo
     /// oscuro CAD). El blanco (255,255,255) se vuelve negro (0,0,0) y

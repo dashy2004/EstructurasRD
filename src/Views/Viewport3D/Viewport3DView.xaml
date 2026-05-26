@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:hx="http://helix-toolkit.org/wpf/SharpDX"
              xmlns:conv="clr-namespace:LosasPlus.Converters"
+             xmlns:vm="clr-namespace:LosasPlus.ViewModels.Viewport3D"
              Background="{DynamicResource BgPrimary}">
     <UserControl.Resources>
         <Style x:Key="EtiquetaSeccion" TargetType="TextBlock">
@@ -186,6 +187,26 @@
                                  RelativeSource={RelativeSource AncestorType=Window},
                                  Converter={StaticResource EnumToBoolean},
                                  ConverterParameter=BorrarElemento}"/>
+
+                <!-- Separador + selector de diagrama 3D (Liga E E4) -->
+                <Border Background="#FF555555" Height="1" Margin="0,8,0,6"/>
+                <TextBlock Text="DIAGRAMA SOBRE VIGAS"
+                           FontSize="9" FontWeight="Bold"
+                           Foreground="#FFCCCCCC" Margin="0,0,0,4"/>
+                <ComboBox SelectedValuePath="Tag"
+                          SelectedValue="{Binding ModoDiagrama, Mode=TwoWay}"
+                          Background="#FF3A3A3A" Foreground="#FFEEEEEE"
+                          BorderBrush="#FF555555" Margin="0,0,0,4"
+                          ToolTip="Selecciona qué envolvente de diseño se renderiza como cinta 3D sobre las vigas. Cambiar requiere recalcular escena.">
+                    <ComboBoxItem Content="Ninguno"   Tag="{x:Static vm:ModoDiagrama3D.Ninguno}"/>
+                    <ComboBoxItem Content="📐 Momento"  Tag="{x:Static vm:ModoDiagrama3D.Momento}"/>
+                    <ComboBoxItem Content="📏 Cortante" Tag="{x:Static vm:ModoDiagrama3D.Cortante}"/>
+                    <ComboBoxItem Content="📉 Deflexión" Tag="{x:Static vm:ModoDiagrama3D.Deflexion}"/>
+                </ComboBox>
+                <Button Content="🔄 Recalcular escena"
+                        Padding="6,3" Margin="0,4,0,0"
+                        Click="OnRecalcularEscenaClick"
+                        ToolTip="Aplica el modo de diagrama seleccionado y regenera las cintas sobre las vigas (puede tomar un segundo en proyectos grandes)."/>
             </StackPanel>
         </Border>
         </Grid>

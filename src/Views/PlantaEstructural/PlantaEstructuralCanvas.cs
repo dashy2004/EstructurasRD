@@ -67,6 +67,7 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
     private readonly DrawingVisual    _layerVigas;
     private readonly DrawingVisual    _layerColumnas;
     private readonly DrawingVisual    _layerZapatas;
+    private readonly DrawingVisual    _layerNodos;   // Liga E E3 — indicadores de conexión nodal
 
     private readonly ScaleTransform     _scale     = new(1.0, -1.0, 0, 0);
     private readonly TranslateTransform _translate = new(0, 0);
@@ -122,11 +123,12 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
         _layerVigas    = NuevaCapa(_grupo);
         _layerColumnas = NuevaCapa(_grupo);
         _layerZapatas  = NuevaCapa(_grupo);
+        _layerNodos    = NuevaCapa(_grupo);  // E3: encima de columnas
 
         // Orden Z (de abajo hacia arriba en la pantalla):
-        //   Fondo → Grilla → Losas → Muros → Zapatas → Vigas → Columnas
-        // Las columnas son lo más visible (encima de las vigas) y las
-        // losas son el "piso" del nivel sobre la grilla.
+        //   Fondo → Grilla → Losas → Muros → Zapatas → Vigas → Columnas → Nodos
+        // Los nodos van encima de todo para ser visibles como indicadores
+        // de conexión (verde/naranja según incidentes en el grafo).
         _children = new VisualCollection(this)
         {
             _layerFondo,
@@ -136,6 +138,7 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
             _layerZapatas,
             _layerVigas,
             _layerColumnas,
+            _layerNodos,
         };
 
         // Inputs.
@@ -181,6 +184,10 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
                 FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
                 (d, _) => ((PlantaEstructuralCanvas)d).ResetEstadoEdicion()));
 
+    public static readonly DependencyProperty MostrarIndicadoresNodalesProperty =
+        DependencyProperty.Register(nameof(MostrarIndicadoresNodales), typeof(bool), typeof(PlantaEstructuralCanvas),
+            new PropertyMetadata(false, (d, _) => ((PlantaEstructuralCanvas)d).Redibujar()));
+
     public Proyecto? Proyecto
     { get => (Proyecto?)GetValue(ProyectoProperty);   set => SetValue(ProyectoProperty, value); }
     public Nivel? NivelActivo
@@ -202,6 +209,8 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
     { get => (Sistema?)GetValue(SistemaActivoProperty); set => SetValue(SistemaActivoProperty, value); }
     public ModoHerramientaPlanta HerramientaActiva
     { get => (ModoHerramientaPlanta)GetValue(HerramientaActivaProperty); set => SetValue(HerramientaActivaProperty, value); }
+    public bool MostrarIndicadoresNodales
+    { get => (bool)GetValue(MostrarIndicadoresNodalesProperty); set => SetValue(MostrarIndicadoresNodalesProperty, value); }
 
     // ===== Estado de la state machine de edición C2 =====
     private DomainKey? _dragKey;
@@ -229,10 +238,61 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
         RenderZapatas();
         RenderVigas();
         RenderColumnas();
+        RenderIndicadoresNodales();
 
         // Encuadrar al primer render si nunca lo hicimos.
         if (_translate.X == 0 && _translate.Y == 0 && ActualWidth > 0)
             EncuadrarAlContenido();
+    }
+
+    // Brushes para los indicadores de conexión (Liga E E3).
+    private static readonly Brush BrushNodoConectado =
+        new SolidColorBrush(Color.FromArgb(0xCC, 0x22, 0xC5, 0x5E));   // verde
+    private static readonly Brush BrushNodoFlotante =
+        new SolidColorBrush(Color.FromArgb(0xCC, 0xF9, 0x73, 0x16));   // naranja
+    private static readonly Pen   PenNodoBorde = new(Brushes.Black, 0.8);
+
+    /// <summary>
+    /// Renderiza círculos en cada intersección del grafo proyectado del
+    /// nivel activo: verde si el nodo tiene 2+ elementos incidentes
+    /// (correctamente conectado), naranja si tiene exactamente 1
+    /// (flotante, posible viga sin columna). Liga E paso E3.
+    ///
+    /// <para>
+    /// El grafo se construye on-demand via
+    /// <see cref="GrafoProyectadoBuilder.Construir"/>; sólo se pintan
+    /// nodos cuya Z coincide con la cota del nivel activo dentro de
+    /// 10 cm (suficiente para diferenciar pisos sin perder nodos por
+    /// tolerancia de fusión).
+    /// </para>
+    /// </summary>
+    private void RenderIndicadoresNodales()
+    {
+        using var dc = _layerNodos.RenderOpen();
+        if (!MostrarIndicadoresNodales) return;
+        var proy = Proyecto;
+        var nivel = NivelActivo;
+        if (proy is null || nivel is null) return;
+
+        IGrafoEstructural grafo;
+        try { grafo = GrafoProyectadoBuilder.Construir(proy); }
+        catch { return; }
+
+        const double radioPx = 7.0;
+        double zNivel = nivel.Cota;
+        foreach (var nodo in grafo.Nodos)
+        {
+            // Filtrar por nivel: nodo dentro de ±0.10m de la cota activa.
+            if (System.Math.Abs(nodo.Posicion.Z - zNivel) > 0.10) continue;
+            bool conectado = nodo.ElementosIncidentes.Count >= 2;
+            var brush = conectado ? BrushNodoConectado : BrushNodoFlotante;
+            // Posición en el canvas: X/Y directos (mismo sistema que columnas).
+            double cx = nodo.Posicion.X * PxPorMetro;
+            double cy = nodo.Posicion.Y * PxPorMetro;
+            // El radio en píxeles debe ser independiente del zoom — dividir por scale.
+            double rWorld = radioPx / System.Math.Abs(_scale.ScaleX);
+            dc.DrawEllipse(brush, PenNodoBorde, new Point(cx, cy), rWorld, rWorld);
+        }
     }
 
     private void RenderFondo()

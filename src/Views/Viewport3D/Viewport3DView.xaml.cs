@@ -35,6 +35,22 @@ public partial class Viewport3DView : UserControl
     }
 
     /// <summary>
+    /// Botón "🔄 Recalcular escena" de la toolbar (Liga E paso E4):
+    /// fuerza un <c>RegenerarEscenaAsync</c> tras cambiar el modo de
+    /// diagrama. El binding TwoWay del ComboBox ya actualiza la
+    /// propiedad <c>ModoDiagrama</c> del VM; este botón sólo
+    /// re-dispara el cómputo de la escena para que las cintas se
+    /// (re)generen con el nuevo modo.
+    /// </summary>
+    private async void OnRecalcularEscenaClick(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not Viewport3DViewModel vm) return;
+        var main = vm.MainViewModel;
+        if (main is null) return;
+        await vm.RegenerarEscenaAsync(main.Proyecto);
+    }
+
+    /// <summary>
     /// Handler del evento <c>MouseDown3D</c> del <c>Viewport3DX</c>:
     /// inspecciona el <see cref="HitTestResult"/> nativo y, si el modelo
     /// impactado lleva un <see cref="DomainKey"/> en su <c>Tag</c>,

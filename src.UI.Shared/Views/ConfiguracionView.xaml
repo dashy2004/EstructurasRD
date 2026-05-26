@@ -48,6 +48,12 @@
                              IsChecked="{Binding SubTabActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Atajos}"
                              Content="⌨  Atajos de teclado"/>
 
+                <!-- Liga E paso E2 — nuevo sub-tab de preferencias de cómputo. -->
+                <RadioButton Style="{StaticResource SidebarNavItemStyle}"
+                             GroupName="ConfigSubTab"
+                             IsChecked="{Binding SubTabActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=CalculosDatos}"
+                             Content="🔧  Cálculos &amp; datos"/>
+
                 <!-- Status del último guardado -->
                 <Border Margin="0,24,0,0" Padding="10,8"
                         Background="{StaticResource SuccessBrush}"
@@ -97,6 +103,13 @@
                             <Setter Property="Content">
                                 <Setter.Value>
                                     <vw:AtajosView/>
+                                </Setter.Value>
+                            </Setter>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding SubTabActivo}" Value="CalculosDatos">
+                            <Setter Property="Content">
+                                <Setter.Value>
+                                    <vw:CalculosDatosView/>
                                 </Setter.Value>
                             </Setter>
                         </DataTrigger>

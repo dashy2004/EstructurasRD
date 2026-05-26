@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using LosasPlus.Persistence;
 using MemoriaPlus.Common;
+using MemoriaPlus.Services;
 
 namespace MemoriaPlus.ViewModels;
 
@@ -16,15 +17,18 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
 {
     public ConfiguracionViewModel()
     {
-        Perfil     = PerfilIngenieroService.Load();
-        Apariencia = AparienciaService.Load();
-        Atajos     = AtajosService.Load();
+        Perfil       = PerfilIngenieroService.Load();
+        Apariencia   = AparienciaService.Load();
+        Atajos       = AtajosService.Load();
+        Preferencias = PreferenciasService.Cargar();
 
         GuardarPerfilCommand     = new RelayCommand(GuardarPerfil);
         GuardarAparienciaCommand = new RelayCommand(GuardarApariencia);
         RestaurarAparienciaCommand = new RelayCommand(RestaurarApariencia);
         GuardarAtajosCommand     = new RelayCommand(GuardarAtajos);
         RestaurarAtajosCommand   = new RelayCommand(RestaurarAtajos);
+        GuardarPreferenciasCommand = new RelayCommand(GuardarPreferencias);
+        RestaurarPreferenciasCommand = new RelayCommand(RestaurarPreferencias);
 
         GuardarComoPresetCommand = new RelayCommand(GuardarComoPreset);
         CargarPresetCommand      = new RelayCommand<string?>(CargarPreset);
@@ -33,6 +37,36 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
 
         RecargarPresets();
         SubTabActivo = SubTabConfig.DatosIngeniero;
+    }
+
+    /// <summary>
+    /// Preferencias de cómputo/datos (Liga E paso E2):
+    /// decimales, cultura, unidades, intervalo de auto-backup.
+    /// Persistidas en %AppData%\LosasPlus\preferencias.json vía
+    /// <see cref="PreferenciasService"/>.
+    /// </summary>
+    public Preferencias Preferencias { get; }
+
+    public System.Windows.Input.ICommand GuardarPreferenciasCommand   { get; }
+    public System.Windows.Input.ICommand RestaurarPreferenciasCommand { get; }
+
+    private void GuardarPreferencias()
+    {
+        PreferenciasService.Guardar(Preferencias);
+        StatusGuardado = $"✓ Preferencias guardadas: decimales={Preferencias.Decimales}, " +
+                         $"cultura={Preferencias.Cultura}, unidades={Preferencias.Unidades}, " +
+                         $"auto-backup={Preferencias.AutoBackupMinutos} min.";
+    }
+
+    private void RestaurarPreferencias()
+    {
+        Preferencias.Decimales         = 2;
+        Preferencias.Cultura           = "es-DO";
+        Preferencias.Unidades          = "SI";
+        Preferencias.AutoBackupMinutos = 10;
+        OnPropertyChanged(nameof(Preferencias));
+        PreferenciasService.Guardar(Preferencias);
+        StatusGuardado = "✓ Preferencias restauradas a los valores por defecto.";
     }
 
     private bool _esCalculadora;
@@ -288,4 +322,6 @@ public enum SubTabConfig
     DatosIngeniero,
     Apariencia,
     Atajos,
+    /// <summary>Liga E paso E2 — decimales, cultura, unidades, auto-backup.</summary>
+    CalculosDatos,
 }

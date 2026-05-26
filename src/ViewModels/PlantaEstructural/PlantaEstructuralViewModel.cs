@@ -68,6 +68,26 @@ public sealed class PlantaEstructuralViewModel : INotifyPropertyChanged
 
     private Sistema? _sistemaActivo;
     private ModoHerramientaPlanta _herramienta = ModoHerramientaPlanta.Seleccion;
+    private bool _mostrarIndicadoresNodales;
+
+    /// <summary>
+    /// Toggle de los indicadores de conexión nodal sobre la planta
+    /// (Liga E paso E3). Cuando es <c>true</c>, el canvas pinta círculos
+    /// verdes (≥2 incidentes — conectado) o naranjas (=1 — flotante)
+    /// en cada nodo del <c>GrafoProyectadoBuilder</c> que cae en la
+    /// cota del nivel activo.
+    /// </summary>
+    public bool MostrarIndicadoresNodales
+    {
+        get => _mostrarIndicadoresNodales;
+        set
+        {
+            if (_mostrarIndicadoresNodales == value) return;
+            _mostrarIndicadoresNodales = value;
+            OnPropertyChanged();
+            InvalidarVista();
+        }
+    }
 
     /// <summary>
     /// Herramienta activa de la toolbar (Liga C paso C2). El canvas

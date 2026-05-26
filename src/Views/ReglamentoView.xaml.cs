@@ -52,7 +52,29 @@ public partial class ReglamentoView : UserControl
     private void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         DetalleHost.Children.Clear();
-        if (NormasList.SelectedItem is not Norma n) return;
+        if (NormasList.SelectedItem is not Norma n)
+        {
+            // Sin selección → ocultar el PdfViewer.
+            PdfViewer.Visibility = Visibility.Collapsed;
+            PdfViewer.PdfPath = null;
+            return;
+        }
+
+        // Liga E paso E1: si la norma tiene PDF accesible, mostrarlo
+        // embebido en el viewer custom. El botón "📄 Abrir PDF externo"
+        // sigue disponible más abajo para los usuarios que prefieren
+        // Acrobat/Edge.
+        var pdfPath = ReglamentoService.PdfPathFor(n);
+        if (pdfPath != null)
+        {
+            PdfViewer.PdfPath = pdfPath;
+            PdfViewer.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            PdfViewer.Visibility = Visibility.Collapsed;
+            PdfViewer.PdfPath = null;
+        }
 
         // Encabezado
         DetalleHost.Children.Add(new TextBlock
@@ -70,16 +92,16 @@ public partial class ReglamentoView : UserControl
             TextWrapping = TextWrapping.Wrap,
         });
 
-        // Acciones: Abrir PDF + URL externa
+        // Acciones: Abrir PDF en visor externo + URL externa.
+        // El viewer embebido (Liga E1) ya muestra el PDF arriba; este
+        // botón se mantiene como alternativa para abrir en Adobe/Edge.
         var acciones = new System.Windows.Controls.WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
-        var pdfPath = ReglamentoService.PdfPathFor(n);
         if (pdfPath != null)
         {
             var btn = new Button
             {
-                Content = "📄 Abrir PDF",
+                Content = "📄 Abrir en visor externo",
                 Margin = new Thickness(0, 0, 8, 0),
-                Style = (Style)Application.Current.Resources["PrimaryButton"],
                 ToolTip = pdfPath,
             };
             btn.Click += (_, __) => OpenWithShell(pdfPath);

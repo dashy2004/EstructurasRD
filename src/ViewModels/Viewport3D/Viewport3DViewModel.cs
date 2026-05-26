@@ -21,6 +21,26 @@ namespace LosasPlus.ViewModels.Viewport3D;
 /// grilla estructural y el click materializa una nueva entidad (la
 /// mutación de dominio llega en Parte C).
 /// </summary>
+/// <summary>
+/// Modos de diagrama estructural sobre vigas en el viewport 3D (Liga E
+/// paso E4). Cuando es <see cref="Ninguno"/>, las vigas se renderizan
+/// sólidas sin cinta. Cuando es Momento/Cortante/Deflexión, se calcula
+/// la envolvente vía <c>VigaContinuaEngine.Resolver</c> y se dibuja una
+/// cinta proporcional al perfil real (no la parábola hardcoded del
+/// placeholder histórico).
+/// </summary>
+public enum ModoDiagrama3D
+{
+    /// <summary>Sin diagrama — las vigas sólo muestran el prisma extruido.</summary>
+    Ninguno,
+    /// <summary>Cinta con el perfil M(x) de la envolvente de diseño.</summary>
+    Momento,
+    /// <summary>Cinta con el perfil V(x) de la envolvente.</summary>
+    Cortante,
+    /// <summary>Cinta con el perfil δ(x) de la envolvente.</summary>
+    Deflexion,
+}
+
 public enum ModoHerramienta3D
 {
     /// <summary>Selección bidireccional 3D ↔ paneles 2D (default).</summary>
@@ -79,7 +99,25 @@ public sealed class Viewport3DViewModel : INotifyPropertyChanged, IDisposable
     private HxCamera _camera;
     private SeleccionService? _seleccionService;
     private ModoHerramienta3D _herramientaActiva = ModoHerramienta3D.Seleccion;
+    private ModoDiagrama3D _modoDiagrama = ModoDiagrama3D.Ninguno;
     private MainViewModel? _mainViewModel;
+
+    /// <summary>
+    /// Modo de diagrama estructural superpuesto sobre las vigas (Liga E
+    /// paso E4). Default <see cref="ModoDiagrama3D.Ninguno"/> — sin cinta.
+    /// Cuando cambia se debe llamar a <c>RegenerarEscenaAsync</c> para
+    /// que el cómputo del envolvente se refleje.
+    /// </summary>
+    public ModoDiagrama3D ModoDiagrama
+    {
+        get => _modoDiagrama;
+        set
+        {
+            if (_modoDiagrama == value) return;
+            _modoDiagrama = value;
+            OnPropertyChanged();
+        }
+    }
 
     /// <summary>
     /// Construye el VM con instancias frescas de DirectX. La cámara arranca
@@ -272,7 +310,7 @@ public sealed class Viewport3DViewModel : INotifyPropertyChanged, IDisposable
             // cada regeneración limpia la colección y construye nuevas mallas.
             ItemsEscena3D.Clear();
             if (proyecto is null) return;
-            await SyncEscenaService.GenerarMallasProyectoAsync(proyecto, ItemsEscena3D)
+            await SyncEscenaService.GenerarMallasProyectoAsync(proyecto, ItemsEscena3D, _modoDiagrama)
                 .ConfigureAwait(true);
 
             // Tras la regeneración, restituir el resaltado del elemento

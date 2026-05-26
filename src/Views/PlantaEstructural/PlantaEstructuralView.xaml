@@ -57,7 +57,8 @@
                     SistemaActivo="{Binding PlantaEstructural.SistemaActivo}"
                     Revision="{Binding PlantaEstructural.Revision}"
                     Seleccion="{Binding PlantaEstructural.Seleccion}"
-                    HerramientaActiva="{Binding PlantaEstructural.HerramientaActiva, Mode=TwoWay}"/>
+                    HerramientaActiva="{Binding PlantaEstructural.HerramientaActiva, Mode=TwoWay}"
+                    MostrarIndicadoresNodales="{Binding PlantaEstructural.MostrarIndicadoresNodales}"/>
             </Border>
 
             <!-- Toolbar flotante de herramientas (Liga C paso C2) — mismo
@@ -100,6 +101,13 @@
                                  IsChecked="{Binding PlantaEstructural.HerramientaActiva,
                                      Converter={StaticResource EnumToBoolean},
                                      ConverterParameter=BorrarElemento}"/>
+
+                    <!-- Separador + toggle de indicadores nodal (Liga E E3). -->
+                    <Border Background="#FF555555" Height="1" Margin="0,6,0,6"/>
+                    <CheckBox Content="🔵  Mostrar conexiones nodal"
+                              Foreground="#FFEEEEEE" Margin="0,0,0,2"
+                              ToolTip="Verde = nodo con 2+ elementos (conectado correctamente). Naranja = nodo con 1 elemento (flotante, posible viga o columna huérfana)."
+                              IsChecked="{Binding PlantaEstructural.MostrarIndicadoresNodales, Mode=TwoWay}"/>
                 </StackPanel>
             </Border>
         </Grid>

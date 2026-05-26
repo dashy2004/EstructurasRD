@@ -1,6 +1,7 @@
 <UserControl x:Class="LosasPlus.Views.ReglamentoView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="clr-namespace:LosasPlus.Views"
              Background="{DynamicResource BgPrimary}">
     <Grid Margin="6">
         <Grid.ColumnDefinitions>
@@ -60,9 +61,26 @@
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <!-- Detalle de la norma seleccionada -->
-        <ScrollViewer Grid.Row="2" Grid.Column="1" Margin="6,0,0,0">
-            <StackPanel x:Name="DetalleHost" Margin="6"/>
-        </ScrollViewer>
+        <!-- Detalle de la norma seleccionada — Liga E paso E1:
+             ahora dividido en 2 sub-rows: PdfViewer arriba (visible
+             cuando la norma tiene PDF en disco) + ScrollViewer con
+             el resumen/secciones/aplicación abajo. -->
+        <Grid Grid.Row="2" Grid.Column="1" Margin="6,0,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" MinHeight="0"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Viewer PDF (Liga E1) — collapsed hasta que se seleccione
+                 una norma con archivo PDF accesible. -->
+            <v:PdfViewerControl x:Name="PdfViewer" Grid.Row="0"
+                                Visibility="Collapsed"
+                                MinHeight="300"/>
+
+            <!-- Detalle textual (resumen, secciones, aplicación a losas) -->
+            <ScrollViewer Grid.Row="1" MaxHeight="280" Margin="0,8,0,0">
+                <StackPanel x:Name="DetalleHost" Margin="6"/>
+            </ScrollViewer>
+        </Grid>
     </Grid>
 </UserControl>
