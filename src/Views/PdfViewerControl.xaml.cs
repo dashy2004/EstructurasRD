@@ -129,6 +129,13 @@ public partial class PdfViewerControl : UserControl
 
     private void OnZoomChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
+        // Guard contra el ValueChanged que WPF dispara DURANTE
+        // InitializeComponent — antes de que x:Name references como
+        // ImgPagina/LblZoom estén resueltos. Sin esto, el constructor
+        // del control lanza NullReferenceException y el shell entero
+        // muere al cargar el PdfViewerControl indirectamente (vía
+        // ReglamentoView).
+        if (ImgPagina is null || LblZoom is null) return;
         double z = e.NewValue;
         ImgPagina.LayoutTransform = new System.Windows.Media.ScaleTransform(z, z);
         LblZoom.Text = $"{(int)(z * 100)}%";
