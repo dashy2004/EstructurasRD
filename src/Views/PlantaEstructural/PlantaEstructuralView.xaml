@@ -73,28 +73,28 @@
                     <TextBlock Text="HERRAMIENTAS PLANTA"
                                FontSize="10" FontWeight="Bold"
                                Foreground="#FFCCCCCC" Margin="0,0,0,6"/>
-                    <RadioButton GroupName="HerramientasPlanta"
+                    <RadioButton GroupName="HerramientasPlanta" Style="{x:Null}"
                                  Content="🔍  Selección / Mover"
                                  Foreground="#FFEEEEEE" Margin="0,0,0,4"
                                  ToolTip="Click selecciona. Arrastrar una columna/zapata mueve su posición en planta. Snap a grilla activo por defecto (mantén Shift para libre)."
                                  IsChecked="{Binding PlantaEstructural.HerramientaActiva,
                                      Converter={StaticResource EnumToBoolean},
                                      ConverterParameter=Seleccion}"/>
-                    <RadioButton GroupName="HerramientasPlanta"
+                    <RadioButton GroupName="HerramientasPlanta" Style="{x:Null}"
                                  Content="🟨  Crear Columna"
                                  Foreground="#FFEEEEEE" Margin="0,0,0,4"
                                  ToolTip="1 click crea una columna en el nivel activo. Snap a la intersección de grilla más cercana."
                                  IsChecked="{Binding PlantaEstructural.HerramientaActiva,
                                      Converter={StaticResource EnumToBoolean},
                                      ConverterParameter=CrearColumna}"/>
-                    <RadioButton GroupName="HerramientasPlanta"
+                    <RadioButton GroupName="HerramientasPlanta" Style="{x:Null}"
                                  Content="🟧  Crear Viga"
                                  Foreground="#FFEEEEEE" Margin="0,0,0,4"
                                  ToolTip="2 clicks (inicio + fin). Snap a grilla en ambos endpoints."
                                  IsChecked="{Binding PlantaEstructural.HerramientaActiva,
                                      Converter={StaticResource EnumToBoolean},
                                      ConverterParameter=CrearViga}"/>
-                    <RadioButton GroupName="HerramientasPlanta"
+                    <RadioButton GroupName="HerramientasPlanta" Style="{x:Null}"
                                  Content="🗑  Borrar elemento"
                                  Foreground="#FFEEEEEE" Margin="0,0,0,4"
                                  ToolTip="Click sobre columna/viga/zapata para eliminarla. Muros y losas blindados."
@@ -104,7 +104,7 @@
 
                     <!-- Separador + toggle de indicadores nodal (Liga E E3). -->
                     <Border Background="#FF555555" Height="1" Margin="0,6,0,6"/>
-                    <CheckBox Content="🔵  Mostrar conexiones nodal"
+                    <CheckBox Content="🔵  Mostrar conexiones nodal" Style="{x:Null}"
                               Foreground="#FFEEEEEE" Margin="0,0,0,2"
                               ToolTip="Verde = nodo con 2+ elementos (conectado correctamente). Naranja = nodo con 1 elemento (flotante, posible viga o columna huérfana)."
                               IsChecked="{Binding PlantaEstructural.MostrarIndicadoresNodales, Mode=TwoWay}"/>

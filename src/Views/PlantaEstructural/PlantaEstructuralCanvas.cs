@@ -79,7 +79,10 @@ public sealed class PlantaEstructuralCanvas : FrameworkElement
 
     // ===== Brushes/pens reutilizables =====
     private static readonly Brush BrushFondo       = new SolidColorBrush(Color.FromRgb(0x1A, 0x1A, 0x1A));
-    private static readonly Pen   PenGrilla        = new(new SolidColorBrush(Color.FromRgb(0x80, 0x80, 0x80)) { Opacity = 0.5 }, 1.0);
+    // Liga F1 paso F2: ejes A/B/C × 1/2/3 más visibles sobre fondo
+    // oscuro #1A1A1A. Antes: gris #808080 con opacidad 0.5 (apenas
+    // perceptible). Ahora: #B0B0B0 con opacidad 0.85 + grosor 1.2.
+    private static readonly Pen   PenGrilla        = new(new SolidColorBrush(Color.FromRgb(0xB0, 0xB0, 0xB0)) { Opacity = 0.85 }, 1.2);
     private static readonly Brush BrushEtiquetaEje = new SolidColorBrush(Color.FromRgb(0xE5, 0xE7, 0xEB));
     private static readonly Brush BrushColumna     = new SolidColorBrush(Color.FromRgb(0x3B, 0x82, 0xF6));
     private static readonly Pen   PenColumnaBorde  = new(new SolidColorBrush(Color.FromRgb(0x1E, 0x40, 0xAF)), 1.5);

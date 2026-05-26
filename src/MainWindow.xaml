@@ -378,7 +378,22 @@
                             <MenuItem Header="Guardar .DL agregado..." Click="OnSaveClick"
                                       ToolTip="Guarda todos los sistemas en un único .DL multi-sistema (formato legacy)."/>
                             <Separator/>
-                            <MenuItem Header="Pegar de Excel..." Click="OnPasteFromExcelClick"/>
+                            <!-- Liga F1 paso F4: "Pegar de Excel" sólo en modos del
+                                 flujo legacy de losas. -->
+                            <MenuItem Header="Pegar de Excel..." Click="OnPasteFromExcelClick">
+                                <MenuItem.Style>
+                                    <Style TargetType="MenuItem">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ModoActivo}" Value="Editor"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                            <DataTrigger Binding="{Binding ModoActivo}" Value="PlanoCad"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                            <DataTrigger Binding="{Binding ModoActivo}" Value="DLEditor"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                            <DataTrigger Binding="{Binding ModoActivo}" Value="Salida"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                            <DataTrigger Binding="{Binding ModoActivo}" Value="Aceros"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </MenuItem.Style>
+                            </MenuItem>
                         </MenuItem>
                         <MenuItem Header="Engine">
                             <MenuItem Header="Examinar Losas.exe..." Click="OnBrowseLosasExe"/>
@@ -433,12 +448,31 @@
                                    Text="{Binding Validacion.ResumenIndicador}"/>
                     </Button>
 
-                    <!-- Path Losas.exe -->
-                    <TextBlock DockPanel.Dock="Left" Text="Losas.exe:" VerticalAlignment="Center"
-                               Margin="16,0,6,0" Foreground="{DynamicResource FgMuted}" FontSize="12"/>
-                    <TextBox Text="{Binding LosasExePath, UpdateSourceTrigger=PropertyChanged}"
-                             FontFamily="JetBrains Mono, Consolas" FontSize="11"
-                             VerticalAlignment="Center" MinHeight="26" Margin="0,0,6,0"/>
+                    <!-- Path Losas.exe — Liga F1 paso F4: sólo visible en los
+                         modos del flujo legacy LosasPlus (Editor, Lienzo CAD,
+                         Editor .DL, Salida .TXT, Aceros). En el resto del shell
+                         (Vigas, Columnas, Zapatas, Vista 3D, Planta, etc.) el
+                         path al motor de losas es irrelevante. -->
+                    <StackPanel DockPanel.Dock="Left" Orientation="Horizontal"
+                                VerticalAlignment="Center" Margin="16,0,6,0">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ModoActivo}" Value="Editor"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding ModoActivo}" Value="PlanoCad"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding ModoActivo}" Value="DLEditor"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding ModoActivo}" Value="Salida"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                    <DataTrigger Binding="{Binding ModoActivo}" Value="Aceros"><Setter Property="Visibility" Value="Visible"/></DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <TextBlock Text="Losas.exe:" VerticalAlignment="Center"
+                                   Margin="0,0,6,0" Foreground="{DynamicResource FgMuted}" FontSize="12"/>
+                        <TextBox Text="{Binding LosasExePath, UpdateSourceTrigger=PropertyChanged}"
+                                 FontFamily="JetBrains Mono, Consolas" FontSize="11"
+                                 VerticalAlignment="Center" MinHeight="26" MinWidth="280"/>
+                    </StackPanel>
                 </DockPanel>
             </Border>
 

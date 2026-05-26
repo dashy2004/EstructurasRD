@@ -157,21 +157,21 @@
                 <TextBlock Text="HERRAMIENTAS 3D"
                            FontSize="10" FontWeight="Bold"
                            Foreground="#FFCCCCCC" Margin="0,0,0,6"/>
-                <RadioButton GroupName="Herramientas3D"
+                <RadioButton GroupName="Herramientas3D" Style="{x:Null}"
                              Content="🔍  Selección"
                              Foreground="#FFEEEEEE" Margin="0,0,0,4"
                              IsChecked="{Binding DataContext.HerramientaAutoria3D,
                                  RelativeSource={RelativeSource AncestorType=Window},
                                  Converter={StaticResource EnumToBoolean},
                                  ConverterParameter=Seleccion}"/>
-                <RadioButton GroupName="Herramientas3D"
+                <RadioButton GroupName="Herramientas3D" Style="{x:Null}"
                              Content="🟨  Crear Columna"
                              Foreground="#FFEEEEEE" Margin="0,0,0,4"
                              IsChecked="{Binding DataContext.HerramientaAutoria3D,
                                  RelativeSource={RelativeSource AncestorType=Window},
                                  Converter={StaticResource EnumToBoolean},
                                  ConverterParameter=CrearColumna}"/>
-                <RadioButton GroupName="Herramientas3D"
+                <RadioButton GroupName="Herramientas3D" Style="{x:Null}"
                              Content="🟧  Crear Viga"
                              Foreground="#FFEEEEEE" Margin="0,0,0,4"
                              ToolTip="2 clicks (inicio + fin). El primer click memoriza P1 y dibuja una línea naranja provisional desde P1 al cursor. El segundo click materializa la viga."
@@ -179,7 +179,7 @@
                                  RelativeSource={RelativeSource AncestorType=Window},
                                  Converter={StaticResource EnumToBoolean},
                                  ConverterParameter=CrearViga}"/>
-                <RadioButton GroupName="Herramientas3D"
+                <RadioButton GroupName="Herramientas3D" Style="{x:Null}"
                              Content="🗑  Borrar elemento"
                              Foreground="#FFEEEEEE" Margin="0,0,0,4"
                              ToolTip="Click sobre un elemento estructural (columna/viga/zapata) lo elimina. Click en vacío es no-op silencioso. Muros y losas blindados."
