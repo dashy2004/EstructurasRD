@@ -579,11 +579,11 @@ public partial class MainWindow : Window
     // ===================================================================
 
     /// <summary>
-    /// Abre la página del GitHub Release v0.8.0 en el browser del sistema.
+    /// Abre la página del GitHub Release v0.8.1 en el browser del sistema.
     /// </summary>
     private void OnVerReleaseGitHubClick(object sender, RoutedEventArgs e)
     {
-        const string url = "https://github.com/dashy2004/EstructurasRD/releases/tag/v0.8.0";
+        const string url = "https://github.com/dashy2004/EstructurasRD/releases/tag/v0.8.1";
         try
         {
             System.Diagnostics.Process.Start(

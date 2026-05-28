@@ -237,7 +237,7 @@
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Plugins}"/>
                         <RadioButton GroupName="SidebarNav" Content="ℹ  Acerca"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Acerca}"
-                                     ToolTip="Acerca de EstructurasRD v0.8.0"/>
+                                     ToolTip="Acerca de EstructurasRD v0.8.1"/>
                     </StackPanel>
                 </ScrollViewer>
 
@@ -1480,7 +1480,7 @@
                                            AparienciaCambiada="OnAparienciaCambiada"/>
                 </ContentControl>
 
-                <!-- MODO Acerca de — actualizado Liga D paso D3 para EstructurasRD v0.8.0 -->
+                <!-- MODO Acerca de — actualizado Liga D paso D3 + Liga F1 v0.8.1 para EstructurasRD -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <ScrollViewer.Style>
                         <Style TargetType="{x:Type ScrollViewer}">
@@ -1495,7 +1495,7 @@
                     <StackPanel Margin="32,24" MaxWidth="900">
                         <TextBlock Text="EstructurasRD" FontSize="32" FontWeight="Bold"
                                    Foreground="{DynamicResource FgPrimary}"/>
-                        <TextBlock Text="Suite de Diseño Estructural · v0.8.0"
+                        <TextBlock Text="Suite de Diseño Estructural · v0.8.1"
                                    FontSize="14" Foreground="{DynamicResource FgMuted}"
                                    Margin="0,4,0,4"/>
                         <TextBlock TextWrapping="Wrap"
@@ -1509,10 +1509,10 @@
 
                         <!-- ====== Acciones rápidas: GitHub + PDFs MIVHED ====== -->
                         <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
-                            <Button Content="🚀 Ver release v0.8.0 en GitHub"
+                            <Button Content="🚀 Ver release v0.8.1 en GitHub"
                                     Padding="12,6"
                                     Click="OnVerReleaseGitHubClick"
-                                    ToolTip="Abre https://github.com/dashy2004/EstructurasRD/releases/tag/v0.8.0"/>
+                                    ToolTip="Abre https://github.com/dashy2004/EstructurasRD/releases/tag/v0.8.1"/>
                             <Button Content="📄 Abrir MIVHED Tomo 1 Vol 1"
                                     Padding="12,6" Margin="8,0,0,0"
                                     Click="OnAbrirMivhedPdfClick" Tag="T1V1"

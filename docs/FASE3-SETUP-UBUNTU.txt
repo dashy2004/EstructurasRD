@@ -1,0 +1,422 @@
+================================================================================
+  FASE 3 — SETUP DE DESARROLLO EN UBUNTU 24.04 LTS
+  Para EstructurasRD / suite estructural (.NET 8 + Node + Claude Code)
+================================================================================
+
+  Documento generado para Emil Guillén De La Cruz
+  Fecha:    2026-05-28
+  Versión:  1.0 (consolidado tras Liga F1 / EstructurasRD v0.8.1)
+  Origen:   conversación de planificación de migración Windows → Linux dev box
+
+  IMPORTANTE — Limitaciones a tener presentes ANTES de migrar:
+    * EstructurasRD es **WPF .NET 8 Windows-only**. NO compila ni corre en
+      Linux nativo. El uso de Ubuntu para esta suite se limita a:
+        - Edición del código (VSCode + C# Dev Kit)
+        - Compilación cruzada del proyecto de Core (testable en .NET 8 puro)
+        - Tests del proyecto de Core que NO usan WPF
+        - Toolchain Claude Code para iterar el código
+        - Build de los proyectos de cálculo (puros .NET 8)
+    * Para ejecutar la app gráfica (LosasPlus.exe) hay 3 opciones desde Linux:
+        a) Dual boot a Windows (recomendado).
+        b) Windows en VM con KVM/QEMU + GPU passthrough (complejo).
+        c) Wine + winetricks dotnet48 (NO soportado, fallará en HelixToolkit
+           SharpDX por dependencia DirectX 11).
+    * Conclusión: Ubuntu para desarrollo + iteración de código; Windows
+      mantenido en partición dual para ejecutar / smoke-test / publicar releases.
+
+================================================================================
+  SECCIÓN 1 — ACTUALIZAR EL SISTEMA BASE
+================================================================================
+
+  Ejecutar en orden, desde una sesión de terminal recién abierta tras
+  instalar Ubuntu 24.04 LTS:
+
+    sudo apt update
+    sudo apt upgrade -y
+    sudo apt install -y curl wget gnupg lsb-release ca-certificates \
+                        software-properties-common apt-transport-https \
+                        build-essential git unzip zip tree htop ncdu \
+                        net-tools openssh-client xclip
+
+  Reiniciar si el upgrade tocó el kernel:
+
+    sudo reboot
+
+================================================================================
+  SECCIÓN 2 — DRIVERS NVIDIA (si hay GPU dedicada)
+================================================================================
+
+  Ubuntu 24.04 trae el manager de drivers `ubuntu-drivers`. Listar lo
+  disponible para tu GPU:
+
+    ubuntu-drivers devices
+
+  Instalar el driver recomendado (suele ser `nvidia-driver-550` o superior):
+
+    sudo ubuntu-drivers autoinstall
+
+  Reiniciar:
+
+    sudo reboot
+
+  Verificar tras reinicio:
+
+    nvidia-smi
+
+  El comando debe imprimir versión del driver + GPU + uso de VRAM. Si falla,
+  fallback al driver libre Nouveau (sin CUDA pero estable):
+
+    sudo apt install -y xserver-xorg-video-nouveau
+
+  NOTA: para EstructurasRD el driver NVIDIA no es estrictamente necesario
+  porque la app no corre en Linux; pero sí lo usarás si pruebas modelos
+  3D en Blender, exports a USD, o si decides usar la GPU para ML/IA local.
+
+================================================================================
+  SECCIÓN 3 — .NET 8 SDK
+================================================================================
+
+  Microsoft mantiene el repo oficial para Ubuntu. Agregar la fuente:
+
+    wget https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb -O /tmp/packages-microsoft-prod.deb
+    sudo dpkg -i /tmp/packages-microsoft-prod.deb
+    rm /tmp/packages-microsoft-prod.deb
+    sudo apt update
+
+  Instalar SDK + runtime ASP.NET:
+
+    sudo apt install -y dotnet-sdk-8.0 aspnetcore-runtime-8.0
+
+  Verificar:
+
+    dotnet --info
+    dotnet --list-sdks
+
+  Esperable: `8.0.xxx [/usr/share/dotnet/sdk]`. Si sale, listo.
+
+  Probar compilación de un proyecto sin WPF (por ejemplo `src.Core`):
+
+    cd ~/proyectos/EstructurasRD/src.Core
+    dotnet build -c Debug
+
+  IMPORTANTE: NO intentes compilar `src/LosasPlus.csproj` en Linux — fallará
+  porque tiene `<UseWPF>true</UseWPF>` y `<TargetFramework>net8.0-windows</TargetFramework>`.
+  Sólo los .csproj puros (`src.Core`, los engines, los tests sin WPF)
+  compilan cross-platform.
+
+================================================================================
+  SECCIÓN 4 — NODE.JS LTS + npm (requisito para Claude Code)
+================================================================================
+
+  Instalar Node.js 22 LTS vía nodesource oficial:
+
+    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+    sudo apt install -y nodejs
+
+  Verificar:
+
+    node --version    # debe imprimir v22.x.x
+    npm --version     # debe imprimir 10.x.x o superior
+
+  Configurar npm para evitar requerir sudo en globals:
+
+    mkdir -p ~/.npm-global
+    npm config set prefix '~/.npm-global'
+    echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc
+    source ~/.bashrc
+
+================================================================================
+  SECCIÓN 5 — CLAUDE CODE CLI
+================================================================================
+
+  Instalar Claude Code globalmente vía npm:
+
+    npm install -g @anthropic-ai/claude-code
+
+  Verificar:
+
+    claude --version
+
+  Primer login (sigue las instrucciones, abre browser para autenticar):
+
+    claude
+
+  Esto crea `~/.claude/` con tu configuración. Migrar tu config existente
+  de Windows si tienes preferencias:
+
+    # Desde Windows (PowerShell):
+    #   Compress-Archive -Path $env:USERPROFILE\.claude -DestinationPath claude-config.zip
+    # Copiar claude-config.zip a Ubuntu y descomprimir en ~/
+
+    cd ~
+    unzip ~/Downloads/claude-config.zip
+
+  RECOMENDACIÓN: para que Claude Code arranque cómodo en el proyecto,
+  crear un alias:
+
+    echo 'alias cc="claude"' >> ~/.bashrc
+    echo 'alias ccd="cd ~/proyectos/EstructurasRD && claude"' >> ~/.bashrc
+    source ~/.bashrc
+
+  De ahí en adelante, `ccd` te lleva al repo y arranca Claude Code en una.
+
+================================================================================
+  SECCIÓN 6 — GIT + GITHUB CLI
+================================================================================
+
+  Git ya viene del paso 1. Configurarlo:
+
+    git config --global user.name "Emil Guillen De La Cruz"
+    git config --global user.email "TU_EMAIL@dominio.com"
+    git config --global init.defaultBranch main
+    git config --global pull.rebase false
+    git config --global core.autocrlf input
+
+  Instalar GitHub CLI:
+
+    type -p curl >/dev/null || sudo apt install curl -y
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+    sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+    sudo apt update
+    sudo apt install -y gh
+
+  Autenticar:
+
+    gh auth login
+
+  Seguir el wizard: GitHub.com → HTTPS → autenticar via browser. Listo.
+
+  Clonar tu repo:
+
+    mkdir -p ~/proyectos
+    cd ~/proyectos
+    gh repo clone dashy2004/EstructurasRD
+    cd EstructurasRD
+    git checkout feat/saf-export-interop1
+
+================================================================================
+  SECCIÓN 7 — VISUAL STUDIO CODE + EXTENSIONES
+================================================================================
+
+  Instalar VSCode vía repo oficial Microsoft:
+
+    sudo install -D -o root -g root -m 644 <(wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor) /etc/apt/keyrings/packages.microsoft.gpg
+    echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null
+    sudo apt update
+    sudo apt install -y code
+
+  Extensiones esenciales (instalar desde el terminal):
+
+    code --install-extension ms-dotnettools.csdevkit
+    code --install-extension ms-dotnettools.csharp
+    code --install-extension ms-dotnettools.vscode-dotnet-runtime
+    code --install-extension josefpihrt-vscode.roslynator
+    code --install-extension EditorConfig.EditorConfig
+    code --install-extension eamodio.gitlens
+    code --install-extension PKief.material-icon-theme
+    code --install-extension streetsidesoftware.code-spell-checker
+    code --install-extension streetsidesoftware.code-spell-checker-spanish
+    code --install-extension ms-vsliveshare.vsliveshare
+    code --install-extension formulahendry.dotnet-test-explorer
+    code --install-extension k--kato.docomment
+
+  Extensiones para Claude Code workflow:
+
+    code --install-extension anthropic.claude-code
+    code --install-extension yzhang.markdown-all-in-one
+    code --install-extension DavidAnson.vscode-markdownlint
+
+  Para el modo dark consistente con Windows:
+
+    code --install-extension zhuangtongfa.material-theme
+
+================================================================================
+  SECCIÓN 8 — HERRAMIENTAS ADICIONALES (opcionales pero recomendadas)
+================================================================================
+
+  ── Snaps útiles ──
+
+    sudo snap install discord
+    sudo snap install postman
+    sudo snap install spotify
+    sudo snap install obs-studio --classic
+    sudo snap install drawio
+
+  ── Fuentes (para que VSCode + terminal se vean bien) ──
+
+    sudo apt install -y fonts-firacode fonts-cascadia-code fonts-jetbrains-mono
+    # Activar ligaduras en VSCode settings.json:
+    #   "editor.fontFamily": "'JetBrains Mono', 'Cascadia Code', monospace",
+    #   "editor.fontLigatures": true
+
+  ── Terminal mejorado ──
+
+    sudo apt install -y zsh fzf bat ripgrep fd-find
+    # Cambiar shell por defecto:
+    chsh -s $(which zsh)
+    # Instalar Oh My Zsh:
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+
+  ── Docker (si vas a contenerizar la API IncidenciasRD) ──
+
+    sudo apt install -y docker.io docker-compose-v2
+    sudo usermod -aG docker $USER
+    # Hay que cerrar sesión y volver para que el grupo aplique.
+
+  ── Blender (para los modelos 3D + USD export que mencionaste) ──
+
+    sudo snap install blender --classic
+
+  ── Tailscale (acceso VPN al lab Windows del trabajo) ──
+
+    curl -fsSL https://tailscale.com/install.sh | sh
+    sudo tailscale up
+
+================================================================================
+  SECCIÓN 9 — SCRIPTS DE PRODUCTIVIDAD RECOMENDADOS
+================================================================================
+
+  Agregar al final de ~/.bashrc o ~/.zshrc:
+
+    # ── EstructurasRD shortcuts ──
+    export ESTRUCTURASRD=~/proyectos/EstructurasRD
+
+    alias erd="cd $ESTRUCTURASRD"
+    alias erdc="cd $ESTRUCTURASRD && code ."
+    alias erdcc="cd $ESTRUCTURASRD && claude"
+
+    alias erdb="cd $ESTRUCTURASRD && dotnet build LosasPlus.sln -c Debug"
+    alias erdt="cd $ESTRUCTURASRD && dotnet test LosasPlus.sln"
+
+    alias erdg="cd $ESTRUCTURASRD && git status && git log --oneline -10"
+
+    # ── Funciones útiles ──
+    erd-feature() {
+        cd $ESTRUCTURASRD || return 1
+        local name="$1"
+        if [ -z "$name" ]; then
+            echo "Uso: erd-feature <nombre-rama>"
+            return 1
+        fi
+        git checkout -b "feat/$name"
+        echo "Nueva rama: feat/$name"
+    }
+
+    erd-pr() {
+        cd $ESTRUCTURASRD || return 1
+        gh pr create --base main --head "$(git branch --show-current)" --web
+    }
+
+  Recargar:
+
+    source ~/.bashrc    # o source ~/.zshrc
+
+================================================================================
+  SECCIÓN 10 — VERIFICACIÓN FINAL DE LA INSTALACIÓN
+================================================================================
+
+  Ejecutar este chequeo de salud completo:
+
+    echo "=== Versiones del stack ==="
+    echo "Ubuntu:  $(lsb_release -d | cut -f2-)"
+    echo "Kernel:  $(uname -r)"
+    echo "Node:    $(node --version)"
+    echo "npm:     $(npm --version)"
+    echo ".NET:    $(dotnet --version)"
+    echo "Git:     $(git --version | cut -d' ' -f3)"
+    echo "gh:      $(gh --version | head -1)"
+    echo "claude:  $(claude --version 2>/dev/null || echo 'no instalado')"
+    echo "code:    $(code --version | head -1)"
+    echo ""
+    echo "=== Auth status ==="
+    gh auth status 2>&1 | head -5
+    echo ""
+    echo "=== Repo clonado ==="
+    [ -d "$ESTRUCTURASRD/.git" ] && echo "OK: $ESTRUCTURASRD" || echo "FALTA: clonar repo"
+
+  Output esperado: todas las versiones impresas, gh autenticado, repo
+  clonado. Si todo se ve bien, el setup terminó.
+
+================================================================================
+  SECCIÓN 11 — WORKFLOW DE DESARROLLO DUAL BOOT (Ubuntu + Windows)
+================================================================================
+
+  Una vez que tengas ambos sistemas funcionando, el flujo recomendado:
+
+    ────────────────── EN UBUNTU ──────────────────
+    * Lectura del código.
+    * Iteración con Claude Code (`ccd` o `erdcc`).
+    * Edits de código + commits.
+    * Build + test de proyectos NO-WPF (Core, engines):
+        dotnet build src.Core/ -c Debug
+        dotnet test  src.Core.Tests/
+    * Push commits a la rama:
+        git push origin feat/saf-export-interop1
+    * Documentación (.md), planificación, código nuevo.
+
+    ────────────────── EN WINDOWS ──────────────────
+    * Pull de los cambios:
+        cd C:\Users\emilg\LosasPlus
+        git pull origin feat/saf-export-interop1
+    * Build completo (incluye WPF):
+        dotnet build LosasPlus.sln -c Debug
+    * Test completo (incluye tests de UI):
+        dotnet test LosasPlus.sln
+    * Smoke test interactivo:
+        dotnet run --project src/LosasPlus.csproj
+    * Si todo OK, publicar release:
+        dotnet publish src/LosasPlus.csproj -c Release -r win-x64 --self-contained
+    * Tag + GitHub release:
+        git tag -a v0.8.x -m "..."
+        git push origin v0.8.x
+        gh release create v0.8.x ...
+
+  CLAVE: el filesystem dual boot puede compartirse vía partición NTFS o
+  ext4 montada en ambos. Más seguro: usar el repo Git como única fuente
+  de verdad y commitear/pull entre los dos OS.
+
+================================================================================
+  SECCIÓN 12 — TROUBLESHOOTING COMÚN
+================================================================================
+
+  PROBLEMA: `dotnet build` falla con "Microsoft.WindowsDesktop.App not found"
+  CAUSA:    Estás compilando un .csproj con UseWPF en Linux.
+  FIX:      Sólo compilar src.Core y proyectos puros .NET 8 en Linux.
+
+  PROBLEMA: `claude` da error "command not found" después de npm install
+  CAUSA:    PATH no incluye ~/.npm-global/bin.
+  FIX:      Re-ejecutar:
+            export PATH=~/.npm-global/bin:$PATH
+            echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc
+
+  PROBLEMA: `gh auth login` falla con "browser not available"
+  CAUSA:    Sesión SSH sin DISPLAY.
+  FIX:      Usar el flow con device code:
+            gh auth login --web --hostname github.com
+            Sigue el código mostrado.
+
+  PROBLEMA: Drivers NVIDIA cargan pero `nvidia-smi` falla
+  CAUSA:    Secure Boot bloqueando el módulo del kernel.
+  FIX:      Deshabilitar Secure Boot en BIOS, o firmar el módulo manualmente
+            (más complejo, ver `mokutil --import`).
+
+  PROBLEMA: VSCode crash al abrir solución grande (.sln con 30+ proyectos)
+  CAUSA:    OmniSharp / Roslyn corriendo OOM.
+  FIX:      Aumentar memoria:
+            En settings.json: "dotnet.server.useOmnisharp": false
+            Reiniciar VSCode para forzar el Roslyn nuevo (más eficiente).
+
+================================================================================
+  FIN DEL DOCUMENTO — Setup FASE 3 Ubuntu 24.04 + Claude Code
+================================================================================
+
+  Mantenimiento:
+    Para regenerar / actualizar este documento, ejecutar:
+        claude "actualiza FASE3-SETUP-UBUNTU.txt con las versiones nuevas"
+
+  Soporte:
+    Issues del repo: https://github.com/dashy2004/EstructurasRD/issues
+    Claude Code docs: https://docs.claude.com/en/docs/claude-code
+
+================================================================================

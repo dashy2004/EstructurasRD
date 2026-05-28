@@ -90,7 +90,7 @@ public class MainViewModel : INotifyPropertyChanged, IDisposable, MemoriaPlusVm.
     /// paraguas <c>EstructurasRD</c>; <c>LosasPlus</c> persiste como módulo
     /// histórico (motor losas Pieper-Martens de F. Perdomo) dentro de la suite.
     /// </summary>
-    public string Version => "EstructurasRD v0.8.0 — Suite Estructural";
+    public string Version => "EstructurasRD v0.8.1 — Suite Estructural";
 
     /// <summary>
     /// Copyright dinámico (año en curso) — bound al statusbar. Incluye tanto la
