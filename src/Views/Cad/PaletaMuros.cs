@@ -63,3 +63,17 @@ public sealed class EspesorABrushConverter : IValueConverter
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotSupportedException();
 }
+
+/// <summary>
+/// Convierte un conteo (<see cref="int"/>) en <see cref="bool"/>: <c>true</c> si es
+/// mayor que cero. Lo usa la leyenda «Suma de Colores» en <c>CadView.axaml</c> para
+/// mostrarse sólo cuando hay al menos un muro (Avalonia no auto-convierte int→bool).
+/// </summary>
+public sealed class CountToBoolConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is int n && n > 0;
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}

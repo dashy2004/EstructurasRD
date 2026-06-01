@@ -18,6 +18,7 @@
          ============================================================ -->
     <UserControl.Resources>
         <cad:EspesorABrushConverter x:Key="EspesorABrush"/>
+        <cad:CountToBoolConverter x:Key="CountToBool"/>
     </UserControl.Resources>
 
     <DockPanel>
@@ -47,7 +48,7 @@
                 Background="{DynamicResource BgSecondary}"
                 BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
             <TextBlock Foreground="{DynamicResource FgMuted}" FontSize="11"
-                       Text="Rueda = zoom · arrastrar = pan. (La edición — crear/mover/redimensionar losas y muros, snap, calibración — llega en la Fase E.2.)"/>
+                       Text="Rueda = zoom · arrastrar fondo = pan · clic en polígono = crear losa · clic en losa = seleccionar/mover · tiradores = redimensionar · chip + = conectar losas · doble-clic = editar."/>
         </Border>
 
         <!-- Lienzo CAD + panel lateral de ajustes -->
@@ -130,13 +131,13 @@
 
                             <RadioButton Classes="tool" GroupName="HerramientaCad" Content="↖  Puntero"
                                          IsChecked="{Binding CadEditor.ModoInteraccion, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Puntero}"
-                                         ToolTip.Tip="Seleccionar, mover y redimensionar losas (E.2)."/>
+                                         ToolTip.Tip="Seleccionar, mover y redimensionar losas."/>
                             <RadioButton Classes="tool" GroupName="HerramientaCad" Content="▭  Dibujar Losa"
                                          IsChecked="{Binding CadEditor.ModoInteraccion, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DibujarLosa}"
-                                         ToolTip.Tip="Dibujar una losa rectangular nueva (E.2)."/>
+                                         ToolTip.Tip="Dibujar una losa rectangular nueva."/>
                             <RadioButton Classes="tool" GroupName="HerramientaCad" Content="🧱  Dibujar Muro"
                                          IsChecked="{Binding CadEditor.ModoInteraccion, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DibujarMuro}"
-                                         ToolTip.Tip="Trazar un muro nuevo entre dos puntos (E.2)."/>
+                                         ToolTip.Tip="Trazar un muro nuevo entre dos puntos."/>
                             <RadioButton Classes="tool" GroupName="HerramientaCad" Content="✋  Mano"
                                          IsChecked="{Binding CadEditor.ModoInteraccion, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Mano}"
                                          ToolTip.Tip="Panear el lienzo."/>
@@ -150,7 +151,110 @@
                                           ToolTip.Tip="Imán de alineación a grilla y bordes vecinos."/>
                             <ToggleButton Classes="tool" Content="🔗  Conectadas"
                                           IsChecked="{Binding CadEditor.MoverConectadas, Mode=TwoWay}"
-                                          ToolTip.Tip="Mover arrastra el bloque conectado por bordes (E.2)."/>
+                                          ToolTip.Tip="Mover arrastra el bloque conectado por bordes."/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Editor flotante in-canvas: el doble clic sobre una losa lo abre;
+                         se posiciona por Margin desde el code-behind. -->
+                    <Border x:Name="EditorLosa" IsVisible="False" ZIndex="100"
+                            HorizontalAlignment="Left" VerticalAlignment="Top"
+                            Width="220" Padding="12"
+                            Background="{DynamicResource BgSecondary}"
+                            BorderBrush="{DynamicResource Accent}" BorderThickness="1.5"
+                            CornerRadius="7"
+                            KeyDown="OnEditorKeyDown" LostFocus="OnEditorLostFocus">
+                        <Grid RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="Auto,*">
+                            <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="EDITAR LOSA"
+                                       FontWeight="Bold" FontSize="10" Margin="0,0,0,8"
+                                       Foreground="{DynamicResource FgMuted}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Lx (m)"
+                                       VerticalAlignment="Center" Margin="0,0,8,6" FontSize="12"
+                                       Foreground="{DynamicResource FgSecondary}"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" x:Name="EditorLx" Margin="0,0,0,6"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Ly (m)"
+                                       VerticalAlignment="Center" Margin="0,0,8,6" FontSize="12"
+                                       Foreground="{DynamicResource FgSecondary}"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" x:Name="EditorLy" Margin="0,0,0,6"/>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Tipo"
+                                       VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12"
+                                       Foreground="{DynamicResource FgSecondary}"/>
+                            <ComboBox Grid.Row="3" Grid.Column="1" x:Name="EditorTipo"
+                                      HorizontalAlignment="Stretch"
+                                      ItemsSource="{Binding CadEditor.CatalogoTipos}"
+                                      SelectedValueBinding="{Binding Codigo}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock>
+                                            <Run Text="{Binding Codigo, Mode=OneWay}"/>
+                                            <Run Text="  —  "/>
+                                            <Run Text="{Binding Descripcion, Mode=OneWay}"/>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Grid>
+                    </Border>
+
+                    <!-- Editor flotante de calibración del PDF. Enter confirma, Esc cancela. -->
+                    <Border x:Name="EditorCalibrarPdf" IsVisible="False" ZIndex="101"
+                            HorizontalAlignment="Left" VerticalAlignment="Top"
+                            Width="220" Padding="12"
+                            Background="{DynamicResource BgSecondary}"
+                            BorderBrush="#D32F2F" BorderThickness="1.5"
+                            CornerRadius="7"
+                            KeyDown="OnCalibrarKeyDown" LostFocus="OnCalibrarLostFocus">
+                        <StackPanel>
+                            <TextBlock Text="CALIBRAR PDF" FontWeight="Bold" FontSize="10"
+                                       Margin="0,0,0,4" Foreground="{DynamicResource FgMuted}"/>
+                            <TextBlock x:Name="CalibrarLineaActual" FontSize="11" Margin="0,0,0,8"
+                                       Foreground="{DynamicResource FgSecondary}" TextWrapping="Wrap"/>
+                            <TextBlock Text="Distancia real (m)" FontSize="12"
+                                       Foreground="{DynamicResource FgSecondary}" Margin="0,0,0,2"/>
+                            <TextBox x:Name="CalibrarDistanciaReal" Margin="0,0,0,10"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="Cancelar" Padding="10,4" Margin="0,0,6,0"
+                                        Click="OnCalibrarCancelar"/>
+                                <Button Content="OK" Padding="14,4" IsDefault="True"
+                                        Click="OnCalibrarConfirmar"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Leyenda «Suma de Colores»: fija abajo-izquierda; visible sólo con muros. -->
+                    <Border ZIndex="50" VerticalAlignment="Bottom" HorizontalAlignment="Left"
+                            Margin="12" Padding="12,10" MaxHeight="300" MaxWidth="240"
+                            Background="{DynamicResource BgSecondary}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                            CornerRadius="7"
+                            IsVisible="{Binding CadEditor.ResumenMuros.Count, Converter={StaticResource CountToBool}}">
+                        <StackPanel>
+                            <TextBlock Text="🧱  SUMA DE COLORES" FontWeight="Bold" FontSize="10"
+                                       Foreground="{DynamicResource FgMuted}" Margin="0,0,0,8"/>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="240">
+                                <ItemsControl ItemsSource="{Binding CadEditor.ResumenMuros}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel Margin="0,3">
+                                                <Border DockPanel.Dock="Left" Width="14" Height="14"
+                                                        CornerRadius="3" Margin="0,1,8,0"
+                                                        VerticalAlignment="Top"
+                                                        BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                                        Background="{Binding Espesor, Converter={StaticResource EspesorABrush}}"/>
+                                                <StackPanel>
+                                                    <TextBlock FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource FgPrimary}"
+                                                               Text="{Binding EtiquetaLosa, Mode=OneWay}"/>
+                                                    <TextBlock FontSize="11" Foreground="{DynamicResource FgSecondary}">
+                                                        <Run Text="e "/><Run Text="{Binding Espesor, StringFormat=0.00, Mode=OneWay}"/><Run Text=" m  ·  "/>
+                                                        <Run Text="{Binding LongitudTotal, StringFormat=0.00, Mode=OneWay}"/><Run Text=" m  ·  ×"/><Run Text="{Binding Cantidad, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -272,7 +376,7 @@
                                 <Button Content="📐  Calibrar PDF" Padding="10,6" Margin="0,8,0,0"
                                         HorizontalAlignment="Stretch"
                                         Command="{Binding CadEditor.IniciarCalibrarPdfCommand}"
-                                        ToolTip.Tip="Calibración interactiva de escala (interacción en E.2)."/>
+                                        ToolTip.Tip="Marcá dos puntos sobre el PDF e indicá la distancia real para recalcular la escala (Shift = línea ortogonal · Esc = cancelar)."/>
                             </StackPanel>
 
                             <Border Height="1" Margin="0,16" Background="{DynamicResource Border}"/>
@@ -292,7 +396,7 @@
                             </Grid>
                             <TextBlock FontSize="10" Foreground="{DynamicResource FgMuted}"
                                        TextWrapping="Wrap" Margin="0,0,0,8"
-                                       Text="Valores de los muros nuevos. La herramienta de dibujo de muros llega en la Fase E.2."/>
+                                       Text="Valores de los muros nuevos. Elegí «🧱 Dibujar Muro» en la toolbar y arrastrá en el lienzo."/>
                             <ListBox MaxHeight="150" Margin="0,0,0,8"
                                      Background="{DynamicResource BgInput}"
                                      BorderBrush="{DynamicResource Border}" BorderThickness="1"

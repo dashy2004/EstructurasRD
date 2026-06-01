@@ -43,6 +43,16 @@ public sealed class CadCanvasHost : Control
     private const double MaxScale   = 20.0;
     private const double ZoomStep   = 1.15;
 
+    // ---- Constantes de interacción (Fase E.2) ----
+    private const double ClicMaxPx        = 5.0;    // px — umbral clic vs. arrastre
+    private const double PasoSnapGrilla   = 1.0;    // m  — la grilla métrica es de 1 m
+    private const double UmbralSnapM      = 0.20;   // m  — radio de enganche del snap
+    private const double MinLadoM         = 0.10;   // m  — lado mínimo de una losa
+    private const double HandleLadoPx     = 9.0;    // px — tamaño del tirador en pantalla
+    private const double ChipRadioPx      = 11.0;   // px — radio del chip de adyacencia
+    private const double MinLadoDibujoM   = 0.5;    // m  — lado mínimo de una losa dibujada
+    private const double MinLongitudMuroM = 0.30;   // m  — longitud mínima de un muro
+
     // ---- Transform compartido de zoom/pan (antes ScaleTransform+TranslateTransform) ----
     private double _scaleX = 1, _scaleY = 1;
     private double _tx, _ty;
@@ -56,12 +66,50 @@ public sealed class CadCanvasHost : Control
     private IReadOnlyList<LayoutSolver.Placement> _placements = Array.Empty<LayoutSolver.Placement>();
     private double _offsetXPx;
 
-    // ---- Pan (E.1: arrastre con botón izquierdo; E.2 lo reemplaza por la máquina de modos) ----
-    private bool _panning;
-    private Point _panStartScreen;
+    // ---- Estado de interacción (efímero, sólo de la vista — nunca toca el SSOT) ----
+    private enum ModoArrastre { Ninguno, Pan, Mover, Redimensionar, DibujarLosa, DibujarMuro }
+    private ModoArrastre _modo = ModoArrastre.Ninguno;
+    private Losa? _losaSeleccionada;
+    private Point _dragStart;
     private double _panStartTx, _panStartTy;
+    private int _handleActivo = -1;
+    private Rect _rectOriginalPx;
+    private Rect _rectFantasmaPx;
 
-    // ---- Debounce de re-rasterización del PDF (E.2) — declarado para no perder el cableado ----
+    // ---- Herramientas de dibujo (losa / muro) ----
+    private Point _dibujarAnclaPre;   // ancla del trazo de losa (px pre-transform)
+    private Point _muroAnclaPre;      // P₁ del muro (px pre-transform)
+    private Point _muroFinPre;        // P₂ actual del muro (px pre-transform)
+
+    // ---- Chips de adyacencia — sugerencias de conexión en el overlay ----
+    private IReadOnlyList<AdyacenciaCandidata> _chips = Array.Empty<AdyacenciaCandidata>();
+
+    // ---- Snap excluyente y «Mover Conectadas» (BFS sobre el grafo de bordes) ----
+    private readonly HashSet<int> _idsExcluidosSnap = new();
+    private bool _grupoMoverActivo;
+    private readonly Dictionary<int, Rect> _grupoMoverOrigPx = new();
+    private readonly List<Rect> _grupoMoverFantasmasPx = new();
+
+    // ---- Calibración interactiva del PDF (P₁/P₂ en px pre-transform) ----
+    private Point? _calibrarP1Pre;
+    private Point? _calibrarP2Pre;
+    private bool _calibrarConfirmando;
+
+    // ---- Captura por-puntero (Avalonia captura por IPointer, no globalmente) ----
+    private IPointer? _punteroCapturado;
+    private bool EstaCapturado => _punteroCapturado is not null;
+
+    // ---- Cursores cacheados (Avalonia instancia un Cursor por objeto) ----
+    private static readonly Cursor CursorArrow   = new(StandardCursorType.Arrow);
+    private static readonly Cursor CursorHand    = new(StandardCursorType.Hand);
+    private static readonly Cursor CursorCross   = new(StandardCursorType.Cross);
+    private static readonly Cursor CursorSizeAll = new(StandardCursorType.SizeAll);
+    private static readonly Cursor CursorNS      = new(StandardCursorType.SizeNorthSouth);
+    private static readonly Cursor CursorWE      = new(StandardCursorType.SizeWestEast);
+    private static readonly Cursor CursorNWSE    = new(StandardCursorType.TopLeftCorner);
+    private static readonly Cursor CursorNESW    = new(StandardCursorType.TopRightCorner);
+
+    // ---- Debounce de re-rasterización del PDF tras un zoom ----
     private readonly DispatcherTimer _debounceReraster;
 
     public CadCanvasHost()
@@ -78,15 +126,11 @@ public sealed class CadCanvasHost : Control
     // que CadView se suscriba sin romper la compilación)
     // =====================================================================
 
-    // CS0067: en E.1 estos eventos aún no se disparan (los levanta la interacción
-    // de mouse de la Fase E.2). Se declaran ya para no romper los bindings/handlers.
-#pragma warning disable CS0067
-    /// <summary>Doble clic sobre una losa (modo Puntero) — lo escucha CadView (E.2).</summary>
+    /// <summary>Doble clic sobre una losa (modo Puntero) — lo escucha CadView.</summary>
     public event EventHandler<LosaDobleClicEventArgs>? LosaDobleClicada;
 
-    /// <summary>Segundo punto de calibración del PDF fijado — lo escucha CadView (E.2).</summary>
+    /// <summary>Segundo punto de calibración del PDF fijado — lo escucha CadView.</summary>
     public event EventHandler<CalibrarPdfPuntosListosEventArgs>? CalibrarPdfPuntosListos;
-#pragma warning restore CS0067
 
     // =====================================================================
     // StyledProperties — datos a dibujar y comandos (binding desde el VM)
@@ -200,6 +244,9 @@ public sealed class CadCanvasHost : Control
             || p == OpacidadPdfProperty || p == RevisionPlanoProperty || p == RevisionSistemaProperty
             || p == RevisionPdfProperty || p == MuroSeleccionadoIdProperty || p == BoundsProperty)
         {
+            // Un cambio del sistema (o su revisión) puede crear/quitar adyacencias:
+            // recomputar los chips antes de redibujar el overlay.
+            if (p == SistemaProperty || p == RevisionSistemaProperty) RecomputarChips();
             InvalidateVisual();
         }
         else if (p == SolicitudEncuadreProperty) EncuadrarPlano();
@@ -224,7 +271,11 @@ public sealed class CadCanvasHost : Control
             DibujarGrilla(context);
             DibujarPlano(context);
             DibujarLosas(context);
-            // Overlay (selección, tiradores, fantasma, chips, calibración) → Fase E.2.
+            // Capa 3 — overlay efímero (selección, tiradores, fantasma, chips, cotas,
+            // calibración). En WPF era un DrawingVisual aparte; aquí va al final del
+            // mismo Render bajo el mismo transform → las constantes /_scaleX siguen
+            // dando tamaños constantes en pantalla.
+            DibujarOverlay(context);
         }
     }
 
@@ -318,9 +369,10 @@ public sealed class CadCanvasHost : Control
 
     /// <summary>
     /// Re-renderiza la Capa 2 (losas) y el overlay. La invoca CadView tras
-    /// confirmar la edición in-canvas. Port a Avalonia: InvalidateVisual().
+    /// confirmar la edición in-canvas. Port a Avalonia: recomputar chips +
+    /// InvalidateVisual() (el render rehace el layout y dibuja el overlay).
     /// </summary>
-    public void RefrescarLosas() => InvalidateVisual();
+    public void RefrescarLosas() { RecomputarChips(); InvalidateVisual(); }
 
     // =====================================================================
     // Capa 0 — Grilla métrica
@@ -624,23 +676,547 @@ public sealed class CadCanvasHost : Control
     }
 
     // =====================================================================
-    // Zoom (rueda, hacia el cursor) y pan (arrastre) — E.1
+    // Capa 3 — Overlay efímero (selección, tiradores, fantasma, chips, cotas)
+    // =====================================================================
+
+    /// <summary>
+    /// Dibuja el overlay de interacción dentro del transform de zoom/pan. Los
+    /// grosores y tamaños se dividen por la escala → constantes EN PANTALLA.
+    /// Es estado puramente visual — jamás toca el SSOT.
+    /// </summary>
+    private void DibujarOverlay(DrawingContext dc)
+    {
+        double inv = _scaleX > 0 ? 1.0 / _scaleX : 1.0;
+
+        // ---- Calibración del PDF — capa interactiva sobre todo lo demás ----
+        if (ModoCalibrarPdf && _calibrarP1Pre is { } p1Cal && _calibrarP2Pre is { } p2Cal)
+        {
+            var pincelCal = new SolidColorBrush(Color.FromRgb(0xD3, 0x2F, 0x2F));
+            var penCal = new Pen(pincelCal, 2.0 * inv) { DashStyle = new DashStyle(new double[] { 4, 3 }, 0) };
+            dc.DrawLine(penCal, p1Cal, p2Cal);
+            dc.DrawEllipse(pincelCal, null, p1Cal, 4 * inv, 4 * inv);
+            dc.DrawEllipse(pincelCal, null, p2Cal, 4 * inv, 4 * inv);
+
+            double dxM = (p2Cal.X - p1Cal.X) / PxPorMetro;
+            double dyM = (p2Cal.Y - p1Cal.Y) / PxPorMetro;
+            double distM = Math.Sqrt(dxM * dxM + dyM * dyM);
+            var ft = new FormattedText(
+                $"Línea de calibración: {distM:0.000} m",
+                CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
+                new Typeface("Segoe UI"), 13 * inv, pincelCal);
+            dc.DrawText(ft, new Point(p2Cal.X + 10 * inv, p2Cal.Y + 6 * inv));
+        }
+
+        // Los chips de adyacencia y el resalte de muro se dibujan SIEMPRE.
+        DibujarChips(dc, inv);
+        DibujarMuroSeleccionado(dc, inv);
+
+        // Rectángulo fantasma de «Dibujar Losa».
+        if (_modo == ModoArrastre.DibujarLosa)
+        {
+            if (_rectFantasmaPx.Width > 0 && _rectFantasmaPx.Height > 0)
+            {
+                var penDibujo = new Pen(PincelOverlay, 1.6 * inv) { DashStyle = new DashStyle(new double[] { 4, 3 }, 0) };
+                dc.DrawRectangle(PincelOverlayRelleno, penDibujo, _rectFantasmaPx);
+            }
+            return;
+        }
+
+        // Línea fantasma de «Dibujar Muro».
+        if (_modo == ModoArrastre.DibujarMuro)
+        {
+            var penMuro = new Pen(PincelOverlay, 1.8 * inv) { DashStyle = new DashStyle(new double[] { 5, 3 }, 0) };
+            dc.DrawLine(penMuro, _muroAnclaPre, _muroFinPre);
+            dc.DrawEllipse(PincelOverlay, null, _muroAnclaPre, 3 * inv, 3 * inv);
+            dc.DrawEllipse(PincelOverlay, null, _muroFinPre, 3 * inv, 3 * inv);
+            return;
+        }
+
+        if (_losaSeleccionada is null) return;
+
+        if (_modo is ModoArrastre.Mover or ModoArrastre.Redimensionar)
+        {
+            var penFantasma = new Pen(PincelOverlay, 1.6 * inv) { DashStyle = new DashStyle(new double[] { 4, 3 }, 0) };
+            dc.DrawRectangle(PincelOverlayRelleno, penFantasma, _rectFantasmaPx);
+            if (_grupoMoverActivo)
+                foreach (var r in _grupoMoverFantasmasPx)
+                    dc.DrawRectangle(PincelOverlayRelleno, penFantasma, r);
+            DibujarCotas(dc, inv);
+            return;
+        }
+
+        var rectPx = RectPxDeLosaSeleccionada();
+        if (rectPx.Width <= 0 || rectPx.Height <= 0) return;
+
+        dc.DrawRectangle(null, new Pen(PincelOverlay, 2.0 * inv), rectPx);
+
+        // 8 tiradores cuadrados de tamaño constante en pantalla.
+        double lado = HandleLadoPx * inv;
+        var penHandle = new Pen(PincelOverlay, 1.4 * inv);
+        foreach (var c in HandleCentros(rectPx))
+            dc.DrawRectangle(Brushes.White, penHandle, new Rect(c.X - lado / 2, c.Y - lado / 2, lado, lado));
+    }
+
+    /// <summary>Resalta el muro cuyo Id coincide con <see cref="MuroSeleccionadoId"/> (−1 = ninguno).</summary>
+    private void DibujarMuroSeleccionado(DrawingContext dc, double inv)
+    {
+        if (MuroSeleccionadoId < 0 || Sistema is not { } sistema) return;
+
+        Muro? sel = null;
+        foreach (var m in sistema.Muros)
+            if (m.Id == MuroSeleccionadoId) { sel = m; break; }
+        if (sel is null) return;
+
+        var p1 = new Point(sel.PuntoInicio.X * PxPorMetro, sel.PuntoInicio.Y * PxPorMetro);
+        var p2 = new Point(sel.PuntoFin.X    * PxPorMetro, sel.PuntoFin.Y    * PxPorMetro);
+
+        double dx = p2.X - p1.X, dy = p2.Y - p1.Y;
+        double len = Math.Sqrt(dx * dx + dy * dy);
+        if (len < 1e-6) return;
+
+        double nx = -dy / len, ny = dx / len;        // normal unitaria al eje
+        double ht = Math.Max(sel.Espesor * PxPorMetro, 1.0) / 2.0;
+
+        var e0 = new Point(p1.X + nx * ht, p1.Y + ny * ht);
+        var e1 = new Point(p2.X + nx * ht, p2.Y + ny * ht);
+        var e2 = new Point(p2.X - nx * ht, p2.Y - ny * ht);
+        var e3 = new Point(p1.X - nx * ht, p1.Y - ny * ht);
+
+        var penContorno = new Pen(PincelOverlay, 2.0 * inv);
+        dc.DrawLine(penContorno, e0, e1);
+        dc.DrawLine(penContorno, e1, e2);
+        dc.DrawLine(penContorno, e2, e3);
+        dc.DrawLine(penContorno, e3, e0);
+
+        double lado = HandleLadoPx * inv;
+        var penHandle = new Pen(PincelOverlay, 1.4 * inv);
+        foreach (var c in new[] { p1, p2 })
+            dc.DrawRectangle(Brushes.White, penHandle, new Rect(c.X - lado / 2, c.Y - lado / 2, lado, lado));
+    }
+
+    private Rect RectPxDeLosaSeleccionada()
+    {
+        if (_losaSeleccionada is null) return default;
+        foreach (var p in _placements)
+            if (p.Losa.Id == _losaSeleccionada.Id)
+                return PlacementARectPx(p);
+        return default;
+    }
+
+    private Rect PlacementARectPx(LayoutSolver.Placement p) => new(
+        _offsetXPx + p.X * PxPorMetro, p.Y * PxPorMetro,
+        p.Width * PxPorMetro, p.Height * PxPorMetro);
+
+    /// <summary>Pantalla → espacio pre-transform (deshace zoom y pan).</summary>
+    private Point PantallaAPre(Point pantalla) => new(
+        (pantalla.X - _tx) / _scaleX,
+        (pantalla.Y - _ty) / _scaleY);
+
+    /// <summary>Centros de los 8 tiradores (0..7 horario desde sup-izq).</summary>
+    private static Point[] HandleCentros(Rect r)
+    {
+        double mx = r.X + r.Width / 2, my = r.Y + r.Height / 2;
+        return new[]
+        {
+            new Point(r.Left,  r.Top),     // 0 sup-izq
+            new Point(mx,      r.Top),     // 1 sup-centro
+            new Point(r.Right, r.Top),     // 2 sup-der
+            new Point(r.Right, my),        // 3 centro-der
+            new Point(r.Right, r.Bottom),  // 4 inf-der
+            new Point(mx,      r.Bottom),  // 5 inf-centro
+            new Point(r.Left,  r.Bottom),  // 6 inf-izq
+            new Point(r.Left,  my),        // 7 centro-izq
+        };
+    }
+
+    // =====================================================================
+    // Hit-testing de losas y tiradores
+    // =====================================================================
+
+    private LayoutSolver.Placement? HitTestLosa(Point pantalla)
+    {
+        if (_scaleX <= 0 || _placements.Count == 0) return null;
+        var pre = PantallaAPre(pantalla);
+        for (int i = _placements.Count - 1; i >= 0; i--)
+            if (PlacementARectPx(_placements[i]).Contains(pre))
+                return _placements[i];
+        return null;
+    }
+
+    private int HandleBajoCursor(Point pantalla)
+    {
+        if (_losaSeleccionada is null || _scaleX <= 0) return -1;
+        var rectPx = RectPxDeLosaSeleccionada();
+        if (rectPx.Width <= 0 || rectPx.Height <= 0) return -1;
+
+        var pre = PantallaAPre(pantalla);
+        double radio = HandleLadoPx / _scaleX;
+        var centros = HandleCentros(rectPx);
+        for (int i = 0; i < centros.Length; i++)
+            if (Math.Abs(pre.X - centros[i].X) <= radio &&
+                Math.Abs(pre.Y - centros[i].Y) <= radio)
+                return i;
+        return -1;
+    }
+
+    // =====================================================================
+    // Capa 3 — Chips de adyacencia
+    // =====================================================================
+
+    private void RecomputarChips()
+        => _chips = Sistema is { } s ? AdyacenciaDetector.Detectar(s) : Array.Empty<AdyacenciaCandidata>();
+
+    private void DibujarChips(DrawingContext dc, double inv)
+    {
+        if (_chips.Count == 0) return;
+        double r = ChipRadioPx * inv;
+        double b = r * 0.5;
+        var penMas = new Pen(Brushes.White, 2.0 * inv);
+        foreach (var c in _chips)
+        {
+            double cx = _offsetXPx + c.MidX * PxPorMetro;
+            double cy = c.MidY * PxPorMetro;
+            dc.DrawEllipse(PincelOverlay, null, new Point(cx, cy), r, r);
+            dc.DrawLine(penMas, new Point(cx - b, cy), new Point(cx + b, cy));
+            dc.DrawLine(penMas, new Point(cx, cy - b), new Point(cx, cy + b));
+        }
+    }
+
+    private int HitTestChip(Point pantalla)
+    {
+        if (_chips.Count == 0 || _scaleX <= 0) return -1;
+        var pre = PantallaAPre(pantalla);
+        double r = ChipRadioPx / _scaleX;
+        for (int i = 0; i < _chips.Count; i++)
+        {
+            double cx = _offsetXPx + _chips[i].MidX * PxPorMetro;
+            double cy = _chips[i].MidY * PxPorMetro;
+            double dx = pre.X - cx, dy = pre.Y - cy;
+            if (dx * dx + dy * dy <= r * r) return i;
+        }
+        return -1;
+    }
+
+    // =====================================================================
+    // Capa 3 — Cotas dinámicas
+    // =====================================================================
+
+    private void DibujarCotas(DrawingContext dc, double inv)
+    {
+        if (_placements.Count == 0) return;
+
+        var activa = new RectM(
+            _rectFantasmaPx.X / PxPorMetro, _rectFantasmaPx.Y / PxPorMetro,
+            _rectFantasmaPx.Width / PxPorMetro, _rectFantasmaPx.Height / PxPorMetro);
+
+        var ancladas = new List<RectM>();
+        foreach (var p in _placements)
+        {
+            if (_losaSeleccionada != null && p.Losa.Id == _losaSeleccionada.Id) continue;
+            var r = PlacementARectPx(p);
+            ancladas.Add(new RectM(r.X / PxPorMetro, r.Y / PxPorMetro,
+                                   r.Width / PxPorMetro, r.Height / PxPorMetro));
+        }
+
+        var cotas = MotorCotas.Calcular(activa, ancladas);
+        if (cotas.Count == 0) return;
+
+        var penCota = new Pen(PincelCota, 1.3 * inv);
+        double tick = 5.0 * inv;
+
+        foreach (var c in cotas)
+        {
+            var ft = CrearTextoCota(c.Valor, inv);
+            if (c.Eje == EjeCota.Horizontal)
+            {
+                double y  = c.CoordenadaLinea * PxPorMetro;
+                double x0 = c.Inicio * PxPorMetro;
+                double x1 = c.Fin    * PxPorMetro;
+                dc.DrawLine(penCota, new Point(x0, y), new Point(x1, y));
+                dc.DrawLine(penCota, new Point(x0, y - tick), new Point(x0, y + tick));
+                dc.DrawLine(penCota, new Point(x1, y - tick), new Point(x1, y + tick));
+                dc.DrawText(ft, new Point((x0 + x1) / 2.0 - ft.Width / 2.0, y - tick - ft.Height));
+            }
+            else
+            {
+                double x  = c.CoordenadaLinea * PxPorMetro;
+                double y0 = c.Inicio * PxPorMetro;
+                double y1 = c.Fin    * PxPorMetro;
+                dc.DrawLine(penCota, new Point(x, y0), new Point(x, y1));
+                dc.DrawLine(penCota, new Point(x - tick, y0), new Point(x + tick, y0));
+                dc.DrawLine(penCota, new Point(x - tick, y1), new Point(x + tick, y1));
+                dc.DrawText(ft, new Point(x + tick + 2.0 * inv, (y0 + y1) / 2.0 - ft.Height / 2.0));
+            }
+        }
+    }
+
+    private FormattedText CrearTextoCota(double valorM, double inv)
+        => new(valorM.ToString("0.00", CultureInfo.InvariantCulture) + " m",
+               CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+               new Typeface("Segoe UI"), 11.0 * inv, PincelCota);
+
+    // =====================================================================
+    // Cálculo geométrico del arrastre (con snapping) — nunca muta el SSOT
+    // =====================================================================
+
+    private (List<double> X, List<double> Y) CandidatosSnap()
+    {
+        var xs = new List<double>();
+        var ys = new List<double>();
+        foreach (var p in _placements)
+        {
+            if (_idsExcluidosSnap.Contains(p.Losa.Id)) continue;
+            var r = PlacementARectPx(p);
+            xs.Add(r.Left  / PxPorMetro);
+            xs.Add(r.Right / PxPorMetro);
+            ys.Add(r.Top    / PxPorMetro);
+            ys.Add(r.Bottom / PxPorMetro);
+        }
+        return (xs, ys);
+    }
+
+    private Rect CalcularRectMovido(Point pantalla)
+    {
+        double dxPx = (pantalla.X - _dragStart.X) / _scaleX;
+        double dyPx = (pantalla.Y - _dragStart.Y) / _scaleY;
+
+        double xM = (_rectOriginalPx.X + dxPx) / PxPorMetro;
+        double yM = (_rectOriginalPx.Y + dyPx) / PxPorMetro;
+        double wM = _rectOriginalPx.Width  / PxPorMetro;
+        double hM = _rectOriginalPx.Height / PxPorMetro;
+
+        double snapX, snapY;
+        if (SnapActivo)
+        {
+            var (candsX, candsY) = CandidatosSnap();
+            snapX = SnappingEngine.SnapRango(xM, wM, candsX, PasoSnapGrilla, UmbralSnapM).Valor;
+            snapY = SnappingEngine.SnapRango(yM, hM, candsY, PasoSnapGrilla, UmbralSnapM).Valor;
+        }
+        else { snapX = xM; snapY = yM; }
+
+        return new Rect(snapX * PxPorMetro, snapY * PxPorMetro,
+                        _rectOriginalPx.Width, _rectOriginalPx.Height);
+    }
+
+    private Rect CalcularRectRedimensionado(Point pantalla)
+    {
+        var pre = PantallaAPre(pantalla);
+        double left = _rectOriginalPx.Left, right  = _rectOriginalPx.Right;
+        double top  = _rectOriginalPx.Top,  bottom = _rectOriginalPx.Bottom;
+
+        bool mueveL = _handleActivo is 0 or 6 or 7;
+        bool mueveR = _handleActivo is 2 or 3 or 4;
+        bool mueveT = _handleActivo is 0 or 1 or 2;
+        bool mueveB = _handleActivo is 4 or 5 or 6;
+
+        if (SnapActivo)
+        {
+            var (candsX, candsY) = CandidatosSnap();
+            if (mueveL) left   = SnappingEngine.SnapCombinado(pre.X / PxPorMetro, candsX, PasoSnapGrilla, UmbralSnapM).Valor * PxPorMetro;
+            if (mueveR) right  = SnappingEngine.SnapCombinado(pre.X / PxPorMetro, candsX, PasoSnapGrilla, UmbralSnapM).Valor * PxPorMetro;
+            if (mueveT) top    = SnappingEngine.SnapCombinado(pre.Y / PxPorMetro, candsY, PasoSnapGrilla, UmbralSnapM).Valor * PxPorMetro;
+            if (mueveB) bottom = SnappingEngine.SnapCombinado(pre.Y / PxPorMetro, candsY, PasoSnapGrilla, UmbralSnapM).Valor * PxPorMetro;
+        }
+        else
+        {
+            if (mueveL) left   = pre.X;
+            if (mueveR) right  = pre.X;
+            if (mueveT) top    = pre.Y;
+            if (mueveB) bottom = pre.Y;
+        }
+
+        double minPx = MinLadoM * PxPorMetro;
+        if (mueveL && left   > right  - minPx) left   = right  - minPx;
+        if (mueveR && right  < left   + minPx) right  = left   + minPx;
+        if (mueveT && top    > bottom - minPx) top    = bottom - minPx;
+        if (mueveB && bottom < top    + minPx) bottom = top    + minPx;
+
+        return new Rect(left, top, Math.Max(minPx, right - left), Math.Max(minPx, bottom - top));
+    }
+
+    private void ConfirmarArrastre()
+    {
+        if (_losaSeleccionada != null)
+        {
+            const double eps = 0.5;   // px pre-transform
+            bool cambio =
+                Math.Abs(_rectFantasmaPx.X      - _rectOriginalPx.X)      > eps ||
+                Math.Abs(_rectFantasmaPx.Y      - _rectOriginalPx.Y)      > eps ||
+                Math.Abs(_rectFantasmaPx.Width  - _rectOriginalPx.Width)  > eps ||
+                Math.Abs(_rectFantasmaPx.Height - _rectOriginalPx.Height) > eps;
+
+            if (cambio)
+            {
+                if (_grupoMoverActivo && MoverGrupoCommand is { } cmdGrupo)
+                {
+                    double dxM = (_rectFantasmaPx.X - _rectOriginalPx.X) / PxPorMetro;
+                    double dyM = (_rectFantasmaPx.Y - _rectOriginalPx.Y) / PxPorMetro;
+                    var movs = new List<MovimientoLosaEntry>(_grupoMoverOrigPx.Count);
+                    foreach (var kv in _grupoMoverOrigPx)
+                        movs.Add(new MovimientoLosaEntry(kv.Key,
+                            kv.Value.X / PxPorMetro + dxM,
+                            kv.Value.Y / PxPorMetro + dyM));
+                    var args = new MovimientoGrupoArgs(movs);
+                    if (cmdGrupo.CanExecute(args)) cmdGrupo.Execute(args);
+                }
+                else if (ActualizarLosaCommand is { } cmd)
+                {
+                    var dto = new ActualizacionLosaArgs(
+                        _losaSeleccionada,
+                        _rectFantasmaPx.X      / PxPorMetro,
+                        _rectFantasmaPx.Y      / PxPorMetro,
+                        _rectFantasmaPx.Width  / PxPorMetro,
+                        _rectFantasmaPx.Height / PxPorMetro,
+                        _losaSeleccionada.Tipo);
+                    if (cmd.CanExecute(dto)) cmd.Execute(dto);
+                }
+            }
+        }
+
+        ResetGrupoMover();
+        RecomputarChips();
+        InvalidateVisual();
+    }
+
+    private void PropagarGrupoMover()
+    {
+        double dxPx = _rectFantasmaPx.X - _rectOriginalPx.X;
+        double dyPx = _rectFantasmaPx.Y - _rectOriginalPx.Y;
+        _grupoMoverFantasmasPx.Clear();
+        foreach (var kv in _grupoMoverOrigPx)
+        {
+            if (_losaSeleccionada is not null && kv.Key == _losaSeleccionada.Id) continue;
+            var r = kv.Value;
+            _grupoMoverFantasmasPx.Add(new Rect(r.X + dxPx, r.Y + dyPx, r.Width, r.Height));
+        }
+    }
+
+    private void ResetGrupoMover()
+    {
+        _grupoMoverActivo = false;
+        _grupoMoverOrigPx.Clear();
+        _grupoMoverFantasmasPx.Clear();
+        _idsExcluidosSnap.Clear();
+    }
+
+    private void ConfirmarDibujoLosa()
+    {
+        double posX = _rectFantasmaPx.X      / PxPorMetro;
+        double posY = _rectFantasmaPx.Y      / PxPorMetro;
+        double lx   = _rectFantasmaPx.Width  / PxPorMetro;
+        double ly   = _rectFantasmaPx.Height / PxPorMetro;
+        _rectFantasmaPx = default;
+
+        if (lx < MinLadoDibujoM || ly < MinLadoDibujoM)
+        {
+            InvalidateVisual();   // aborto silencioso — ni snapshot ni losa
+            return;
+        }
+
+        if (CrearLosaCommand is { } cmd)
+        {
+            var dto = new CrearLosaArgs(posX, posY, lx, ly);
+            if (cmd.CanExecute(dto)) cmd.Execute(dto);
+        }
+        RecomputarChips();
+        InvalidateVisual();
+    }
+
+    private void ConfirmarDibujoMuro()
+    {
+        var iniPx = _muroAnclaPre;
+        var finPx = _muroFinPre;
+
+        double dxM = (finPx.X - iniPx.X) / PxPorMetro;
+        double dyM = (finPx.Y - iniPx.Y) / PxPorMetro;
+        double longitud = Math.Sqrt(dxM * dxM + dyM * dyM);
+
+        if (longitud < MinLongitudMuroM) { InvalidateVisual(); return; }
+
+        if (CrearMuroCommand is { } cmd)
+        {
+            var dto = new CrearMuroArgs(
+                new PuntoCad(iniPx.X / PxPorMetro, iniPx.Y / PxPorMetro),
+                new PuntoCad(finPx.X / PxPorMetro, finPx.Y / PxPorMetro));
+            if (cmd.CanExecute(dto)) cmd.Execute(dto);
+        }
+        InvalidateVisual();
+    }
+
+    // =====================================================================
+    // Calibración del PDF — helpers
+    // =====================================================================
+
+    private void AbortarCalibracion()
+    {
+        LimpiarCalibracion();
+        ModoCalibrarPdf = false;
+        if (CancelarCalibrarPdfCommand is { } cmd && cmd.CanExecute(null)) cmd.Execute(null);
+        InvalidateVisual();
+    }
+
+    private void LimpiarCalibracion()
+    {
+        _calibrarP1Pre = null;
+        _calibrarP2Pre = null;
+        _calibrarConfirmando = false;
+        Cursor = CursorArrow;
+    }
+
+    /// <summary>Snap ortogonal del cursor al eje cardinal más cercano si Shift está presionado.</summary>
+    private static Point AplicarSnapOrtoCalibracion(Point pivote, Point cursor, KeyModifiers mods)
+    {
+        if (!mods.HasFlag(KeyModifiers.Shift)) return cursor;
+        double dx = Math.Abs(cursor.X - pivote.X);
+        double dy = Math.Abs(cursor.Y - pivote.Y);
+        return dx >= dy ? new Point(cursor.X, pivote.Y) : new Point(pivote.X, cursor.Y);
+    }
+
+    // =====================================================================
+    // Cursores
+    // =====================================================================
+
+    private void ActualizarCursorHover(Point pantalla)
+    {
+        int h = HandleBajoCursor(pantalla);
+        if (h >= 0) { Cursor = CursorDeHandle(h); return; }
+        Cursor = HitTestLosa(pantalla) != null ? CursorSizeAll : CursorArrow;
+    }
+
+    private static Cursor CursorDeHandle(int h) => h switch
+    {
+        0 or 4 => CursorNWSE,   // esquinas ╲
+        2 or 6 => CursorNESW,   // esquinas ╱
+        1 or 5 => CursorNS,     // bordes horizontales
+        3 or 7 => CursorWE,     // bordes verticales
+        _      => CursorArrow,
+    };
+
+    // =====================================================================
+    // Captura por-puntero (reemplaza CaptureMouse/ReleaseMouseCapture WPF)
+    // =====================================================================
+
+    private void Capturar(IPointer p) { p.Capture(this); _punteroCapturado = p; }
+    private void LiberarCaptura() { _punteroCapturado?.Capture(null); _punteroCapturado = null; }
+
+    // =====================================================================
+    // Interacción — zoom (rueda), pan, selección y arrastre de losas
     // =====================================================================
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         base.OnPointerWheelChanged(e);
-        var pos = e.GetPosition(this);
         double factor = e.Delta.Y > 0 ? ZoomStep : 1.0 / ZoomStep;
         double nuevo = Math.Clamp(_scaleX * factor, MinScale, MaxScale);
-        factor = nuevo / _scaleX;
+        if (Math.Abs(nuevo - _scaleX) < 1e-9) return;
 
-        // Mantener fijo el punto bajo el cursor: t' = pos - factor·(pos − t).
-        _tx = pos.X - factor * (pos.X - _tx);
-        _ty = pos.Y - factor * (pos.Y - _ty);
+        var pt = e.GetPosition(this);
+        double k = nuevo / _scaleX;
+        _tx = pt.X - k * (pt.X - _tx);
+        _ty = pt.Y - k * (pt.Y - _ty);
         _scaleX = _scaleY = nuevo;
 
-        InvalidateVisual();
+        InvalidateVisual();              // los tiradores mantienen su tamaño en pantalla
         ReiniciarDebounceReraster();
         e.Handled = true;
     }
@@ -648,37 +1224,342 @@ public sealed class CadCanvasHost : Control
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
-        Focus();
         var pp = e.GetCurrentPoint(this);
-        if (pp.Properties.IsLeftButtonPressed)
+        if (!pp.Properties.IsLeftButtonPressed) return;   // sólo botón izquierdo
+
+        var pt = pp.Position;
+        _dragStart = pt;
+        Focus();
+
+        // Calibración del PDF: prioridad absoluta sobre cualquier herramienta.
+        if (ModoCalibrarPdf)
         {
-            _panning = true;
-            _panStartScreen = pp.Position;
-            _panStartTx = _tx;
-            _panStartTy = _ty;
-            e.Pointer.Capture(this);
+            if (_calibrarConfirmando) { e.Handled = true; return; }
+            var ptPre = PantallaAPre(pt);
+            if (_calibrarP1Pre is null)
+            {
+                _calibrarP1Pre = ptPre;
+                _calibrarP2Pre = ptPre;
+                InvalidateVisual();
+            }
+            else
+            {
+                var p2 = AplicarSnapOrtoCalibracion(_calibrarP1Pre.Value, ptPre, e.KeyModifiers);
+                _calibrarP2Pre = p2;
+                _calibrarConfirmando = true;
+                InvalidateVisual();
+
+                double pivX = _calibrarP1Pre.Value.X / PxPorMetro;
+                double pivY = _calibrarP1Pre.Value.Y / PxPorMetro;
+                double dxM = (p2.X - _calibrarP1Pre.Value.X) / PxPorMetro;
+                double dyM = (p2.Y - _calibrarP1Pre.Value.Y) / PxPorMetro;
+                double distM = Math.Sqrt(dxM * dxM + dyM * dyM);
+
+                var midPre = new Point(
+                    (_calibrarP1Pre.Value.X + p2.X) / 2.0,
+                    (_calibrarP1Pre.Value.Y + p2.Y) / 2.0);
+                var midPant = new Point(midPre.X * _scaleX + _tx, midPre.Y * _scaleY + _ty);
+
+                CalibrarPdfPuntosListos?.Invoke(this,
+                    new CalibrarPdfPuntosListosEventArgs(pivX, pivY, distM, midPant));
+            }
+            e.Handled = true;
+            return;
+        }
+
+        // Doble clic sobre una losa (modo Puntero) → abrir el editor flotante.
+        if (e.ClickCount == 2 && ModoInteraccion == ModoInteraccionCad.Puntero)
+        {
+            var hitDoble = HitTestLosa(pt);
+            if (hitDoble != null)
+            {
+                var rp = PlacementARectPx(hitDoble);
+                var rectPant = new Rect(
+                    rp.X * _scaleX + _tx, rp.Y * _scaleY + _ty,
+                    rp.Width * _scaleX, rp.Height * _scaleY);
+                LosaDobleClicada?.Invoke(this,
+                    new LosaDobleClicEventArgs(hitDoble.Losa, rectPant, hitDoble.X, hitDoble.Y));
+                return;
+            }
+        }
+
+        // Herramienta «Mano» → siempre pan, sin tocar losas.
+        if (ModoInteraccion == ModoInteraccionCad.Mano)
+        {
+            _modo = ModoArrastre.Pan;
+            _panStartTx = _tx; _panStartTy = _ty;
+            Capturar(e.Pointer);
+            Cursor = CursorHand;
+            return;
+        }
+
+        // Herramienta «Dibujar Losa» → iniciar el trazado de un rectángulo.
+        if (ModoInteraccion == ModoInteraccionCad.DibujarLosa)
+        {
+            _chips = Array.Empty<AdyacenciaCandidata>();
+            _modo = ModoArrastre.DibujarLosa;
+            _dibujarAnclaPre = PantallaAPre(pt);
+            _rectFantasmaPx = new Rect(_dibujarAnclaPre, _dibujarAnclaPre);
+            Capturar(e.Pointer);
+            Cursor = CursorCross;
+            return;
+        }
+
+        // Herramienta «Dibujar Muro» → iniciar el trazado de un segmento.
+        if (ModoInteraccion == ModoInteraccionCad.DibujarMuro)
+        {
+            _chips = Array.Empty<AdyacenciaCandidata>();
+            _modo = ModoArrastre.DibujarMuro;
+            _muroAnclaPre = PantallaAPre(pt);
+            _muroFinPre = _muroAnclaPre;
+            Capturar(e.Pointer);
+            Cursor = CursorCross;
+            return;
+        }
+
+        // 1) ¿Sobre un tirador de la losa seleccionada? → redimensionar.
+        int handle = HandleBajoCursor(pt);
+        if (handle >= 0)
+        {
+            _handleActivo = handle;
+            _rectOriginalPx = RectPxDeLosaSeleccionada();
+            _rectFantasmaPx = _rectOriginalPx;
+            _chips = Array.Empty<AdyacenciaCandidata>();
+            InvalidateVisual();
+            _modo = ModoArrastre.Redimensionar;
+            _idsExcluidosSnap.Clear();
+            if (_losaSeleccionada is not null) _idsExcluidosSnap.Add(_losaSeleccionada.Id);
+            Capturar(e.Pointer);
+            return;
+        }
+
+        // 2) ¿Sobre un chip de adyacencia? → crear el BordeAdic (acción instantánea).
+        int chip = HitTestChip(pt);
+        if (chip >= 0)
+        {
+            var candidato = _chips[chip];
+            if (CrearBordeAdicCommand is { } cmd && cmd.CanExecute(candidato)) cmd.Execute(candidato);
+            RecomputarChips();
+            InvalidateVisual();
+            return;
+        }
+
+        // 3) ¿Sobre una losa? → seleccionarla y armar un posible movimiento.
+        var hit = HitTestLosa(pt);
+        if (hit != null)
+        {
+            _losaSeleccionada = hit.Losa;
+            _handleActivo = -1;
+            _rectOriginalPx = PlacementARectPx(hit);
+            _rectFantasmaPx = _rectOriginalPx;
+            _chips = Array.Empty<AdyacenciaCandidata>();
+            InvalidateVisual();
+            _modo = ModoArrastre.Mover;
+
+            _idsExcluidosSnap.Clear();
+            _grupoMoverOrigPx.Clear();
+            _grupoMoverFantasmasPx.Clear();
+            _grupoMoverActivo = false;
+            if (MoverConectadas && Sistema is { } sis)
+            {
+                var componente = GrafoAdyacencia.ComponenteConexa(sis, hit.Losa.Id);
+                if (componente.Count > 1)
+                {
+                    _grupoMoverActivo = true;
+                    foreach (var p in _placements)
+                        if (componente.Contains(p.Losa.Id))
+                            _grupoMoverOrigPx[p.Losa.Id] = PlacementARectPx(p);
+                    foreach (var id in componente) _idsExcluidosSnap.Add(id);
+                }
+            }
+            if (!_grupoMoverActivo) _idsExcluidosSnap.Add(hit.Losa.Id);
+
+            Capturar(e.Pointer);
+            Cursor = CursorSizeAll;
+            return;
+        }
+
+        // 4) Espacio vacío → pan, y se deselecciona lo que hubiera.
+        if (_losaSeleccionada != null) { _losaSeleccionada = null; InvalidateVisual(); }
+        _modo = ModoArrastre.Pan;
+        _panStartTx = _tx; _panStartTy = _ty;
+        Capturar(e.Pointer);
+        Cursor = CursorSizeAll;
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
+        base.OnPointerReleased(e);
+        var modo = _modo;
+        _modo = ModoArrastre.Ninguno;
+        _handleActivo = -1;
+        LiberarCaptura();
+        Cursor = CursorArrow;
+        var pt = e.GetPosition(this);
+
+        switch (modo)
+        {
+            case ModoArrastre.Pan:
+                // Un clic (no un pan real) sobre espacio vacío → mapear polígono.
+                double dx = pt.X - _dragStart.X, dy = pt.Y - _dragStart.Y;
+                if (ModoInteraccion != ModoInteraccionCad.Mano
+                    && Math.Sqrt(dx * dx + dy * dy) < ClicMaxPx)
+                {
+                    var poligono = HitTestPoligono(pt);
+                    if (poligono != null && PoligonoClickCommand is { } cmd && cmd.CanExecute(poligono))
+                    {
+                        cmd.Execute(poligono);
+                        RecomputarChips();
+                        InvalidateVisual();
+                    }
+                }
+                break;
+
+            case ModoArrastre.Mover:
+            case ModoArrastre.Redimensionar:
+                ConfirmarArrastre();
+                break;
+
+            case ModoArrastre.DibujarLosa:
+                ConfirmarDibujoLosa();
+                break;
+
+            case ModoArrastre.DibujarMuro:
+                ConfirmarDibujoMuro();
+                break;
         }
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
-        if (!_panning) return;
-        var pos = e.GetPosition(this);
-        _tx = _panStartTx + (pos.X - _panStartScreen.X);
-        _ty = _panStartTy + (pos.Y - _panStartScreen.Y);
-        InvalidateVisual();
+        var pt = e.GetPosition(this);
+
+        // Modo Calibrar PDF — la línea se anima hasta el cursor tras fijar P₁.
+        if (ModoCalibrarPdf)
+        {
+            Cursor = CursorCross;
+            if (_calibrarP1Pre is { } p1 && !_calibrarConfirmando)
+            {
+                _calibrarP2Pre = AplicarSnapOrtoCalibracion(p1, PantallaAPre(pt), e.KeyModifiers);
+                InvalidateVisual();
+            }
+            return;
+        }
+
+        switch (_modo)
+        {
+            case ModoArrastre.Ninguno:
+                if (ModoInteraccion is ModoInteraccionCad.DibujarLosa or ModoInteraccionCad.DibujarMuro)
+                    Cursor = CursorCross;
+                else if (ModoInteraccion == ModoInteraccionCad.Mano)
+                    Cursor = CursorHand;
+                else
+                    ActualizarCursorHover(pt);
+                break;
+
+            case ModoArrastre.DibujarLosa:
+                _rectFantasmaPx = new Rect(_dibujarAnclaPre, PantallaAPre(pt));
+                InvalidateVisual();
+                break;
+
+            case ModoArrastre.DibujarMuro:
+                _muroFinPre = PantallaAPre(pt);
+                InvalidateVisual();
+                break;
+
+            case ModoArrastre.Pan:
+                // Inmediato: cambiar el transform exige repintar (WPF no lo necesitaba).
+                _tx = _panStartTx + (pt.X - _dragStart.X);
+                _ty = _panStartTy + (pt.Y - _dragStart.Y);
+                InvalidateVisual();
+                break;
+
+            case ModoArrastre.Mover:
+                _rectFantasmaPx = CalcularRectMovido(pt);
+                if (_grupoMoverActivo) PropagarGrupoMover();
+                InvalidateVisual();
+                break;
+
+            case ModoArrastre.Redimensionar:
+                _rectFantasmaPx = CalcularRectRedimensionado(pt);
+                InvalidateVisual();
+                break;
+        }
     }
 
-    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
     {
-        base.OnPointerReleased(e);
-        _panning = false;
-        e.Pointer.Capture(null);
+        base.OnPointerCaptureLost(e);
+        // Captura perdida a mitad de un gesto: descartar el arrastre (el SSOT
+        // nunca se tocó) y volver al overlay de selección estática.
+        bool arrastrando = _modo is ModoArrastre.Mover or ModoArrastre.Redimensionar
+                                 or ModoArrastre.DibujarLosa or ModoArrastre.DibujarMuro;
+        if (_modo == ModoArrastre.DibujarLosa) _rectFantasmaPx = default;
+        ResetGrupoMover();
+        _modo = ModoArrastre.Ninguno;
+        _handleActivo = -1;
+        _punteroCapturado = null;
+        if (arrastrando) InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Escape: durante un trazo lo cancela; con herramienta de dibujo activa sin
+    /// trazo, vuelve a «Puntero»; en modo Calibrar PDF, aborta la calibración.
+    /// </summary>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Key != Key.Escape) return;
+
+        if (ModoCalibrarPdf) { AbortarCalibracion(); e.Handled = true; return; }
+
+        if (_modo == ModoArrastre.DibujarLosa)
+        {
+            _modo = ModoArrastre.Ninguno;
+            _rectFantasmaPx = default;
+            if (EstaCapturado) LiberarCaptura();
+            InvalidateVisual();
+            e.Handled = true;
+        }
+        else if (_modo == ModoArrastre.DibujarMuro)
+        {
+            _modo = ModoArrastre.Ninguno;
+            if (EstaCapturado) LiberarCaptura();
+            InvalidateVisual();
+            e.Handled = true;
+        }
+        else if (ModoInteraccion is ModoInteraccionCad.DibujarLosa or ModoInteraccionCad.DibujarMuro)
+        {
+            ModoInteraccion = ModoInteraccionCad.Puntero;
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
+    /// Sobre qué polígono cerrado del DXF (si alguno) cae el punto de pantalla.
+    /// Deshace zoom/pan y el flip-Y de la capa del plano antes del test punto-en-polígono.
+    /// </summary>
+    private PolilineaCad? HitTestPoligono(Point pantalla)
+    {
+        var plano = Plano;
+        if (plano is null || plano.EstaVacio) return null;
+        if (_scaleX <= 0) return null;
+
+        double preX = (pantalla.X - _tx) / _scaleX;
+        double preY = (pantalla.Y - _ty) / _scaleY;
+        double dxfX = preX / PxPorMetro;
+        double dxfY = plano.MaxY - preY / PxPorMetro;
+        var punto = new PuntoCad(dxfX, dxfY);
+
+        foreach (var ent in plano.Entidades)
+            if (ent is PolilineaCad poli && poli.Cerrada && PoligonoLosaMapper.ContienePunto(poli, punto))
+                return poli;
+        return null;
     }
 
     // =====================================================================
-    // Re-rasterización del PDF — cableado declarado, lógica en Fase E.2
+    // Re-rasterización del PDF — debounce tras un zoom
     // =====================================================================
 
     private void ReiniciarDebounceReraster()
@@ -687,11 +1568,20 @@ public sealed class CadCanvasHost : Control
         _debounceReraster.Start();
     }
 
-    /// <summary>Evalúa si conviene pedir un PDF más nítido tras un zoom (Fase E.2).</summary>
+    /// <summary>
+    /// Tras el debounce de zoom, si el PDF en pantalla supera 1.5× los píxeles del
+    /// bitmap actual, pide al VM uno más nítido. El zoom-out nunca dispara nada.
+    /// </summary>
     private void EvaluarReRasterizado()
     {
         _debounceReraster.Stop();
-        // La heurística de nitidez y el disparo de ReRasterizarPdfCommand se
-        // portan en la Fase E.2 junto con la interacción del PDF.
+        if (Pdf is not { EstaVacio: false } pdf || FondoPdf is not { } img) return;
+
+        double anchoEnPantalla = pdf.Ancho * pdf.Escala * PxPorMetro * _scaleX;
+        if (anchoEnPantalla <= img.PixelSize.Width * 1.5) return;   // el bitmap aún alcanza
+
+        int objetivo = (int)Math.Clamp(anchoEnPantalla, 1500, 6000);
+        if (ReRasterizarPdfCommand is { } cmd && cmd.CanExecute(objetivo)) cmd.Execute(objetivo);
+        else ReiniciarDebounceReraster();   // ocupado → reintentar en 350 ms
     }
 }
