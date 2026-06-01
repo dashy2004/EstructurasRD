@@ -1017,6 +1017,25 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         catch (Exception ex) { Log("Error exportando XLSX: " + ex.Message); }
     }
 
+    /// <summary>
+    /// Exporta el modelo de vigas continuas del proyecto (de todos los niveles
+    /// de todos los edificios) y la base de cargas al formato abierto
+    /// <b>SAF (Structural Analysis Format)</b> en <paramref name="path"/>.
+    /// </summary>
+    public void ExportarSaf(string path)
+    {
+        try
+        {
+            var vigas = _proyecto.Edificios
+                .SelectMany(e => e.Niveles)
+                .SelectMany(n => n.Vigas)
+                .ToList();
+            SafExporter.Export(vigas, _proyecto.Combinaciones, path, _proyecto.Nombre);
+            Log($"SAF exportado ({vigas.Count} viga(s)): {path}");
+        }
+        catch (Exception ex) { Log("Error exportando SAF: " + ex.Message); }
+    }
+
     public IReadOnlyList<Norma> Normas => ReglamentoService.Load();
 
     private static Sistema NuevoSistemaDemo()

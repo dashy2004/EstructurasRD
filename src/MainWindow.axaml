@@ -271,6 +271,7 @@
                             <Separator/>
                             <MenuItem Header="Exportar CSV..." Click="OnExportCsvClick"/>
                             <MenuItem Header="Exportar XLSX..." Click="OnExportXlsxClick"/>
+                            <MenuItem Header="Exportar SAF (vigas)..." Click="OnExportSafClick"/>
                         </MenuItem>
                     </Menu>
 

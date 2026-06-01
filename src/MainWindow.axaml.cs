@@ -311,6 +311,17 @@ public partial class MainWindow : Window
         await Vm.ExportarXlsxAsync(path, png);
     }
 
+    private async void OnExportSafClick(object? sender, RoutedEventArgs e)
+    {
+        var path = await AppServices.Dialogs.SaveFileAsync(
+            "Exportar a SAF (Structural Analysis Format)",
+            (Vm.Sistema.Nombre ?? "modelo") + ".xlsx", ".xlsx",
+            new FileFilter("SAF (Excel)", new[] { "*.xlsx" }));
+        if (path is null) return;
+
+        Vm.ExportarSaf(path);
+    }
+
     private void OnTrustPluginClick(object? sender, RoutedEventArgs e)
     {
         if (sender is Control c && c.Tag is string fullPath)
