@@ -171,10 +171,10 @@ public static class PdfImportador
     /// o un buffer null/diminuto. Propaga excepciones de Docnet — el caller
     /// decide si caer al salvavidas 1:1.
     /// </summary>
-    private static Bitmap? RasterizarPagina(string path, PageDimensions pd, bool invertColors)
+    private static Bitmap? RasterizarPagina(string path, PageDimensions pd, bool invertColors, int pagina = 0)
     {
         using var doc = DocLib.Instance.GetDocReader(path, pd);
-        using var page = doc.GetPageReader(0);
+        using var page = doc.GetPageReader(pagina);
         int wPx = page.GetPageWidth();
         int hPx = page.GetPageHeight();
         if (wPx <= 0 || hPx <= 0) return null;
@@ -182,29 +182,62 @@ public static class PdfImportador
         if (bgra is null || bgra.Length < 4) return null;
 
         if (invertColors) InvertirBgra(bgra);
+        return BgraABitmap(bgra, wPx, hPx);
+    }
 
-        // Port a Avalonia: BGRA crudo → WriteableBitmap. WPF usaba Bgra32 (alpha
-        // recto, no premultiplicado) → AlphaFormat.Unpremul. Copiamos respetando
-        // RowBytes del framebuffer (puede tener padding distinto a wPx*4).
+    /// <summary>
+    /// BGRA crudo (stride wPx*4) → <see cref="WriteableBitmap"/> Bgra8888/Unpremul (alpha
+    /// recto, como el Bgra32 de WPF). Copia respetando el <c>RowBytes</c> del framebuffer
+    /// (que puede tener padding distinto al stride origen).
+    /// </summary>
+    private static Bitmap BgraABitmap(byte[] bgra, int wPx, int hPx)
+    {
         var wb = new WriteableBitmap(
             new PixelSize(wPx, hPx), new Vector(96, 96),
             PixelFormat.Bgra8888, AlphaFormat.Unpremul);
-
         using (var fb = wb.Lock())
         {
             int srcStride = wPx * 4;
             if (fb.RowBytes == srcStride)
-            {
                 Marshal.Copy(bgra, 0, fb.Address, bgra.Length);
-            }
             else
-            {
                 for (int y = 0; y < hPx; y++)
                     Marshal.Copy(bgra, y * srcStride, fb.Address + y * fb.RowBytes, srcStride);
-            }
         }
         return wb;
     }
+
+    /// <summary>Cuenta las páginas del PDF (0 si no se puede abrir). Para el visor (H3).</summary>
+    public static Task<int> ContarPaginasAsync(string path) => Task.Run(() =>
+    {
+        try
+        {
+            using var doc = DocLib.Instance.GetDocReader(path, new PageDimensions());
+            return doc.GetPageCount();
+        }
+        catch { return 0; }
+    });
+
+    /// <summary>
+    /// Rasteriza la página <paramref name="pagina"/> (0-based) al ancho objetivo dado, para
+    /// el visor multipágina (H3). Calcula el factor desde el ancho natural de esa página y
+    /// cae a 1:1 si el factor falla. Devuelve null si no se puede rasterizar.
+    /// </summary>
+    public static Task<Bitmap?> RasterizarPaginaIndiceAsync(
+        string path, int pagina, int anchoObjetivoPx, bool invertColors = false) => Task.Run(() =>
+    {
+        try
+        {
+            int natW;
+            using (var d = DocLib.Instance.GetDocReader(path, new PageDimensions()))
+            using (var pg = d.GetPageReader(pagina))
+                natW = pg.GetPageWidth();
+            double factor = natW > 0 ? Math.Clamp((double)anchoObjetivoPx / natW, 0.1, 5.0) : 1.0;
+            try { return RasterizarPagina(path, new PageDimensions(factor), invertColors, pagina); }
+            catch { return RasterizarPagina(path, new PageDimensions(1.0), invertColors, pagina); }
+        }
+        catch { return (Bitmap?)null; }
+    });
 
     /// <summary>
     /// Invierte los canales B/G/R del buffer BGRA (modo oscuro CAD). El blanco

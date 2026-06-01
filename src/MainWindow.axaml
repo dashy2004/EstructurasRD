@@ -165,6 +165,9 @@
                         <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🗺  Lienzo CAD"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}"
                                      ToolTip.Tip="Editor visual CAD: importá un plano .DXF de referencia y visualizá las losas."/>
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📄  Visor PDF"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=VisorPdf}"
+                                     ToolTip.Tip="Visor de documentos PDF multipágina (prev/next página, zoom 50–200%)."/>
                         <Border Classes="navsep"/>
 
                         <!-- 5 · Análisis -->
@@ -704,6 +707,11 @@
                 <!-- MODO Lienzo CAD (stub Fase E). -->
                 <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}">
                     <cad:CadView x:Name="CadEditorView" DataContext="{Binding}"/>
+                </ContentControl>
+
+                <!-- MODO Visor PDF (H3) — control autónomo, sin DataContext del VM. -->
+                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=VisorPdf}">
+                    <v:PdfViewerControl/>
                 </ContentControl>
 
                 <!-- MODO Cargas y Combinaciones. -->

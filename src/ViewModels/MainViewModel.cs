@@ -1365,6 +1365,8 @@ public enum ModoSidebar
     Editor,
     /// <summary>Editor visual CAD: plano DXF de referencia + losas (Fase 1.B).</summary>
     PlanoCad,
+    /// <summary>Visor PDF multipágina con toolbar prev/next + zoom (H3).</summary>
+    VisorPdf,
     DLEditor,
     Salida,
     /// <summary>Diseño de aceros distribuidos (próximamente — placeholder en la UI).</summary>
