@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
 
 namespace LosasPlus.Models;
 
@@ -88,6 +89,7 @@ public partial class Columna : INotifyPropertyChanged
     }
 
     /// <summary>Área de la sección transversal = <see cref="Base"/> · <see cref="Peralte"/>, en m².</summary>
+    [JsonIgnore]
     public double AreaSeccion => _base * _peralte;
 
     public event PropertyChangedEventHandler? PropertyChanged;

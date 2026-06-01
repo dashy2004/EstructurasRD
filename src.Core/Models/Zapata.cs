@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
 
 namespace LosasPlus.Models;
 
@@ -50,6 +51,7 @@ public partial class Zapata : INotifyPropertyChanged
     }
 
     /// <summary>Área de contacto con el terreno = <see cref="Ancho"/> · <see cref="Largo"/>, en m².</summary>
+    [JsonIgnore]
     public double AreaContacto => _ancho * _largo;
 
     public event PropertyChangedEventHandler? PropertyChanged;

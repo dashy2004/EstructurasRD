@@ -95,6 +95,14 @@ public partial class Nivel : INotifyPropertyChanged
     /// </summary>
     public ObservableCollection<Viga> Vigas { get; } = new();
 
+    /// <summary>
+    /// Columnas de esta planta (Fase J — descenso topológico de cargas). Colección
+    /// get-only con inicializador; se (de)serializa vía <c>Populate</c> igual que
+    /// <see cref="Vigas"/>, de forma aditiva (los proyectos previos cargan con la
+    /// colección vacía).
+    /// </summary>
+    public ObservableCollection<Columna> Columnas { get; } = new();
+
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
