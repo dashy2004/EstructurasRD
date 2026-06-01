@@ -79,6 +79,17 @@ public static class EscenaEdificio
             // Rectángulo del piso (4 aristas).
             for (int i = 0; i < 4; i++)
                 segs.Add(new Segmento3D(esquinas[i], esquinas[(i + 1) % 4]));
+
+            // Columnas reales del modelo (Fase J): segmento vertical en su posición
+            // de planta (X, Z) = (CoordenadaX, CoordenadaY), de la cota del nivel a
+            // cota + altura.
+            foreach (var columna in nivel.Columnas)
+            {
+                float cx = (float)columna.CoordenadaX;
+                float cz = (float)columna.CoordenadaY;
+                float yTope = y + (float)columna.Altura;
+                segs.Add(new Segmento3D(new Vector3(cx, y, cz), new Vector3(cx, yTope, cz)));
+            }
         }
 
         // Columnas: aristas entre esquinas homólogas de niveles consecutivos.
