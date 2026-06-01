@@ -168,6 +168,9 @@
                         <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📄  Visor PDF"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=VisorPdf}"
                                      ToolTip.Tip="Visor de documentos PDF multipágina (prev/next página, zoom 50–200%)."/>
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🧊  Vista 3D"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vista3D}"
+                                     ToolTip.Tip="Vista 3D alámbrica del edificio (massing por niveles). Arrastrar: orbitar · rueda: zoom."/>
                         <Border Classes="navsep"/>
 
                         <!-- 5 · Análisis -->
@@ -713,6 +716,11 @@
                 <!-- MODO Visor PDF (H3) — control autónomo, sin DataContext del VM. -->
                 <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=VisorPdf}">
                     <v:PdfViewerControl/>
+                </ContentControl>
+
+                <!-- MODO Vista 3D (Fase I) — viewport alámbrico por software (sin SharpDX/GL). -->
+                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vista3D}">
+                    <v:Vista3DControl Edificio="{Binding EdificioActivo}"/>
                 </ContentControl>
 
                 <!-- MODO Cargas y Combinaciones. -->

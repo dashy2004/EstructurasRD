@@ -530,6 +530,12 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         }
     }
 
+    /// <summary>
+    /// Edificio activo del proyecto (el primero), fuente del modelo para la
+    /// Vista 3D (Fase I). Nulo si el proyecto aún no tiene edificios.
+    /// </summary>
+    public Edificio? EdificioActivo => _proyecto.Edificios.FirstOrDefault();
+
     /// <summary>Alias retro-compatible: el resto del código y los XAML siguen accediendo a "Sistema".</summary>
     public Sistema Sistema
     {
@@ -1386,6 +1392,8 @@ public enum ModoSidebar
     PlanoCad,
     /// <summary>Visor PDF multipágina con toolbar prev/next + zoom (H3).</summary>
     VisorPdf,
+    /// <summary>Vista 3D alámbrica del edificio (Fase I — sin SharpDX).</summary>
+    Vista3D,
     DLEditor,
     Salida,
     /// <summary>Diseño de aceros distribuidos (próximamente — placeholder en la UI).</summary>
