@@ -56,4 +56,30 @@ public class ColumnasEditorViewModelTests
         Assert.Null(vm.Agregar());
         vm.Eliminar(); // no lanza
     }
+
+    [Fact]
+    public void Edita_las_columnas_del_nivel_seleccionado()
+    {
+        var ed = new Edificio();
+        var n0 = new Nivel { Nombre = "Planta Baja", Cota = 0 };
+        var n1 = new Nivel { Nombre = "Nivel 1", Cota = 3 };
+        ed.Niveles.Add(n0);
+        ed.Niveles.Add(n1);
+
+        var vm = new ColumnasEditorViewModel(() => ed);
+
+        // Por defecto se selecciona el primer nivel.
+        Assert.Equal(2, vm.Niveles.Count);
+        Assert.Same(n0, vm.NivelSeleccionado);
+        vm.Agregar();
+        Assert.Single(n0.Columnas);
+        Assert.Empty(n1.Columnas);
+
+        // Al cambiar de nivel, las columnas reflejan el nuevo y se agrega allí.
+        vm.NivelSeleccionado = n1;
+        Assert.Same(n1.Columnas, vm.Columnas);
+        vm.Agregar();
+        Assert.Single(n0.Columnas);
+        Assert.Single(n1.Columnas);
+    }
 }
