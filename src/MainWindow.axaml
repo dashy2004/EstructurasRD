@@ -70,6 +70,21 @@
             <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
         </Style>
 
+        <!-- H1 — Caption de categoría del nav (7 bloques) y separador vertical. -->
+        <Style Selector="TextBlock.navcat">
+            <Setter Property="FontSize" Value="9"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}"/>
+            <Setter Property="VerticalAlignment" Value="Bottom"/>
+            <Setter Property="Margin" Value="10,0,4,9"/>
+        </Style>
+        <Style Selector="Border.navsep">
+            <Setter Property="Width" Value="1"/>
+            <Setter Property="Margin" Value="4,6"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <Setter Property="Background" Value="{DynamicResource Border}"/>
+        </Style>
+
         <!-- Botón ID del grid de losas resaltado cuando ModoConectarBordes activo. -->
         <Style Selector="Button.connectmode">
             <Setter Property="Background" Value="{DynamicResource AccentHi}"/>
@@ -110,16 +125,22 @@
                 <ScrollViewer Grid.Column="1" VerticalAlignment="Bottom"
                               HorizontalScrollBarVisibility="Auto"
                               VerticalScrollBarVisibility="Disabled">
+                    <!-- H1 — 7 categorías: Proyecto · Losas Legacy · Modelo · Visualización ·
+                         Análisis · Normativa · Sistema. Mismo binding ModoActivo; sólo se
+                         agrupan los tabs con captions (navcat) y separadores (navsep). -->
                     <StackPanel Orientation="Horizontal">
+                        <!-- 1 · Proyecto -->
+                        <TextBlock Classes="navcat" Text="PROYECTO"/>
                         <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📂  Explorador"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Explorador}"/>
                         <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🔍  Búsqueda"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Busqueda}"/>
+                        <Border Classes="navsep"/>
+
+                        <!-- 2 · Losas Legacy (flujo clásico de texto) -->
+                        <TextBlock Classes="navcat" Text="LOSAS LEGACY"/>
                         <RadioButton Classes="navtab" GroupName="SidebarNav" Content="✎  Editor"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Editor}"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🗺  Lienzo CAD"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}"
-                                     ToolTip.Tip="Editor visual CAD: importá un plano .DXF de referencia y visualizá las losas."/>
                         <RadioButton Classes="navtab" GroupName="SidebarNav" Content="▤  Editor .DL"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DLEditor}"/>
                         <RadioButton Classes="navtab" GroupName="SidebarNav" Content="⇲  Salida .TXT"
@@ -127,16 +148,39 @@
                         <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🔩  Aceros"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Aceros}"
                                      ToolTip.Tip="Diseño de aceros distribuidos por losa. Próximamente."/>
+                        <Border Classes="navsep"/>
+
+                        <!-- 3 · Modelo Estructural -->
+                        <TextBlock Classes="navcat" Text="MODELO"/>
                         <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📊  Cargas y Combinaciones"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=CargasCombinaciones}"
                                      ToolTip.Tip="Casos y combinaciones de carga del proyecto."/>
                         <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📐  Vigas Continuas"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vigas}"
                                      ToolTip.Tip="Editor de vigas continuas: análisis por rigidez directa y diagramas V(x), M(x), δ(x)."/>
+                        <Border Classes="navsep"/>
+
+                        <!-- 4 · Visualización -->
+                        <TextBlock Classes="navcat" Text="VISUALIZACIÓN"/>
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🗺  Lienzo CAD"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}"
+                                     ToolTip.Tip="Editor visual CAD: importá un plano .DXF de referencia y visualizá las losas."/>
+                        <Border Classes="navsep"/>
+
+                        <!-- 5 · Análisis -->
+                        <TextBlock Classes="navcat" Text="ANÁLISIS"/>
                         <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🛡  Validación"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}"/>
+                        <Border Classes="navsep"/>
+
+                        <!-- 6 · Normativa -->
+                        <TextBlock Classes="navcat" Text="NORMATIVA"/>
                         <RadioButton Classes="navtab" GroupName="SidebarNav" Content="⚖  Reglamento"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Reglamento}"/>
+                        <Border Classes="navsep"/>
+
+                        <!-- 7 · Sistema -->
+                        <TextBlock Classes="navcat" Text="SISTEMA"/>
                         <RadioButton Classes="navtab" GroupName="SidebarNav" Content="⚙  Configuración"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Configuracion}"/>
                         <RadioButton Classes="navtab" GroupName="SidebarNav" Content="◆  Plugins"
