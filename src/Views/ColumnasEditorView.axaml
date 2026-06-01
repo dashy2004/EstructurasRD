@@ -1,0 +1,30 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="LosasPlus.Views.ColumnasEditorView"
+             x:CompileBindings="False">
+    <DockPanel Margin="16" LastChildFill="True">
+
+        <TextBlock DockPanel.Dock="Top" Text="Columnas (primer nivel)"
+                   FontSize="20" FontWeight="SemiBold" Margin="0,0,0,4"/>
+        <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,0,0,12" Opacity="0.7"
+                   Text="Define las columnas del edificio: posición en planta (X, Y), sección y altura. Alimentan la vista 3D y el descenso de cargas."/>
+
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,12">
+            <Button Content="Agregar columna" Click="OnAgregar"/>
+            <Button Content="Eliminar seleccionada" Click="OnEliminar"/>
+        </StackPanel>
+
+        <DataGrid ItemsSource="{Binding Columnas}" SelectedItem="{Binding Seleccionada}"
+                  AutoGenerateColumns="False" GridLinesVisibility="All" HeadersVisibility="Column"
+                  CanUserResizeColumns="True">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Nombre"   Binding="{Binding Nombre}" Width="*"/>
+                <DataGridTextColumn Header="X [m]"    Binding="{Binding CoordenadaX}" Width="*"/>
+                <DataGridTextColumn Header="Y [m]"    Binding="{Binding CoordenadaY}" Width="*"/>
+                <DataGridTextColumn Header="Base [m]" Binding="{Binding Base}" Width="*"/>
+                <DataGridTextColumn Header="Peralte [m]" Binding="{Binding Peralte}" Width="*"/>
+                <DataGridTextColumn Header="Altura [m]"  Binding="{Binding Altura}" Width="*"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</UserControl>

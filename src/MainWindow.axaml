@@ -158,6 +158,9 @@
                         <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📐  Vigas Continuas"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vigas}"
                                      ToolTip.Tip="Editor de vigas continuas: análisis por rigidez directa y diagramas V(x), M(x), δ(x)."/>
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🏛  Columnas"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Columnas}"
+                                     ToolTip.Tip="Editor de columnas del edificio (posición en planta, sección, altura)."/>
                         <Border Classes="navsep"/>
 
                         <!-- 4 · Visualización -->
@@ -734,6 +737,11 @@
                 <!-- MODO Vigas. -->
                 <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vigas}">
                     <vigas:VigaEditorView DataContext="{Binding}"/>
+                </ContentControl>
+
+                <!-- MODO Columnas (Fase J) — editor de columnas del edificio. -->
+                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Columnas}">
+                    <v:ColumnasEditorView DataContext="{Binding ColumnasEditor}"/>
                 </ContentControl>
 
                 <!-- MODO DLEditor (texto crudo). -->

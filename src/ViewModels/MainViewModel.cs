@@ -158,6 +158,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// <summary>VM de la vista «Bajada de cargas» (Fase J): transmisión vertical + predim de zapata.</summary>
     public BajadaCargasViewModel BajadaCargas { get; private set; } = null!;
 
+    /// <summary>VM del editor de columnas (Fase J): CRUD de las columnas del edificio activo.</summary>
+    public ColumnasEditorViewModel ColumnasEditor { get; private set; } = null!;
+
     public ICommand? IrABusquedaCommand { get; private set; }
     public ICommand? GenerarMemoriaCommand { get; private set; }
     public ICommand? AutoBalanceoCommand { get; private set; }
@@ -676,6 +679,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         // ---- Editor de vigas continuas (Fase 3) ----
         VigaEditor = new VigaEditorViewModel(_proyecto, PushUndoSnapshot);
         BajadaCargas = new BajadaCargasViewModel(() => EdificioActivo);
+        ColumnasEditor = new ColumnasEditorViewModel(() => EdificioActivo);
 
         // Cambios al nombre del proyecto refrescan el título de la ventana.
         _proyecto.PropertyChanged += (_, e) =>
@@ -1406,6 +1410,8 @@ public enum ModoSidebar
     CargasCombinaciones,
     /// <summary>Editor de vigas continuas y diagramas analíticos (Fase 3).</summary>
     Vigas,
+    /// <summary>Editor de columnas del edificio (Fase J).</summary>
+    Columnas,
     Validacion,
     /// <summary>Bajada de cargas por niveles + predimensionado de zapata (Fase J).</summary>
     BajadaCargas,
