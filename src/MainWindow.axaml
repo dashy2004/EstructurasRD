@@ -177,6 +177,9 @@
                         <TextBlock Classes="navcat" Text="ANÁLISIS"/>
                         <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🛡  Validación"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}"/>
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="⬇  Bajada de Cargas"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=BajadaCargas}"
+                                     ToolTip.Tip="Transmisión vertical de cargas por niveles hasta la base + predimensionado de zapata."/>
                         <Border Classes="navsep"/>
 
                         <!-- 6 · Normativa -->
@@ -862,6 +865,11 @@
                 <!-- MODO Validación normativa. -->
                 <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}">
                     <vws:ValidacionView DataContext="{Binding Validacion}" HorizontalAlignment="Stretch"/>
+                </ContentControl>
+
+                <!-- MODO Bajada de Cargas (Fase J) — transmisión vertical + predim de zapata. -->
+                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=BajadaCargas}">
+                    <v:BajadaCargasView DataContext="{Binding BajadaCargas}"/>
                 </ContentControl>
 
                 <!-- MODO Búsqueda global. -->

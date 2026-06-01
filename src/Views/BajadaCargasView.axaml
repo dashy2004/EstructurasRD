@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="LosasPlus.Views.BajadaCargasView"
+             x:CompileBindings="False">
+    <DockPanel Margin="16" LastChildFill="True">
+
+        <TextBlock DockPanel.Dock="Top" Text="Bajada de cargas"
+                   FontSize="20" FontWeight="SemiBold" Margin="0,0,0,4"/>
+        <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,0,0,12"
+                   Opacity="0.7"
+                   Text="Acumulación de la carga gravitatoria (última) por niveles hasta la base, y predimensionado preliminar de zapata. La carga de losa es Wu (incluye peso propio)."/>
+
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,12">
+            <TextBlock Text="Presión admisible q_adm (t/m²):" VerticalAlignment="Center"/>
+            <TextBox Text="{Binding PresionAdmisible}" Width="90"/>
+            <Button Content="Recalcular" Click="OnRecalcular"/>
+        </StackPanel>
+
+        <Border DockPanel.Dock="Bottom" Margin="0,12,0,0" Padding="12"
+                CornerRadius="6" Background="#1A2230">
+            <StackPanel Spacing="4">
+                <TextBlock FontWeight="SemiBold"
+                           Text="{Binding CargaEnBase, StringFormat='Carga en base (Wu): {0:0.##} t'}"/>
+                <TextBlock Text="{Binding AreaZapata, StringFormat='Zapata — área requerida: {0:0.###} m²'}"/>
+                <TextBlock Text="{Binding LadoZapata, StringFormat='Zapata — lado cuadrada: {0:0.###} m'}"/>
+                <TextBlock Opacity="0.6" FontSize="11"
+                           Text="Predim por presión de servicio (A = P/q_adm). Preliminar; convertir Wu→servicio para diseño."/>
+            </StackPanel>
+        </Border>
+
+        <DataGrid ItemsSource="{Binding Filas}" IsReadOnly="True" AutoGenerateColumns="False"
+                  GridLinesVisibility="Horizontal" HeadersVisibility="Column">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Nivel" Binding="{Binding Nombre}" Width="2*"/>
+                <DataGridTextColumn Header="Cota [m]" Binding="{Binding Cota, StringFormat={}{0:0.##}}" Width="*"/>
+                <DataGridTextColumn Header="Carga propia [t]" Binding="{Binding CargaPropia, StringFormat={}{0:0.##}}" Width="*"/>
+                <DataGridTextColumn Header="Carga acumulada [t]" Binding="{Binding CargaAcumulada, StringFormat={}{0:0.##}}" Width="*"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</UserControl>
