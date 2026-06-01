@@ -257,6 +257,56 @@
                             </ScrollViewer>
                         </StackPanel>
                     </Border>
+
+                    <!-- H2 — Panel «Elemento Activo» arrastrable/colapsable. El header
+                         (cursor SizeAll) se arrastra; doble-clic colapsa a barra ~30px.
+                         Posición y estado de colapso persisten en la sesión (campos
+                         estáticos del code-behind). Bindea a datos ya existentes. -->
+                    <Border x:Name="ElementoActivoPanel" ZIndex="60"
+                            HorizontalAlignment="Left" VerticalAlignment="Top"
+                            Width="240" Margin="12"
+                            Background="{DynamicResource BgSecondary}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                            CornerRadius="7">
+                        <StackPanel>
+                            <Border x:Name="ElementoActivoHeader" Cursor="SizeAll"
+                                    Background="{DynamicResource BgTertiary}"
+                                    CornerRadius="6,6,0,0" Padding="10,6"
+                                    PointerPressed="OnElemHeaderPressed"
+                                    PointerMoved="OnElemHeaderMoved"
+                                    PointerReleased="OnElemHeaderReleased"
+                                    DoubleTapped="OnElemHeaderDoubleTapped">
+                                <DockPanel>
+                                    <TextBlock x:Name="ElementoActivoChevron" DockPanel.Dock="Right"
+                                               Text="▾" FontSize="11"
+                                               Foreground="{DynamicResource FgMuted}"/>
+                                    <TextBlock Text="◆  ELEMENTO ACTIVO" FontSize="10" FontWeight="Bold"
+                                               Foreground="{DynamicResource FgMuted}"/>
+                                </DockPanel>
+                            </Border>
+                            <StackPanel x:Name="ElementoActivoBody" Margin="12,10">
+                                <TextBlock Text="{Binding Sistema.Descripcion, FallbackValue=(sin sistema), TargetNullValue=(sin sistema)}"
+                                           FontWeight="SemiBold" FontSize="12"
+                                           TextTrimming="CharacterEllipsis"
+                                           Foreground="{DynamicResource FgPrimary}"/>
+                                <TextBlock FontSize="11" Margin="0,2,0,0"
+                                           Foreground="{DynamicResource FgMuted}">
+                                    <Run Text="{Binding Sistema.Losas.Count, FallbackValue=0, Mode=OneWay}"/><Run Text=" losas  ·  "/>
+                                    <Run Text="{Binding Sistema.Muros.Count, FallbackValue=0, Mode=OneWay}"/><Run Text=" muros"/>
+                                </TextBlock>
+                                <Border Height="1" Margin="0,8" Background="{DynamicResource Border}"/>
+                                <TextBlock Text="MURO SELECCIONADO" FontSize="9" FontWeight="Bold"
+                                           Foreground="{DynamicResource FgMuted}" Margin="0,0,0,4"/>
+                                <TextBlock FontSize="11" Foreground="{DynamicResource FgSecondary}">
+                                    <Run Text="Muro #"/><Run Text="{Binding CadEditor.MuroSeleccionado.Id, FallbackValue=—, TargetNullValue=—, Mode=OneWay}"/>
+                                    <Run Text="   ·   e "/><Run Text="{Binding CadEditor.MuroSeleccionado.Espesor, StringFormat=0.00, FallbackValue=—, TargetNullValue=—, Mode=OneWay}"/><Run Text=" m"/>
+                                </TextBlock>
+                                <TextBlock FontSize="11" Foreground="{DynamicResource FgSecondary}">
+                                    <Run Text="largo "/><Run Text="{Binding CadEditor.MuroSeleccionado.Longitud, StringFormat=0.00, FallbackValue=—, TargetNullValue=—, Mode=OneWay}"/><Run Text=" m   ·   h "/><Run Text="{Binding CadEditor.MuroSeleccionado.Altura, StringFormat=0.00, FallbackValue=—, TargetNullValue=—, Mode=OneWay}"/><Run Text=" m"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </Border>
 

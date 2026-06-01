@@ -31,6 +31,15 @@ public partial class CadView : UserControl
     private double _calPivoteX, _calPivoteY, _calDistanciaActual;
     private bool _calibrandoActivo;
 
+    // H2 — Panel «Elemento Activo»: posición (Margin Left/Top) y estado de colapso
+    // persistidos en la sesión vía campos estáticos (sobreviven a la recreación de
+    // la vista al cambiar de modo, sin tocar disco ni el VM).
+    private static Thickness? _elemPanelMargin;
+    private static bool _elemPanelColapsado;
+    private bool _elemDragging;
+    private Point _elemDragStart;
+    private Thickness _elemMarginStart;
+
     // InitializeComponent (no AvaloniaXamlLoader.Load): puebla los campos x:Name
     // (Canvas, EditorLosa, EditorTipo, …) que el code-behind referencia.
     public CadView()
@@ -206,5 +215,69 @@ public partial class CadView : UserControl
             && mvm.CadEditor.CancelarCalibrarPdfCommand is { } cmd
             && cmd.CanExecute(null))
             cmd.Execute(null);
+    }
+
+    // ---- H2: panel «Elemento Activo» arrastrable / colapsable ----
+
+    /// <summary>
+    /// Al montar la vista, restaura la posición y el estado de colapso de la sesión;
+    /// si no hay posición previa, ancla el panel arriba-derecha del lienzo.
+    /// </summary>
+    protected override void OnLoaded(RoutedEventArgs e)
+    {
+        base.OnLoaded(e);
+        if (_elemPanelMargin is { } m)
+            ElementoActivoPanel.Margin = m;
+        else
+        {
+            double left = Math.Max(12, Canvas.Bounds.Width - ElementoActivoPanel.Width - 12);
+            ElementoActivoPanel.Margin = new Thickness(left, 12, 0, 0);
+        }
+        AplicarColapsoElem(_elemPanelColapsado);
+    }
+
+    private void OnElemHeaderPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(ElementoActivoHeader).Properties.IsLeftButtonPressed) return;
+        _elemDragging = true;
+        _elemDragStart = e.GetPosition(this);
+        _elemMarginStart = ElementoActivoPanel.Margin;
+        e.Pointer.Capture(ElementoActivoHeader);
+        e.Handled = true;
+    }
+
+    private void OnElemHeaderMoved(object? sender, PointerEventArgs e)
+    {
+        if (!_elemDragging) return;
+        var p = e.GetPosition(this);
+        double left = _elemMarginStart.Left + (p.X - _elemDragStart.X);
+        double top  = _elemMarginStart.Top  + (p.Y - _elemDragStart.Y);
+        // Clamp para que el panel no se salga del lienzo.
+        double maxX = Math.Max(0, Canvas.Bounds.Width  - ElementoActivoPanel.Bounds.Width);
+        double maxY = Math.Max(0, Canvas.Bounds.Height - 30);
+        ElementoActivoPanel.Margin = new Thickness(
+            Math.Clamp(left, 0, maxX), Math.Clamp(top, 0, maxY), 0, 0);
+    }
+
+    private void OnElemHeaderReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (!_elemDragging) return;
+        _elemDragging = false;
+        e.Pointer.Capture(null);
+        _elemPanelMargin = ElementoActivoPanel.Margin;   // persistir posición
+    }
+
+    /// <summary>Doble-clic en el header → colapsar/expandir (barra ~30px).</summary>
+    private void OnElemHeaderDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        _elemPanelColapsado = !_elemPanelColapsado;
+        AplicarColapsoElem(_elemPanelColapsado);
+        e.Handled = true;
+    }
+
+    private void AplicarColapsoElem(bool colapsado)
+    {
+        ElementoActivoBody.IsVisible = !colapsado;
+        ElementoActivoChevron.Text = colapsado ? "▸" : "▾";
     }
 }
