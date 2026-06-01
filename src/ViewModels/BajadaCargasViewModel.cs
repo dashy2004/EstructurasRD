@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using LosasPlus.Models;
 using LosasPlus.Transmision;
@@ -96,6 +97,35 @@ public sealed class BajadaCargasViewModel : INotifyPropertyChanged
         var edificio = _getEdificio();
         if (edificio is null) return;
         BajadaCargasExporter.Export(edificio, PresionAdmisible, path);
+    }
+
+    private string _resumenZapatas = "";
+    /// <summary>Resumen del último predimensionado de zapatas de columnas.</summary>
+    public string ResumenZapatas
+    {
+        get => _resumenZapatas;
+        private set { _resumenZapatas = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// Reparte la carga en base entre todas las columnas del edificio (reparto
+    /// equitativo, <see cref="DescensoColumnas"/>) y predimensiona la zapata de
+    /// cada una para la <see cref="PresionAdmisible"/> actual. Actualiza
+    /// <see cref="ResumenZapatas"/>.
+    /// </summary>
+    public void PredimensionarZapatas()
+    {
+        var edificio = _getEdificio();
+        if (edificio is null) { ResumenZapatas = "Sin edificio activo."; return; }
+
+        var columnas = edificio.Niveles.SelectMany(n => n.Columnas).ToList();
+        if (columnas.Count == 0) { ResumenZapatas = "No hay columnas definidas (agrégalas en el editor de Columnas)."; return; }
+
+        var res = DescensoColumnas.RepartirEquitativo(columnas, CargaEnBase, PresionAdmisible);
+        if (res.Count == 0) { ResumenZapatas = "Sin carga que repartir."; return; }
+
+        double axial = res[0].CargaAxial, lado = res[0].LadoZapata;
+        ResumenZapatas = $"{res.Count} columna(s): {axial:0.##} t c/u (reparto equitativo, Wu) → zapata {lado:0.##}×{lado:0.##} m";
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

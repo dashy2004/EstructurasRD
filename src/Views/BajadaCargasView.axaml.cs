@@ -30,4 +30,7 @@ public partial class BajadaCargasView : UserControl
 
         vm.ExportarXlsx(path);
     }
+
+    private void OnPredimensionarZapatas(object? sender, RoutedEventArgs e)
+        => (DataContext as BajadaCargasViewModel)?.PredimensionarZapatas();
 }

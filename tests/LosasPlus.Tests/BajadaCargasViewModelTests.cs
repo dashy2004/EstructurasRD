@@ -82,4 +82,39 @@ public class BajadaCargasViewModelTests
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }
+
+    [Fact]
+    public void PredimensionarZapatas_dimensiona_las_zapatas_de_las_columnas()
+    {
+        var ed = new Edificio();
+        var nivel = new Nivel { Cota = 0 };
+        var s = new Sistema();
+        s.Losas.Add(new Losa { Lx = 10, Ly = 10, Carga = 1.5 }); // base 150
+        nivel.Sistemas.Add(s);
+        nivel.Columnas.Add(new Columna { Nombre = "C-1" });
+        nivel.Columnas.Add(new Columna { Nombre = "C-2" });
+        nivel.Columnas.Add(new Columna { Nombre = "C-3" });
+        ed.Niveles.Add(nivel);
+
+        var vm = new BajadaCargasViewModel(() => ed) { PresionAdmisible = 15 };
+        Assert.Equal(150, vm.CargaEnBase, 6);
+
+        vm.PredimensionarZapatas();
+
+        double lado = Math.Sqrt(50.0 / 15.0); // 150/3 = 50 t/columna → área 50/15
+        Assert.All(nivel.Columnas, c =>
+        {
+            Assert.NotNull(c.Zapata);
+            Assert.Equal(lado, c.Zapata!.Ancho, 4);
+        });
+        Assert.Contains("3 columna", vm.ResumenZapatas);
+    }
+
+    [Fact]
+    public void PredimensionarZapatas_sin_columnas_informa()
+    {
+        var vm = new BajadaCargasViewModel(() => EdificioDosNiveles());
+        vm.PredimensionarZapatas();
+        Assert.Contains("No hay columnas", vm.ResumenZapatas);
+    }
 }
