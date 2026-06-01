@@ -39,7 +39,10 @@
          Renderiza con el DrawingContext de Avalonia, no con SkiaSharp directo, así que
          no altera el pin SkiaSharp 2.88. -->
     <PackageReference Include="OxyPlot.Avalonia" Version="2.1.0-Avalonia11" />
-    <!-- Pendiente: rasterizador PDF Linux (PdfImportador sigue stub). -->
+    <!-- Fase F: rasterizador PDF multiplataforma. Docnet.Core envuelve PDFium nativo
+         y expone GetImage() como bytes BGRA crudos (NO usa SkiaSharp) → no altera el pin
+         SkiaSharp 2.88. Trae el nativo libpdfium para win-x64/linux-x64/osx en runtimes/. -->
+    <PackageReference Include="Docnet.Core" Version="2.6.0" />
   </ItemGroup>
 
   <ItemGroup>
