@@ -48,7 +48,7 @@ public class AplicarCargasGeometricasTests
         Assert.Equal(20, cargas[0].Magnitud, 3);
 
         RepartoGeometrico.AplicarCargasGeometricas(nivel, "D"); // re-aplicar
-        Assert.Single(compartida.Tramos[0].Cargas.Where(EsD));  // no duplica
+        Assert.Single(compartida.Tramos[0].Cargas, EsD);        // no duplica
     }
 
     [Fact]

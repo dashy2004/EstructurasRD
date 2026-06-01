@@ -24,6 +24,14 @@ public readonly record struct AsignacionViga(Viga Viga, double CargaLineal, doub
 public readonly record struct CargaVigaAgregada(Viga Viga, double CargaLineal, double FuerzaTotal);
 
 /// <summary>
+/// Carga axial (vertical) que una columna recibe de las vigas que apoyan en
+/// ella tras el descenso geométrico viga→columna.
+/// </summary>
+/// <param name="Columna">La columna.</param>
+/// <param name="CargaAxial">Suma de las medias-reacciones de las vigas cuyos extremos caen sobre ella (q · m²).</param>
+public readonly record struct CargaColumnaAxial(Columna Columna, double CargaAxial);
+
+/// <summary>
 /// Reparto <b>geométrico</b> losa→viga (Fase J.15): usando las posiciones en
 /// planta de losas (<see cref="Losa.CoordenadaX"/>/Y + Lx/Ly) y vigas
 /// (<see cref="Viga.OrigenX"/>/Y + ángulo), asigna la carga tributaria de cada
@@ -142,6 +150,61 @@ public static class RepartoGeometrico
                     TipoCargaElemento.Distribuida, carga.CargaLineal, codigoCaso));
             }
         return agregado.Count;
+    }
+
+    /// <summary>Tolerancia (m) para considerar que el extremo de una viga apoya en una columna.</summary>
+    public const double ToleranciaColumna = 0.30;
+
+    /// <summary>
+    /// Descenso geométrico <b>viga→columna</b> (Fase J): reparte la fuerza total
+    /// de cada viga del <paramref name="nivel"/> (de <see cref="AsignarNivel"/>)
+    /// a las columnas cercanas a sus extremos y la acumula por columna. Aproxima
+    /// la viga como simplemente apoyada: media reacción a la columna más cercana
+    /// a su origen y media a la del extremo (dentro de
+    /// <paramref name="tolerancia"/> m). Un extremo sin columna cercana no
+    /// asigna esa mitad (la viga descansaría en otra viga o muro). El reparto
+    /// exacto por reacciones del motor de vigas queda como mejora futura.
+    /// </summary>
+    public static List<CargaColumnaAxial> AsignarVigasAColumnas(
+        Nivel nivel, double tolerancia = ToleranciaColumna)
+    {
+        var acumulado = new Dictionary<Columna, double>();
+        if (nivel is null || nivel.Columnas.Count == 0) return new List<CargaColumnaAxial>();
+
+        foreach (var carga in AsignarNivel(nivel))
+        {
+            double mitad = carga.FuerzaTotal / 2.0;
+            var colOrigen = ColumnaMasCercana(nivel.Columnas, carga.Viga.OrigenX, carga.Viga.OrigenY, tolerancia);
+            var colExtremo = ColumnaMasCercana(nivel.Columnas, carga.Viga.ExtremoX, carga.Viga.ExtremoY, tolerancia);
+
+            if (colOrigen is not null)
+            {
+                acumulado.TryGetValue(colOrigen, out var v);
+                acumulado[colOrigen] = v + mitad;
+            }
+            if (colExtremo is not null)
+            {
+                acumulado.TryGetValue(colExtremo, out var v);
+                acumulado[colExtremo] = v + mitad;
+            }
+        }
+
+        return acumulado.Select(kv => new CargaColumnaAxial(kv.Key, kv.Value)).ToList();
+    }
+
+    /// <summary>Columna a ≤ <paramref name="tolerancia"/> m del punto (x,y), la más cercana, o null.</summary>
+    private static Columna? ColumnaMasCercana(
+        IEnumerable<Columna> columnas, double x, double y, double tolerancia)
+    {
+        Columna? mejor = null;
+        double mejorDist = tolerancia;
+        var p = new Vector2((float)x, (float)y);
+        foreach (var columna in columnas)
+        {
+            float d = Vector2.Distance(p, new Vector2((float)columna.CoordenadaX, (float)columna.CoordenadaY));
+            if (d <= mejorDist) { mejorDist = d; mejor = columna; }
+        }
+        return mejor;
     }
 
     /// <summary>
