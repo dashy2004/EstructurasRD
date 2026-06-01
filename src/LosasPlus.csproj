@@ -51,35 +51,9 @@
     <AvaloniaResource Include="Resources\icons\*.svg" />
   </ItemGroup>
 
-  <!-- FASE D (en progreso): las Views WPF aún no portadas se excluyen; a medida
-       que cada una pasa a .axaml se re-incluye su .axaml.cs aquí (el SDK auto-incluye
-       el .axaml; el Remove de *.xaml no afecta a los .axaml). E = canvas CAD, F = PDF/OxyPlot. -->
-  <ItemGroup>
-    <Compile Remove="Views\**\*.cs" />
-    <AvaloniaResource Remove="Views\**\*.xaml" />
-    <None Remove="Views\**\*.xaml" />
-    <!-- Vistas ya portadas a Avalonia (re-incluidas): -->
-    <Compile Include="Views\ImportarCombinacionesWindow.axaml.cs" />
-    <Compile Include="Views\KeyboardShortcutsWindow.axaml.cs" />
-    <Compile Include="Views\ColorPickerControl.axaml.cs" />
-    <Compile Include="Views\PasteExcelDialog.axaml.cs" />
-    <Compile Include="Views\AppearanceDialog.axaml.cs" />
-    <Compile Include="Views\DLDoctorWindow.axaml.cs" />
-    <Compile Include="Views\HighlightedTxtView.axaml.cs" />
-    <Compile Include="Views\TxtTablaView.axaml.cs" />
-    <Compile Include="Views\ReglamentoView.axaml.cs" />
-    <Compile Include="Views\TipoLosaIconView.axaml.cs" />
-    <Compile Include="Views\TiposLosaPanel.axaml.cs" />
-    <Compile Include="Views\CargasCombinacionesView.axaml.cs" />
-    <Compile Include="Views\Vigas\VigaEditorView.axaml.cs" />
-    <!-- Lienzo CAD (Fase E.1: render). CadCanvasHost = render inmediato Avalonia;
-         CadView = vista; + helpers (paleta de muros, event args). La interacción
-         de edición (E.2) reusará estos mismos archivos. -->
-    <Compile Include="Views\Cad\CadView.axaml.cs" />
-    <Compile Include="Views\Cad\CadCanvasHost.cs" />
-    <Compile Include="Views\Cad\PaletaMuros.cs" />
-    <Compile Include="Views\Cad\LosaDobleClicEventArgs.cs" />
-    <Compile Include="Views\Cad\CalibrarPdfPuntosListosEventArgs.cs" />
-  </ItemGroup>
+  <!-- Fase G: port a Avalonia COMPLETO. Todas las Views son .axaml/.axaml.cs y las
+       incluye el glob por defecto del SDK (Compile **/*.cs + AvaloniaXaml **/*.axaml);
+       ya no queda XAML WPF que excluir, así que se retiró el andamiaje
+       Compile Remove/Include que usaba el port incremental (Fases D–F). -->
 
 </Project>
