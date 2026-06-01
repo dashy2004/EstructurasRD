@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using LosasPlus.Models;
 using LosasPlus.Vigas;
@@ -12,6 +13,15 @@ namespace LosasPlus.Transmision;
 /// <param name="CargaLineal">Carga lineal uniforme equivalente del borde (unidad de q · m, p. ej. t/m).</param>
 /// <param name="FuerzaTotal">Fuerza total del borde (unidad de q · m²).</param>
 public readonly record struct AsignacionViga(Viga Viga, double CargaLineal, double FuerzaTotal);
+
+/// <summary>
+/// Carga distribuida total que recibe una viga tras agregar los bordes de todas
+/// las losas que se apoyan en ella en un nivel.
+/// </summary>
+/// <param name="Viga">La viga.</param>
+/// <param name="CargaLineal">Suma de las cargas lineales equivalentes de los bordes que soporta (q · m).</param>
+/// <param name="FuerzaTotal">Suma de las fuerzas totales de esos bordes (q · m²).</param>
+public readonly record struct CargaVigaAgregada(Viga Viga, double CargaLineal, double FuerzaTotal);
 
 /// <summary>
 /// Reparto <b>geométrico</b> losa→viga (Fase J.15): usando las posiciones en
@@ -74,6 +84,31 @@ public static class RepartoGeometrico
             }
         }
         return resultado;
+    }
+
+    /// <summary>
+    /// Asigna geométricamente las cargas de <b>todas las losas</b> de un
+    /// <paramref name="nivel"/> a sus vigas y las <b>agrega por viga</b>: una
+    /// viga compartida por dos paños adyacentes suma las cargas lineales de
+    /// ambos bordes. El resultado es la carga distribuida total de cada viga,
+    /// apta como entrada al motor de vigas. Sólo incluye vigas con carga.
+    /// </summary>
+    public static List<CargaVigaAgregada> AsignarNivel(Nivel nivel)
+    {
+        var acumulado = new Dictionary<Viga, (double W, double F)>();
+        if (nivel is null) return new List<CargaVigaAgregada>();
+
+        foreach (var sistema in nivel.Sistemas)
+            foreach (var losa in sistema.Losas)
+                foreach (var asign in AsignarLosaAVigas(losa, nivel.Vigas))
+                {
+                    acumulado.TryGetValue(asign.Viga, out var t);
+                    acumulado[asign.Viga] = (t.W + asign.CargaLineal, t.F + asign.FuerzaTotal);
+                }
+
+        return acumulado
+            .Select(kv => new CargaVigaAgregada(kv.Key, kv.Value.W, kv.Value.F))
+            .ToList();
     }
 
     /// <summary>
