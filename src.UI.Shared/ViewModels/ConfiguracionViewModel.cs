@@ -16,15 +16,18 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
 {
     public ConfiguracionViewModel()
     {
-        Perfil     = PerfilIngenieroService.Load();
-        Apariencia = AparienciaService.Load();
-        Atajos     = AtajosService.Load();
+        Perfil       = PerfilIngenieroService.Load();
+        Apariencia   = AparienciaService.Load();
+        Atajos       = AtajosService.Load();
+        Preferencias = PreferenciasService.Load();
 
         GuardarPerfilCommand     = new RelayCommand(GuardarPerfil);
         GuardarAparienciaCommand = new RelayCommand(GuardarApariencia);
         RestaurarAparienciaCommand = new RelayCommand(RestaurarApariencia);
         GuardarAtajosCommand     = new RelayCommand(GuardarAtajos);
         RestaurarAtajosCommand   = new RelayCommand(RestaurarAtajos);
+        GuardarPreferenciasCommand   = new RelayCommand(GuardarPreferencias);
+        RestaurarPreferenciasCommand = new RelayCommand(RestaurarPreferencias);
 
         GuardarComoPresetCommand = new RelayCommand(GuardarComoPreset);
         CargarPresetCommand      = new RelayCommand<string?>(CargarPreset);
@@ -61,15 +64,23 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
     /// <summary>True si el sub-tab "Datos del ingeniero" debe mostrarse (inverso de <see cref="EsCalculadora"/>).</summary>
     public bool MostrarDatosIngeniero => !_esCalculadora;
 
-    public PerfilIngeniero  Perfil     { get; private set; }
-    public AparienciaConfig Apariencia { get; private set; }
-    public AtajosConfig     Atajos     { get; private set; }
+    public PerfilIngeniero  Perfil       { get; private set; }
+    public AparienciaConfig Apariencia   { get; private set; }
+    public AtajosConfig     Atajos       { get; private set; }
+    public PreferenciasConfig Preferencias { get; private set; }
+
+    // ----- H4: opciones para los combos de Preferencias -----
+    public System.Collections.Generic.IReadOnlyList<int> OpcionesDecimales { get; } = new[] { 1, 2, 3, 4 };
+    public System.Collections.Generic.IReadOnlyList<string> CulturasDisponibles { get; } = new[] { "es-DO", "es-ES", "en-US" };
+    public System.Collections.Generic.IReadOnlyList<string> SistemasUnidadesDisponibles { get; } = new[] { "SI" };
 
     public RelayCommand GuardarPerfilCommand       { get; }
     public RelayCommand GuardarAparienciaCommand   { get; }
     public RelayCommand RestaurarAparienciaCommand { get; }
     public RelayCommand GuardarAtajosCommand       { get; }
     public RelayCommand RestaurarAtajosCommand     { get; }
+    public RelayCommand GuardarPreferenciasCommand   { get; }
+    public RelayCommand RestaurarPreferenciasCommand { get; }
 
     // ----- Presets de apariencia (LosasPlus) -----
     public RelayCommand               GuardarComoPresetCommand     { get; }
@@ -167,6 +178,27 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
         // Notificar a la UI que el config completo cambió.
         OnPropertyChanged(nameof(Atajos));
         StatusGuardado = "✓ Atajos restaurados a defaults. No olvides Guardar.";
+    }
+
+    private void GuardarPreferencias()
+    {
+        try
+        {
+            PreferenciasService.Save(Preferencias);
+            StatusGuardado = "✓ Preferencias guardadas.";
+        }
+        catch (System.Exception ex)
+        {
+            StatusGuardado = $"✕ Error al guardar preferencias: {ex.Message}";
+        }
+    }
+
+    private void RestaurarPreferencias()
+    {
+        PreferenciasService.Reset();
+        Preferencias = new PreferenciasConfig();
+        OnPropertyChanged(nameof(Preferencias));
+        StatusGuardado = "✓ Preferencias restauradas a defaults.";
     }
 
     // =================================================================
@@ -288,4 +320,5 @@ public enum SubTabConfig
     DatosIngeniero,
     Apariencia,
     Atajos,
+    Preferencias,
 }

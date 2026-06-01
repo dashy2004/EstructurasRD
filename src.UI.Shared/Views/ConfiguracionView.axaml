@@ -30,6 +30,9 @@
                 <RadioButton Theme="{StaticResource SidebarNavItemStyle}" GroupName="ConfigSubTab"
                              IsChecked="{Binding SubTabActivo, Converter={x:Static cmn:EnumToBoolConverter.Instance}, ConverterParameter=Atajos}"
                              Content="⌨  Atajos de teclado"/>
+                <RadioButton Theme="{StaticResource SidebarNavItemStyle}" GroupName="ConfigSubTab"
+                             IsChecked="{Binding SubTabActivo, Converter={x:Static cmn:EnumToBoolConverter.Instance}, ConverterParameter=Preferencias}"
+                             Content="⚙  Preferencias"/>
 
                 <!-- Status del último guardado -->
                 <Border Margin="0,24,0,0" Padding="10,8"
@@ -51,6 +54,8 @@
                 IsVisible="{Binding SubTabActivo, Converter={x:Static cmn:EnumToBoolConverter.Instance}, ConverterParameter=Apariencia}"/>
             <vw:AtajosView
                 IsVisible="{Binding SubTabActivo, Converter={x:Static cmn:EnumToBoolConverter.Instance}, ConverterParameter=Atajos}"/>
+            <vw:PreferenciasView
+                IsVisible="{Binding SubTabActivo, Converter={x:Static cmn:EnumToBoolConverter.Instance}, ConverterParameter=Preferencias}"/>
         </Panel>
     </Grid>
 </UserControl>
