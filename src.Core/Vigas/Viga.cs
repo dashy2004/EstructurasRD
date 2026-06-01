@@ -1,6 +1,9 @@
+using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
 
 namespace LosasPlus.Vigas;
 
@@ -20,6 +23,9 @@ public partial class Viga : INotifyPropertyChanged
 {
     private int _id;
     private string _nombre = "Viga 1";
+    private double _origenX;        // m — posición en planta del inicio de la viga
+    private double _origenY;        // m
+    private double _anguloGrados;   // orientación en planta (0 = +X)
 
     /// <summary>Identificador de la viga dentro del nivel.</summary>
     public int Id
@@ -48,6 +54,45 @@ public partial class Viga : INotifyPropertyChanged
     /// a lo largo de la longitud total. Colección get-only con inicializador.
     /// </summary>
     public ObservableCollection<ApoyoViga> Apoyos { get; } = new();
+
+    /// <summary>
+    /// Posición X en planta del inicio de la viga, en metros (Fase J — geometría
+    /// en planta para el descenso topológico). La viga corre desde
+    /// (<see cref="OrigenX"/>, <see cref="OrigenY"/>) en la dirección
+    /// <see cref="AnguloGrados"/> a lo largo de <see cref="LongitudTotal"/>.
+    /// Aditivo; default 0.
+    /// </summary>
+    public double OrigenX
+    {
+        get => _origenX;
+        set { _origenX = value; OnPropertyChanged(); OnPropertyChanged(nameof(ExtremoX)); }
+    }
+
+    /// <summary>Posición Y en planta del inicio de la viga, en metros (ver <see cref="OrigenX"/>).</summary>
+    public double OrigenY
+    {
+        get => _origenY;
+        set { _origenY = value; OnPropertyChanged(); OnPropertyChanged(nameof(ExtremoY)); }
+    }
+
+    /// <summary>Orientación de la viga en planta, en grados (0 = eje +X).</summary>
+    public double AnguloGrados
+    {
+        get => _anguloGrados;
+        set { _anguloGrados = value; OnPropertyChanged(); OnPropertyChanged(nameof(ExtremoX)); OnPropertyChanged(nameof(ExtremoY)); }
+    }
+
+    /// <summary>Longitud total de la viga = suma de las longitudes de sus tramos, en metros.</summary>
+    [JsonIgnore]
+    public double LongitudTotal => Tramos.Sum(t => t.Longitud);
+
+    /// <summary>Coordenada X en planta del extremo final de la viga.</summary>
+    [JsonIgnore]
+    public double ExtremoX => _origenX + LongitudTotal * Math.Cos(_anguloGrados * Math.PI / 180.0);
+
+    /// <summary>Coordenada Y en planta del extremo final de la viga.</summary>
+    [JsonIgnore]
+    public double ExtremoY => _origenY + LongitudTotal * Math.Sin(_anguloGrados * Math.PI / 180.0);
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? name = null)
