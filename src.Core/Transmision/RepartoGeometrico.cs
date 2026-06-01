@@ -112,6 +112,39 @@ public static class RepartoGeometrico
     }
 
     /// <summary>
+    /// Aplica el reparto geométrico agregado (<see cref="AsignarNivel"/>) como
+    /// cargas <see cref="TipoCargaElemento.Distribuida"/> sobre los tramos de
+    /// cada viga del nivel, bajo el caso de carga <paramref name="codigoCaso"/>
+    /// — dejando las vigas listas para resolverse con el motor de vigas.
+    /// La carga lineal agregada se aplica uniforme sobre toda la viga (conserva
+    /// la fuerza total: w · longitud = Σ fuerzas de borde).
+    ///
+    /// <para>
+    /// <b>Idempotente</b>: antes de aplicar, retira de cada tramo las cargas
+    /// distribuidas previas con el mismo <paramref name="codigoCaso"/>, así que
+    /// re-ejecutar actualiza en vez de acumular. Devuelve el nº de vigas cargadas.
+    /// </para>
+    /// </summary>
+    public static int AplicarCargasGeometricas(Nivel nivel, string codigoCaso)
+    {
+        if (nivel is null) return 0;
+
+        var agregado = AsignarNivel(nivel);
+        foreach (var carga in agregado)
+            foreach (var tramo in carga.Viga.Tramos)
+            {
+                for (int i = tramo.Cargas.Count - 1; i >= 0; i--)
+                    if (tramo.Cargas[i].Tipo == TipoCargaElemento.Distribuida &&
+                        tramo.Cargas[i].CodigoCaso == codigoCaso)
+                        tramo.Cargas.RemoveAt(i);
+
+                tramo.Cargas.Add(new CargaElemento(
+                    TipoCargaElemento.Distribuida, carga.CargaLineal, codigoCaso));
+            }
+        return agregado.Count;
+    }
+
+    /// <summary>
     /// True si el segmento de viga [<paramref name="va"/>, <paramref name="vb"/>]
     /// es colineal (dentro de <see cref="Tolerancia"/>) con el borde
     /// [<paramref name="e0"/>, <paramref name="e1"/>] y solapa su extensión.
