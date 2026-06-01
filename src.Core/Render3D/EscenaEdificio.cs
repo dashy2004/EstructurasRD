@@ -89,6 +89,21 @@ public static class EscenaEdificio
                 float cz = (float)columna.CoordenadaY;
                 float yTope = y + (float)columna.Altura;
                 segs.Add(new Segmento3D(new Vector3(cx, y, cz), new Vector3(cx, yTope, cz)));
+
+                // Zapata (Fase J): recuadro horizontal de su huella en la base de
+                // la columna, centrado en (cx, cz) y dimensionado por Ancho × Largo.
+                if (columna.Zapata is { } zapata)
+                {
+                    float ha = (float)(zapata.Ancho * 0.5);
+                    float hl = (float)(zapata.Largo * 0.5);
+                    var e = new[]
+                    {
+                        new Vector3(cx - ha, y, cz - hl), new Vector3(cx + ha, y, cz - hl),
+                        new Vector3(cx + ha, y, cz + hl), new Vector3(cx - ha, y, cz + hl),
+                    };
+                    for (int i = 0; i < 4; i++)
+                        segs.Add(new Segmento3D(e[i], e[(i + 1) % 4]));
+                }
             }
         }
 
