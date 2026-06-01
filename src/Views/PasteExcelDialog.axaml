@@ -1,0 +1,82 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="LosasPlus.Views.PasteExcelDialog"
+        x:CompileBindings="False"
+        Title="Pegar tabla de Excel"
+        Height="600" Width="780"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BgPrimary}">
+    <DockPanel Margin="14">
+
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,12,0,0" LastChildFill="False">
+            <Button DockPanel.Dock="Right" Content="Cancelar" Width="100" Margin="6,0,0,0"
+                    Background="{DynamicResource Border}" Click="OnCancel"/>
+            <Button DockPanel.Dock="Right" Content="Aplicar" Width="120" Click="OnApply" IsDefault="True"/>
+            <Button DockPanel.Dock="Right" Content="Procesar (preview)" Width="160" Margin="0,0,6,0" Click="OnPreview"/>
+            <Button DockPanel.Dock="Left" Content="Pegar (Ctrl+V)" Width="140" Click="OnPasteFromClipboard"/>
+        </DockPanel>
+
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+            <TextBlock Text="Pegar tabla de Excel" FontWeight="Bold" FontSize="16"/>
+            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource FgMuted}" Margin="0,4,0,0">
+                Pegá (Ctrl+V) una tabla con columnas <Run FontWeight="Bold">Lx, Ly, Espesor, Carga</Run>
+                (en ese orden o con header descriptivo). Opcionalmente <Run FontWeight="Bold">Tipo</Run>
+                y <Run FontWeight="Bold">Rec</Run>. El parser acepta TAB, ';' o ',' como separador,
+                y coma o punto decimal.
+            </TextBlock>
+        </StackPanel>
+
+        <Border DockPanel.Dock="Right" Width="220" Margin="12,0,0,0" Padding="10"
+                Background="{DynamicResource BgSecondary}"
+                BorderBrush="{DynamicResource Border}" BorderThickness="1">
+            <StackPanel>
+                <TextBlock Text="Opciones" FontWeight="Bold" Margin="0,0,0,6"/>
+
+                <TextBlock Text="Modo" Margin="0,4,0,2"/>
+                <ComboBox x:Name="ModoBox" SelectedIndex="0" HorizontalAlignment="Stretch">
+                    <ComboBoxItem Content="Reemplazar losas del sistema"/>
+                    <ComboBoxItem Content="Agregar al sistema actual"/>
+                </ComboBox>
+
+                <TextBlock Text="Tipo por defecto (si no viene)" Margin="0,10,0,2"/>
+                <TextBox x:Name="TipoBox" Text="10"/>
+
+                <TextBlock Text="Espesor por defecto [m]" Margin="0,10,0,2"/>
+                <TextBox x:Name="EspesorBox" Text="0.12"/>
+
+                <TextBlock Text="Recubrimiento por defecto [m]" Margin="0,10,0,2"/>
+                <TextBox x:Name="RecBox" Text="0.02"/>
+
+                <TextBlock Text="Carga por defecto [ton/m²]" Margin="0,10,0,2"/>
+                <TextBox x:Name="CargaBox" Text="0.40"/>
+
+                <CheckBox x:Name="EspesorCmBox" Margin="0,12,0,0"
+                          Content="Espesor y Rec vienen en cm"
+                          ToolTip.Tip="Si tu Excel tiene H y Rec en centímetros (típico), marcá esto y se convierte a metros automáticamente."
+                          Foreground="{DynamicResource FgPrimary}"/>
+
+                <Separator Margin="0,12"/>
+
+                <TextBlock Text="Resumen:" FontWeight="Bold"/>
+                <TextBlock x:Name="StatusText" TextWrapping="Wrap" Margin="0,4,0,0"
+                           Foreground="{DynamicResource FgMuted}" Text="(pegá texto y procesá)"/>
+            </StackPanel>
+        </Border>
+
+        <Grid RowDefinitions="*,6,180">
+            <TextBox x:Name="PasteBox" Grid.Row="0"
+                     AcceptsReturn="True" AcceptsTab="True"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                     FontFamily="Consolas, Cascadia Mono" FontSize="12"
+                     TextChanged="OnPasteChanged"/>
+
+            <GridSplitter Grid.Row="1" Height="4" HorizontalAlignment="Stretch"
+                          Background="{DynamicResource Border}"/>
+
+            <DataGrid x:Name="PreviewGrid" Grid.Row="2"
+                      AutoGenerateColumns="True" IsReadOnly="True" HeadersVisibility="Column"
+                      Background="{DynamicResource BgSecondary}"/>
+        </Grid>
+    </DockPanel>
+</Window>

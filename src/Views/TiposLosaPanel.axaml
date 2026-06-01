@@ -1,0 +1,53 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="clr-namespace:LosasPlus.Views"
+             x:Class="LosasPlus.Views.TiposLosaPanel"
+             x:CompileBindings="False"
+             Background="Transparent">
+    <UserControl.Styles>
+        <Style Selector="Border.tipocard:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentHi}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ItemsControl x:Name="Items">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Classes="tipocard"
+                            Margin="3" Width="74" Height="84"
+                            Background="{DynamicResource BgInput}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                            CornerRadius="3"
+                            ToolTip.ShowDelay="200"
+                            Cursor="Hand"
+                            PointerPressed="OnItemClick"
+                            Tag="{Binding Codigo}">
+                        <ToolTip.Tip>
+                            <StackPanel MaxWidth="280">
+                                <TextBlock>
+                                    <Run Text="TIPO " FontWeight="Bold"/>
+                                    <Run Text="{Binding Codigo, Mode=OneWay}" FontWeight="Bold"/>
+                                </TextBlock>
+                                <TextBlock Text="{Binding Descripcion}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                <TextBlock Margin="0,4,0,0" FontSize="11" Foreground="Gray">
+                                    <Run Text="Bordes empotrados: "/>
+                                    <Run Text="{Binding BordesContinuos, Mode=OneWay}"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </ToolTip.Tip>
+                        <v:TipoLosaIconView Codigo="{Binding Codigo, Mode=OneWay}"
+                                            Width="68" Height="78"
+                                            IsHitTestVisible="False"/>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </ScrollViewer>
+</UserControl>

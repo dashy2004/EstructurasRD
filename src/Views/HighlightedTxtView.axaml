@@ -1,0 +1,15 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="LosasPlus.Views.HighlightedTxtView">
+    <!-- Port a Avalonia: WPF RichTextBox+FlowDocument → ScrollViewer + SelectableTextBlock
+         (Avalonia soporta TextBlock.Inlines con Run/LineBreak coloreados). -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                  Background="{DynamicResource BgInput}"
+                  BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                  Padding="6">
+        <SelectableTextBlock x:Name="Editor"
+                             FontFamily="Consolas, Cascadia Mono, Courier New"
+                             FontSize="12"
+                             Foreground="{DynamicResource FgPrimary}"/>
+    </ScrollViewer>
+</UserControl>

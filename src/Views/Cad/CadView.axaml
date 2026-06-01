@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="LosasPlus.Views.Cad.CadView"
+             x:CompileBindings="False">
+
+    <!-- STUB de Fase E. El editor CAD real (CadCanvasHost.cs, 2198 líneas de
+         render retenido DrawingVisual/OnRender → Control.Render inmediato de
+         Avalonia + CadView.xaml de 604 líneas) se porta en la Fase E. Este
+         placeholder permite que el MainWindow real referencie cad:CadView y
+         compile/arranque ahora. La captura del lienzo para el .xlsx queda
+         diferida (MainWindow pasa png=null hasta la Fase E). -->
+    <Border Background="{DynamicResource BgSecondary}"
+            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+            CornerRadius="8" Margin="32">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                    Spacing="10" MaxWidth="640">
+            <TextBlock Text="🗺  Lienzo CAD" FontSize="24" FontWeight="Bold"
+                       HorizontalAlignment="Center"
+                       Foreground="{DynamicResource FgPrimary}"/>
+            <Border HorizontalAlignment="Center" Padding="10,4" CornerRadius="12"
+                    Background="{DynamicResource AccentHi}">
+                <TextBlock Text="🔜  Port pendiente (Fase E)"
+                           Foreground="{DynamicResource FgOnAccent}"
+                           FontWeight="SemiBold" FontSize="12"/>
+            </Border>
+            <TextBlock TextWrapping="Wrap" TextAlignment="Center" FontSize="13"
+                       Foreground="{DynamicResource FgSecondary}"
+                       Text="El editor visual CAD (render retenido WPF → render inmediato de Avalonia) es la última fase del port. El resto de LosasPlus ya es funcional: edición de losas, cargas y combinaciones, vigas continuas, validación normativa, reglamento, salida .TXT y exportación."/>
+        </StackPanel>
+    </Border>
+</UserControl>

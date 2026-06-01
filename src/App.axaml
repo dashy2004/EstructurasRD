@@ -1,0 +1,140 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:lp="clr-namespace:LosasPlus"
+             xmlns:cmn="clr-namespace:MemoriaPlus.Common;assembly=MemoriaPlus.UI.Shared"
+             x:Class="LosasPlus.App"
+             RequestedThemeVariant="Light">
+
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+        <!-- Tema compartido (tokens Material 3) usado por las vistas de MemoriaPlus.UI.Shared. -->
+        <StyleInclude Source="avares://MemoriaPlus.UI.Shared/Resources/Theme.axaml" />
+
+        <!-- ============================================================
+             Estilos implícitos de LosasPlus (port de App.xaml WPF). Usan los
+             tokens del tema activo (DynamicResource) para que el theme switch
+             refresque toda la UI. Triggers WPF → selectores con pseudo-clases.
+             Construcciones WPF-only (ListView/GridView, AlternatingRowBackground,
+             Validation.HasError) se omiten — no existen en Avalonia.
+             ============================================================ -->
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+            <Setter Property="FontFamily" Value="Inter, Segoe UI, Tahoma, Helvetica, Arial"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="{DynamicResource BgInput}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource FgPrimary}"/>
+            <Setter Property="SelectionBrush" Value="{DynamicResource Selection}"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+        </Style>
+
+        <Style Selector="Button">
+            <Setter Property="Background" Value="{DynamicResource BgInput}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="{DynamicResource BgTertiary}"/>
+        </Style>
+        <Style Selector="Button:disabled">
+            <Setter Property="Opacity" Value="0.5"/>
+        </Style>
+
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="{DynamicResource BgInput}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="MinHeight" Value="30"/>
+        </Style>
+
+        <Style Selector="DataGrid">
+            <Setter Property="Background" Value="{DynamicResource BgInput}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="RowHeight" Value="32"/>
+        </Style>
+        <Style Selector="DataGridColumnHeader">
+            <Setter Property="Background" Value="{DynamicResource BgTertiary}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
+        <Style Selector="DataGridCell">
+            <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+            <Setter Property="Padding" Value="4,2"/>
+        </Style>
+
+        <Style Selector="TabItem">
+            <Setter Property="Foreground" Value="{DynamicResource FgSecondary}"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style Selector="TabItem:selected">
+            <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+        <Style Selector="Separator">
+            <Setter Property="Background" Value="{DynamicResource Border}"/>
+            <Setter Property="Height" Value="1"/>
+        </Style>
+    </Application.Styles>
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Tema propio de LosasPlus (BgPrimary, Accent, etc). App.SetTheme(...)
+                     reemplaza este [0] en runtime para alternar Precision/Light/Dark. -->
+                <ResourceInclude Source="avares://LosasPlus/Resources/ThemePrecision.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Converters propios -->
+            <lp:NullToCollapsedConverter        x:Key="NullToCollapsed"/>
+            <lp:BoolToCollapsedIfTrueConverter  x:Key="BoolToCollapsedIfTrue"/>
+            <lp:BoolToCollapsedIfFalseConverter x:Key="BoolToCollapsedIfFalse"/>
+            <!-- Converters compartidos (necesarios para las vistas de UI.Shared) -->
+            <cmn:EnumToBoolConverter            x:Key="EnumToBoolConverter"/>
+            <cmn:PathToImageConverter           x:Key="PathToImageConverter"/>
+            <cmn:StringNotEmptyToBoolConverter  x:Key="StringNotEmptyToBoolConverter"/>
+
+            <!-- Estilos keyed (las vistas los referencian vía Theme="{StaticResource ...}"). -->
+            <ControlTheme x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                <Setter Property="Background" Value="{DynamicResource Accent}"/>
+                <Setter Property="Foreground" Value="{DynamicResource FgOnAccent}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Padding" Value="12,6"/>
+                <Setter Property="MinHeight" Value="32"/>
+                <Style Selector="^:pointerover">
+                    <Setter Property="Background" Value="{DynamicResource AccentHi}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource AccentHi}"/>
+                </Style>
+            </ControlTheme>
+
+            <ControlTheme x:Key="PanelBorder" TargetType="Border">
+                <Setter Property="Background" Value="{DynamicResource BgSecondary}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+            </ControlTheme>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

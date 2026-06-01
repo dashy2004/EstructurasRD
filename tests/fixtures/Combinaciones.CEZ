@@ -1,0 +1,73 @@
+$ DEFINICION DE LAS CARGAS Y COMBINACIONES
+$ para el programa ESFUERZOS Ver. 2.00
+$
+$ 1. Datos generales
+$  El número de casos de carga NCC debe ser <= 11
+$  El número de combinaciones NCOMB debe ser <= 100
+$  NCC  NCOMB
+     8   34
+$
+$ 2. Casos de carga  (NCC datos)
+$    Grupos: 1 = Carga muerta
+$            2 = Carga viva
+$            3 = Sismo
+$            4 = Viento
+$            5 = Otros
+$ FCE = 1 si aplica el aumento del esfuerzo admisible del terreno
+$         por ser carga extraordinaria
+$ El primer caso de carga debe ser siempre la carga muerta
+$  IC  SIMB  NOMBRE        TIPO  FCE  FSIS
+    1   D    Carga Muerta    1    0    0
+    2   L    Carga Viva      2    0    0 
+    3   Ex   Sismo X         3    1    1 
+    4   Ey   Sismo Y         3    1    1
+    5   Wx   Viento X        4    1    0
+    6   Wy   Viento Y        4    1    0
+    7   T1   Deformación X   5    0    0
+    8   T2   Deformación Y   5    0    0
+$
+$ 3. Factores de carga
+$ 3.1 Combinaciones para verificación de esfuerzos bajo cargas de servicio
+$    (NCOMB datos)  Seg. ASCE 7-05  (Los factores pueden modificarse)
+$    La combinacion No. 1 debe ser siempre para solo carga muerta
+$  IC      GRUPO     FS1      FS2      FS3      FS4      FS5      FS6      FS7      FS8
+$ COMBO    GRUPO    DEAD     LIVE    SISMOX1  SISMOY1  VIENTOX  VIENTOY    TX       TY
+    1        1      1.000    0.000    0.000    0.000    0.000    0.000    0.000    0.000
+    2        2      1.000    1.000    0.000    0.000    0.000    0.000    0.000    0.000
+$ Combinaciones con sismo: Grupo = 3
+    3        3      1.000    0.750    0.525    0.158    0.000    0.000    0.000    0.000
+    4        3      1.000    0.750    0.525   -0.158    0.000    0.000    0.000    0.000
+    5        3      1.000    0.750   -0.525    0.158    0.000    0.000    0.000    0.000
+    6        3      1.000    0.750   -0.525   -0.158    0.000    0.000    0.000    0.000
+    7        3      1.000    0.750    0.158    0.525    0.000    0.000    0.000    0.000
+    8        3      1.000    0.750   -0.158    0.525    0.000    0.000    0.000    0.000
+    9        3      1.000    0.750    0.158   -0.525    0.000    0.000    0.000    0.000
+   10        3      1.000    0.750   -0.158   -0.525    0.000    0.000    0.000    0.000
+   11        3      0.600    0.000    0.700    0.210    0.000    0.000    0.000    0.000
+   12        3      0.600    0.000    0.700   -0.210    0.000    0.000    0.000    0.000
+   13        3      0.600    0.000   -0.700    0.210    0.000    0.000    0.000    0.000
+   14        3      0.600    0.000   -0.700   -0.210    0.000    0.000    0.000    0.000
+   15        3      0.600    0.000    0.210    0.700    0.000    0.000    0.000    0.000
+   16        3      0.600    0.000   -0.210    0.700    0.000    0.000    0.000    0.000
+   17        3      0.600    0.000    0.210   -0.700    0.000    0.000    0.000    0.000
+   18        3      0.600    0.000   -0.210   -0.700    0.000    0.000    0.000    0.000
+$ Combinaciones con viento: Grupo = 4
+   19        4      1.000    0.750    0.000    0.000    0.750    0.000    0.000    0.000
+   20        4      1.000    0.750    0.000    0.000   -0.750    0.000    0.000    0.000
+   21        4      1.000    0.750    0.000    0.000    0.000    0.750    0.000    0.000
+   22        4      1.000    0.750    0.000    0.000    0.000   -0.750    0.000    0.000
+   23        4      1.000    0.000    0.000    0.000    1.000    0.000    0.000    0.000
+   24        4      1.000    0.000    0.000    0.000   -1.000    0.000    0.000    0.000
+   25        4      1.000    0.000    0.000    0.000    0.000    1.000    0.000    0.000
+   26        4      1.000    0.000    0.000    0.000    0.000   -1.000    0.000    0.000
+   27        4      0.600    0.000    0.000    0.000    1.000    0.000    0.000    0.000
+   28        4      0.600    0.000    0.000    0.000   -1.000    0.000    0.000    0.000
+   29        4      0.600    0.000    0.000    0.000    0.000    1.000    0.000    0.000
+   30        4      0.600    0.000    0.000    0.000    0.000   -1.000    0.000    0.000
+$ Otras combinaciones: Grupo = 5
+   31        5      1.000    1.000    0.000    0.000    0.000    0.000    1.000    0.000
+   32        5      1.000    1.000    0.000    0.000    0.000    0.000   -1.000    0.000
+   33        5      1.000    1.000    0.000    0.000    0.000    0.000    0.000    1.000
+   34        5      1.000    1.000    0.000    0.000    0.000    0.000    0.000   -1.000
+$
+FIN

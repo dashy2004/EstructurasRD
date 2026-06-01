@@ -1,0 +1,92 @@
+name: release
+
+# Release pipeline: cuando se taggea una version (v0.x.0, v1.x.0, etc.) construye
+# los .exe single-file self-contained de ambas apps y los publica como release
+# attachment + un .zip con todo el bundle.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (sin v prefix), ej. 0.4.0'
+        required: true
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+
+    permissions:
+      contents: write   # para crear releases
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Determine version
+        id: ver
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            $v = $env:GITHUB_REF -replace 'refs/tags/v',''
+          } else {
+            $v = "${{ github.event.inputs.version }}"
+          }
+          echo "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Publish LosasPlus.App
+        run: |
+          dotnet publish src/LosasPlus.csproj -c Release -r win-x64 `
+            --self-contained=true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true
+
+      - name: Publish MemoriaPlus.App
+        run: |
+          dotnet publish src.Memoria/MemoriaPlus.App.csproj -c Release -r win-x64 `
+            --self-contained=true `
+            -p:PublishSingleFile=true `
+            -p:IncludeAllContentForSelfExtract=true
+
+      - name: Stage release folder
+        shell: pwsh
+        run: |
+          $v = "${{ steps.ver.outputs.version }}"
+          $dir = "releases/LosasPlus_Suite_v$v"
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          Copy-Item "src/bin/Release/net8.0-windows/win-x64/publish/LosasPlus.exe"          "$dir/"
+          Copy-Item "src.Memoria/bin/Release/net8.0-windows/win-x64/publish/MemoriaPlus.exe" "$dir/"
+          Copy-Item "CARTA_AL_AUTOR.md" "$dir/"
+          Copy-Item "LICENSE"           "$dir/LICENSE.txt"
+          Copy-Item "README.md"         "$dir/README.md"
+
+      - name: Zip suite
+        shell: pwsh
+        run: |
+          $v = "${{ steps.ver.outputs.version }}"
+          Compress-Archive -Path "releases/LosasPlus_Suite_v$v/*" -DestinationPath "releases/LosasPlus_Suite_v$v.zip" -CompressionLevel Optimal
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: LosasPlus_Suite_v${{ steps.ver.outputs.version }}
+          path: releases/LosasPlus_Suite_v${{ steps.ver.outputs.version }}.zip
+          retention-days: 90
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            releases/LosasPlus_Suite_v${{ steps.ver.outputs.version }}.zip
+            src/bin/Release/net8.0-windows/win-x64/publish/LosasPlus.exe
+            src.Memoria/bin/Release/net8.0-windows/win-x64/publish/MemoriaPlus.exe
+          generate_release_notes: true
+          draft: false

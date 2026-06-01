@@ -1,0 +1,88 @@
+{
+  "_meta": {
+    "fuente": "Compilación de referencias normativas vigentes para diseño estructural en República Dominicana, con énfasis en losas de hormigón armado. Las páginas y secciones referenciadas se verificaron contra los PDFs originales provistos por el usuario.",
+    "version": 2,
+    "actualizado": "May 2026",
+    "extension": "Ampliable vía plugin con hook 'register-norma'.",
+    "carpeta_pdfs_default": "%USERPROFILE%\\OneDrive - INTEC\\BIBLIOTECA\\REGLAMENTOS\\NORMATIVAS DE CONTRUCCION"
+  },
+  "normas": [
+    {
+      "codigo": "R-033",
+      "titulo": "Reglamento para Diseño y Construcción de Estructuras en Hormigón Armado",
+      "edicion": "MOPC, Santo Domingo · 2012 · Unidad 5 · Título 2",
+      "ambito": "Hormigón armado · LOSAS",
+      "archivo": "r-033.pdf",
+      "url": "https://www.mopc.gob.do/",
+      "resumen": "Reglamento dominicano específico de hormigón armado. Contiene un TÍTULO VI completo dedicado a LOSAS (págs 47-56) con métodos de análisis, diseño de armaduras, detalles de refuerzo y reacciones sobre apoyos. El ANEXO 4 (pág 116) provee coeficientes tabulados para cálculo de momentos — equivalente directo del método Pieper-Martens del programa Losas.exe.",
+      "secciones_relevantes": [
+        "TÍTULO II Cap. III: Recubrimientos mínimos (pág 21)",
+        "TÍTULO III Cap. I-III: Cargas y combinaciones (págs 23-25)",
+        "TÍTULO IV Cap. III: Diseño a la rotura (pág 27)",
+        "TÍTULO IV Cap. IV: Factor φ de reducción de resistencia (pág 27)",
+        "TÍTULO IV Cap. VI: Control de deformaciones (pág 30)",
+        "TÍTULO VI Cap. I: Generalidades de losas (pág 47)",
+        "TÍTULO VI Cap. II: Métodos de análisis (pág 48)",
+        "TÍTULO VI Cap. III: Diseño de armaduras de losa (pág 51)",
+        "TÍTULO VI Cap. IV: Detalles del refuerzo en losa (pág 52)",
+        "TÍTULO VI Cap. V: Reacciones sobre los apoyos (pág 56)",
+        "ANEXO 3: Cuantía mínima en elementos sometidos a flexión (pág 115)",
+        "ANEXO 4: Coeficientes para el cálculo de momentos en losas (pág 116)"
+      ],
+      "aplicacion_losas": "ESTE ES EL REGLAMENTO DOMINICANO DE REFERENCIA para todo lo que LosasPlus calcula. Verificar coherencia entre las disposiciones de armadura emitidas por Losas.exe y los detalles del Cap. IV del TÍTULO VI. El ANEXO 4 puede usarse para chequeo manual cruzado contra los Mfx/Mfy del .TXT."
+    },
+    {
+      "codigo": "R-001",
+      "titulo": "Reglamento para el Análisis y Diseño Sísmico de Estructuras",
+      "edicion": "MOPC, Santo Domingo · 2011 · Unidad 5 · Título 1-B",
+      "ambito": "Sismo",
+      "archivo": "r-001-reglamento-sismico.pdf",
+      "url": "https://www.mopc.gob.do/",
+      "resumen": "Reglamento dominicano vigente para análisis sísmico (sustituye el R-001/1979). Define zonificación sísmica, clasificación de edificaciones por uso/sistema estructural, métodos de análisis, espectros de diseño, coeficiente de corte basal, control de derivas y criterios de configuración estructural.",
+      "secciones_relevantes": [
+        "TÍTULO I: Objetivo, campo de aplicación y definiciones (pág 1)",
+        "TÍTULO II: Zonificación sísmica (pág 6)",
+        "TÍTULO III: Clasificación de edificaciones por función/uso y sistema estructural (pág 14)",
+        "TÍTULO IV Cap. I-V: Análisis sísmico — métodos, solicitaciones, coeficiente de corte basal (págs 18-30)",
+        "TÍTULO IV Cap. VI-VII: Desplazamientos totales y máximos permitidos (págs 30-31)",
+        "TÍTULO IV Cap. VIII: Separación entre edificios adyacentes (pág 31)",
+        "TÍTULO V: Estructuración — configuración y criterios (págs 31-34)",
+        "TÍTULO VI: Fundaciones (pág 35)"
+      ],
+      "aplicacion_losas": "Las losas de los pisos típicos actúan como diafragmas — verificar requisitos de configuración estructural del TÍTULO V. Las cargas sísmicas se incorporan como casos Ex/Ey en los archivos de combinaciones (.DZP/.CEZ) que Losas.exe / Zapata.exe leen."
+    },
+    {
+      "codigo": "ACI 318-19",
+      "titulo": "Building Code Requirements for Structural Concrete · ACI 318-19",
+      "edicion": "American Concrete Institute · 2019 (in-lb)",
+      "ambito": "Hormigón armado · referencia internacional",
+      "archivo": "ACI-318R-19.pdf",
+      "url": "https://www.concrete.org/",
+      "resumen": "Edición vigente del código ACI con su commentary integrado. Es la referencia técnica más actual; el R-033 dominicano sigue una estructura paralela. Es relevante porque el motor Losas.exe (F. Perdomo, 2011) referencia ACI 318-08, así que conviene cruzar contra la edición 19 cuando hay diferencias materiales.",
+      "secciones_relevantes": [
+        "Cap. 8: Two-way slabs (sistemas de losas en dos direcciones)",
+        "Cap. 24: Serviceability — control de deflexiones y agrietamiento",
+        "§7.6.2 / §7.7: Recubrimiento mínimo del refuerzo",
+        "§7.12 / §24.4: Refuerzo mínimo por contracción y temperatura",
+        "Cap. 13: Foundations (cuando la losa es de fundación)",
+        "Cap. 21: Earthquake-resistant structures (interacción con diafragmas)"
+      ],
+      "aplicacion_losas": "El método Pieper-Martens implementado por Losas.exe asume apoyos lineales rígidos (ver §13.6.1.6 ACI 318-08, equivalente actualizado en 8.4 ACI 318-19). Las disposiciones de armadura emitidas (Disponer X / Disponer Y) deben cumplir mínimos de 8.6/8.7."
+    },
+    {
+      "codigo": "R-008",
+      "titulo": "Reglamento para el Diseño y la Construcción de Instalaciones Sanitarias en Edificaciones",
+      "edicion": "MOPC, Santo Domingo · 2010 · Unidad 7",
+      "ambito": "Instalaciones sanitarias",
+      "archivo": "r-008.pdf",
+      "url": "https://www.mopc.gob.do/",
+      "resumen": "Reglamento dominicano de instalaciones sanitarias. NO aplica directamente al diseño de la losa estructural, pero se incluye para tenerlo a mano si necesitás verificar interacciones con drenajes pluviales en techo, pasos de tuberías por la losa, o cargas de cisternas.",
+      "secciones_relevantes": [
+        "TÍTULO II: Abastecimiento y distribución de agua (pág 15)",
+        "TÍTULO III: Drenaje pluvial — drenaje de techos, dimensionamiento de bajantes (págs 30-34)",
+        "TÍTULO IV Cap. VII: Instalaciones para el suministro de agua potable en centros de salud (pág 28)"
+      ],
+      "aplicacion_losas": "Si la losa es de techo, el dimensionamiento del drenaje pluvial (TÍTULO III Cap. III) define la sobrecarga adicional por charcos/retención antes del drenaje. Considerar al fijar la carga Wu de losas de cubierta."
+    }
+  ]
+}

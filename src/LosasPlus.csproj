@@ -1,0 +1,77 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Port WPF+WinForms -> Avalonia (net8.0 multiplataforma). FASE A: fundación.
+         Las vistas/VMs/servicios aún no portados se excluyen abajo. -->
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>LosasPlus</AssemblyName>
+    <RootNamespace>LosasPlus</RootNamespace>
+    <Version>0.1.0</Version>
+    <Authors>Wrapper basado en el motor de F. Perdomo (Losas v5.00). Port a Avalonia/Linux.</Authors>
+    <Product>LosasPlus</Product>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\src.Core\LosasPlus.Core.csproj" />
+    <ProjectReference Include="..\src.UI.Shared\MemoriaPlus.UI.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.*" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.*" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.*" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.*" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.3.*" />
+    <!-- 11.2.0.x: SkiaSharp 2.88 alineado con Avalonia core (ver MemoriaPlus). -->
+    <PackageReference Include="Avalonia.Svg.Skia" Version="11.2.0.2" />
+    <PackageReference Include="Avalonia.Diagnostics" Version="11.3.*">
+      <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+    </PackageReference>
+    <!-- OxyPlot.Core: tipos del modelo de gráfico (PlotModel/LineSeries/Axis…) —
+         puros, sin SkiaSharp. El control de vista (OxyPlot.Avalonia) se agrega en
+         la Fase F al portar VigaEditorView. -->
+    <PackageReference Include="OxyPlot.Core" Version="2.2.0" />
+    <!-- Fase F: control de vista OxyPlot para Avalonia 11 (build oficial del org OxyPlot).
+         Renderiza con el DrawingContext de Avalonia, no con SkiaSharp directo, así que
+         no altera el pin SkiaSharp 2.88. -->
+    <PackageReference Include="OxyPlot.Avalonia" Version="2.1.0-Avalonia11" />
+    <!-- Pendiente: rasterizador PDF Linux (PdfImportador sigue stub). -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Resources\TiposLosa.json" />
+    <AvaloniaResource Include="Resources\Reglamento.json" />
+    <AvaloniaResource Include="Resources\icons\*.svg" />
+  </ItemGroup>
+
+  <!-- FASE D (en progreso): las Views WPF aún no portadas se excluyen; a medida
+       que cada una pasa a .axaml se re-incluye su .axaml.cs aquí (el SDK auto-incluye
+       el .axaml; el Remove de *.xaml no afecta a los .axaml). E = canvas CAD, F = PDF/OxyPlot. -->
+  <ItemGroup>
+    <Compile Remove="Views\**\*.cs" />
+    <AvaloniaResource Remove="Views\**\*.xaml" />
+    <None Remove="Views\**\*.xaml" />
+    <!-- Vistas ya portadas a Avalonia (re-incluidas): -->
+    <Compile Include="Views\ImportarCombinacionesWindow.axaml.cs" />
+    <Compile Include="Views\KeyboardShortcutsWindow.axaml.cs" />
+    <Compile Include="Views\ColorPickerControl.axaml.cs" />
+    <Compile Include="Views\PasteExcelDialog.axaml.cs" />
+    <Compile Include="Views\AppearanceDialog.axaml.cs" />
+    <Compile Include="Views\DLDoctorWindow.axaml.cs" />
+    <Compile Include="Views\HighlightedTxtView.axaml.cs" />
+    <Compile Include="Views\TxtTablaView.axaml.cs" />
+    <Compile Include="Views\ReglamentoView.axaml.cs" />
+    <Compile Include="Views\TipoLosaIconView.axaml.cs" />
+    <Compile Include="Views\TiposLosaPanel.axaml.cs" />
+    <Compile Include="Views\CargasCombinacionesView.axaml.cs" />
+    <Compile Include="Views\Vigas\VigaEditorView.axaml.cs" />
+    <!-- Lienzo CAD: stub de Fase E (placeholder) para que el MainWindow real
+         referencie cad:CadView. El control real se porta en la Fase E. -->
+    <Compile Include="Views\Cad\CadView.axaml.cs" />
+  </ItemGroup>
+
+</Project>

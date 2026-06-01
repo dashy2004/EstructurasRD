@@ -1,0 +1,75 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:LosasPlus.Linux.ViewModels"
+        x:Class="LosasPlus.Linux.MainWindow"
+        x:CompileBindings="False"
+        Width="1000" Height="640"
+        MinWidth="720" MinHeight="480"
+        FontFamily="{StaticResource FontFamilyUI}"
+        Background="{StaticResource SurfaceBrush}"
+        Foreground="{StaticResource OnSurfaceBrush}"
+        Title="LosasPlus (Linux) — vista previa del motor de cálculo">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="0">
+
+        <!-- ============ Header ============ -->
+        <Border Grid.Row="0"
+                Background="{StaticResource PrimaryBrush}"
+                Padding="20,16">
+            <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Titulo}"
+                           FontSize="22" FontWeight="SemiBold"
+                           Foreground="White"/>
+                <TextBlock Text="{Binding Subtitulo}"
+                           FontSize="13"
+                           Foreground="#BFD3FF"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ============ Tabla de losas calculadas ============ -->
+        <Border Grid.Row="1" Margin="16"
+                Background="{StaticResource SurfaceContainerLowestBrush}"
+                BorderBrush="{StaticResource OutlineVariantBrush}"
+                BorderThickness="1" CornerRadius="4">
+            <DataGrid ItemsSource="{Binding Losas}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      GridLinesVisibility="Horizontal"
+                      HeadersVisibility="Column"
+                      FontFamily="{StaticResource FontFamilyMono}"
+                      FontSize="12"
+                      CanUserResizeColumns="True"
+                      CanUserSortColumns="True">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Nivel"  Binding="{Binding Nivel}"  Width="80"/>
+                    <DataGridTextColumn Header="Losa"   Binding="{Binding Losa}"   Width="70"/>
+                    <DataGridTextColumn Header="Tipo"   Binding="{Binding Tipo}"   Width="70"/>
+                    <DataGridTextColumn Header="Lx (m)" Binding="{Binding Lx}"     Width="80"/>
+                    <DataGridTextColumn Header="Ly (m)" Binding="{Binding Ly}"     Width="80"/>
+                    <DataGridTextColumn Header="h_calc (m)" Binding="{Binding HCalc}" Width="100"/>
+                    <DataGridTextColumn Header="h_eq (m)"   Binding="{Binding HEq}"   Width="90"/>
+                    <DataGridTextColumn Header="qd (t/m²)"   Binding="{Binding Qd}"    Width="90"/>
+                    <DataGridTextColumn Header="qu (t/m²)"   Binding="{Binding Qu}"    Width="90"/>
+                    <DataGridTextColumn Header="αm"          Binding="{Binding AlphaM}" Width="70"/>
+                    <DataGridTextColumn Header="Estado αfm"  Binding="{Binding Estado}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <!-- ============ Footer / status ============ -->
+        <Border Grid.Row="2"
+                Background="{StaticResource SurfaceContainerHighBrush}"
+                BorderBrush="{StaticResource OutlineVariantBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="16,8">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Ellipse Width="10" Height="10" Fill="{StaticResource SuccessBrush}"
+                         VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding MotorInfo}"
+                           VerticalAlignment="Center"
+                           FontSize="12"
+                           Foreground="{StaticResource OnSurfaceVariantBrush}"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

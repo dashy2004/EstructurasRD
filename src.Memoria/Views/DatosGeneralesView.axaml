@@ -1,0 +1,247 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
+             x:Class="MemoriaPlus.Views.DatosGeneralesView"
+             x:CompileBindings="False"
+             Background="{StaticResource SurfaceBrush}">
+
+    <Grid ColumnDefinitions="*,12,320">
+
+        <!-- FORMULARIO PRINCIPAL -->
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Padding="24,16,4,16">
+            <StackPanel>
+
+                <!-- Identificación -->
+                <Border Theme="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="🏛  IDENTIFICACIÓN"/>
+                        <Grid Margin="0,12,0,0" RowDefinitions="Auto,8,Auto,8,Auto,8,Auto" ColumnDefinitions="*,12,*,12,*">
+                            <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="5">
+                                <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Nombre del proyecto"/>
+                                <TextBox Text="{Binding ProyectoActivo.Nombre, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="5">
+                                <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Ubicación completa"/>
+                                <TextBox Text="{Binding ProyectoActivo.UbicacionCompleta, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="4" Grid.Column="0">
+                                <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Ciudad"/>
+                                <TextBox Text="{Binding ProyectoActivo.Ciudad, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="4" Grid.Column="2">
+                                <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Mes / Año"/>
+                                <TextBox Text="{Binding ProyectoActivo.MesAno, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="6" Grid.Column="0">
+                                <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Uso"/>
+                                <ComboBox HorizontalAlignment="Stretch"
+                                          ItemsSource="{x:Static vm:MainViewModel.UsosDelProyecto}"
+                                          SelectedValue="{Binding ProyectoActivo.Uso, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="6" Grid.Column="2">
+                                <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Cantidad de niveles"/>
+                                <TextBox Text="{Binding ProyectoActivo.CantidadNiveles, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="6" Grid.Column="4">
+                                <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Sistema estructural"/>
+                                <ComboBox HorizontalAlignment="Stretch"
+                                          ItemsSource="{x:Static vm:MainViewModel.SistemasEstructurales}"
+                                          SelectedValue="{Binding ProyectoActivo.SistemaEstructural, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Ingeniero responsable -->
+                <Border Theme="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="👤  INGENIERO RESPONSABLE"/>
+                        <Grid Margin="0,12,0,0" RowDefinitions="Auto,8,Auto" ColumnDefinitions="*,12,*">
+                            <StackPanel Grid.Row="0" Grid.Column="0">
+                                <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Nombre"/>
+                                <TextBox Text="{Binding ProyectoActivo.Autor, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="0" Grid.Column="2">
+                                <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="CODIA"/>
+                                <TextBox Text="{Binding ProyectoActivo.Codia, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="2" Grid.Column="0">
+                                <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Teléfono fijo"/>
+                                <TextBox Text="{Binding ProyectoActivo.TelefonoFijo, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="2" Grid.Column="2">
+                                <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Teléfono celular"/>
+                                <TextBox Text="{Binding ProyectoActivo.TelefonoCelular, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                        </Grid>
+                        <StackPanel Margin="0,8,0,0">
+                            <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Diseñador arquitectónico"/>
+                            <TextBox Text="{Binding ProyectoActivo.DisenadorArquitectonico, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Suelo y fundaciones -->
+                <Border Theme="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="🌍  DATOS DEL SUELO Y FUNDACIONES"/>
+                        <Grid Margin="0,12,0,0" RowDefinitions="Auto,8,Auto" ColumnDefinitions="2*,12,*,12,*">
+                            <StackPanel Grid.Row="0" Grid.Column="0">
+                                <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Tipo de fundaciones"/>
+                                <ComboBox HorizontalAlignment="Stretch"
+                                          ItemsSource="{x:Static vm:MainViewModel.TiposFundacion}"
+                                          SelectedValue="{Binding ProyectoActivo.TipoFundaciones, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="0" Grid.Column="2">
+                                <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Esfuerzo admisible (kg/cm²)"/>
+                                <TextBox Text="{Binding ProyectoActivo.EsfuerzoAdmisible, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="0" Grid.Column="4">
+                                <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Profundidad desplante (m)"/>
+                                <TextBox Text="{Binding ProyectoActivo.ProfundidadDesplante, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="5">
+                                <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Otros parámetros del estudio de suelos"/>
+                                <TextBox Theme="{StaticResource MemoriaTextAreaStyle}"
+                                         Text="{Binding ProyectoActivo.OtrosParametros, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Materiales y normas -->
+                <Border Theme="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="🧱  MATERIALES Y NORMAS"/>
+                        <Grid Margin="0,12,0,0" ColumnDefinitions="*,12,*,12,2*">
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="f'c (kg/cm²)"/>
+                                <TextBox Text="{Binding ProyectoActivo.FcKgCm2, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="fy (kg/cm²)"/>
+                                <TextBox Text="{Binding ProyectoActivo.FyKgCm2, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="4">
+                                <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Normativas aplicadas"/>
+                                <Border BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="1"
+                                        CornerRadius="{StaticResource CornerRadiusDefault}"
+                                        Padding="6,4" MinHeight="32"
+                                        Background="{StaticResource SurfaceContainerLowestBrush}">
+                                    <ItemsControl ItemsSource="{Binding ProyectoActivo.Normas}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{StaticResource SecondaryContainerBrush}"
+                                                        CornerRadius="{StaticResource CornerRadiusSm}"
+                                                        Padding="6,2" Margin="2">
+                                                    <TextBlock Text="{Binding}"
+                                                               FontFamily="{StaticResource FontFamilyMono}"
+                                                               FontSize="11"
+                                                               Foreground="{StaticResource OnSurfaceBrush}"/>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- VISTA PREVIA DE PLACEHOLDERS -->
+        <Border Grid.Column="2" Theme="{StaticResource SectionCardStyle}" Margin="0,16,16,16">
+            <Grid RowDefinitions="Auto,Auto,*">
+                <TextBlock Grid.Row="0" Theme="{StaticResource LabelCapsStyle}"
+                           Text="🔣  VISTA PREVIA DE PLACEHOLDERS"/>
+                <TextBlock Grid.Row="1" Margin="0,4,0,12"
+                           Foreground="{StaticResource OnSurfaceVariantBrush}"
+                           FontSize="11" TextWrapping="Wrap"
+                           Text="Variables que la plantilla .docx reemplazará al generar la memoria. Edita el formulario para verlas en vivo."/>
+
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                    <Grid RowDefinitions="Auto,*">
+                        <Grid Grid.Row="0" Background="{StaticResource SurfaceContainerHighBrush}" ColumnDefinitions="*,*">
+                            <TextBlock Grid.Column="0" Theme="{StaticResource LabelCapsStyle}" Margin="8,6" Text="VARIABLE"/>
+                            <TextBlock Grid.Column="1" Theme="{StaticResource LabelCapsStyle}" Margin="8,6" Text="VALOR ACTUAL" HorizontalAlignment="Right"/>
+                        </Grid>
+                        <StackPanel Grid.Row="1">
+                            <Grid ColumnDefinitions="*,*">
+                                <TextBlock Grid.Column="0" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource PrimaryBrush}" Margin="8,4" Text="{}{{NOMBRE_PROYECTO}}"/>
+                                <TextBlock Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" Margin="8,4" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" Text="{Binding ProyectoActivo.Nombre}"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*">
+                                <TextBlock Grid.Column="0" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource PrimaryBrush}" Margin="8,4" Text="{}{{UBICACION_COMPLETA}}"/>
+                                <TextBlock Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" Margin="8,4" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" Text="{Binding ProyectoActivo.UbicacionCompleta}"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*">
+                                <TextBlock Grid.Column="0" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource PrimaryBrush}" Margin="8,4" Text="{}{{CIUDAD_UBICACION}}"/>
+                                <TextBlock Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" Margin="8,4" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" Text="{Binding ProyectoActivo.Ciudad}"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*">
+                                <TextBlock Grid.Column="0" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource PrimaryBrush}" Margin="8,4" Text="{}{{MES_AÑO}}"/>
+                                <TextBlock Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" Margin="8,4" HorizontalAlignment="Right" Text="{Binding ProyectoActivo.MesAno}"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*">
+                                <TextBlock Grid.Column="0" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource PrimaryBrush}" Margin="8,4" Text="{}{{USO}}"/>
+                                <TextBlock Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" Margin="8,4" HorizontalAlignment="Right" Text="{Binding ProyectoActivo.Uso}"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*">
+                                <TextBlock Grid.Column="0" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource PrimaryBrush}" Margin="8,4" Text="{}{{CANTIDAD_NIVELES}}"/>
+                                <TextBlock Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" Margin="8,4" HorizontalAlignment="Right" Text="{Binding ProyectoActivo.CantidadNiveles}"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*">
+                                <TextBlock Grid.Column="0" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource PrimaryBrush}" Margin="8,4" Text="{}{{SISTEMA_ESTRUCTURAL}}"/>
+                                <TextBlock Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" Margin="8,4" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" Text="{Binding ProyectoActivo.SistemaEstructural}"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*">
+                                <TextBlock Grid.Column="0" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource PrimaryBrush}" Margin="8,4" Text="{}{{NOMBRE_INGENIERO}}"/>
+                                <TextBlock Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" Margin="8,4" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" Text="{Binding ProyectoActivo.Autor}"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*">
+                                <TextBlock Grid.Column="0" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource PrimaryBrush}" Margin="8,4" Text="{}{{CODIA}}"/>
+                                <TextBlock Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" Margin="8,4" HorizontalAlignment="Right" Text="{Binding ProyectoActivo.Codia}"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*">
+                                <TextBlock Grid.Column="0" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource PrimaryBrush}" Margin="8,4" Text="{}{{TEL_FIJO}}"/>
+                                <TextBlock Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" Margin="8,4" HorizontalAlignment="Right" Text="{Binding ProyectoActivo.TelefonoFijo}"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*">
+                                <TextBlock Grid.Column="0" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource PrimaryBrush}" Margin="8,4" Text="{}{{TEL_CELULAR}}"/>
+                                <TextBlock Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" Margin="8,4" HorizontalAlignment="Right" Text="{Binding ProyectoActivo.TelefonoCelular}"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*">
+                                <TextBlock Grid.Column="0" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource PrimaryBrush}" Margin="8,4" Text="{}{{NOMBRE_DISEÑADOR_ARQ}}"/>
+                                <TextBlock Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" Margin="8,4" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" Text="{Binding ProyectoActivo.DisenadorArquitectonico}"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*">
+                                <TextBlock Grid.Column="0" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource PrimaryBrush}" Margin="8,4" Text="{}{{TIPO_FUNDACIONES}}"/>
+                                <TextBlock Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" Margin="8,4" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" Text="{Binding ProyectoActivo.TipoFundaciones}"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*">
+                                <TextBlock Grid.Column="0" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource PrimaryBrush}" Margin="8,4" Text="{}{{ESFUERZO_ADMISIBLE}}"/>
+                                <TextBlock Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" Margin="8,4" HorizontalAlignment="Right" Text="{Binding ProyectoActivo.EsfuerzoAdmisible}"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*">
+                                <TextBlock Grid.Column="0" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource PrimaryBrush}" Margin="8,4" Text="{}{{PROFUNDIDAD_DESPLANTE}}"/>
+                                <TextBlock Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" Margin="8,4" HorizontalAlignment="Right" Text="{Binding ProyectoActivo.ProfundidadDesplante}"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*">
+                                <TextBlock Grid.Column="0" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource PrimaryBrush}" Margin="8,4" Text="{}{{OTROS_PARAMETROS}}"/>
+                                <TextBlock Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}" FontSize="11" Foreground="{StaticResource OnSurfaceBrush}" Margin="8,4" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" Text="{Binding ProyectoActivo.OtrosParametros}"/>
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+    </Grid>
+</UserControl>

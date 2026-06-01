@@ -1,0 +1,43 @@
+name: ci
+
+# Continuous integration: build + test on every push to main and on PRs.
+# Runs on Windows because the apps are WPF (UseWPF=true) — even the Core
+# library targets net8.0 (no WPF), but tests reference the App via WPF
+# runtime.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore LosasPlus.sln
+
+      - name: Build (Release)
+        run: dotnet build LosasPlus.sln -c Release --no-restore /warnaserror
+
+      - name: Test
+        run: dotnet test LosasPlus.sln -c Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/TestResults/*.trx'
+          retention-days: 14

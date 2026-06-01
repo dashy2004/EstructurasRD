@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Port WPF -> Avalonia: net8.0 multiplataforma (corre en Linux/Windows/macOS). -->
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>MemoriaPlus</AssemblyName>
+    <RootNamespace>MemoriaPlus</RootNamespace>
+    <Version>0.1.0</Version>
+    <Authors>Emil Guillen De la Cruz</Authors>
+    <Product>Memoria Plus</Product>
+    <Description>
+      Generador de memorias de calculo estructural en formato .docx, basado en
+      el modelo de dominio compartido de LosasPlus.Core. Port a Avalonia para Linux.
+    </Description>
+    <Copyright>(c) 2026 Emil Guillen De la Cruz. Memoria Plus.</Copyright>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\src.Core\LosasPlus.Core.csproj" />
+    <ProjectReference Include="..\src.UI.Shared\MemoriaPlus.UI.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.*" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.*" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.*" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.*" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.3.*" />
+    <!-- 11.2.0.x: mantiene SkiaSharp 2.88 (alineado con Avalonia 11.3 core). -->
+    <PackageReference Include="Avalonia.Svg.Skia" Version="11.2.0.2" />
+    <PackageReference Include="Avalonia.Diagnostics" Version="11.3.*">
+      <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Plantillas .docx empaquetadas con la app. -->
+    <Content Include="Resources\templates\*.docx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.3.0" />
+  </ItemGroup>
+
+</Project>

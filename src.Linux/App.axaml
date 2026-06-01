@@ -1,0 +1,72 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="LosasPlus.Linux.App"
+             RequestedThemeVariant="Light">
+
+    <Application.Styles>
+        <FluentTheme />
+        <!-- Tema del DataGrid (paquete Avalonia.Controls.DataGrid). -->
+        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+    </Application.Styles>
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <!-- ================================================================
+                 Design tokens portados desde MemoriaPlus.UI.Shared/Resources/Theme.xaml
+                 (paleta Material 3, neutra + cobalt accent). En Avalonia los
+                 Color y SolidColorBrush funcionan igual que en WPF; los
+                 ControlTemplate/Trigger de WPF se reescriben aparte como
+                 ControlTheme/selectores en fases siguientes.
+                 ================================================================ -->
+
+            <!-- Surfaces -->
+            <Color x:Key="ColorSurface">#FCF8FB</Color>
+            <Color x:Key="ColorSurfaceContainerLowest">#FFFFFF</Color>
+            <Color x:Key="ColorSurfaceContainerLow">#F6F3F5</Color>
+            <Color x:Key="ColorSurfaceContainer">#F0EDEF</Color>
+            <Color x:Key="ColorSurfaceContainerHigh">#EAE7EA</Color>
+            <Color x:Key="ColorSurfaceContainerHighest">#E4E2E4</Color>
+            <Color x:Key="ColorOnSurface">#1B1B1D</Color>
+            <Color x:Key="ColorOnSurfaceVariant">#434751</Color>
+            <Color x:Key="ColorOutline">#737782</Color>
+            <Color x:Key="ColorOutlineVariant">#C3C6D2</Color>
+
+            <!-- Primary (cobalt) -->
+            <Color x:Key="ColorPrimary">#064287</Color>
+            <Color x:Key="ColorPrimaryContainer">#2C5AA0</Color>
+            <Color x:Key="ColorOnPrimary">#FFFFFF</Color>
+            <Color x:Key="ColorOnPrimaryContainer">#BFD3FF</Color>
+
+            <!-- Secondary -->
+            <Color x:Key="ColorSecondary">#5D5E60</Color>
+            <Color x:Key="ColorSecondaryContainer">#DFDFE1</Color>
+
+            <!-- Status -->
+            <Color x:Key="ColorSuccess">#2D7A4F</Color>
+            <Color x:Key="ColorWarning">#C18A2C</Color>
+            <Color x:Key="ColorError">#BA1A1A</Color>
+
+            <!-- Brushes -->
+            <SolidColorBrush x:Key="SurfaceBrush"                 Color="{StaticResource ColorSurface}"/>
+            <SolidColorBrush x:Key="SurfaceContainerLowestBrush"  Color="{StaticResource ColorSurfaceContainerLowest}"/>
+            <SolidColorBrush x:Key="SurfaceContainerLowBrush"     Color="{StaticResource ColorSurfaceContainerLow}"/>
+            <SolidColorBrush x:Key="SurfaceContainerBrush"        Color="{StaticResource ColorSurfaceContainer}"/>
+            <SolidColorBrush x:Key="SurfaceContainerHighBrush"    Color="{StaticResource ColorSurfaceContainerHigh}"/>
+            <SolidColorBrush x:Key="SurfaceContainerHighestBrush" Color="{StaticResource ColorSurfaceContainerHighest}"/>
+            <SolidColorBrush x:Key="OnSurfaceBrush"               Color="{StaticResource ColorOnSurface}"/>
+            <SolidColorBrush x:Key="OnSurfaceVariantBrush"        Color="{StaticResource ColorOnSurfaceVariant}"/>
+            <SolidColorBrush x:Key="OutlineBrush"                 Color="{StaticResource ColorOutline}"/>
+            <SolidColorBrush x:Key="OutlineVariantBrush"          Color="{StaticResource ColorOutlineVariant}"/>
+            <SolidColorBrush x:Key="PrimaryBrush"                 Color="{StaticResource ColorPrimary}"/>
+            <SolidColorBrush x:Key="PrimaryContainerBrush"        Color="{StaticResource ColorPrimaryContainer}"/>
+            <SolidColorBrush x:Key="OnPrimaryBrush"               Color="{StaticResource ColorOnPrimary}"/>
+            <SolidColorBrush x:Key="SuccessBrush"                 Color="{StaticResource ColorSuccess}"/>
+            <SolidColorBrush x:Key="WarningBrush"                 Color="{StaticResource ColorWarning}"/>
+            <SolidColorBrush x:Key="ErrorBrush"                   Color="{StaticResource ColorError}"/>
+
+            <!-- Tipografia: Inter (UI) + monoespaciada para datos tabulares. -->
+            <FontFamily x:Key="FontFamilyUI">Inter, Segoe UI, sans-serif</FontFamily>
+            <FontFamily x:Key="FontFamilyMono">JetBrains Mono, Cascadia Mono, Consolas, monospace</FontFamily>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

@@ -1,0 +1,188 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
+             xmlns:cmn="clr-namespace:MemoriaPlus.Common"
+             xmlns:conv="using:Avalonia.Data.Converters"
+             x:Class="MemoriaPlus.Views.PlantillasView"
+             x:CompileBindings="False"
+             Background="{StaticResource SurfaceBrush}">
+
+    <UserControl.DataContext>
+        <vm:PlantillasViewModel/>
+    </UserControl.DataContext>
+
+    <UserControl.Resources>
+        <!-- Card de plantilla (ListBoxItem): thumb + nombre + fecha + badge -->
+        <ControlTheme x:Key="PlantillaCardStyle" TargetType="ListBoxItem">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,16,16"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border Name="bd" Width="240" Height="200"
+                            Background="{StaticResource SurfaceContainerLowestBrush}"
+                            BorderBrush="{StaticResource OutlineVariantBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource CornerRadiusDefault}">
+                        <Grid RowDefinitions="*,Auto">
+                            <!-- Thumb fake -->
+                            <Border Grid.Row="0" Margin="20,20,20,12"
+                                    Background="{StaticResource SurfaceContainerBrush}"
+                                    BorderBrush="{StaticResource OutlineVariantBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="{StaticResource CornerRadiusSm}">
+                                <Grid Margin="14" RowDefinitions="Auto,6,Auto,4,Auto">
+                                    <Border Grid.Row="0" Height="10" HorizontalAlignment="Left" Width="120"
+                                            Background="{StaticResource OutlineVariantBrush}"/>
+                                    <Border Grid.Row="2" Height="6" HorizontalAlignment="Stretch"
+                                            Background="{StaticResource OutlineVariantBrush}"/>
+                                    <Border Grid.Row="4" Height="6" HorizontalAlignment="Stretch"
+                                            Background="{StaticResource OutlineVariantBrush}"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Badge PREDETERMINADA -->
+                            <Border Grid.Row="0" Margin="10"
+                                    VerticalAlignment="Top" HorizontalAlignment="Left"
+                                    Background="{StaticResource PrimaryBrush}"
+                                    CornerRadius="{StaticResource CornerRadiusSm}"
+                                    Padding="6,1"
+                                    IsVisible="{Binding EsPredeterminada}">
+                                <TextBlock Text="PREDETERMINADA"
+                                           FontFamily="{StaticResource FontFamilyMono}"
+                                           FontSize="9" FontWeight="SemiBold"
+                                           Foreground="White"/>
+                            </Border>
+
+                            <!-- Info -->
+                            <StackPanel Grid.Row="1" Margin="14,0,14,14">
+                                <TextBlock Text="{Binding Nombre}"
+                                           FontFamily="{StaticResource FontFamilyUI}"
+                                           FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{StaticResource OnSurfaceBrush}"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip.Tip="{Binding Nombre}"/>
+                                <TextBlock Margin="0,4,0,0"
+                                           FontFamily="{StaticResource FontFamilyMono}"
+                                           FontSize="10"
+                                           Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                           Text="{Binding Actualizado, StringFormat='Actualizado: {0:dd/MM/yy}'}"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^:selected /template/ Border#bd">
+                <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                <Setter Property="BorderThickness" Value="2"/>
+            </Style>
+            <Style Selector="^:pointerover /template/ Border#bd">
+                <Setter Property="Background" Value="{StaticResource SurfaceContainerLowBrush}"/>
+            </Style>
+        </ControlTheme>
+    </UserControl.Resources>
+
+    <Grid Margin="32,24" RowDefinitions="Auto,Auto,*,Auto">
+
+        <!-- HEADER -->
+        <Grid Grid.Row="0" Margin="0,0,0,20" ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0">
+                <TextBlock Theme="{StaticResource H1Style}" Text="Plantillas de Documentos"/>
+                <TextBlock Margin="0,4,0,0"
+                           Foreground="{StaticResource OnSurfaceVariantBrush}" FontSize="13"
+                           Text="Gestiona los formatos base para la generación de memorias de cálculo."/>
+            </StackPanel>
+            <Button Grid.Column="1" VerticalAlignment="Center"
+                    Theme="{StaticResource PrimaryButtonStyle}"
+                    Padding="14,0" Content="📄+ Importar plantilla .docx"
+                    Command="{Binding ImportarCommand}"/>
+        </Grid>
+
+        <!-- STATUS -->
+        <Border Grid.Row="1" Margin="0,0,0,12" Padding="10,6"
+                Background="{StaticResource SurfaceContainerLowestBrush}"
+                BorderBrush="{StaticResource OutlineVariantBrush}"
+                BorderThickness="1" CornerRadius="{StaticResource CornerRadiusDefault}"
+                IsVisible="{Binding MostrarStatus}">
+            <TextBlock Text="{Binding StatusGuardado}"
+                       FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
+                       Foreground="{StaticResource OnSurfaceBrush}" TextWrapping="Wrap"/>
+        </Border>
+
+        <!-- GRID DE CARDS -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <Grid>
+                <!-- Empty state -->
+                <Border Padding="32" CornerRadius="{StaticResource CornerRadiusDefault}"
+                        Background="{StaticResource SurfaceContainerLowestBrush}"
+                        BorderBrush="{StaticResource OutlineVariantBrush}"
+                        BorderThickness="1" MaxWidth="480"
+                        HorizontalAlignment="Center" VerticalAlignment="Top"
+                        IsVisible="{Binding Plantillas.Count, Converter={x:Static cmn:ValidacionConverters.EsCero}}">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="📄" FontSize="40" HorizontalAlignment="Center"
+                                   Foreground="{StaticResource OutlineBrush}"/>
+                        <TextBlock Text="Sin plantillas registradas"
+                                   FontFamily="{StaticResource FontFamilyUI}"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Margin="0,12,0,4" HorizontalAlignment="Center"
+                                   Foreground="{StaticResource OnSurfaceBrush}"/>
+                        <TextBlock TextAlignment="Center" TextWrapping="Wrap" FontSize="12"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                   Text="Importa un archivo .docx para usarlo como plantilla base de tus memorias de cálculo. La app aplicará tus datos sobre los placeholders del archivo."/>
+                    </StackPanel>
+                </Border>
+
+                <ListBox ItemsSource="{Binding Plantillas}"
+                         SelectedItem="{Binding PlantillaSeleccionada}"
+                         ItemContainerTheme="{StaticResource PlantillaCardStyle}"
+                         BorderThickness="0" Background="Transparent"
+                         HorizontalAlignment="Stretch"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                </ListBox>
+            </Grid>
+        </ScrollViewer>
+
+        <!-- FOOTER con acciones sobre la selección -->
+        <Border Grid.Row="3" Margin="0,16,0,0" Padding="16,12"
+                Background="{StaticResource SurfaceContainerLowBrush}"
+                BorderBrush="{StaticResource OutlineVariantBrush}"
+                BorderThickness="1" CornerRadius="{StaticResource CornerRadiusDefault}"
+                IsVisible="{Binding PlantillaSeleccionada, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock FontFamily="{StaticResource FontFamilyUI}"
+                               FontSize="13" FontWeight="SemiBold"
+                               Foreground="{StaticResource OnSurfaceBrush}"
+                               Text="{Binding PlantillaSeleccionada.Nombre, TargetNullValue='Selecciona una plantilla'}"/>
+                    <TextBlock Margin="0,2,0,0"
+                               FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
+                               Foreground="{StaticResource OnSurfaceVariantBrush}"
+                               TextTrimming="CharacterEllipsis"
+                               Text="{Binding PlantillaSeleccionada.Path, TargetNullValue=''}"
+                               ToolTip.Tip="{Binding PlantillaSeleccionada.Path}"/>
+                </StackPanel>
+                <Button Grid.Column="1" Margin="8,0,0,0"
+                        Theme="{StaticResource SecondaryButtonStyle}"
+                        Padding="12,0" Content="📂 Abrir en Word"
+                        Command="{Binding AbrirArchivoCommand}"/>
+                <Button Grid.Column="2" Margin="8,0,0,0"
+                        Theme="{StaticResource SecondaryButtonStyle}"
+                        Padding="12,0" Content="★ Marcar predeterminada"
+                        Command="{Binding MarcarComoPredeterminadaCommand}"/>
+                <Button Grid.Column="3" Margin="8,0,0,0"
+                        Theme="{StaticResource SecondaryButtonStyle}"
+                        Padding="12,0" Content="✕ Quitar"
+                        Command="{Binding QuitarCommand}"
+                        ToolTip.Tip="Eliminar la entrada del registry (el archivo .docx en disco no se borra)"/>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

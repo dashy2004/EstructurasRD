@@ -1,0 +1,913 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:LosasPlus.ViewModels"
+        xmlns:v="clr-namespace:LosasPlus.Views"
+        xmlns:cad="clr-namespace:LosasPlus.Views.Cad"
+        xmlns:vigas="clr-namespace:LosasPlus.Views.Vigas"
+        xmlns:vws="clr-namespace:MemoriaPlus.Views;assembly=MemoriaPlus.UI.Shared"
+        xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+        x:Class="LosasPlus.MainWindow"
+        x:CompileBindings="False"
+        Title="{Binding TituloVentana}"
+        Height="900" Width="1440" MinHeight="640" MinWidth="1100"
+        Background="{DynamicResource BgPrimary}"
+        WindowStartupLocation="CenterScreen">
+
+    <!-- ============================================================
+         Port WPF→Avalonia del MainWindow real (shell de 14 modos).
+         Cambios clave vs. WPF:
+           · Visibility+DataTrigger por modo  → IsVisible + EnumToBoolConverter.
+           · Style/ControlTemplate+Triggers    → Styles con selectores pseudo-clase.
+           · ToolTip="..."                     → ToolTip.Tip="...".
+           · Style="{StaticResource X}"        → Theme="{StaticResource X}".
+           · Hyperlink+RequestNavigate         → HyperlinkButton NavigateUri.
+           · MouseDoubleClick                  → DoubleTapped.
+           · Window.InputBindings/KeyBinding   → Window.KeyBindings + KeyGesture
+             (los 4 fijos acá; los 6 personalizables los aplica el code-behind).
+           · Lienzo CAD = stub Fase E (cad:CadView placeholder).
+         ============================================================ -->
+    <Window.DataContext>
+        <vm:MainViewModel/>
+    </Window.DataContext>
+
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Ctrl+E" Command="{Binding IrAExploradorCommand}"/>
+        <KeyBinding Gesture="Ctrl+Z" Command="{Binding UndoCommand}"/>
+        <KeyBinding Gesture="Ctrl+Y" Command="{Binding RedoCommand}"/>
+        <KeyBinding Gesture="Ctrl+OemQuestion" Command="{Binding AbrirShortcutsCommand}"/>
+    </Window.KeyBindings>
+
+    <Window.Styles>
+        <!-- Nav tabs (RadioButton reestilizado con indicador inferior). -->
+        <Style Selector="RadioButton.navtab">
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="Margin" Value="1,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{DynamicResource FgSecondary}"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Name="bd" Background="Transparent" BorderBrush="Transparent"
+                            BorderThickness="0,0,0,3" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="RadioButton.navtab:checked /template/ Border#bd">
+            <Setter Property="Background" Value="{DynamicResource BgTertiary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ActiveBar}"/>
+        </Style>
+        <Style Selector="RadioButton.navtab:checked">
+            <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="RadioButton.navtab:pointerover:unchecked /template/ Border#bd">
+            <Setter Property="Background" Value="{DynamicResource BgInput}"/>
+        </Style>
+        <Style Selector="RadioButton.navtab:pointerover:unchecked">
+            <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+        </Style>
+
+        <!-- Botón ID del grid de losas resaltado cuando ModoConectarBordes activo. -->
+        <Style Selector="Button.connectmode">
+            <Setter Property="Background" Value="{DynamicResource AccentHi}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FgOnAccent}"/>
+            <Setter Property="ToolTip.Tip" Value="Click para conectar bordes adicionales"/>
+        </Style>
+
+        <!-- Celda Ly/Lx resaltada cuando el aspecto está fuera de rango. -->
+        <Style Selector="Border.aspectwarn">
+            <Setter Property="Background" Value="{DynamicResource Warn}"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- =============================================================
+             BARRA SUPERIOR (Top Tabs): branding + nav modos + sistema + tema.
+             ============================================================= -->
+        <Border Grid.Row="0" Background="{DynamicResource BgSecondary}"
+                BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1"
+                Padding="0,4,0,0">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+
+                <!-- Branding -->
+                <StackPanel Grid.Column="0" Margin="16,0,12,4" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="LosasPlus" FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource Accent}"/>
+                        <TextBlock Text="{Binding Version}" FontSize="10"
+                                   Foreground="{DynamicResource FgMuted}"
+                                   VerticalAlignment="Bottom" Margin="6,0,0,2"/>
+                    </StackPanel>
+                    <TextBlock Text="motor: F. Perdomo" FontSize="9"
+                               Foreground="{DynamicResource FgMuted}"/>
+                </StackPanel>
+
+                <!-- Nav modos: 14 RadioButtons → ModoActivo via EnumToBool. -->
+                <ScrollViewer Grid.Column="1" VerticalAlignment="Bottom"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Disabled">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📂  Explorador"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Explorador}"/>
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🔍  Búsqueda"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Busqueda}"/>
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="✎  Editor"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Editor}"/>
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🗺  Lienzo CAD"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}"
+                                     ToolTip.Tip="Editor visual CAD: importá un plano .DXF de referencia y visualizá las losas."/>
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="▤  Editor .DL"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DLEditor}"/>
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="⇲  Salida .TXT"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Salida}"/>
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🔩  Aceros"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Aceros}"
+                                     ToolTip.Tip="Diseño de aceros distribuidos por losa. Próximamente."/>
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📊  Cargas y Combinaciones"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=CargasCombinaciones}"
+                                     ToolTip.Tip="Casos y combinaciones de carga del proyecto."/>
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📐  Vigas Continuas"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vigas}"
+                                     ToolTip.Tip="Editor de vigas continuas: análisis por rigidez directa y diagramas V(x), M(x), δ(x)."/>
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🛡  Validación"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}"/>
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="⚖  Reglamento"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Reglamento}"/>
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="⚙  Configuración"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Configuracion}"/>
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="◆  Plugins"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Plugins}"/>
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="ℹ  Acerca de"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Acerca}"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Selector de SISTEMA activo + tema. -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal"
+                            VerticalAlignment="Center" Margin="12,0,16,0">
+                    <TextBlock Text="SISTEMA" VerticalAlignment="Center"
+                               FontWeight="Bold" FontSize="10" Margin="0,0,8,0"
+                               Foreground="{DynamicResource FgMuted}"/>
+                    <ComboBox x:Name="SistemasList" VerticalAlignment="Center" MinWidth="160"
+                              ItemsSource="{Binding Proyecto.Sistemas}"
+                              SelectedItem="{Binding SistemaActivo, Mode=TwoWay}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Nombre}" FontWeight="SemiBold"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBox x:Name="SistemaNombreInline" VerticalAlignment="Center"
+                             Width="120" Margin="6,0,0,0"
+                             Text="{Binding SistemaActivo.Nombre, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip.Tip="Renombrar el sistema activo. El selector se actualiza en caliente."/>
+                    <Button Content="+" Width="24" Height="24" Padding="0" Margin="4,0,0,0"
+                            Click="OnAddSistema" VerticalAlignment="Center"
+                            Background="Transparent" BorderThickness="0"
+                            Foreground="{DynamicResource FgPrimary}"
+                            ToolTip.Tip="Agregar nuevo sistema"/>
+                    <Button Content="−" Width="24" Height="24" Padding="0"
+                            Click="OnDeleteSistema" VerticalAlignment="Center"
+                            Background="Transparent" BorderThickness="0"
+                            Foreground="{DynamicResource FgMuted}"
+                            ToolTip.Tip="Eliminar sistema seleccionado"/>
+                    <Border Width="1" Margin="10,6" Background="{DynamicResource Border}"/>
+                    <Button Content="Tema" Padding="8,3" Click="OnToggleTheme"
+                            VerticalAlignment="Center" Background="Transparent"
+                            Foreground="{DynamicResource FgSecondary}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                            ToolTip.Tip="Ciclar Precision/Light/Dark"/>
+                    <Button Content="Apariencia" Padding="8,3" Margin="6,0,0,0"
+                            Click="OnAppearanceClick" VerticalAlignment="Center"
+                            Background="Transparent"
+                            Foreground="{DynamicResource FgSecondary}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                            ToolTip.Tip="Personalizar colores"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- =============================================================
+             ÁREA PRINCIPAL: top bar + content switch + log + statusbar
+             ============================================================= -->
+        <Grid Grid.Row="1" RowDefinitions="Auto,*,Auto,Auto">
+
+            <!-- TOP ACTION BAR: menús + path Losas.exe + lanzar motor + chip validación. -->
+            <Border Grid.Row="0" Padding="16,8"
+                    Background="{DynamicResource BgInput}"
+                    BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+                <DockPanel LastChildFill="True">
+                    <Menu DockPanel.Dock="Left" Background="Transparent" VerticalAlignment="Center">
+                        <MenuItem Header="File">
+                            <MenuItem Header="Nuevo proyecto..." Click="OnNewProjectClick"/>
+                            <MenuItem Header="Abrir proyecto..." Click="OnOpenProjectClick"/>
+                            <MenuItem Header="Guardar proyecto..." Click="OnSaveProjectClick"/>
+                            <Separator/>
+                            <MenuItem Header="Abrir .DL legacy..." Click="OnOpenClick"/>
+                            <MenuItem Header="🩺 Diagnosticar .DL..." Click="OnDiagnosticarDLClick"/>
+                            <MenuItem Header="Guardar .DL agregado..." Click="OnSaveClick"/>
+                            <Separator/>
+                            <MenuItem Header="Pegar de Excel..." Click="OnPasteFromExcelClick"/>
+                        </MenuItem>
+                        <MenuItem Header="Engine">
+                            <MenuItem Header="Examinar Losas.exe..." Click="OnBrowseLosasExe"/>
+                            <MenuItem Header="Lanzar Losas.exe" Click="OnLaunchLosasExeClick"/>
+                            <MenuItem Header="Importar .TXT..." Click="OnImportTxtClick"/>
+                        </MenuItem>
+                        <MenuItem Header="Export">
+                            <MenuItem Header="Generar memoria → abrir MemoriaPlus (Ctrl+G)"
+                                      Command="{Binding GenerarMemoriaCommand}"/>
+                            <Separator/>
+                            <MenuItem Header="Exportar CSV..." Click="OnExportCsvClick"/>
+                            <MenuItem Header="Exportar XLSX..." Click="OnExportXlsxClick"/>
+                        </MenuItem>
+                    </Menu>
+
+                    <Button DockPanel.Dock="Right" Theme="{StaticResource PrimaryButton}"
+                            Content="▶ Lanzar motor" Padding="14,4" Margin="6,0,0,0"
+                            Click="OnLaunchLosasExeClick"
+                            ToolTip.Tip="Abre Losas.exe. Cargá el .DL, ejecutá el cálculo, luego volvé e Importá el .TXT."/>
+
+                    <!-- Chip de validación normativa: click → modo Validación.
+                         (Color por severidad diferido a un pase visual; texto en vivo.) -->
+                    <Button DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,4"
+                            Cursor="Hand" BorderThickness="1"
+                            Background="{DynamicResource BgSecondary}"
+                            BorderBrush="{DynamicResource Border}"
+                            Click="OnChipValidacionClick"
+                            ToolTip.Tip="Abrir panel de validación normativa">
+                        <TextBlock VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource FgPrimary}"
+                                   Text="{Binding Validacion.ResumenIndicador}"/>
+                    </Button>
+
+                    <TextBlock DockPanel.Dock="Left" Text="Losas.exe:" VerticalAlignment="Center"
+                               Margin="16,0,6,0" Foreground="{DynamicResource FgMuted}" FontSize="12"/>
+                    <TextBox Text="{Binding LosasExePath, UpdateSourceTrigger=PropertyChanged}"
+                             FontSize="11" VerticalAlignment="Center" MinHeight="26" Margin="0,0,6,0"/>
+                </DockPanel>
+            </Border>
+
+            <!-- =========================================================
+                 CONTENT SWITCH por ModoActivo (IsVisible + EnumToBool).
+                 ========================================================= -->
+            <Grid Grid.Row="1">
+
+                <!-- MODO Explorador: hub de proyectos recientes (.lpx.json). -->
+                <Grid Margin="32,24"
+                      IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Explorador}"
+                      RowDefinitions="Auto,Auto,Auto,*,Auto">
+
+                    <Grid Grid.Row="0" Margin="0,0,0,16" ColumnDefinitions="*,Auto,Auto">
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Proyectos recientes" FontSize="22" FontWeight="Bold"
+                                       Foreground="{DynamicResource FgPrimary}"/>
+                            <TextBlock Margin="0,4,0,0" Foreground="{DynamicResource FgMuted}" FontSize="13"
+                                       Text="Archivos .lpx.json compartidos con MemoriaPlus.App. Doble-click para abrir en Editor."/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Margin="8,0,0,0" Padding="14,6"
+                                Content="+ Nuevo proyecto"
+                                Command="{Binding NuevoProyectoLpxCommand}"
+                                Theme="{StaticResource PrimaryButton}"/>
+                        <Button Grid.Column="2" Margin="8,0,0,0" Padding="14,6"
+                                Content="📂 Abrir .lpx.json…"
+                                Command="{Binding AbrirProyectoLpxCommand}"/>
+                    </Grid>
+
+                    <!-- PROYECTO ACTIVO: renombrar + guardar + lista sistemas. -->
+                    <Border Grid.Row="1" Margin="0,0,0,16" Padding="16"
+                            Background="{DynamicResource BgSecondary}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                            CornerRadius="4">
+                        <StackPanel>
+                            <DockPanel LastChildFill="False" Margin="0,0,0,12">
+                                <TextBlock DockPanel.Dock="Left" Text="Proyecto activo"
+                                           FontWeight="Bold" FontSize="14"
+                                           Foreground="{DynamicResource Accent}" VerticalAlignment="Center"/>
+                                <Button DockPanel.Dock="Right" Padding="12,4" Margin="6,0,0,0"
+                                        Content="Guardar como…"
+                                        Command="{Binding GuardarComoLpxCommand}"
+                                        ToolTip.Tip="Pide path. Ctrl+Shift+S"/>
+                                <Button DockPanel.Dock="Right" Padding="12,4"
+                                        Content="💾 Guardar"
+                                        Theme="{StaticResource PrimaryButton}"
+                                        Command="{Binding GuardarProyectoLpxCommand}"
+                                        ToolTip.Tip="Guarda al path actual. Ctrl+S"/>
+                            </DockPanel>
+
+                            <Grid ColumnDefinitions="*,12,*,12,*">
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Nombre del proyecto" FontSize="11"
+                                               Foreground="{DynamicResource FgMuted}"/>
+                                    <TextBox Margin="0,4,0,0"
+                                             Text="{Binding Proyecto.Nombre, UpdateSourceTrigger=PropertyChanged}"
+                                             ToolTip.Tip="Aparece en el título de la ventana y en recientes."/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Autor (ingeniero)" FontSize="11"
+                                               Foreground="{DynamicResource FgMuted}"/>
+                                    <TextBox Margin="0,4,0,0"
+                                             Text="{Binding Proyecto.Autor, UpdateSourceTrigger=PropertyChanged}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="4">
+                                    <TextBlock Text="Código de obra" FontSize="11"
+                                               Foreground="{DynamicResource FgMuted}"/>
+                                    <TextBox Margin="0,4,0,0"
+                                             Text="{Binding Proyecto.CodigoObra, UpdateSourceTrigger=PropertyChanged}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock Text="Sistemas del proyecto" Margin="0,16,0,4" FontSize="11"
+                                       Foreground="{DynamicResource FgMuted}"/>
+                            <ItemsControl ItemsSource="{Binding Proyecto.Sistemas}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,2" ColumnDefinitions="Auto,*,Auto">
+                                            <TextBlock Grid.Column="0" Text="🗂" FontSize="14"
+                                                       VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <TextBox Grid.Column="1"
+                                                     Text="{Binding Nombre, UpdateSourceTrigger=PropertyChanged}"
+                                                     ToolTip.Tip="Renombrá el sistema (nivel)."/>
+                                            <TextBlock Grid.Column="2" Margin="8,0,0,0"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource FgMuted}" FontSize="11"
+                                                       Text="{Binding Losas.Count, StringFormat='{}{0} losa(s)'}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="2" Margin="0,0,0,12" Padding="10,6"
+                            Background="{DynamicResource BgInput}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                            IsVisible="{Binding StatusPersistencia, Converter={StaticResource StringNotEmptyToBoolConverter}}">
+                        <TextBlock Text="{Binding StatusPersistencia}" FontSize="11"
+                                   Foreground="{DynamicResource FgSecondary}" TextWrapping="Wrap"/>
+                    </Border>
+
+                    <Border Grid.Row="3" Background="{DynamicResource BgSecondary}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1">
+                        <DataGrid x:Name="ProyectosRecientesGrid"
+                                  ItemsSource="{Binding ProyectosRecientes}"
+                                  SelectedItem="{Binding ProyectoRecienteSeleccionado}"
+                                  IsReadOnly="True" AutoGenerateColumns="False"
+                                  HeadersVisibility="Column" GridLinesVisibility="None"
+                                  Background="Transparent" BorderThickness="0"
+                                  DoubleTapped="OnAbrirRecienteDoubleClick">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="NOMBRE"      Width="2*"  Binding="{Binding Nombre}"/>
+                                <DataGridTextColumn Header="INGENIERO"   Width="*"   Binding="{Binding Ingeniero}"/>
+                                <DataGridTextColumn Header="CÓDIGO OBRA" Width="120" Binding="{Binding Codia}"/>
+                                <DataGridTextColumn Header="SISTEMAS"    Width="80"  Binding="{Binding Niveles}"/>
+                                <DataGridTextColumn Header="ÚLT. EDICIÓN" Width="140" Binding="{Binding UltimaEdicion}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+
+                    <TextBlock Grid.Row="4" Margin="0,8,0,0" HorizontalAlignment="Right"
+                               Foreground="{DynamicResource FgMuted}" FontSize="11">
+                        <Run Text="Total: "/>
+                        <Run Text="{Binding ProyectosRecientes.Count, Mode=OneWay}"/>
+                        <Run Text=" proyectos · registry compartido con MemoriaPlus"/>
+                    </TextBlock>
+                </Grid>
+
+                <!-- MODO Editor: DataGrid de losas + tipos panel + panel lateral. -->
+                <Grid Margin="16" ColumnDefinitions="*,320"
+                      IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Editor}">
+
+                    <DockPanel Grid.Column="0">
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4">
+                            <TextBlock Text="Filtro tipo:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBox Width="180" Text="{Binding FiltroTipo, UpdateSourceTrigger=PropertyChanged}"/>
+                            <Button Content="+ Losa" Width="80" Margin="8,0,0,0" Click="OnAddLosa"/>
+                            <Button Content="– Losa" Width="80" Margin="4,0,0,0" Click="OnDelLosa"/>
+                            <Button Content="Pegar de Excel..." Width="140" Margin="8,0,0,0"
+                                    Click="OnPasteFromExcelClick"
+                                    ToolTip.Tip="Pegar una tabla con columnas Lx, Ly, Espesor, Carga (y opcional Tipo/Rec)."/>
+                            <Button Content="↶ Undo" Width="80" Margin="8,0,0,0"
+                                    Command="{Binding UndoCommand}" ToolTip.Tip="Deshacer (Ctrl+Z). Max 50."/>
+                            <Button Content="↷ Redo" Width="80" Margin="4,0,0,0"
+                                    Command="{Binding RedoCommand}" ToolTip.Tip="Rehacer (Ctrl+Y)."/>
+                            <Button Content="⌨  Atajos" Width="100" Margin="8,0,0,0"
+                                    Command="{Binding AbrirShortcutsCommand}" ToolTip.Tip="Ver atajos (Ctrl+/)."/>
+                            <TextBlock Text="(seleccioná una fila para eliminar / aplicar tipo)"
+                                       VerticalAlignment="Center" Margin="8,0,0,0"
+                                       Foreground="{DynamicResource FgMuted}"/>
+                        </DockPanel>
+
+                        <!-- BULK APPLY PANEL (visible con ≥2 losas seleccionadas). -->
+                        <Border DockPanel.Dock="Top" Background="{DynamicResource BgSecondary}"
+                                BorderBrush="{DynamicResource Accent}" BorderThickness="2"
+                                CornerRadius="4" Margin="0,4" Padding="10,6"
+                                IsVisible="{Binding MostrarBulkPanel}">
+                            <DockPanel LastChildFill="False">
+                                <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
+                                           FontWeight="SemiBold" FontSize="13"
+                                           Foreground="{DynamicResource FgPrimary}" Margin="0,0,8,0">
+                                    <Run Text="✎"/>
+                                    <Run Text="{Binding BulkSeleccionadasCount, Mode=OneWay}"/>
+                                    <Run Text=" seleccionadas · aplicar:"/>
+                                </TextBlock>
+                                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="Lx" VerticalAlignment="Center" Margin="6,0,2,0"
+                                               Foreground="{DynamicResource FgMuted}" FontSize="11"/>
+                                    <TextBox Width="55" Text="{Binding BulkLx, UpdateSourceTrigger=PropertyChanged}"
+                                             VerticalContentAlignment="Center" ToolTip.Tip="Lx en metros (vacío = no aplicar)"/>
+                                    <TextBlock Text="Ly" VerticalAlignment="Center" Margin="8,0,2,0"
+                                               Foreground="{DynamicResource FgMuted}" FontSize="11"/>
+                                    <TextBox Width="55" Text="{Binding BulkLy, UpdateSourceTrigger=PropertyChanged}"
+                                             VerticalContentAlignment="Center" ToolTip.Tip="Ly en metros (vacío = no aplicar)"/>
+                                    <TextBlock Text="H" VerticalAlignment="Center" Margin="8,0,2,0"
+                                               Foreground="{DynamicResource FgMuted}" FontSize="11"/>
+                                    <TextBox Width="55" Text="{Binding BulkEspesor, UpdateSourceTrigger=PropertyChanged}"
+                                             VerticalContentAlignment="Center" ToolTip.Tip="Espesor en metros (vacío = no aplicar)"/>
+                                    <TextBlock Text="Carga" VerticalAlignment="Center" Margin="8,0,2,0"
+                                               Foreground="{DynamicResource FgMuted}" FontSize="11"/>
+                                    <TextBox Width="55" Text="{Binding BulkCarga, UpdateSourceTrigger=PropertyChanged}"
+                                             VerticalContentAlignment="Center" ToolTip.Tip="Carga en t/m² (vacío = no aplicar)"/>
+                                    <TextBlock Text="Tipo" VerticalAlignment="Center" Margin="8,0,2,0"
+                                               Foreground="{DynamicResource FgMuted}" FontSize="11"/>
+                                    <TextBox Width="50" Text="{Binding BulkTipo, UpdateSourceTrigger=PropertyChanged}"
+                                             VerticalContentAlignment="Center" ToolTip.Tip="Código de tipo (vacío = no aplicar)"/>
+                                </StackPanel>
+                                <Button DockPanel.Dock="Right" Theme="{StaticResource PrimaryButton}"
+                                        Content="✓ Confirmar" Padding="14,4" Margin="12,0,0,0"
+                                        Command="{Binding AplicarBulkCommand}"
+                                        ToolTip.Tip="Aplicar los valores no vacíos a las losas seleccionadas"/>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- Tipos panel abajo -->
+                        <Border DockPanel.Dock="Bottom" Background="{DynamicResource BgSecondary}"
+                                BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                Margin="0,6,0,0" Padding="6" Height="240">
+                            <DockPanel LastChildFill="True">
+                                <TextBlock DockPanel.Dock="Top" Margin="0,0,0,6"
+                                           Foreground="{DynamicResource FgMuted}" TextWrapping="Wrap">
+                                    <Run Text="TIPOS DE LOSAS · " FontWeight="Bold"/>
+                                    <Run Text="hover = descripción · click = aplicar a la fila seleccionada"/>
+                                </TextBlock>
+                                <v:TiposLosaPanel x:Name="TiposPanel"/>
+                            </DockPanel>
+                        </Border>
+
+                        <DataGrid x:Name="LosasGrid" ItemsSource="{Binding LosasFiltradas}"
+                                  AutoGenerateColumns="False" SelectionMode="Extended"
+                                  HeadersVisibility="Column"
+                                  CellEditEnding="OnLosasCellEdited"
+                                  SelectionChanged="OnLosasSelectionChanged">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="ID" Width="50" IsReadOnly="True">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button BorderThickness="0" Background="Transparent" Padding="2"
+                                                    Cursor="Hand" HorizontalContentAlignment="Center"
+                                                    Classes.connectmode="{Binding $parent[Window].DataContext.ModoConectarBordes}"
+                                                    Click="OnLosaIdClick" Tag="{Binding}">
+                                                <TextBlock Text="{Binding Id}" FontWeight="SemiBold"/>
+                                            </Button>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <!-- DIR: indicador 1D/2D (versión simplificada del SVG rotado WPF). -->
+                                <DataGridTemplateColumn Header="DIR" Width="44" IsReadOnly="True">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Cond}" FontWeight="SemiBold" FontSize="11"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource FgSecondary}"
+                                                       ToolTip.Tip="{Binding DireccionTrabajoTexto}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="" Width="50" IsReadOnly="True">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <v:TipoLosaIconView Codigo="{Binding Tipo, Mode=OneWay}"
+                                                                Width="44" Height="44"
+                                                                ToolTip.Tip="{Binding TipoDescripcion}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="TIPO" Width="180">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button BorderThickness="1" Padding="6,2" Margin="2"
+                                                    Background="Transparent"
+                                                    BorderBrush="{DynamicResource Border}" Cursor="Hand"
+                                                    HorizontalContentAlignment="Stretch"
+                                                    Click="OnAbrirSelectorTipoLosaClick" Tag="{Binding}"
+                                                    ToolTip.Tip="Click para abrir el selector visual de tipo Pieper-Martens">
+                                                <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+                                                    <Run Text="{Binding Tipo, Mode=OneWay}" FontWeight="SemiBold"/>
+                                                    <Run Text=" — "/>
+                                                    <Run Text="{Binding TipoDescripcion, Mode=OneWay}"/>
+                                                </TextBlock>
+                                            </Button>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Carga [t/m²]" Width="90"
+                                                    Binding="{Binding Carga, StringFormat='{}{0:0.000}'}"/>
+                                <DataGridTextColumn Header="H [m]" Width="70"
+                                                    Binding="{Binding Espesor, StringFormat='{}{0:0.000}'}"/>
+                                <DataGridTextColumn Header="Lx [m]" Width="70"
+                                                    Binding="{Binding Lx, StringFormat='{}{0:0.000}'}"/>
+                                <DataGridTextColumn Header="Ly [m]" Width="70"
+                                                    Binding="{Binding Ly, StringFormat='{}{0:0.000}'}"/>
+                                <DataGridTextColumn Header="Rec [m]" Width="70"
+                                                    Binding="{Binding Rec, StringFormat='{}{0:0.000}'}"/>
+                                <DataGridTemplateColumn Header="HEq [m]" Width="80" IsReadOnly="True">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding HEq, StringFormat='{}{0:0.000}', TargetNullValue=—}"
+                                                       Foreground="{DynamicResource FgMuted}"
+                                                       VerticalAlignment="Center" Margin="4,0"
+                                                       ToolTip.Tip="Espesor equivalente (αfm ACI 318 §9.5.3.3) — para vigueta+bloque."/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Ly/Lx" Width="60" IsReadOnly="True">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="4,2"
+                                                    Classes.aspectwarn="{Binding AspectoFueraDeRango}"
+                                                    ToolTip.Tip="{Binding AspectoMensaje}">
+                                                <TextBlock Text="{Binding Aspecto, StringFormat='{}{0:0.00}', Mode=OneWay}"
+                                                           VerticalAlignment="Center"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Mfx" Width="80" IsReadOnly="True"
+                                                    Binding="{Binding Mfx, StringFormat='{}{0:0.0000}'}"/>
+                                <DataGridTextColumn Header="Mfy" Width="80" IsReadOnly="True"
+                                                    Binding="{Binding Mfy, StringFormat='{}{0:0.0000}'}"/>
+                                <DataGridTextColumn Header="MSx" Width="80" IsReadOnly="True"
+                                                    Binding="{Binding MSx, StringFormat='{}{0:0.0000}'}"/>
+                                <DataGridTextColumn Header="MSy" Width="80" IsReadOnly="True"
+                                                    Binding="{Binding MSy, StringFormat='{}{0:0.0000}'}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+
+                    <!-- Panel lateral: settings del sistema + bordes -->
+                    <Border Grid.Column="1" Background="{DynamicResource BgSecondary}" Margin="6,0,0,0" Padding="8">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="Proyecto" FontWeight="Bold" FontSize="14"
+                                           Foreground="{DynamicResource Accent}"/>
+                                <TextBlock Text="Nombre del proyecto" Margin="0,8,0,0"/>
+                                <TextBox Text="{Binding Proyecto.Nombre, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip.Tip="Aparece en el título de la ventana y en el Explorador"/>
+                                <TextBlock Text="Autor (ingeniero)" Margin="0,8,0,0"/>
+                                <TextBox Text="{Binding Proyecto.Autor, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Text="Código de obra" Margin="0,8,0,0"/>
+                                <TextBox Text="{Binding Proyecto.CodigoObra, UpdateSourceTrigger=PropertyChanged}"/>
+                                <CheckBox Margin="0,10,0,0" IsChecked="{Binding AutoBackupActivo, Mode=TwoWay}"
+                                          Content="Backups automáticos al guardar"
+                                          ToolTip.Tip="Crea una copia timestamped en {carpeta}/backups/ antes de sobreescribir. Conserva las últimas 20."/>
+
+                                <Separator Margin="0,12"/>
+
+                                <TextBlock Text="Sistema" FontWeight="Bold" FontSize="14"
+                                           Foreground="{DynamicResource Accent}"/>
+                                <TextBlock Text="Nombre del sistema" Margin="0,8,0,0"/>
+                                <TextBox Text="{Binding Sistema.Nombre, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip.Tip="Aparece en la barra de estado y distingue niveles."/>
+                                <TextBlock Text="FC [ton/cm²]" Margin="0,8,0,0"/>
+                                <TextBox Text="{Binding Sistema.Fc, StringFormat='{}{0:0.000}'}"/>
+                                <TextBlock Text="FY [ton/cm²]" Margin="0,8,0,0"/>
+                                <TextBox Text="{Binding Sistema.Fy, StringFormat='{}{0:0.000}'}"/>
+                                <TextBlock Text="ADICIONALES (0=rectas, 1=camelladas)" Margin="0,8,0,0"/>
+                                <TextBox Text="{Binding Sistema.Adicionales}"/>
+
+                                <Separator Margin="0,12"/>
+                                <DockPanel LastChildFill="False" Margin="0,0,0,4">
+                                    <TextBlock DockPanel.Dock="Left" Text="Bordes adic. SEGÚN X"
+                                               FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <ToggleButton DockPanel.Dock="Right" Padding="6,2"
+                                                  IsChecked="{Binding ModoConectarBordes, Mode=TwoWay}"
+                                                  ToolTip.Tip="Activá y click en dos IDs del grid para crear el borde."
+                                                  FontSize="11">
+                                        <TextBlock Text="🔗 Conectar"/>
+                                    </ToggleButton>
+                                </DockPanel>
+                                <DataGrid ItemsSource="{Binding Sistema.BordesX}" AutoGenerateColumns="False"
+                                          MinHeight="100" MaxHeight="260" Margin="0,4,0,0" Tag="X"
+                                          CellEditEnding="OnBordeCellEdited">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="B-I" Binding="{Binding BI}" Width="*"/>
+                                        <DataGridTextColumn Header="B-J" Binding="{Binding BJ}" Width="*"/>
+                                        <DataGridTemplateColumn Header="BAL" Width="60">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <ComboBox SelectedItem="{Binding Balanceo, Mode=TwoWay}"
+                                                              HorizontalAlignment="Stretch">
+                                                        <sys:String>S</sys:String>
+                                                        <sys:String>N</sys:String>
+                                                    </ComboBox>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                    <Button Content="+ Borde X" Click="OnAddBordeX"/>
+                                    <Button Content="– Borde X" Click="OnDelBordeX" Margin="4,0,0,0"/>
+                                    <Button Content="Auto BAL" Margin="8,0,0,0"
+                                            Command="{Binding AutoBalanceoCommand}"
+                                            ToolTip.Tip="Setea BAL=N en bordes con voladizo."/>
+                                </StackPanel>
+
+                                <Separator Margin="0,12"/>
+                                <TextBlock Text="Bordes adic. SEGÚN Y" FontWeight="Bold"/>
+                                <DataGrid ItemsSource="{Binding Sistema.BordesY}" AutoGenerateColumns="False"
+                                          MinHeight="100" MaxHeight="260" Margin="0,4,0,0" Tag="Y"
+                                          CellEditEnding="OnBordeCellEdited">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="B-I" Binding="{Binding BI}" Width="*"/>
+                                        <DataGridTextColumn Header="B-J" Binding="{Binding BJ}" Width="*"/>
+                                        <DataGridTemplateColumn Header="BAL" Width="60">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <ComboBox SelectedItem="{Binding Balanceo, Mode=TwoWay}"
+                                                              HorizontalAlignment="Stretch">
+                                                        <sys:String>S</sys:String>
+                                                        <sys:String>N</sys:String>
+                                                    </ComboBox>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                    <Button Content="+ Borde Y" Click="OnAddBordeY"/>
+                                    <Button Content="– Borde Y" Click="OnDelBordeY" Margin="4,0,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+
+                <!-- MODO Lienzo CAD (stub Fase E). -->
+                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}">
+                    <cad:CadView x:Name="CadEditorView" DataContext="{Binding}"/>
+                </ContentControl>
+
+                <!-- MODO Cargas y Combinaciones. -->
+                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=CargasCombinaciones}">
+                    <v:CargasCombinacionesView DataContext="{Binding}"/>
+                </ContentControl>
+
+                <!-- MODO Vigas. -->
+                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vigas}">
+                    <vigas:VigaEditorView DataContext="{Binding}"/>
+                </ContentControl>
+
+                <!-- MODO DLEditor (texto crudo). -->
+                <Grid Margin="16" RowDefinitions="Auto,*"
+                      IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DLEditor}">
+                    <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                        <TextBlock VerticalAlignment="Center"
+                                   Text="Vista del archivo .DL generado a partir del modelo (lectura/edición)"/>
+                        <Button DockPanel.Dock="Right" Content="Aplicar al modelo" Width="140" Click="OnApplyDLText"/>
+                    </DockPanel>
+                    <TextBox Grid.Row="1" x:Name="DLEditor"
+                             Text="{Binding DLContent, UpdateSourceTrigger=PropertyChanged}"
+                             AcceptsReturn="True" AcceptsTab="True"
+                             VerticalContentAlignment="Top" FontFamily="Consolas" FontSize="12"/>
+                </Grid>
+
+                <!-- MODO Salida .TXT (Texto resaltado + Tabla editable). -->
+                <Grid Margin="16" RowDefinitions="Auto,*"
+                      IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Salida}">
+                    <TextBlock Grid.Row="0" Text="{Binding TxtPath, StringFormat='Archivo: {0}'}"
+                               Foreground="{DynamicResource FgMuted}" Margin="0,0,0,8"/>
+                    <TabControl Grid.Row="1">
+                        <TabItem Header="Texto">
+                            <v:HighlightedTxtView Text="{Binding TxtContent}"/>
+                        </TabItem>
+                        <TabItem Header="Tabla (editable)">
+                            <v:TxtTablaView Text="{Binding TxtContent}" OriginalPath="{Binding TxtPath}"/>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
+
+                <!-- MODO Aceros (placeholder "Próximamente"). -->
+                <Grid Margin="32,24"
+                      IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Aceros}">
+                    <Border MaxWidth="640" VerticalAlignment="Center" HorizontalAlignment="Center"
+                            Background="{DynamicResource BgSecondary}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                            CornerRadius="8" Padding="32,28">
+                        <StackPanel>
+                            <TextBlock Text="🔩  Diseño de aceros" FontSize="22" FontWeight="Bold"
+                                       Foreground="{DynamicResource FgPrimary}" HorizontalAlignment="Center"/>
+                            <Border Margin="0,12,0,0" Padding="10,4" HorizontalAlignment="Center"
+                                    Background="{DynamicResource AccentHi}" CornerRadius="12">
+                                <TextBlock Text="🔜  Próximamente" Foreground="{DynamicResource FgOnAccent}"
+                                           FontWeight="SemiBold" FontSize="12"/>
+                            </Border>
+                            <TextBlock Margin="0,18,0,0" TextAlignment="Center"
+                                       Foreground="{DynamicResource FgSecondary}" FontSize="13" TextWrapping="Wrap"
+                                       Text="Esta pestaña aparece después de Salida .TXT porque el diseño de aceros depende de los momentos calculados por el motor. Una vez importado el .TXT, podrás:"/>
+                            <StackPanel Margin="0,16,0,0">
+                                <TextBlock Foreground="{DynamicResource FgPrimary}" Margin="0,3"
+                                           Text="• Definir cantidad de barras por diámetro comercial (#3–#8) en cada franja X / Y."/>
+                                <TextBlock Foreground="{DynamicResource FgPrimary}" Margin="0,3"
+                                           Text="• Ver As requerido vs As provisto en vivo (cm²/m), con alertas si no cumple."/>
+                                <TextBlock Foreground="{DynamicResource FgPrimary}" Margin="0,3"
+                                           Text="• Calcular separación de barras adicionales según ACI 318 §25.5."/>
+                                <TextBlock Foreground="{DynamicResource FgPrimary}" Margin="0,3"
+                                           Text="• Exportar el reporte de acero por losa al CSV/XLSX y a MemoriaPlus."/>
+                            </StackPanel>
+                            <TextBlock Margin="0,16,0,0" TextAlignment="Center"
+                                       Foreground="{DynamicResource FgMuted}" FontSize="11" TextWrapping="Wrap"
+                                       Text="El modelo y las exportaciones ya están operativos en el Core. Solo falta la UI dedicada."/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- MODO Reglamento. -->
+                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Reglamento}">
+                    <v:ReglamentoView DataContext="{Binding}"/>
+                </ContentControl>
+
+                <!-- MODO Plugins. -->
+                <Grid Margin="16" RowDefinitions="Auto,*"
+                      IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Plugins}">
+                    <DockPanel Grid.Row="0" Margin="0,0,0,8">
+                        <Button DockPanel.Dock="Right" Content="Recargar plugins" Width="140" Click="OnReloadPlugins"/>
+                        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"
+                                   Text="Scripts .csx en /plugins. Hooks: load, pre-dl, pre-run, post-run, post-txt, custom-export. Solo se ejecutan los CONFIABLES (Roslyn no es un sandbox fuerte)."/>
+                    </DockPanel>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Plugins.Loaded}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                            Background="{DynamicResource BgSecondary}" Margin="0,0,0,8" Padding="12">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <StackPanel Grid.Column="0">
+                                                <DockPanel>
+                                                    <TextBlock DockPanel.Dock="Left" Text="{Binding Name}"
+                                                               FontWeight="Bold" FontSize="14"/>
+                                                    <TextBlock DockPanel.Dock="Left" Margin="10,2,0,0"
+                                                               Text="{Binding FileName, StringFormat='({0})'}"
+                                                               Foreground="{DynamicResource FgMuted}"/>
+                                                </DockPanel>
+                                                <TextBlock Margin="0,4,0,0">
+                                                    <Run Foreground="{DynamicResource FgMuted}" Text="Autor:"/>
+                                                    <Run Text="{Binding Manifest.Author, Mode=OneWay}"/>
+                                                    <Run Foreground="{DynamicResource FgMuted}" Text=" · Versión:"/>
+                                                    <Run Text="{Binding Manifest.Version, Mode=OneWay}"/>
+                                                </TextBlock>
+                                                <TextBlock Margin="0,4,0,0" TextWrapping="Wrap"
+                                                           Text="{Binding Manifest.Description, Mode=OneWay}"
+                                                           Foreground="{DynamicResource FgSecondary}"/>
+                                                <TextBlock Margin="0,4,0,0" Foreground="{DynamicResource FgMuted}"
+                                                           Text="{Binding Sha256, StringFormat='SHA-256: {0}'}"
+                                                           FontFamily="Consolas" FontSize="10"/>
+                                                <TextBlock Margin="0,6,0,0" Foreground="{DynamicResource Err}"
+                                                           Text="{Binding CompileError, StringFormat='Error de compilación: {0}'}"
+                                                           IsVisible="{Binding CompileError, Converter={StaticResource NullToCollapsed}}"
+                                                           TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Top" Margin="12,0,0,0">
+                                                <Button Content="Confiar" Width="100" Click="OnTrustPluginClick"
+                                                        Tag="{Binding FullPath}"
+                                                        IsVisible="{Binding Trusted, Converter={StaticResource BoolToCollapsedIfTrue}}"/>
+                                                <Button Content="Revocar" Width="100" Margin="0,4,0,0" Click="OnRevokeTrustClick"
+                                                        Tag="{Binding FullPath}"
+                                                        Background="{DynamicResource Border}"
+                                                        IsVisible="{Binding Trusted, Converter={StaticResource BoolToCollapsedIfFalse}}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+
+                <!-- MODO Validación normativa. -->
+                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}">
+                    <vws:ValidacionView DataContext="{Binding Validacion}" HorizontalAlignment="Stretch"/>
+                </ContentControl>
+
+                <!-- MODO Búsqueda global. -->
+                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Busqueda}">
+                    <vws:BusquedaView/>
+                </ContentControl>
+
+                <!-- MODO Configuración. -->
+                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Configuracion}">
+                    <vws:ConfiguracionView x:Name="ConfigView" EsCalculadora="True"
+                                           AparienciaCambiada="OnAparienciaCambiada"/>
+                </ContentControl>
+
+                <!-- MODO Acerca de. -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Acerca}">
+                    <StackPanel Margin="32,24" MaxWidth="900">
+                        <TextBlock Text="LosasPlus" FontSize="24" FontWeight="Bold"
+                                   Foreground="{DynamicResource FgPrimary}"/>
+                        <TextBlock Text="Capa de UI, edición, visualización y exportación construida sobre el motor original."
+                                   Margin="0,4,0,0" Foreground="{DynamicResource FgSecondary}"/>
+
+                        <Separator Margin="0,16"/>
+                        <TextBlock Text="Crédito principal" FontWeight="Bold" FontSize="14"
+                                   Foreground="{DynamicResource FgPrimary}"/>
+                        <TextBlock TextWrapping="Wrap" Margin="0,4,0,0" Foreground="{DynamicResource FgSecondary}">
+                            <Run Text="El motor de cálculo es obra de "/><Run FontWeight="Bold" Text="Francisco Eludino Perdomo"/><Run Text=" (Losas v5.00, febrero 2011). El método implementado es el de Pieper-Martens (TU Braunschweig), adaptado para el análisis de losas continuas apoyadas en tres y cuatro bordes. Contacto: fa.perdomo@gmail.com."/>
+                        </TextBlock>
+
+                        <Separator Margin="0,16"/>
+                        <TextBlock Text="Alcance del wrapper" FontWeight="Bold" FontSize="14"
+                                   Foreground="{DynamicResource FgPrimary}"/>
+                        <TextBlock TextWrapping="Wrap" Margin="0,4,0,0" Foreground="{DynamicResource FgSecondary}"
+                                   Text="El presente programa NO modifica el binario original. Genera el archivo .DL de entrada conforme al formato documentado por el autor, permite lanzar Losas.exe (la ejecución del cálculo es manual desde su GUI) e importar el .TXT resultante para visualizar y exportar. Agrega edición estructurada con catálogo de tipos, esquema visual, preview del .TXT, exportación a CSV/XLSX, panel del Reglamento Dominicano y arquitectura de plugins .csx en sandbox Roslyn."/>
+
+                        <Separator Margin="0,16"/>
+                        <TextBlock Text="Limitaciones del motor (según el autor)" FontWeight="Bold" FontSize="14"
+                                   Foreground="{DynamicResource FgPrimary}"/>
+                        <TextBlock TextWrapping="Wrap" Margin="0,4,0,0" Foreground="{DynamicResource FgSecondary}"
+                                   Text="· Carga viva ≤ 2/3 de la carga total (sin factorizar). · Apoyos lineales rígidos. · No verifica fuerza cortante. · No calcula deformaciones."/>
+
+                        <Separator Margin="0,16"/>
+                        <TextBlock Text="Autor del wrapper LosasPlus" FontWeight="Bold" FontSize="14"
+                                   Foreground="{DynamicResource FgPrimary}"/>
+                        <TextBlock TextWrapping="Wrap" Margin="0,4,0,0" Foreground="{DynamicResource FgSecondary}">
+                            <Run Text="Esta capa de UI/edición/exportación fue construida por "/><Run FontWeight="Bold" Text="Emil Guillen De la Cruz"/><Run Text=" como aporte al ecosistema de herramientas estructurales en República Dominicana. El motor sigue siendo obra exclusiva de F. Perdomo; LosasPlus se ofrece como sugerencia de modernización."/>
+                        </TextBlock>
+                        <Grid Margin="0,12,0,0" ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Email" Foreground="{DynamicResource FgMuted}"/>
+                            <HyperlinkButton Grid.Row="0" Grid.Column="1" Padding="0" Content="emilgdc@gmail.com"
+                                             NavigateUri="mailto:emilgdc@gmail.com"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="GitHub" Foreground="{DynamicResource FgMuted}"/>
+                            <HyperlinkButton Grid.Row="1" Grid.Column="1" Padding="0" Content="@dashy2004"
+                                             NavigateUri="https://github.com/dashy2004"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="YouTube" Foreground="{DynamicResource FgMuted}"/>
+                            <HyperlinkButton Grid.Row="2" Grid.Column="1" Padding="0" Content="@emilguillen"
+                                             NavigateUri="https://www.youtube.com/@emilguillen"/>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Instagram" Foreground="{DynamicResource FgMuted}"/>
+                            <HyperlinkButton Grid.Row="3" Grid.Column="1" Padding="0" Content="@emilguillendelacruz"
+                                             NavigateUri="https://www.instagram.com/emilguillendelacruz"/>
+                        </Grid>
+
+                        <Separator Margin="0,16"/>
+                        <TextBlock Text="Aviso legal" FontWeight="Bold" FontSize="14"
+                                   Foreground="{DynamicResource FgPrimary}"/>
+                        <TextBlock TextWrapping="Wrap" Margin="0,4,0,0" Foreground="{DynamicResource Warn}"
+                                   Text="La distribución y uso público de este wrapper junto con el binario original requieren autorización de F. Perdomo. La presente compilación es una capa externa que respeta y atribuye la autoría del motor de cálculo. El código del wrapper es de Emil Guillen De la Cruz y se entrega como sugerencia/aporte sin reclamar derechos sobre el motor original."/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- LOG EXPANDIBLE: visible si LogToggle activo. -->
+            <Border Grid.Row="2" Background="#0F172A"
+                    BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0"
+                    IsVisible="{Binding #LogToggle.IsChecked, Converter={StaticResource BoolToCollapsedIfFalse}}"
+                    Padding="14,8">
+                <TextBox Height="120" Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True"
+                         Background="#0F172A" Foreground="#E2E8F0" BorderThickness="0"
+                         FontFamily="Consolas" FontSize="11" VerticalContentAlignment="Top"/>
+            </Border>
+
+            <!-- STATUSBAR inferior. -->
+            <Border Grid.Row="3" Padding="16,6" Background="{DynamicResource BgInput}"
+                    BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
+                <DockPanel LastChildFill="True">
+                    <Ellipse DockPanel.Dock="Left" Width="8" Height="8" Margin="0,0,6,0"
+                             Fill="{DynamicResource Ok}" VerticalAlignment="Center"/>
+                    <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" FontSize="12">
+                        <Run Foreground="{DynamicResource FgMuted}" Text="Status:"/>
+                        <Run Foreground="{DynamicResource FgPrimary}" FontWeight="SemiBold" Text="Operativo"/>
+                        <Run Foreground="{DynamicResource FgMuted}" Text="  ·  "/>
+                        <Run Foreground="{DynamicResource FgSecondary}" Text="{Binding SistemaActivo.Nombre, Mode=OneWay}"/>
+                    </TextBlock>
+                    <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" FontSize="11"
+                               Margin="16,0,0,0" MaxWidth="340" TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource FgMuted}"
+                               ToolTip.Tip="{Binding Proyecto.Archivo}"
+                               Text="{Binding Proyecto.Archivo, Mode=OneWay}"/>
+                    <ToggleButton DockPanel.Dock="Right" x:Name="LogToggle" Content="Logs"
+                                  Width="60" Margin="6,0,0,0" Background="Transparent"
+                                  Foreground="{DynamicResource FgSecondary}" BorderThickness="0"
+                                  FontSize="12"/>
+                    <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="11"
+                               Margin="0,0,16,0" Foreground="{DynamicResource FgMuted}"
+                               Text="{Binding CopyrightTexto}"/>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

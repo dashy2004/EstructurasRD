@@ -1,0 +1,368 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
+             xmlns:cmn="clr-namespace:MemoriaPlus.Common;assembly=MemoriaPlus.UI.Shared"
+             x:Class="MemoriaPlus.Views.NivelesView"
+             x:CompileBindings="False"
+             Background="{StaticResource SurfaceBrush}">
+
+    <UserControl.Resources>
+        <!-- Card de nivel (ListBoxItem) -->
+        <ControlTheme x:Key="NivelCardStyle" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin"  Value="8,4"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border Name="bd" Background="{TemplateBinding Background}"
+                            BorderBrush="{StaticResource OutlineVariantBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource CornerRadiusDefault}"
+                            Padding="12,10">
+                        <ContentPresenter Content="{TemplateBinding ContentPresenter.Content}"
+                                          ContentTemplate="{TemplateBinding ContentPresenter.ContentTemplate}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^:pointerover /template/ Border#bd">
+                <Setter Property="Background" Value="{StaticResource SurfaceContainerBrush}"/>
+            </Style>
+            <Style Selector="^:selected /template/ Border#bd">
+                <Setter Property="Background" Value="{StaticResource SurfaceContainerHighestBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                <Setter Property="BorderThickness" Value="2"/>
+            </Style>
+        </ControlTheme>
+    </UserControl.Resources>
+
+    <Grid Margin="16" ColumnDefinitions="240,12,*,12,320">
+
+        <!-- COL 1 — Lista de niveles -->
+        <Border Grid.Column="0" Theme="{StaticResource SectionCardStyle}" Padding="0">
+            <Grid RowDefinitions="Auto,*,Auto">
+                <Border Grid.Row="0" Padding="16,12,16,8"
+                        BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="0,0,0,1">
+                    <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="🏗  ESTRUCTURA"/>
+                </Border>
+
+                <ListBox Grid.Row="1" BorderThickness="0" Background="Transparent"
+                         ItemsSource="{Binding ProyectoActivo.Sistemas}"
+                         SelectedItem="{Binding SistemaActivo}"
+                         ItemContainerTheme="{StaticResource NivelCardStyle}"
+                         HorizontalAlignment="Stretch"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Nombre}"
+                                           FontFamily="{StaticResource FontFamilyUI}"
+                                           FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{StaticResource OnSurfaceBrush}"/>
+                                <Border Grid.Row="0" Grid.Column="1"
+                                        Background="{StaticResource SecondaryContainerBrush}"
+                                        CornerRadius="{StaticResource CornerRadiusSm}"
+                                        Padding="6,1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Uso}"
+                                               FontFamily="{StaticResource FontFamilyMono}"
+                                               FontSize="10" Foreground="{StaticResource OnSurfaceBrush}"/>
+                                </Border>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                           FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
+                                           Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="0,4,0,0">
+                                    <Run Text="{Binding Losas.Count, Mode=OneWay}"/>
+                                    <Run Text=" losas  ·  +"/>
+                                    <Run Text="{Binding CotaMetros, StringFormat=0.00, Mode=OneWay}"/>
+                                    <Run Text=" m"/>
+                                </TextBlock>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <Grid Grid.Row="2" Margin="8,4,8,8" ColumnDefinitions="*,6,Auto">
+                    <Button Grid.Column="0" Theme="{StaticResource SecondaryButtonStyle}"
+                            Content="+ Agregar nivel" Command="{Binding AgregarSistemaCommand}"/>
+                    <Button Grid.Column="2" Theme="{StaticResource SecondaryButtonStyle}"
+                            Content="🗑" Command="{Binding EliminarSistemaCommand}"
+                            ToolTip.Tip="Eliminar el nivel seleccionado"/>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- COL 2 — DataGrid de losas -->
+        <Border Grid.Column="2" Theme="{StaticResource SectionCardStyle}" Padding="0">
+            <Grid RowDefinitions="Auto,*,Auto">
+                <!-- Header -->
+                <Grid Grid.Row="0" Background="{StaticResource SurfaceContainerLowBrush}">
+                    <Border BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="0,0,0,1" Padding="16,10">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="📐  LOSAS — NIVEL "/>
+                                <TextBlock Theme="{StaticResource LabelCapsStyle}"
+                                           Text="{Binding SistemaActivo.Nombre}"
+                                           Foreground="{StaticResource PrimaryBrush}"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" Theme="{StaticResource SecondaryButtonStyle}"
+                                    Content="+ Losa" Command="{Binding AgregarLosaCommand}"
+                                    ToolTip.Tip="Agregar losa al nivel activo (Ctrl+L)"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <Grid Grid.Row="1" RowDefinitions="Auto,*">
+                    <!-- Banner validación -->
+                    <Border Grid.Row="0" Margin="16,8,16,4" Padding="12,8"
+                            Background="#26FFA000" BorderBrush="{StaticResource WarningBrush}"
+                            BorderThickness="1" CornerRadius="{StaticResource CornerRadiusDefault}"
+                            IsVisible="{Binding HayIssuesEnSistemaActivo}">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"
+                                       FontSize="18" Foreground="{StaticResource WarningBrush}" Text="⚠"/>
+                            <TextBlock Grid.Column="1" VerticalAlignment="Center"
+                                       FontFamily="{StaticResource FontFamilyUI}" FontSize="12" TextWrapping="Wrap"
+                                       Foreground="{StaticResource OnSurfaceBrush}">
+                                <Run Text="Este nivel tiene "/>
+                                <Run Text="{Binding IssuesEnSistemaActivo, Mode=OneWay}" FontWeight="SemiBold"/>
+                                <Run Text=" observación(es) que pueden afectar la memoria final. Revisa antes de generar."/>
+                            </TextBlock>
+                            <Button Grid.Column="2" Theme="{StaticResource SecondaryButtonStyle}"
+                                    Content="Ver detalle →" Padding="10,4"
+                                    Command="{Binding Validacion.AbrirPanelCommand}"/>
+                        </Grid>
+                    </Border>
+
+                    <DataGrid Grid.Row="1" BorderThickness="0"
+                              Theme="{StaticResource MemoriaDataGridStyle}"
+                              ItemsSource="{Binding SistemaActivo.Losas}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="ID" Width="40" IsReadOnly="True" Binding="{Binding Id}"/>
+
+                            <!-- TIPO: botón que abre el selector visual -->
+                            <DataGridTemplateColumn Header="TIPO" Width="70">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Padding="6,2" Margin="2" BorderThickness="1"
+                                                Background="{StaticResource SurfaceContainerLowestBrush}"
+                                                BorderBrush="{StaticResource OutlineVariantBrush}"
+                                                Cursor="Hand"
+                                                ToolTip.Tip="{Binding TipoDescripcion}"
+                                                Click="AbrirSelectorTipoLosa_Click"
+                                                Tag="{Binding}">
+                                            <TextBlock Text="{Binding Tipo}"
+                                                       FontFamily="{StaticResource FontFamilyMono}"
+                                                       FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource OnSurfaceBrush}"/>
+                                        </Button>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTextColumn Header="LX (m)" Width="65" Binding="{Binding Lx, StringFormat=0.00, UpdateSourceTrigger=LostFocus}"/>
+                            <DataGridTextColumn Header="LY (m)" Width="65" Binding="{Binding Ly, StringFormat=0.00, UpdateSourceTrigger=LostFocus}"/>
+
+                            <!-- COND -->
+                            <DataGridTemplateColumn Header="COND" Width="55">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{StaticResource SecondaryContainerBrush}"
+                                                CornerRadius="{StaticResource CornerRadiusSm}"
+                                                Padding="6,1" Margin="2"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Cond}"
+                                                       FontFamily="{StaticResource FontFamilyMono}"
+                                                       FontSize="10" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource OnSurfaceBrush}"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTextColumn Header="K" Width="40" Binding="{Binding K, UpdateSourceTrigger=LostFocus}"/>
+
+                            <!-- HCALC: foreground condicional por EspesorInsuficiente -->
+                            <DataGridTemplateColumn Header="HCALC (m)" Width="80">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock VerticalAlignment="Center" Margin="6,0,0,0"
+                                                   FontFamily="{StaticResource FontFamilyMono}"
+                                                   Text="{Binding HCalc, StringFormat=0.000, TargetNullValue=—}"
+                                                   Foreground="{Binding EspesorInsuficiente, Converter={x:Static cmn:ColorConverters.InsuficienteForeground}}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- H USAR: editable + badge insuf. -->
+                            <DataGridTemplateColumn Header="H USAR (m)" Width="120">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="6,0,0,0"
+                                                       FontFamily="{StaticResource FontFamilyMono}"
+                                                       Text="{Binding Espesor, StringFormat=0.000}"
+                                                       Foreground="{Binding EspesorInsuficiente, Converter={x:Static cmn:ColorConverters.InsuficienteForeground}}"/>
+                                            <Border Grid.Column="1" Margin="4,2" Padding="4,1"
+                                                    CornerRadius="{StaticResource CornerRadiusSm}"
+                                                    Background="#26D32F2F" BorderBrush="{StaticResource ErrorBrush}"
+                                                    BorderThickness="1" VerticalAlignment="Center"
+                                                    ToolTip.Tip="Espesor insuficiente — ver Validación normativa"
+                                                    IsVisible="{Binding EspesorInsuficiente}">
+                                                <TextBlock Text="⚠ Insuf."
+                                                           FontFamily="{StaticResource FontFamilyMono}"
+                                                           FontSize="9" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource ErrorBrush}"/>
+                                            </Border>
+                                        </Grid>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                                <DataGridTemplateColumn.CellEditingTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding Espesor, StringFormat=0.000, UpdateSourceTrigger=LostFocus}"
+                                                 FontFamily="{StaticResource FontFamilyMono}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellEditingTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTextColumn Header="MAMP 0.20" Width="75" Binding="{Binding MampN, StringFormat=0.00, UpdateSourceTrigger=LostFocus}"/>
+                            <DataGridTextColumn Header="MAMP 0.15" Width="75" Binding="{Binding MampO, StringFormat=0.00, UpdateSourceTrigger=LostFocus}"/>
+                            <DataGridTextColumn Header="MAMP 0.10" Width="75" Binding="{Binding MampP, StringFormat=0.00, UpdateSourceTrigger=LostFocus}"/>
+
+                            <DataGridTextColumn Header="QMAP (t/m²)" Width="85" IsReadOnly="True"
+                                                Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                                Binding="{Binding Qmap, StringFormat=0.000, TargetNullValue=—}"/>
+                            <DataGridTextColumn Header="QD (t/m²)" Width="80" IsReadOnly="True"
+                                                Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                                Binding="{Binding Qd, StringFormat=0.000, TargetNullValue=—}"/>
+                            <DataGridTextColumn Header="QL (t/m²)" Width="80" IsReadOnly="True"
+                                                Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                                Binding="{Binding Ql, StringFormat=0.000, TargetNullValue=—}"/>
+                            <DataGridTextColumn Header="QU (t/m²)" Width="*" IsReadOnly="True"
+                                                Foreground="{StaticResource PrimaryBrush}" FontWeight="SemiBold"
+                                                Binding="{Binding Qu, StringFormat=0.000, TargetNullValue=—}"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+
+                <!-- Summary footer -->
+                <Border Grid.Row="2" Padding="16,10"
+                        Background="{StaticResource SurfaceContainerLowBrush}"
+                        BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="0,1,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}">
+                            <Run Text="Losas: "/>
+                            <Run Text="{Binding SistemaActivo.Losas.Count, Mode=OneWay}" Foreground="{StaticResource OnSurfaceBrush}"/>
+                        </TextBlock>
+                        <TextBlock FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="20,0,0,0">
+                            <Run Text="Uso: "/>
+                            <Run Text="{Binding SistemaActivo.Uso, Mode=OneWay}" Foreground="{StaticResource OnSurfaceBrush}"/>
+                        </TextBlock>
+                        <TextBlock FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}" Margin="20,0,0,0">
+                            <Run Text="Cota: +"/>
+                            <Run Text="{Binding SistemaActivo.CotaMetros, StringFormat=0.00, Mode=OneWay}" Foreground="{StaticResource OnSurfaceBrush}"/>
+                            <Run Text=" m"/>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- COL 3 — Panel F. Perdomo -->
+        <Border Grid.Column="4" Theme="{StaticResource SectionCardStyle}">
+            <Grid RowDefinitions="Auto,Auto,Auto,*">
+                <TextBlock Grid.Row="0" Theme="{StaticResource LabelCapsStyle}" Text="📥  IMPORTACIÓN .TXT"/>
+
+                <Button Grid.Row="1" Margin="0,12,0,0"
+                        Theme="{StaticResource PrimaryButtonStyle}"
+                        Content="Importar salida F. Perdomo"
+                        HorizontalAlignment="Stretch"
+                        Command="{Binding ImportarTxtPerdomoCommand}"/>
+
+                <TextBlock Grid.Row="2" Margin="0,12,0,8"
+                           Foreground="{StaticResource OnSurfaceVariantBrush}"
+                           FontSize="11" TextWrapping="Wrap"
+                           Text="El parser del .txt del software Losas v5.20 (F. Perdomo) extrae momentos flectores y armaduras por losa, y los inyecta en la sección 4.x.3 de la memoria."/>
+
+                <Grid Grid.Row="3">
+                    <!-- SIN .txt -->
+                    <Border Padding="12"
+                            Background="{StaticResource SurfaceContainerLowBrush}"
+                            BorderBrush="{StaticResource WarningBrush}" BorderThickness="1"
+                            CornerRadius="{StaticResource CornerRadiusDefault}"
+                            IsVisible="{Binding !SistemaActivo.TieneSalidaPerdomo}">
+                        <StackPanel>
+                            <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="ESTADO"/>
+                            <TextBlock Margin="0,4,0,0" FontFamily="{StaticResource FontFamilyMono}" FontSize="12"
+                                       Foreground="{StaticResource WarningBrush}"
+                                       Text="⚠  Sin .txt importado para este nivel"/>
+                            <TextBlock Margin="0,8,0,0" FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}" TextWrapping="Wrap"
+                                       Text="Bloque F. Perdomo no aparecerá en la memoria hasta importar."/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- CON .txt -->
+                    <Border Padding="12"
+                            Background="{StaticResource SurfaceContainerLowestBrush}"
+                            BorderBrush="{StaticResource SuccessBrush}" BorderThickness="1"
+                            CornerRadius="{StaticResource CornerRadiusDefault}"
+                            IsVisible="{Binding SistemaActivo.TieneSalidaPerdomo}">
+                        <StackPanel>
+                            <Grid>
+                                <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="✓ .TXT IMPORTADO"
+                                           Foreground="{StaticResource SuccessBrush}" VerticalAlignment="Center"/>
+                                <Button HorizontalAlignment="Right" Theme="{StaticResource SecondaryButtonStyle}"
+                                        Content="✕ Quitar" Padding="8,0" Command="{Binding QuitarTxtPerdomoCommand}"/>
+                            </Grid>
+
+                            <TextBlock Margin="0,12,0,0" Theme="{StaticResource LabelCapsStyle}" Text="ARCHIVO"/>
+                            <TextBlock FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
+                                       Foreground="{StaticResource OnSurfaceBrush}" TextTrimming="CharacterEllipsis"
+                                       Text="{Binding SistemaActivo.SalidaPerdomo.ArchivoTxt}"/>
+
+                            <TextBlock Margin="0,12,0,0" Theme="{StaticResource LabelCapsStyle}" Text="VERSIÓN MOTOR"/>
+                            <TextBlock FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
+                                       Foreground="{StaticResource OnSurfaceBrush}"
+                                       Text="{Binding SistemaActivo.SalidaPerdomo.VersionMotor, Mode=OneWay, StringFormat='Losas v{0}'}"/>
+
+                            <Border Margin="0,12,0,0" BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="0,1,0,0"/>
+
+                            <Grid Margin="0,8,0,0" ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto">
+                                <TextBlock Grid.Row="0" Grid.Column="0" FontSize="11"
+                                           Foreground="{StaticResource OnSurfaceVariantBrush}" Text="Momentos"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}"
+                                           FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right"
+                                           Foreground="{StaticResource PrimaryBrush}"
+                                           Text="{Binding SistemaActivo.SalidaPerdomo.Momentos.Count, Mode=OneWay}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" FontSize="11" Margin="0,4,0,0"
+                                           Foreground="{StaticResource OnSurfaceVariantBrush}" Text="Armaduras X / Y"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}"
+                                           FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right"
+                                           Margin="0,4,0,0" Foreground="{StaticResource PrimaryBrush}">
+                                    <Run Text="{Binding SistemaActivo.SalidaPerdomo.ArmadurasXCentro.Count, Mode=OneWay}"/>
+                                    <Run Text=" / "/>
+                                    <Run Text="{Binding SistemaActivo.SalidaPerdomo.ArmadurasYCentro.Count, Mode=OneWay}"/>
+                                </TextBlock>
+                                <TextBlock Grid.Row="2" Grid.Column="0" FontSize="11" Margin="0,4,0,0"
+                                           Foreground="{StaticResource OnSurfaceVariantBrush}" Text="Apoyos X / Y"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" FontFamily="{StaticResource FontFamilyMono}"
+                                           FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Right"
+                                           Margin="0,4,0,0" Foreground="{StaticResource PrimaryBrush}">
+                                    <Run Text="{Binding SistemaActivo.SalidaPerdomo.ArmadurasXApoyos.Count, Mode=OneWay}"/>
+                                    <Run Text=" / "/>
+                                    <Run Text="{Binding SistemaActivo.SalidaPerdomo.ArmadurasYApoyos.Count, Mode=OneWay}"/>
+                                </TextBlock>
+                            </Grid>
+
+                            <TextBlock Margin="0,12,0,0" FontSize="11"
+                                       Foreground="{StaticResource OnSurfaceVariantBrush}" TextWrapping="Wrap"
+                                       Text="{Binding StatusImportarTxt}"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

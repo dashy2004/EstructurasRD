@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="LosasPlus.Views.ColorPickerControl"
+             x:CompileBindings="False">
+    <Border Background="{DynamicResource BgInput}"
+            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+            Padding="8" CornerRadius="3">
+        <Grid ColumnDefinitions="48,*,100" RowDefinitions="Auto,Auto,Auto,Auto">
+            <Border Grid.Column="0" Grid.RowSpan="4"
+                    x:Name="Swatch" Background="Black"
+                    BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                    Margin="0,0,8,0" CornerRadius="3"/>
+
+            <DockPanel Grid.Column="1" Grid.Row="0" Margin="0,0,0,4">
+                <TextBlock DockPanel.Dock="Left" Text="HEX" Width="32" VerticalAlignment="Center"
+                           FontSize="11" Foreground="{DynamicResource FgMuted}"/>
+                <TextBox x:Name="HexBox" FontFamily="JetBrains Mono, Consolas" FontSize="11"
+                         TextChanged="OnHexChanged"/>
+            </DockPanel>
+
+            <DockPanel Grid.Column="1" Grid.Row="1" Margin="0,0,0,2">
+                <TextBlock DockPanel.Dock="Left" Text="R" Width="16" VerticalAlignment="Center"
+                           FontSize="11" Foreground="{DynamicResource FgMuted}"/>
+                <TextBlock DockPanel.Dock="Right" x:Name="RVal" Width="30" Text="0"
+                           VerticalAlignment="Center" TextAlignment="Right"
+                           FontSize="11" FontFamily="JetBrains Mono"/>
+                <Slider x:Name="RSlider" Minimum="0" Maximum="255" SmallChange="1" LargeChange="16"
+                        ValueChanged="OnSliderChanged"/>
+            </DockPanel>
+
+            <DockPanel Grid.Column="1" Grid.Row="2" Margin="0,0,0,2">
+                <TextBlock DockPanel.Dock="Left" Text="G" Width="16" VerticalAlignment="Center"
+                           FontSize="11" Foreground="{DynamicResource FgMuted}"/>
+                <TextBlock DockPanel.Dock="Right" x:Name="GVal" Width="30" Text="0"
+                           VerticalAlignment="Center" TextAlignment="Right"
+                           FontSize="11" FontFamily="JetBrains Mono"/>
+                <Slider x:Name="GSlider" Minimum="0" Maximum="255" SmallChange="1" LargeChange="16"
+                        ValueChanged="OnSliderChanged"/>
+            </DockPanel>
+
+            <DockPanel Grid.Column="1" Grid.Row="3">
+                <TextBlock DockPanel.Dock="Left" Text="B" Width="16" VerticalAlignment="Center"
+                           FontSize="11" Foreground="{DynamicResource FgMuted}"/>
+                <TextBlock DockPanel.Dock="Right" x:Name="BVal" Width="30" Text="0"
+                           VerticalAlignment="Center" TextAlignment="Right"
+                           FontSize="11" FontFamily="JetBrains Mono"/>
+                <Slider x:Name="BSlider" Minimum="0" Maximum="255" SmallChange="1" LargeChange="16"
+                        ValueChanged="OnSliderChanged"/>
+            </DockPanel>
+
+            <TextBlock Grid.Column="2" Grid.RowSpan="4"
+                       x:Name="LabelText" Margin="6,0,0,0"
+                       VerticalAlignment="Top" FontSize="11" TextWrapping="Wrap"
+                       Foreground="{DynamicResource FgPrimary}"/>
+        </Grid>
+    </Border>
+</UserControl>

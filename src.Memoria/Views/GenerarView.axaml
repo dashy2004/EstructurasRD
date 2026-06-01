@@ -1,0 +1,151 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
+             xmlns:cmn="clr-namespace:MemoriaPlus.Common;assembly=MemoriaPlus.UI.Shared"
+             x:Class="MemoriaPlus.Views.GenerarView"
+             x:CompileBindings="False"
+             Background="{StaticResource SurfaceBrush}">
+
+    <Grid Margin="24,16,24,16" ColumnDefinitions="380,16,*">
+
+        <!-- COL 1 — Checklist + acción primaria -->
+        <Border Grid.Column="0" Theme="{StaticResource SectionCardStyle}">
+            <Grid RowDefinitions="Auto,Auto,*,Auto">
+                <TextBlock Grid.Row="0" Theme="{StaticResource H2Style}" Text="Generar memoria"/>
+                <TextBlock Grid.Row="1" Margin="0,4,0,16"
+                           Foreground="{StaticResource OnSurfaceVariantBrush}"
+                           FontSize="13" TextWrapping="Wrap"
+                           Text="Aplica los datos del proyecto a la plantilla .docx y produce el documento final con todos los placeholders sustituidos."/>
+
+                <StackPanel Grid.Row="2">
+                    <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="VERIFICACIONES PREVIAS" Margin="0,0,0,8"/>
+
+                    <Grid Margin="0,0,0,6" ColumnDefinitions="20,*">
+                        <TextBlock Grid.Column="0" Text="✓" Foreground="{StaticResource SuccessBrush}" FontSize="14" FontWeight="Bold"/>
+                        <TextBlock Grid.Column="1" Text="Datos generales del proyecto" Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,6" ColumnDefinitions="20,*">
+                        <TextBlock Grid.Column="0" Text="✓" Foreground="{StaticResource SuccessBrush}" FontSize="14" FontWeight="Bold"/>
+                        <TextBlock Grid.Column="1" Text="Cargas globales configuradas" Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,6" ColumnDefinitions="20,*">
+                        <TextBlock Grid.Column="0" Text="✓" Foreground="{StaticResource SuccessBrush}" FontSize="14" FontWeight="Bold"/>
+                        <TextBlock Grid.Column="1" FontSize="13" Foreground="{StaticResource OnSurfaceBrush}"
+                                   Text="{Binding ProyectoActivo.Sistemas.Count, Mode=OneWay, StringFormat='Niveles cargados ({0})'}"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,6" ColumnDefinitions="20,*">
+                        <TextBlock Grid.Column="0" Text="●" Foreground="{StaticResource WarningBrush}" FontSize="14" FontWeight="Bold"/>
+                        <TextBlock Grid.Column="1" Text=".txt F. Perdomo (opcional, manual por ahora)" Foreground="{StaticResource OnSurfaceVariantBrush}" FontSize="13"/>
+                    </Grid>
+                    <Grid Margin="0,0,0,6" ColumnDefinitions="20,*">
+                        <TextBlock Grid.Column="0" Text="✓" Foreground="{StaticResource SuccessBrush}" FontSize="14" FontWeight="Bold"/>
+                        <TextBlock Grid.Column="1" Text="Plantilla bundleada en Resources/templates/" Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"/>
+                    </Grid>
+                </StackPanel>
+
+                <StackPanel Grid.Row="3">
+                    <Button Theme="{StaticResource PrimaryButtonStyle}"
+                            Content="📄 Generar memoria .docx"
+                            HorizontalAlignment="Stretch" Height="40"
+                            Command="{Binding GenerarMemoriaCommand}"/>
+                    <TextBlock Margin="0,8,0,0" Foreground="{StaticResource OnSurfaceVariantBrush}"
+                               FontSize="11" TextAlignment="Center"
+                               Text="Se abrirá un diálogo para elegir dónde guardar."/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- COL 2 — Resultado -->
+        <Border Grid.Column="2" Theme="{StaticResource SectionCardStyle}">
+            <Grid RowDefinitions="Auto,*">
+                <Grid Grid.Row="0" Margin="0,0,0,12" ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Theme="{StaticResource LabelCapsStyle}"
+                               Text="📋  RESULTADO DE LA GENERACIÓN" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Theme="{StaticResource SecondaryButtonStyle}"
+                            Content="📂 Abrir archivo" Command="{Binding AbrirUltimaMemoriaCommand}"/>
+                </Grid>
+
+                <Grid Grid.Row="1">
+                    <!-- Estado vacío -->
+                    <Border Background="{StaticResource SurfaceContainerLowBrush}"
+                            BorderBrush="{StaticResource OutlineVariantBrush}"
+                            BorderThickness="1" CornerRadius="{StaticResource CornerRadiusDefault}" Padding="32">
+                        <Border.IsVisible>
+                            <MultiBinding Converter="{x:Static cmn:MultiBoolConverters.NingunoTrue}">
+                                <Binding Path="GeneracionExitosa"/>
+                                <Binding Path="GeneracionConError"/>
+                            </MultiBinding>
+                        </Border.IsVisible>
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="420">
+                            <TextBlock FontSize="48" HorizontalAlignment="Center"
+                                       Foreground="{StaticResource OutlineBrush}" Text="📄"/>
+                            <TextBlock Theme="{StaticResource H2Style}" HorizontalAlignment="Center"
+                                       Margin="0,12,0,4" Text="Aún no hay memoria generada"/>
+                            <TextBlock Foreground="{StaticResource OnSurfaceVariantBrush}"
+                                       FontSize="13" TextAlignment="Center" TextWrapping="Wrap"
+                                       Text="Presiona “Generar memoria .docx” a la izquierda para producir el documento. Verás aquí el reporte con la cantidad de placeholders sustituidos y el path al archivo final."/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Estado éxito -->
+                    <Border Background="{StaticResource SurfaceContainerLowestBrush}"
+                            BorderBrush="{StaticResource SuccessBrush}"
+                            BorderThickness="1" CornerRadius="{StaticResource CornerRadiusDefault}" Padding="20"
+                            IsVisible="{Binding GeneracionExitosa}">
+                        <StackPanel>
+                            <Grid ColumnDefinitions="Auto,*">
+                                <TextBlock Grid.Column="0" Text="✓" FontSize="32"
+                                           Foreground="{StaticResource SuccessBrush}"
+                                           Margin="0,0,16,0" VerticalAlignment="Top"/>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Theme="{StaticResource H2Style}" Text="Memoria generada"/>
+                                    <TextBlock Margin="0,4,0,0" Foreground="{StaticResource OnSurfaceBrush}"
+                                               FontSize="13" TextWrapping="Wrap" Text="{Binding StatusGeneracion}"/>
+                                </StackPanel>
+                            </Grid>
+                            <Border Margin="0,16,0,0" Padding="12,10"
+                                    Background="{StaticResource SurfaceContainerLowBrush}"
+                                    CornerRadius="{StaticResource CornerRadiusDefault}">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="ARCHIVO" Margin="0,0,0,2"/>
+                                        <TextBlock FontFamily="{StaticResource FontFamilyMono}" FontSize="12"
+                                                   Foreground="{StaticResource OnSurfaceBrush}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Text="{Binding UltimoArchivoGenerado}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="SUSTITUCIONES"
+                                                   Margin="0,0,0,2" HorizontalAlignment="Right"/>
+                                        <TextBlock FontFamily="{StaticResource FontFamilyMono}" FontSize="14" FontWeight="Bold"
+                                                   Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Right"
+                                                   Text="{Binding UltimasSustituciones}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Estado error -->
+                    <Border Background="{StaticResource ErrorContainerBrush}"
+                            BorderBrush="{StaticResource ErrorBrush}"
+                            BorderThickness="1" CornerRadius="{StaticResource CornerRadiusDefault}" Padding="20"
+                            IsVisible="{Binding GeneracionConError}">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <TextBlock Grid.Column="0" Text="⚠" FontSize="32"
+                                       Foreground="{StaticResource ErrorBrush}"
+                                       Margin="0,0,16,0" VerticalAlignment="Top"/>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Theme="{StaticResource H2Style}"
+                                           Foreground="{StaticResource ErrorBrush}"
+                                           Text="Generación con problemas"/>
+                                <TextBlock Margin="0,4,0,0" Foreground="{StaticResource OnErrorContainerBrush}"
+                                           FontSize="13" TextWrapping="Wrap" Text="{Binding StatusGeneracion}"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

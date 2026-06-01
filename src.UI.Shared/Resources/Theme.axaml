@@ -1,0 +1,368 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ================================================================
+         Memoria Plus — Design Tokens + ControlThemes (port de Theme.xaml WPF)
+         Fuente: docs/referencia/ui-design/memoria_plus/DESIGN.md
+         (paleta Material 3, neutra + cobalt accent)
+
+         Port a Avalonia: tokens 1:1; los Style x:Key con ControlTemplate+Trigger
+         de WPF se reescriben como ControlTheme + selectores con pseudo-clases
+         (:pointerover, :checked, :selected, :disabled, :focus-within). Para
+         TextBox/ComboBox/DataGrid se hereda del ControlTheme de Fluent (BasedOn)
+         y solo se sobreponen los tokens, evitando reescribir sus templates.
+         ================================================================ -->
+
+    <Styles.Resources>
+        <!-- Surfaces -->
+        <Color x:Key="ColorSurface">#FCF8FB</Color>
+        <Color x:Key="ColorSurfaceContainerLowest">#FFFFFF</Color>
+        <Color x:Key="ColorSurfaceContainerLow">#F6F3F5</Color>
+        <Color x:Key="ColorSurfaceContainer">#F0EDEF</Color>
+        <Color x:Key="ColorSurfaceContainerHigh">#EAE7EA</Color>
+        <Color x:Key="ColorSurfaceContainerHighest">#E4E2E4</Color>
+        <Color x:Key="ColorOnSurface">#1B1B1D</Color>
+        <Color x:Key="ColorOnSurfaceVariant">#434751</Color>
+        <Color x:Key="ColorOutline">#737782</Color>
+        <Color x:Key="ColorOutlineVariant">#C3C6D2</Color>
+
+        <!-- Primary (cobalt) -->
+        <Color x:Key="ColorPrimary">#064287</Color>
+        <Color x:Key="ColorPrimaryContainer">#2C5AA0</Color>
+        <Color x:Key="ColorOnPrimary">#FFFFFF</Color>
+        <Color x:Key="ColorOnPrimaryContainer">#BFD3FF</Color>
+
+        <!-- Secondary -->
+        <Color x:Key="ColorSecondary">#5D5E60</Color>
+        <Color x:Key="ColorSecondaryContainer">#DFDFE1</Color>
+        <Color x:Key="ColorOnSecondary">#FFFFFF</Color>
+        <Color x:Key="ColorOnSecondaryContainer">#616365</Color>
+
+        <!-- Status -->
+        <Color x:Key="ColorSuccess">#2D7A4F</Color>
+        <Color x:Key="ColorWarning">#C18A2C</Color>
+        <Color x:Key="ColorError">#BA1A1A</Color>
+        <Color x:Key="ColorOnError">#FFFFFF</Color>
+        <Color x:Key="ColorErrorContainer">#FFDAD6</Color>
+        <Color x:Key="ColorOnErrorContainer">#410002</Color>
+
+        <!-- Brushes (lo que la UI consume) -->
+        <SolidColorBrush x:Key="SurfaceBrush"                 Color="{StaticResource ColorSurface}"/>
+        <SolidColorBrush x:Key="SurfaceContainerLowestBrush"  Color="{StaticResource ColorSurfaceContainerLowest}"/>
+        <SolidColorBrush x:Key="SurfaceContainerLowBrush"     Color="{StaticResource ColorSurfaceContainerLow}"/>
+        <SolidColorBrush x:Key="SurfaceContainerBrush"        Color="{StaticResource ColorSurfaceContainer}"/>
+        <SolidColorBrush x:Key="SurfaceContainerHighBrush"    Color="{StaticResource ColorSurfaceContainerHigh}"/>
+        <SolidColorBrush x:Key="SurfaceContainerHighestBrush" Color="{StaticResource ColorSurfaceContainerHighest}"/>
+        <SolidColorBrush x:Key="OnSurfaceBrush"               Color="{StaticResource ColorOnSurface}"/>
+        <SolidColorBrush x:Key="OnSurfaceVariantBrush"        Color="{StaticResource ColorOnSurfaceVariant}"/>
+        <SolidColorBrush x:Key="OutlineBrush"                 Color="{StaticResource ColorOutline}"/>
+        <SolidColorBrush x:Key="OutlineVariantBrush"          Color="{StaticResource ColorOutlineVariant}"/>
+        <SolidColorBrush x:Key="PrimaryBrush"                 Color="{StaticResource ColorPrimary}"/>
+        <SolidColorBrush x:Key="PrimaryContainerBrush"        Color="{StaticResource ColorPrimaryContainer}"/>
+        <SolidColorBrush x:Key="OnPrimaryBrush"               Color="{StaticResource ColorOnPrimary}"/>
+        <SolidColorBrush x:Key="OnPrimaryContainerBrush"      Color="{StaticResource ColorOnPrimaryContainer}"/>
+        <SolidColorBrush x:Key="SecondaryBrush"               Color="{StaticResource ColorSecondary}"/>
+        <SolidColorBrush x:Key="SecondaryContainerBrush"      Color="{StaticResource ColorSecondaryContainer}"/>
+        <SolidColorBrush x:Key="OnSecondaryBrush"             Color="{StaticResource ColorOnSecondary}"/>
+        <SolidColorBrush x:Key="OnSecondaryContainerBrush"    Color="{StaticResource ColorOnSecondaryContainer}"/>
+        <SolidColorBrush x:Key="OnErrorBrush"                 Color="{StaticResource ColorOnError}"/>
+        <SolidColorBrush x:Key="OnErrorContainerBrush"        Color="{StaticResource ColorOnErrorContainer}"/>
+        <SolidColorBrush x:Key="SuccessBrush"                 Color="{StaticResource ColorSuccess}"/>
+        <SolidColorBrush x:Key="WarningBrush"                 Color="{StaticResource ColorWarning}"/>
+        <SolidColorBrush x:Key="ErrorBrush"                   Color="{StaticResource ColorError}"/>
+        <SolidColorBrush x:Key="ErrorContainerBrush"          Color="{StaticResource ColorErrorContainer}"/>
+
+        <!-- Tipografía -->
+        <FontFamily x:Key="FontFamilyUI">Inter, Segoe UI, sans-serif</FontFamily>
+        <FontFamily x:Key="FontFamilyMono">JetBrains Mono, Cascadia Mono, Consolas, monospace</FontFamily>
+
+        <x:Double x:Key="FontSizeH1">24</x:Double>
+        <x:Double x:Key="FontSizeH2">18</x:Double>
+        <x:Double x:Key="FontSizeBody">13</x:Double>
+        <x:Double x:Key="FontSizeLabel">11</x:Double>
+        <x:Double x:Key="FontSizeData">12</x:Double>
+
+        <!-- Spacing & sizing -->
+        <x:Double x:Key="RowHeightDense">28</x:Double>
+        <x:Double x:Key="InputHeight">32</x:Double>
+        <x:Double x:Key="ContainerPadding">16</x:Double>
+        <x:Double x:Key="ElementGap">8</x:Double>
+        <x:Double x:Key="GridGutter">12</x:Double>
+        <CornerRadius x:Key="CornerRadiusSm">2</CornerRadius>
+        <CornerRadius x:Key="CornerRadiusDefault">4</CornerRadius>
+        <Thickness x:Key="HairlineThickness">1</Thickness>
+
+        <!-- ============================================================
+             ControlThemes keyed (referenciados desde las vistas vía
+             Theme="{StaticResource X}")
+             ============================================================ -->
+
+        <!-- Headers / texto (TextBlock: ControlTheme solo con setters) -->
+        <ControlTheme x:Key="H1Style" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+            <Setter Property="FontSize"   Value="{StaticResource FontSizeH1}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+        </ControlTheme>
+
+        <ControlTheme x:Key="H2Style" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+            <Setter Property="FontSize"   Value="{StaticResource FontSizeH2}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+        </ControlTheme>
+
+        <ControlTheme x:Key="LabelCapsStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+            <Setter Property="FontSize"   Value="{StaticResource FontSizeLabel}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+        </ControlTheme>
+
+        <ControlTheme x:Key="DataTabularStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}"/>
+            <Setter Property="FontSize"   Value="{StaticResource FontSizeData}"/>
+            <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </ControlTheme>
+
+        <ControlTheme x:Key="FieldLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+            <Setter Property="FontSize"   Value="{StaticResource FontSizeLabel}"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+            <Setter Property="Margin"     Value="0,0,0,4"/>
+        </ControlTheme>
+
+        <!-- Primary button (cobalt fill) -->
+        <ControlTheme x:Key="PrimaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PrimaryContainerBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource OnPrimaryBrush}"/>
+            <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+            <Setter Property="FontSize"   Value="{StaticResource FontSizeBody}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Height"     Value="{StaticResource InputHeight}"/>
+            <Setter Property="Padding"    Value="14,0"/>
+            <Setter Property="Cursor"     Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <ControlTemplate TargetType="Button">
+                    <Border Name="bd" CornerRadius="{StaticResource CornerRadiusDefault}"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          Margin="{TemplateBinding Padding}"
+                                          Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^:pointerover /template/ Border#bd">
+                <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
+            </Style>
+            <Style Selector="^:disabled /template/ Border#bd">
+                <Setter Property="Opacity" Value="0.5"/>
+            </Style>
+        </ControlTheme>
+
+        <!-- Secondary button (white fill, outline) -->
+        <ControlTheme x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource SurfaceContainerLowestBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+            <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+            <Setter Property="FontSize"   Value="{StaticResource FontSizeBody}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Height"     Value="{StaticResource InputHeight}"/>
+            <Setter Property="Padding"    Value="14,0"/>
+            <Setter Property="Cursor"     Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderBrush" Value="{StaticResource OutlineVariantBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <ControlTemplate TargetType="Button">
+                    <Border Name="bd" CornerRadius="{StaticResource CornerRadiusDefault}"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          Margin="{TemplateBinding Padding}"
+                                          Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^:pointerover /template/ Border#bd">
+                <Setter Property="Background" Value="{StaticResource SurfaceContainerLowBrush}"/>
+            </Style>
+            <Style Selector="^:disabled /template/ Border#bd">
+                <Setter Property="Opacity" Value="0.5"/>
+            </Style>
+        </ControlTheme>
+
+        <!-- Sidebar nav item (RadioButton) -->
+        <ControlTheme x:Key="SidebarNavItemStyle" TargetType="RadioButton">
+            <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+            <Setter Property="FontSize"   Value="{StaticResource FontSizeBody}"/>
+            <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+            <Setter Property="Padding"    Value="12,8"/>
+            <Setter Property="Cursor"     Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <ControlTemplate TargetType="RadioButton">
+                    <Border Name="bd" CornerRadius="{StaticResource CornerRadiusDefault}"
+                            Background="Transparent"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Left"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          Foreground="{TemplateBinding Foreground}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^:pointerover /template/ Border#bd">
+                <Setter Property="Background" Value="{StaticResource SurfaceContainerHighBrush}"/>
+            </Style>
+            <Style Selector="^:checked /template/ Border#bd">
+                <Setter Property="Background" Value="{StaticResource SurfaceContainerHighestBrush}"/>
+            </Style>
+            <Style Selector="^:checked">
+                <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+            </Style>
+        </ControlTheme>
+
+        <!-- TabItem / TabControl (tabs Datos/Cargas/Niveles/Generar).
+             Hereda del ControlTheme de Fluent (que respeta HeaderTemplate =
+             ItemTemplate del TabControl) y solo sobrepone tokens; evita romper
+             el render del header con un template propio. -->
+        <ControlTheme x:Key="MemoriaTabItemStyle" TargetType="TabItem"
+                      BasedOn="{StaticResource {x:Type TabItem}}">
+            <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+            <Setter Property="FontSize"   Value="{StaticResource FontSizeBody}"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Foreground" Value="{StaticResource OnSurfaceVariantBrush}"/>
+            <Setter Property="Padding"    Value="16,10"/>
+            <Setter Property="Cursor"     Value="Hand"/>
+            <Style Selector="^:pointerover">
+                <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+            </Style>
+            <Style Selector="^:selected">
+                <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+            </Style>
+        </ControlTheme>
+
+        <ControlTheme x:Key="MemoriaTabControlStyle" TargetType="TabControl">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </ControlTheme>
+
+        <!-- Section card (Border) -->
+        <ControlTheme x:Key="SectionCardStyle" TargetType="Border">
+            <Setter Property="Background"      Value="{StaticResource SurfaceContainerLowestBrush}"/>
+            <Setter Property="BorderBrush"     Value="{StaticResource OutlineVariantBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius"    Value="{StaticResource CornerRadiusDefault}"/>
+            <Setter Property="Padding"         Value="16"/>
+        </ControlTheme>
+
+        <!-- TextBox: hereda del ControlTheme de Fluent y sobrepone tokens -->
+        <ControlTheme x:Key="MemoriaTextBoxStyle" TargetType="TextBox"
+                      BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="FontFamily"   Value="{StaticResource FontFamilyUI}"/>
+            <Setter Property="FontSize"     Value="{StaticResource FontSizeBody}"/>
+            <Setter Property="MinHeight"    Value="{StaticResource InputHeight}"/>
+            <Setter Property="Padding"      Value="10,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="CornerRadius" Value="{StaticResource CornerRadiusDefault}"/>
+        </ControlTheme>
+
+        <ControlTheme x:Key="MemoriaTextAreaStyle" TargetType="TextBox"
+                      BasedOn="{StaticResource MemoriaTextBoxStyle}">
+            <Setter Property="Height"        Value="NaN"/>
+            <Setter Property="MinHeight"     Value="64"/>
+            <Setter Property="MaxHeight"     Value="120"/>
+            <Setter Property="Padding"       Value="10,8"/>
+            <Setter Property="TextWrapping"  Value="Wrap"/>
+            <Setter Property="AcceptsReturn" Value="True"/>
+            <Setter Property="VerticalContentAlignment" Value="Top"/>
+        </ControlTheme>
+
+        <!-- ComboBox: hereda de Fluent + tokens -->
+        <ControlTheme x:Key="MemoriaComboBoxStyle" TargetType="ComboBox"
+                      BasedOn="{StaticResource {x:Type ComboBox}}">
+            <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+            <Setter Property="FontSize"   Value="{StaticResource FontSizeBody}"/>
+            <Setter Property="MinHeight"  Value="{StaticResource InputHeight}"/>
+            <Setter Property="Padding"    Value="10,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="CornerRadius" Value="{StaticResource CornerRadiusDefault}"/>
+        </ControlTheme>
+
+        <!-- DataGrid: hereda de Fluent + tokens -->
+        <ControlTheme x:Key="MemoriaDataGridStyle" TargetType="DataGrid"
+                      BasedOn="{StaticResource {x:Type DataGrid}}">
+            <Setter Property="FontFamily"            Value="{StaticResource FontFamilyMono}"/>
+            <Setter Property="FontSize"              Value="{StaticResource FontSizeData}"/>
+            <Setter Property="Background"            Value="{StaticResource SurfaceContainerLowestBrush}"/>
+            <Setter Property="Foreground"            Value="{StaticResource OnSurfaceBrush}"/>
+            <Setter Property="BorderBrush"           Value="{StaticResource OutlineVariantBrush}"/>
+            <Setter Property="BorderThickness"       Value="1"/>
+            <Setter Property="GridLinesVisibility"   Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource OutlineVariantBrush}"/>
+            <Setter Property="HeadersVisibility"     Value="Column"/>
+            <Setter Property="AutoGenerateColumns"   Value="False"/>
+            <Setter Property="CanUserResizeColumns"  Value="True"/>
+            <Setter Property="CanUserReorderColumns" Value="False"/>
+            <Setter Property="RowHeight"             Value="28"/>
+        </ControlTheme>
+    </Styles.Resources>
+
+    <!-- ================================================================
+         Estilos implícitos por default (cualquier control sin Theme explícito
+         hereda el look base de los tokens)
+         ================================================================ -->
+    <Style Selector="TextBox">
+        <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+        <Setter Property="FontSize"   Value="{StaticResource FontSizeBody}"/>
+        <Setter Property="MinHeight"  Value="{StaticResource InputHeight}"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="ComboBox">
+        <Setter Property="FontFamily" Value="{StaticResource FontFamilyUI}"/>
+        <Setter Property="FontSize"   Value="{StaticResource FontSizeBody}"/>
+        <Setter Property="MinHeight"  Value="{StaticResource InputHeight}"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <!-- DataGrid column header denso, sin lineas verticales -->
+    <Style Selector="DataGridColumnHeader">
+        <Setter Property="Background"      Value="{StaticResource SurfaceContainerHighBrush}"/>
+        <Setter Property="Foreground"      Value="{StaticResource OnSurfaceVariantBrush}"/>
+        <Setter Property="FontFamily"      Value="{StaticResource FontFamilyUI}"/>
+        <Setter Property="FontSize"        Value="{StaticResource FontSizeLabel}"/>
+        <Setter Property="FontWeight"      Value="SemiBold"/>
+        <Setter Property="MinHeight"       Value="28"/>
+        <Setter Property="Padding"         Value="10,0"/>
+    </Style>
+
+    <Style Selector="DataGridRow">
+        <Setter Property="Background" Value="{StaticResource SurfaceContainerLowestBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource OnSurfaceBrush}"/>
+        <Setter Property="MinHeight"  Value="28"/>
+    </Style>
+
+    <Style Selector="DataGridCell">
+        <Setter Property="Padding" Value="10,0"/>
+        <Setter Property="FontFamily" Value="{StaticResource FontFamilyMono}"/>
+        <Setter Property="FontSize"   Value="{StaticResource FontSizeData}"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+</Styles>

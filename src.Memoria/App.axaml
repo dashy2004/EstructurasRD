@@ -1,0 +1,20 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:cmn="clr-namespace:MemoriaPlus.Common;assembly=MemoriaPlus.UI.Shared"
+             x:Class="MemoriaPlus.App"
+             RequestedThemeVariant="Light">
+
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+        <!-- Tema compartido (tokens + ControlThemes) de MemoriaPlus.UI.Shared. -->
+        <StyleInclude Source="avares://MemoriaPlus.UI.Shared/Resources/Theme.axaml" />
+    </Application.Styles>
+
+    <Application.Resources>
+        <!-- Converters globales consumidos por las vistas vía StaticResource. -->
+        <cmn:EnumToBoolConverter x:Key="EnumToBoolConverter"/>
+        <cmn:PathToImageConverter x:Key="PathToImageConverter"/>
+        <cmn:StringNotEmptyToBoolConverter x:Key="StringNotEmptyToBoolConverter"/>
+    </Application.Resources>
+</Application>

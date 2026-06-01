@@ -1,0 +1,282 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:oxy="clr-namespace:OxyPlot.Avalonia;assembly=OxyPlot.Avalonia"
+             x:Class="LosasPlus.Views.Vigas.VigaEditorView"
+             x:CompileBindings="False"
+             Background="{DynamicResource BgPrimary}">
+    <UserControl.Resources>
+        <!-- Port: Style x:Key WPF -> ControlTheme (se aplican con Theme="{StaticResource …}"). -->
+        <ControlTheme x:Key="EtiquetaSeccion" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </ControlTheme>
+        <ControlTheme x:Key="BotonCompacto" TargetType="Button">
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Margin" Value="6,0,0,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="12"/>
+        </ControlTheme>
+        <ControlTheme x:Key="TarjetaSeccion" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource BgSecondary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10"/>
+        </ControlTheme>
+    </UserControl.Resources>
+
+    <!-- El contenido se rebasa al sub-VM VigaEditor del MainViewModel. -->
+    <Grid DataContext="{Binding VigaEditor}" Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Barra de herramientas -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,14">
+            <TextBlock DockPanel.Dock="Left" Text="📐  Vigas Continuas"
+                       FontSize="18" FontWeight="SemiBold"
+                       Foreground="{DynamicResource FgPrimary}" VerticalAlignment="Center"/>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="➕  Nueva Viga" Theme="{StaticResource BotonCompacto}"
+                        Command="{Binding NuevaVigaCommand}"/>
+                <TextBlock Text="Viga:" Theme="{StaticResource EtiquetaSeccion}" Margin="16,0,8,0"/>
+                <ComboBox Width="170" VerticalAlignment="Center"
+                          ItemsSource="{Binding Vigas}"
+                          SelectedItem="{Binding VigaActiva}"
+                          ToolTip.Tip="Viga continua en edición.">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Nombre}"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBlock Text="Diagrama:" Theme="{StaticResource EtiquetaSeccion}" Margin="16,0,8,0"/>
+                <ComboBox Width="170" VerticalAlignment="Center"
+                          ItemsSource="{Binding OpcionesCombinacion}"
+                          SelectedItem="{Binding CombinacionSeleccionada}"
+                          ToolTip.Tip="Combinación cuyos diagramas se muestran (o la envolvente de diseño)."/>
+                <Button Content="🗑  Eliminar Viga" Theme="{StaticResource BotonCompacto}"
+                        Margin="16,0,0,0" Command="{Binding EliminarVigaCommand}"/>
+            </StackPanel>
+        </DockPanel>
+
+        <!-- Cuerpo: panel de tablas + panel de diagramas -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="400"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- ===== Panel izquierdo: tablas de datos ===== -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Tramos -->
+                <Border Grid.Row="0" Theme="{StaticResource TarjetaSeccion}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                            <TextBlock DockPanel.Dock="Left" Text="TRAMOS"
+                                       Theme="{StaticResource EtiquetaSeccion}"/>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                        HorizontalAlignment="Right">
+                                <Button Content="+" Theme="{StaticResource BotonCompacto}"
+                                        Command="{Binding AgregarTramoCommand}" ToolTip.Tip="Añadir tramo"/>
+                                <Button Content="🗑" Theme="{StaticResource BotonCompacto}"
+                                        Command="{Binding EliminarTramoCommand}" ToolTip.Tip="Eliminar tramo"/>
+                            </StackPanel>
+                        </DockPanel>
+                        <DataGrid Grid.Row="1"
+                                  ItemsSource="{Binding VigaActiva.Tramos}"
+                                  SelectedItem="{Binding TramoSeleccionado}"
+                                  AutoGenerateColumns="False" HeadersVisibility="Column"
+                                  SelectionMode="Single"
+                                  BeginningEdit="OnBeginningEdit">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Long. (m)" Width="*"
+                                                    Binding="{Binding Longitud, StringFormat=0.###}"/>
+                                <DataGridTextColumn Header="Base (m)" Width="*"
+                                                    Binding="{Binding Base, StringFormat=0.###}"/>
+                                <DataGridTextColumn Header="Peralte (m)" Width="*"
+                                                    Binding="{Binding Peralte, StringFormat=0.###}"/>
+                                <DataGridTextColumn Header="E (kN/m²)" Width="1.3*"
+                                                    Binding="{Binding ModuloElasticidad, StringFormat=0}"/>
+                                <DataGridTextColumn Header="I (m⁴)" Width="1.2*"
+                                                    Binding="{Binding Inercia, StringFormat=0.######}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+
+                <!-- Apoyos -->
+                <Border Grid.Row="2" Theme="{StaticResource TarjetaSeccion}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                            <TextBlock DockPanel.Dock="Left" Text="APOYOS"
+                                       Theme="{StaticResource EtiquetaSeccion}"/>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                        HorizontalAlignment="Right">
+                                <Button Content="+" Theme="{StaticResource BotonCompacto}"
+                                        Command="{Binding AgregarApoyoCommand}" ToolTip.Tip="Añadir apoyo"/>
+                                <Button Content="🗑" Theme="{StaticResource BotonCompacto}"
+                                        Command="{Binding EliminarApoyoCommand}" ToolTip.Tip="Eliminar apoyo"/>
+                            </StackPanel>
+                        </DockPanel>
+                        <DataGrid Grid.Row="1"
+                                  ItemsSource="{Binding VigaActiva.Apoyos}"
+                                  SelectedItem="{Binding ApoyoSeleccionado}"
+                                  AutoGenerateColumns="False" HeadersVisibility="Column"
+                                  SelectionMode="Single"
+                                  BeginningEdit="OnBeginningEdit">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="X (m)" Width="*"
+                                                    Binding="{Binding CoordenadaX, StringFormat=0.###}"/>
+                                <DataGridTemplateColumn Header="Tipo" Width="1.3*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Tipo}" Margin="6,0"
+                                                       VerticalAlignment="Center"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                    <DataGridTemplateColumn.CellEditingTemplate>
+                                        <DataTemplate>
+                                            <ComboBox ItemsSource="{Binding $parent[DataGrid].DataContext.TiposApoyo}"
+                                                      SelectedItem="{Binding Tipo}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellEditingTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Resorte (kN/m)" Width="1.3*"
+                                                    Binding="{Binding RigidezResorte, StringFormat=0}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+
+                <!-- Cargas del tramo seleccionado -->
+                <Border Grid.Row="4" Theme="{StaticResource TarjetaSeccion}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <DockPanel Grid.Row="0" Margin="0,0,0,6">
+                            <TextBlock DockPanel.Dock="Left" Text="CARGAS DEL TRAMO"
+                                       Theme="{StaticResource EtiquetaSeccion}"/>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                        HorizontalAlignment="Right">
+                                <Button Content="+" Theme="{StaticResource BotonCompacto}"
+                                        Command="{Binding AgregarCargaCommand}" ToolTip.Tip="Añadir carga"/>
+                                <Button Content="🗑" Theme="{StaticResource BotonCompacto}"
+                                        Command="{Binding EliminarCargaCommand}" ToolTip.Tip="Eliminar carga"/>
+                            </StackPanel>
+                        </DockPanel>
+                        <DataGrid Grid.Row="1"
+                                  ItemsSource="{Binding CargasDelTramo}"
+                                  SelectedItem="{Binding CargaSeleccionada}"
+                                  AutoGenerateColumns="False" HeadersVisibility="Column"
+                                  SelectionMode="Single"
+                                  BeginningEdit="OnBeginningEdit">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="Caso" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding CodigoCaso}" Margin="6,0"
+                                                       VerticalAlignment="Center"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                    <DataGridTemplateColumn.CellEditingTemplate>
+                                        <DataTemplate>
+                                            <ComboBox ItemsSource="{Binding $parent[DataGrid].DataContext.CasosDisponibles}"
+                                                      SelectedValueBinding="{Binding Codigo}"
+                                                      SelectedValue="{Binding CodigoCaso}">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding Codigo}"/>
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellEditingTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Tipo" Width="1.4*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Tipo}" Margin="6,0"
+                                                       VerticalAlignment="Center"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                    <DataGridTemplateColumn.CellEditingTemplate>
+                                        <DataTemplate>
+                                            <ComboBox ItemsSource="{Binding $parent[DataGrid].DataContext.TiposCarga}"
+                                                      SelectedItem="{Binding Tipo}"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellEditingTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Magnitud" Width="*"
+                                                    Binding="{Binding Magnitud, StringFormat=0.###}"/>
+                                <DataGridTextColumn Header="Pos. (m)" Width="*"
+                                                    Binding="{Binding Posicion, StringFormat=0.###}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- ===== Panel derecho: diagramas ===== -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="1.15*"/>
+                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Aviso de viga inestable (Style+DataTrigger -> IsVisible) -->
+                <Border Grid.Row="0" Background="{DynamicResource BgInput}"
+                        BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                        CornerRadius="4" Padding="10,7" Margin="0,0,0,10"
+                        IsVisible="{Binding EsInestable}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⚠" Margin="0,0,8,0" VerticalAlignment="Top"/>
+                        <TextBlock Text="{Binding MensajeEstado}" TextWrapping="Wrap"
+                                   FontSize="12" Foreground="{DynamicResource FgPrimary}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Gráfico 1: modelo físico de la viga -->
+                <Border Grid.Row="1" Theme="{StaticResource TarjetaSeccion}">
+                    <oxy:PlotView Model="{Binding ModeloViga}" Background="Transparent"/>
+                </Border>
+
+                <!-- Gráfico 2: cortante y momento -->
+                <Border Grid.Row="3" Theme="{StaticResource TarjetaSeccion}">
+                    <oxy:PlotView Model="{Binding ModeloEsfuerzos}" Background="Transparent"/>
+                </Border>
+
+                <!-- Gráfico 3: deflexión -->
+                <Border Grid.Row="5" Theme="{StaticResource TarjetaSeccion}">
+                    <oxy:PlotView Model="{Binding ModeloDeflexion}" Background="Transparent"/>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>
