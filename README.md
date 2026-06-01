@@ -1,8 +1,8 @@
 <h1 align="center">LosasPlus &nbsp;/&nbsp; MemoriaPlus</h1>
 
 <p align="center">
-  <b>Suite de diseño estructural en .NET 8 / WPF para ingenieros civiles dominicanos.</b><br/>
-  Editor de losas con cálculo en vivo + generación automática de memoria de cálculo en formato <code>.docx</code>.<br/>
+  <b>Suite de diseño estructural en .NET 8 / Avalonia (multiplataforma: Linux · Windows · macOS) para ingenieros civiles dominicanos.</b><br/>
+  Editor de losas con cálculo en vivo + vigas continuas + vista 3D + transmisión de cargas + generación automática de memoria de cálculo en formato <code>.docx</code>.<br/>
   Conforme a R-001, R-024 y ACI 318.
 </p>
 
@@ -12,7 +12,8 @@
   <a href="LICENSE"><img alt="license MIT" src="https://img.shields.io/github/license/dashy2004/LosasPlus?color=blue"></a>
   <a href="https://dotnet.microsoft.com/download/dotnet/8.0"><img alt=".NET 8" src="https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white"></a>
   <a href="https://github.com/dashy2004/LosasPlus/releases"><img alt="latest release" src="https://img.shields.io/github/v/release/dashy2004/LosasPlus?include_prereleases&label=release&color=brightgreen"></a>
-  <img alt="platform" src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6?logo=windows&logoColor=white">
+  <img alt="platform" src="https://img.shields.io/badge/plataforma-Linux%20%C2%B7%20Windows%20%C2%B7%20macOS-1793D1?logo=linux&logoColor=white">
+  <img alt="ui" src="https://img.shields.io/badge/UI-Avalonia%2011-782AEB?logo=avalonia&logoColor=white">
 </p>
 
 <p align="center">
@@ -34,6 +35,36 @@
 > **Motor de cálculo `Losas.exe`** (usado opcionalmente por `LosasPlus.App`):
 > propiedad de Ing. Francisco Eludino Perdomo (programa Losas v5.20, método
 > Pieper-Martens). NO se redistribuye en este repo 
+
+---
+
+## 🐧 Port a Avalonia — multiplataforma (Linux · Windows · macOS)
+
+La suite, originalmente **WPF (solo-Windows)**, fue portada a **Avalonia 11 / .NET 8**, con
+**Linux como plataforma primaria de desarrollo** sin perder Windows ni macOS (Avalonia compila
+para los tres). El motor de cálculo (`src.Core`) es puro y multiplataforma.
+
+**Correr en Linux** (con el SDK .NET 8 en el `PATH`):
+
+```bash
+export PATH="$HOME/.dotnet:$PATH"
+dotnet build LosasPlus.Linux.sln -c Debug          # compila toda la solución
+dotnet run --project src        -c Debug           # LosasPlus (app principal)
+dotnet run --project src.Memoria -c Debug          # MemoriaPlus (generador de memoria)
+```
+
+Guía detallada de build/publish/portado en **[`BUILD-Linux.md`](BUILD-Linux.md)**.
+
+**Novedades del port (más allá de la paridad WPF):**
+
+- **Lienzo CAD** (render inmediato Avalonia, importación de plano DXF + PDF underlay con PDFium).
+- **Vigas continuas** con análisis por rigidez directa y diagramas **V(x) · M(x) · δ(x)** (OxyPlot).
+- **Vista 3D** alámbrica del edificio **sin SharpDX** (proyección por software sobre el `DrawingContext`
+  de Avalonia: cámara orbital, columnas y zapatas) — corre en Linux/Vulkan/OpenGL sin dependencia nativa.
+- **Transmisión de cargas** (bajada **losa → viga → columna → zapata**): reparto por áreas tributarias,
+  reparto geométrico real por posición en planta, acumulación por niveles y predimensionado de zapatas,
+  con vista **Bajada de Cargas** (export a XLSX) y editor de **Columnas**.
+- **Export SAF** (Structural Analysis Format) del modelo de vigas.
 
 ---
 
