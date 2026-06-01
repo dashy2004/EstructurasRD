@@ -220,6 +220,8 @@ public partial class Losa : INotifyPropertyChanged, IDataErrorInfo
     private double _lx = 4.000;        // m
     private double _ly = 4.000;        // m
     private double _rec = 0.020;       // m
+    private double _coordX;            // m — posición en planta (esquina origen)
+    private double _coordY;            // m — posición en planta (esquina origen)
 
     public int Id { get => _id; set { _id = value; OnPropertyChanged(); } }
     public int Tipo
@@ -293,6 +295,24 @@ public partial class Losa : INotifyPropertyChanged, IDataErrorInfo
     {
         get => _rec;
         set { _rec = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// Posición X en planta de la esquina origen del paño, en metros (Fase J —
+    /// geometría en planta para el descenso topológico de cargas). El paño ocupa
+    /// [X, X+Lx] × [Y, Y+Ly]. Default 0; aditivo en serialización.
+    /// </summary>
+    public double CoordenadaX
+    {
+        get => _coordX;
+        set { _coordX = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Posición Y en planta de la esquina origen del paño, en metros (ver <see cref="CoordenadaX"/>).</summary>
+    public double CoordenadaY
+    {
+        get => _coordY;
+        set { _coordY = value; OnPropertyChanged(); }
     }
 
     [JsonIgnore]
