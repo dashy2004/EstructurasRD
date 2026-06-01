@@ -87,6 +87,17 @@ public sealed class BajadaCargasViewModel : INotifyPropertyChanged
         LadoZapata = z.LadoCuadrada;
     }
 
+    /// <summary>
+    /// Exporta el reporte de bajada de cargas del edificio activo a un libro
+    /// Excel en <paramref name="path"/>. No hace nada si no hay edificio activo.
+    /// </summary>
+    public void ExportarXlsx(string path)
+    {
+        var edificio = _getEdificio();
+        if (edificio is null) return;
+        BajadaCargasExporter.Export(edificio, PresionAdmisible, path);
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

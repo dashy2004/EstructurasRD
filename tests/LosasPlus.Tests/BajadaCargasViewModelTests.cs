@@ -1,4 +1,8 @@
+using System;
+using System.IO;
+using ClosedXML.Excel;
 using LosasPlus.Models;
+using LosasPlus.Transmision;
 using LosasPlus.ViewModels;
 using Xunit;
 
@@ -62,5 +66,20 @@ public class BajadaCargasViewModelTests
         vm.Recalcular();
         Assert.Equal(3, vm.Filas.Count);
         Assert.Equal(450, vm.CargaEnBase, 6);
+    }
+
+    [Fact]
+    public void ExportarXlsx_genera_el_libro_de_bajada_de_cargas()
+    {
+        var vm = new BajadaCargasViewModel(() => EdificioDosNiveles());
+        var path = Path.Combine(Path.GetTempPath(), $"bajada_vm_{Guid.NewGuid():N}.xlsx");
+        try
+        {
+            vm.ExportarXlsx(path);
+            Assert.True(File.Exists(path));
+            using var wb = new XLWorkbook(path);
+            Assert.Contains(wb.Worksheets, w => w.Name == BajadaCargasExporter.NombreHoja);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
     }
 }

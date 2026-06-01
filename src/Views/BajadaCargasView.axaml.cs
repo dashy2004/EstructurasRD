@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using LosasPlus.ViewModels;
+using MemoriaPlus.Services;
 
 namespace LosasPlus.Views;
 
@@ -17,4 +18,16 @@ public partial class BajadaCargasView : UserControl
 
     private void OnRecalcular(object? sender, RoutedEventArgs e)
         => (DataContext as BajadaCargasViewModel)?.Recalcular();
+
+    private async void OnExportarXlsx(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not BajadaCargasViewModel vm) return;
+
+        var path = await AppServices.Dialogs.SaveFileAsync(
+            "Exportar bajada de cargas", "bajada_de_cargas.xlsx", ".xlsx",
+            new FileFilter("Excel Workbook", new[] { "*.xlsx" }));
+        if (path is null) return;
+
+        vm.ExportarXlsx(path);
+    }
 }
