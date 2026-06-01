@@ -295,10 +295,20 @@ public partial class MainWindow : Window
             new FileFilter("Excel Workbook", new[] { "*.xlsx" }));
         if (path is null) return;
 
-        // La captura del lienzo CAD como esquema del .xlsx queda diferida a la
-        // Fase E (CadView es un stub sin CanvasHost todavía). El Excel se exporta
-        // igual, sin imagen del esquema.
-        await Vm.ExportarXlsxAsync(path, null);
+        // Captura del lienzo CAD como esquema del .xlsx (mejor esfuerzo: si la
+        // captura falla, se exporta el Excel sin imagen). Port a Avalonia (Fase E.1):
+        // CaptureCanvasPng() devuelve un Bitmap; lo codificamos a PNG con Bitmap.Save.
+        byte[]? png = null;
+        try
+        {
+            var bmp = CadEditorView.CanvasHost.CaptureCanvasPng();
+            using var ms = new MemoryStream();
+            bmp.Save(ms);
+            png = ms.ToArray();
+        }
+        catch (Exception ex) { Vm.Log("No se pudo capturar el lienzo CAD: " + ex.Message); }
+
+        await Vm.ExportarXlsxAsync(path, png);
     }
 
     private void OnTrustPluginClick(object? sender, RoutedEventArgs e)

@@ -69,9 +69,14 @@
     <Compile Include="Views\TiposLosaPanel.axaml.cs" />
     <Compile Include="Views\CargasCombinacionesView.axaml.cs" />
     <Compile Include="Views\Vigas\VigaEditorView.axaml.cs" />
-    <!-- Lienzo CAD: stub de Fase E (placeholder) para que el MainWindow real
-         referencie cad:CadView. El control real se porta en la Fase E. -->
+    <!-- Lienzo CAD (Fase E.1: render). CadCanvasHost = render inmediato Avalonia;
+         CadView = vista; + helpers (paleta de muros, event args). La interacción
+         de edición (E.2) reusará estos mismos archivos. -->
     <Compile Include="Views\Cad\CadView.axaml.cs" />
+    <Compile Include="Views\Cad\CadCanvasHost.cs" />
+    <Compile Include="Views\Cad\PaletaMuros.cs" />
+    <Compile Include="Views\Cad\LosaDobleClicEventArgs.cs" />
+    <Compile Include="Views\Cad\CalibrarPdfPuntosListosEventArgs.cs" />
   </ItemGroup>
 
 </Project>

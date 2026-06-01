@@ -1,31 +1,338 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:cad="clr-namespace:LosasPlus.Views.Cad"
              x:Class="LosasPlus.Views.Cad.CadView"
-             x:CompileBindings="False">
+             x:CompileBindings="False"
+             Background="{DynamicResource BgPrimary}">
 
-    <!-- STUB de Fase E. El editor CAD real (CadCanvasHost.cs, 2198 líneas de
-         render retenido DrawingVisual/OnRender → Control.Render inmediato de
-         Avalonia + CadView.xaml de 604 líneas) se porta en la Fase E. Este
-         placeholder permite que el MainWindow real referencie cad:CadView y
-         compile/arranque ahora. La captura del lienzo para el .xlsx queda
-         diferida (MainWindow pasa png=null hasta la Fase E). -->
-    <Border Background="{DynamicResource BgSecondary}"
-            BorderBrush="{DynamicResource Border}" BorderThickness="1"
-            CornerRadius="8" Margin="32">
-        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
-                    Spacing="10" MaxWidth="640">
-            <TextBlock Text="🗺  Lienzo CAD" FontSize="24" FontWeight="Bold"
-                       HorizontalAlignment="Center"
-                       Foreground="{DynamicResource FgPrimary}"/>
-            <Border HorizontalAlignment="Center" Padding="10,4" CornerRadius="12"
-                    Background="{DynamicResource AccentHi}">
-                <TextBlock Text="🔜  Port pendiente (Fase E)"
-                           Foreground="{DynamicResource FgOnAccent}"
-                           FontWeight="SemiBold" FontSize="12"/>
+    <!-- ============================================================
+         Vista del modo Lienzo CAD — port a Avalonia (Fase E.1: render).
+         Porta la barra de importación, el canvas (CadCanvasHost), la toolbar
+         de modos, y el panel lateral (PLANO DXF / PDF / MUROS). Los widgets de
+         edición interactiva (editor flotante de losa, editor de calibración de
+         PDF y leyenda «Suma de Colores») se portan en la Fase E.2 junto con la
+         interacción de mouse del host.
+         WPF→Avalonia: BooleanToVisibilityConverter → IsVisible directo; ToolTip=
+         → ToolTip.Tip=; ControlTemplate+Trigger → Styles con pseudo-clases;
+         Panel.ZIndex → ZIndex; LayoutTransform → RenderTransform.
+         ============================================================ -->
+    <UserControl.Resources>
+        <cad:EspesorABrushConverter x:Key="EspesorABrush"/>
+    </UserControl.Resources>
+
+    <DockPanel>
+        <!-- Barra superior: importar DXF/PDF + estado -->
+        <Border DockPanel.Dock="Top" Padding="10,8"
+                Background="{DynamicResource BgSecondary}"
+                BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+            <DockPanel LastChildFill="True">
+                <Button DockPanel.Dock="Left" Padding="12,5"
+                        Content="📂  Importar DXF…"
+                        Command="{Binding CadEditor.ImportarDxfCommand}"
+                        ToolTip.Tip="Abre un plano de arquitectura .DXF como capa de referencia."/>
+                <Button DockPanel.Dock="Left" Padding="12,5" Margin="8,0,0,0"
+                        Content="📑  Importar PDF…"
+                        Command="{Binding CadEditor.ImportarPdfCommand}"
+                        ToolTip.Tip="Rasteriza la primera página de un PDF como capa de referencia."/>
+                <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center"
+                           Margin="14,0,0,0"
+                           Foreground="{DynamicResource FgMuted}" FontSize="12"
+                           TextTrimming="CharacterEllipsis"
+                           Text="{Binding CadEditor.EstadoImportacion}"/>
+            </DockPanel>
+        </Border>
+
+        <!-- Pie: ayuda de interacción -->
+        <Border DockPanel.Dock="Bottom" Padding="10,4"
+                Background="{DynamicResource BgSecondary}"
+                BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
+            <TextBlock Foreground="{DynamicResource FgMuted}" FontSize="11"
+                       Text="Rueda = zoom · arrastrar = pan. (La edición — crear/mover/redimensionar losas y muros, snap, calibración — llega en la Fase E.2.)"/>
+        </Border>
+
+        <!-- Lienzo CAD + panel lateral de ajustes -->
+        <Grid ColumnDefinitions="*,Auto">
+
+            <Border Grid.Column="0" Background="{DynamicResource BgInput}" ClipToBounds="True">
+                <Grid>
+                    <cad:CadCanvasHost x:Name="Canvas"
+                                       Plano="{Binding CadEditor.Plano}"
+                                       Sistema="{Binding Sistema}"
+                                       RevisionSistema="{Binding CadEditor.RevisionSistema}"
+                                       RevisionPlano="{Binding CadEditor.RevisionPlano}"
+                                       SolicitudEncuadre="{Binding CadEditor.SolicitudEncuadre}"
+                                       Pdf="{Binding CadEditor.Pdf}"
+                                       FondoPdf="{Binding CadEditor.FondoPdf}"
+                                       RevisionPdf="{Binding CadEditor.RevisionPdf}"
+                                       SolicitudEncuadrePdf="{Binding CadEditor.SolicitudEncuadrePdf}"
+                                       OpacidadPdf="{Binding CadEditor.OpacidadPdf}"
+                                       ReRasterizarPdfCommand="{Binding CadEditor.ReRasterizarPdfCommand}"
+                                       ModoCalibrarPdf="{Binding CadEditor.ModoCalibrarPdf, Mode=TwoWay}"
+                                       CancelarCalibrarPdfCommand="{Binding CadEditor.CancelarCalibrarPdfCommand}"
+                                       ModoInteraccion="{Binding CadEditor.ModoInteraccion}"
+                                       SnapActivo="{Binding CadEditor.SnapActivo}"
+                                       MoverConectadas="{Binding CadEditor.MoverConectadas}"
+                                       PoligonoClickCommand="{Binding CadEditor.MapearPoligonoCommand}"
+                                       ActualizarLosaCommand="{Binding CadEditor.ActualizarLosaCommand}"
+                                       CrearBordeAdicCommand="{Binding CadEditor.CrearBordeAdicCommand}"
+                                       CrearLosaCommand="{Binding CadEditor.CrearLosaCommand}"
+                                       CrearMuroCommand="{Binding CadEditor.CrearMuroCommand}"
+                                       MuroSeleccionadoId="{Binding CadEditor.MuroSeleccionadoId}"
+                                       MoverGrupoCommand="{Binding CadEditor.MoverGrupoCommand}"/>
+
+                    <!-- Toolbar flotante de herramientas — arriba-centro -->
+                    <Border VerticalAlignment="Top" HorizontalAlignment="Center"
+                            Margin="0,12,0,0" Padding="4"
+                            Background="{DynamicResource BgSecondary}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                            CornerRadius="7">
+                        <StackPanel Orientation="Horizontal">
+                            <StackPanel.Styles>
+                                <Style Selector="RadioButton.tool">
+                                    <Setter Property="Padding" Value="14,7"/>
+                                    <Setter Property="Margin" Value="2,0"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                    <Setter Property="FontSize" Value="13"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource FgSecondary}"/>
+                                    <Setter Property="Template">
+                                        <ControlTemplate>
+                                            <Border Name="bd" CornerRadius="5" Background="Transparent"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter Content="{TemplateBinding Content}" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter>
+                                </Style>
+                                <Style Selector="RadioButton.tool:checked /template/ Border#bd">
+                                    <Setter Property="Background" Value="{DynamicResource Accent}"/>
+                                </Style>
+                                <Style Selector="RadioButton.tool:checked">
+                                    <Setter Property="Foreground" Value="White"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                </Style>
+                                <Style Selector="RadioButton.tool:pointerover:unchecked /template/ Border#bd">
+                                    <Setter Property="Background" Value="{DynamicResource BgInput}"/>
+                                </Style>
+                                <Style Selector="ToggleButton.tool">
+                                    <Setter Property="Padding" Value="14,7"/>
+                                    <Setter Property="Margin" Value="2,0"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                    <Setter Property="FontSize" Value="13"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource FgSecondary}"/>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                </Style>
+                                <Style Selector="ToggleButton.tool:checked">
+                                    <Setter Property="Background" Value="{DynamicResource Accent}"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                </Style>
+                            </StackPanel.Styles>
+
+                            <RadioButton Classes="tool" GroupName="HerramientaCad" Content="↖  Puntero"
+                                         IsChecked="{Binding CadEditor.ModoInteraccion, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Puntero}"
+                                         ToolTip.Tip="Seleccionar, mover y redimensionar losas (E.2)."/>
+                            <RadioButton Classes="tool" GroupName="HerramientaCad" Content="▭  Dibujar Losa"
+                                         IsChecked="{Binding CadEditor.ModoInteraccion, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DibujarLosa}"
+                                         ToolTip.Tip="Dibujar una losa rectangular nueva (E.2)."/>
+                            <RadioButton Classes="tool" GroupName="HerramientaCad" Content="🧱  Dibujar Muro"
+                                         IsChecked="{Binding CadEditor.ModoInteraccion, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DibujarMuro}"
+                                         ToolTip.Tip="Trazar un muro nuevo entre dos puntos (E.2)."/>
+                            <RadioButton Classes="tool" GroupName="HerramientaCad" Content="✋  Mano"
+                                         IsChecked="{Binding CadEditor.ModoInteraccion, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Mano}"
+                                         ToolTip.Tip="Panear el lienzo."/>
+                            <Border Width="1" Margin="6,4" Background="{DynamicResource Border}"/>
+                            <Button Classes="tool" Content="🤖  Auto-Conectar"
+                                    Command="{Binding CadEditor.AutoAlinearSistemasCommand}"
+                                    ToolTip.Tip="Alinea losas vecinas y genera los bordes de continuidad."/>
+                            <Border Width="1" Margin="6,4" Background="{DynamicResource Border}"/>
+                            <ToggleButton Classes="tool" Content="🧲  Snap"
+                                          IsChecked="{Binding CadEditor.SnapActivo, Mode=TwoWay}"
+                                          ToolTip.Tip="Imán de alineación a grilla y bordes vecinos."/>
+                            <ToggleButton Classes="tool" Content="🔗  Conectadas"
+                                          IsChecked="{Binding CadEditor.MoverConectadas, Mode=TwoWay}"
+                                          ToolTip.Tip="Mover arrastra el bloque conectado por bordes (E.2)."/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </Border>
-            <TextBlock TextWrapping="Wrap" TextAlignment="Center" FontSize="13"
-                       Foreground="{DynamicResource FgSecondary}"
-                       Text="El editor visual CAD (render retenido WPF → render inmediato de Avalonia) es la última fase del port. El resto de LosasPlus ya es funcional: edición de losas, cargas y combinaciones, vigas continuas, validación normativa, reglamento, salida .TXT y exportación."/>
-        </StackPanel>
-    </Border>
+
+            <!-- Panel lateral derecho, colapsable -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <ToggleButton x:Name="PanelToggle" IsChecked="True" Width="26"
+                              Background="{DynamicResource BgSecondary}"
+                              BorderBrush="{DynamicResource Border}" BorderThickness="1,0,0,0"
+                              Foreground="{DynamicResource FgSecondary}"
+                              ToolTip.Tip="Mostrar u ocultar el panel del plano DXF">
+                    <TextBlock Text="⚙  PLANO DXF" FontSize="11" FontWeight="SemiBold">
+                        <TextBlock.RenderTransform>
+                            <RotateTransform Angle="90"/>
+                        </TextBlock.RenderTransform>
+                    </TextBlock>
+                </ToggleButton>
+
+                <Border Width="250"
+                        Background="{DynamicResource BgSecondary}"
+                        BorderBrush="{DynamicResource Border}" BorderThickness="1,0,0,0"
+                        IsVisible="{Binding #PanelToggle.IsChecked}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="16,14">
+                            <!-- PLANO DXF importado -->
+                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                <TextBlock DockPanel.Dock="Left" Text="PLANO IMPORTADO"
+                                           FontWeight="Bold" FontSize="10" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource FgMuted}"/>
+                                <Button DockPanel.Dock="Right" Content="🗑" Padding="4,0" FontSize="12"
+                                        Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                        Foreground="{DynamicResource FgMuted}"
+                                        Command="{Binding CadEditor.EliminarDxfCommand}"
+                                        ToolTip.Tip="Quitar el plano DXF (no afecta las losas)."/>
+                            </DockPanel>
+                            <TextBlock Text="{Binding CadEditor.Plano.NombreArchivo, FallbackValue=(sin plano DXF), TargetNullValue=(sin plano DXF)}"
+                                       FontFamily="JetBrains Mono, Consolas" FontSize="11"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource FgPrimary}"/>
+                            <TextBlock FontSize="11" Margin="0,3,0,0" Foreground="{DynamicResource FgMuted}">
+                                <Run Text="{Binding CadEditor.Plano.Ancho, StringFormat=0.0, FallbackValue=0, Mode=OneWay}"/>
+                                <Run Text=" × "/>
+                                <Run Text="{Binding CadEditor.Plano.Alto, StringFormat=0.0, FallbackValue=0, Mode=OneWay}"/>
+                                <Run Text=" m  ·  "/>
+                                <Run Text="{Binding CadEditor.Plano.CantidadEntidades, FallbackValue=0, Mode=OneWay}"/>
+                                <Run Text=" entidades"/>
+                            </TextBlock>
+
+                            <Border Height="1" Margin="0,12" Background="{DynamicResource Border}"/>
+
+                            <StackPanel IsEnabled="{Binding CadEditor.TienePlano}">
+                                <TextBlock Text="AJUSTE ESPACIAL" FontWeight="Bold" FontSize="10"
+                                           Foreground="{DynamicResource FgMuted}" Margin="0,0,0,8"/>
+                                <TextBlock Text="Escala" FontSize="11" Foreground="{DynamicResource FgSecondary}"/>
+                                <TextBox Margin="0,2,0,8" Text="{Binding CadEditor.EscalaPlano}"/>
+                                <TextBlock Text="Offset X (m)" FontSize="11" Foreground="{DynamicResource FgSecondary}"/>
+                                <TextBox Margin="0,2,0,8" Text="{Binding CadEditor.OffsetXPlano}"/>
+                                <TextBlock Text="Offset Y (m)" FontSize="11" Foreground="{DynamicResource FgSecondary}"/>
+                                <TextBox Margin="0,2,0,12" Text="{Binding CadEditor.OffsetYPlano}"/>
+                                <Button Content="🎯  Encuadrar Plano" Padding="10,6"
+                                        HorizontalAlignment="Stretch"
+                                        Command="{Binding CadEditor.EncuadrarPlanoCommand}"
+                                        ToolTip.Tip="Centra y ajusta el zoom para que el plano ocupe el viewport."/>
+                            </StackPanel>
+
+                            <Border Height="1" Margin="0,16" Background="{DynamicResource Border}"/>
+
+                            <!-- PDF importado -->
+                            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                                <TextBlock DockPanel.Dock="Left" Text="PDF IMPORTADO"
+                                           FontWeight="Bold" FontSize="10" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource FgMuted}"/>
+                                <Button DockPanel.Dock="Right" Content="🗑" Padding="4,0" FontSize="12"
+                                        Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                        Foreground="{DynamicResource FgMuted}"
+                                        Command="{Binding CadEditor.EliminarPdfCommand}"
+                                        ToolTip.Tip="Quitar el PDF underlay del lienzo."/>
+                            </DockPanel>
+                            <TextBlock Text="{Binding CadEditor.Pdf.NombreArchivo, FallbackValue=(sin PDF), TargetNullValue=(sin PDF)}"
+                                       FontFamily="JetBrains Mono, Consolas" FontSize="11"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource FgPrimary}"/>
+                            <TextBlock FontSize="11" Margin="0,3,0,0" Foreground="{DynamicResource FgMuted}">
+                                <Run Text="{Binding CadEditor.Pdf.Ancho, StringFormat=0.00, FallbackValue=0, Mode=OneWay}"/>
+                                <Run Text=" × "/>
+                                <Run Text="{Binding CadEditor.Pdf.Alto, StringFormat=0.00, FallbackValue=0, Mode=OneWay}"/>
+                                <Run Text=" m  ·  primera página"/>
+                            </TextBlock>
+
+                            <Border Height="1" Margin="0,12" Background="{DynamicResource Border}"/>
+
+                            <StackPanel IsEnabled="{Binding CadEditor.TienePdf}">
+                                <TextBlock Text="AJUSTE ESPACIAL PDF" FontWeight="Bold" FontSize="10"
+                                           Foreground="{DynamicResource FgMuted}" Margin="0,0,0,8"/>
+                                <TextBlock Text="Escala" FontSize="11" Foreground="{DynamicResource FgSecondary}"/>
+                                <TextBox Margin="0,2,0,8" Text="{Binding CadEditor.EscalaPdf}"/>
+                                <TextBlock Text="Offset X (m)" FontSize="11" Foreground="{DynamicResource FgSecondary}"/>
+                                <TextBox Margin="0,2,0,8" Text="{Binding CadEditor.OffsetXPdf}"/>
+                                <TextBlock Text="Offset Y (m)" FontSize="11" Foreground="{DynamicResource FgSecondary}"/>
+                                <TextBox Margin="0,2,0,8" Text="{Binding CadEditor.OffsetYPdf}"/>
+                                <TextBlock FontSize="11" Margin="0,4,0,0" Foreground="{DynamicResource FgSecondary}">
+                                    <Run Text="Opacidad: "/>
+                                    <Run Text="{Binding CadEditor.OpacidadPdf, StringFormat='{}{0:P0}', Mode=OneWay}"/>
+                                </TextBlock>
+                                <Slider Minimum="0" Maximum="1" SmallChange="0.05" LargeChange="0.1"
+                                        Value="{Binding CadEditor.OpacidadPdf, Mode=TwoWay}"
+                                        TickFrequency="0.1" Margin="0,2,0,8"
+                                        ToolTip.Tip="Atenúa el PDF de fondo (0% transparente · 100% opaco)."/>
+                                <CheckBox Content="🌙  Modo Oscuro (Fondo Negro)"
+                                          IsChecked="{Binding CadEditor.InvertirColorPdf, Mode=TwoWay}"
+                                          Foreground="{DynamicResource FgSecondary}"
+                                          Margin="0,4,0,12"
+                                          ToolTip.Tip="Invierte los canales del PDF para reducir la fatiga visual."/>
+                                <Button Content="🎯  Encuadrar PDF" Padding="10,6"
+                                        HorizontalAlignment="Stretch"
+                                        Command="{Binding CadEditor.EncuadrarPdfCommand}"
+                                        ToolTip.Tip="Centra y ajusta el zoom para que el PDF ocupe el viewport."/>
+                                <Button Content="📐  Calibrar PDF" Padding="10,6" Margin="0,8,0,0"
+                                        HorizontalAlignment="Stretch"
+                                        Command="{Binding CadEditor.IniciarCalibrarPdfCommand}"
+                                        ToolTip.Tip="Calibración interactiva de escala (interacción en E.2)."/>
+                            </StackPanel>
+
+                            <Border Height="1" Margin="0,16" Background="{DynamicResource Border}"/>
+
+                            <!-- Módulo de Muros -->
+                            <TextBlock Text="🧱  MUROS" FontWeight="Bold" FontSize="10"
+                                       Foreground="{DynamicResource FgMuted}" Margin="0,0,0,8"/>
+                            <Grid Margin="0,0,0,6" ColumnDefinitions="*,10,*" RowDefinitions="Auto,Auto">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Espesor (m)" FontSize="11"
+                                           Foreground="{DynamicResource FgSecondary}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="Altura (m)" FontSize="11"
+                                           Foreground="{DynamicResource FgSecondary}"/>
+                                <TextBox Grid.Row="1" Grid.Column="0" Margin="0,2,0,0"
+                                         Text="{Binding CadEditor.EspesorMuroNuevo}"/>
+                                <TextBox Grid.Row="1" Grid.Column="2" Margin="0,2,0,0"
+                                         Text="{Binding CadEditor.AlturaMuroNueva}"/>
+                            </Grid>
+                            <TextBlock FontSize="10" Foreground="{DynamicResource FgMuted}"
+                                       TextWrapping="Wrap" Margin="0,0,0,8"
+                                       Text="Valores de los muros nuevos. La herramienta de dibujo de muros llega en la Fase E.2."/>
+                            <ListBox MaxHeight="150" Margin="0,0,0,8"
+                                     Background="{DynamicResource BgInput}"
+                                     BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                     ItemsSource="{Binding Sistema.Muros}"
+                                     SelectedItem="{Binding CadEditor.MuroSeleccionado, Mode=TwoWay}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel>
+                                            <Border DockPanel.Dock="Left" Width="11" Height="11"
+                                                    CornerRadius="2" Margin="0,0,7,0" VerticalAlignment="Center"
+                                                    Background="{Binding Espesor, Converter={StaticResource EspesorABrush}}"/>
+                                            <TextBlock FontSize="11" Foreground="{DynamicResource FgPrimary}">
+                                                <Run Text="Muro "/><Run Text="{Binding Id, Mode=OneWay}"/>
+                                                <Run Text="  ·  "/>
+                                                <Run Text="{Binding Longitud, StringFormat=0.00, Mode=OneWay}"/><Run Text=" m"/>
+                                            </TextBlock>
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <StackPanel IsEnabled="{Binding CadEditor.MuroSeleccionado, Converter={StaticResource NullToCollapsed}}">
+                                <Grid ColumnDefinitions="*,10,*" RowDefinitions="Auto,Auto">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Espesor (m)" FontSize="11"
+                                               Foreground="{DynamicResource FgSecondary}"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Altura (m)" FontSize="11"
+                                               Foreground="{DynamicResource FgSecondary}"/>
+                                    <TextBox Grid.Row="1" Grid.Column="0" Margin="0,2,0,0"
+                                             Text="{Binding CadEditor.MuroSeleccionado.Espesor}"/>
+                                    <TextBox Grid.Row="1" Grid.Column="2" Margin="0,2,0,0"
+                                             Text="{Binding CadEditor.MuroSeleccionado.Altura}"/>
+                                </Grid>
+                                <Button Content="🗑  Eliminar muro" Padding="10,6" Margin="0,8,0,0"
+                                        HorizontalAlignment="Stretch"
+                                        Command="{Binding CadEditor.EliminarMuroCommand}"
+                                        ToolTip.Tip="Quita el muro seleccionado del sistema (Ctrl+Z lo revierte)."/>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </StackPanel>
+        </Grid>
+    </DockPanel>
 </UserControl>
