@@ -56,4 +56,29 @@ public static class DescensoColumnas
 
         return resultado;
     }
+
+    /// <summary>
+    /// Predimensiona la zapata de cada columna del <paramref name="nivel"/>
+    /// usando su carga axial <b>real</b> del descenso geométrico viga→columna
+    /// (<see cref="RepartoGeometrico.AsignarVigasAColumnas"/>), en vez del
+    /// reparto equitativo. Crea o actualiza la <see cref="Columna.Zapata"/>
+    /// cuadrada para la <paramref name="presionAdmisible"/> del terreno y
+    /// devuelve la axial y el lado por columna. Sólo incluye columnas que
+    /// reciben carga de alguna viga.
+    /// </summary>
+    public static IReadOnlyList<CargaColumna> PredimensionarGeometrico(Nivel nivel, double presionAdmisible)
+    {
+        var resultado = new List<CargaColumna>();
+        if (nivel is null) return resultado;
+
+        foreach (var carga in RepartoGeometrico.AsignarVigasAColumnas(nivel))
+        {
+            var z = PredimZapata.Cuadrada(carga.CargaAxial, presionAdmisible);
+            carga.Columna.Zapata ??= new Zapata { Nombre = $"Z-{carga.Columna.Nombre}" };
+            carga.Columna.Zapata.Ancho = z.LadoCuadrada;
+            carga.Columna.Zapata.Largo = z.LadoCuadrada;
+            resultado.Add(new CargaColumna(carga.Columna, carga.CargaAxial, z.LadoCuadrada));
+        }
+        return resultado;
+    }
 }
