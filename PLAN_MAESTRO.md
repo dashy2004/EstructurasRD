@@ -152,8 +152,12 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
     bo (interior/borde/esquina, §22.6.4.1), los 3 términos de vc §22.6.5.2 (base
     0.33√f'c, βc, αs=40/30/20), φVc y ratio. 4 tests (gobierna base / gobierna βc
     / esquina αs=20 / cumple). **39/39 motor-fea verde.**
+  - [x] **Combinaciones de carga (2026-06-02):** `normativa/combinaciones.py`
+    — las combos LRFD §5.3.1 (D/L/Lr/S/R/W/E), W y E reversibles (±),
+    "(Lr o S o R)"=max, y `envolvente` (máx/mín; el mín captura uplift). 7 tests.
+    **58/58 motor-fea verde.**
   - [ ] Losas (DDM/EFM); R-033; versionado por edición; regresión vs Excel
-    ACI/MOPC. *(Núcleo de code-checking ya cubre viga, columna y zapata.)*
+    ACI/MOPC. *(Núcleo de code-checking ya cubre viga, columna, zapata y combos.)*
 - [ ] **B4 · BIM + datos**
   - IfcOpenShell import/export, modelo relacional PostgreSQL, viz
     react-three-fiber. Modelo analítico derivado del geométrico.
