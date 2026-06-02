@@ -49,4 +49,21 @@ public static class PredimZapata
         double lado = Math.Sqrt(area);
         return new ZapataPredim(cargaServicio, presionAdmisible, area, lado);
     }
+
+    /// <summary>Factor por defecto de conversión carga última → servicio (≈ 1.2D+1.6L sobre D+L).</summary>
+    public const double FactorUltimaServicioPorDefecto = 1.5;
+
+    /// <summary>
+    /// Predimensiona la zapata para una carga <b>última</b> (Wu, p. ej. la que
+    /// baja del descenso de cargas), convirtiéndola a servicio dividiéndola por
+    /// <paramref name="factorUltima"/> antes de aplicar el criterio de presión
+    /// admisible (que usa cargas de servicio). Un factor no positivo usa la
+    /// carga tal cual.
+    /// </summary>
+    public static ZapataPredim CuadradaDesdeUltima(
+        double cargaUltima, double presionAdmisible, double factorUltima = FactorUltimaServicioPorDefecto)
+    {
+        double servicio = factorUltima > 0 ? cargaUltima / factorUltima : cargaUltima;
+        return Cuadrada(servicio, presionAdmisible);
+    }
 }
