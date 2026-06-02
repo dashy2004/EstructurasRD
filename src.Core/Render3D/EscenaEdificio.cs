@@ -91,16 +91,40 @@ public static class EscenaEdificio
                     float z0 = (float)losa.CoordenadaY;
                     float x1 = x0 + lx;
                     float z1 = z0 + ly;
+                    float esp = (float)losa.Espesor;
 
-                    var p00 = new Vector3(x0, y, z0);
-                    var p10 = new Vector3(x1, y, z0);
-                    var p11 = new Vector3(x1, y, z1);
-                    var p01 = new Vector3(x0, y, z1);
+                    // Vértices del paño en el tope (cota del nivel).
+                    var t00 = new Vector3(x0, y, z0);
+                    var t10 = new Vector3(x1, y, z0);
+                    var t11 = new Vector3(x1, y, z1);
+                    var t01 = new Vector3(x0, y, z1);
 
-                    segs.Add(new Segmento3D(p00, p10));
-                    segs.Add(new Segmento3D(p10, p11));
-                    segs.Add(new Segmento3D(p11, p01));
-                    segs.Add(new Segmento3D(p01, p00));
+                    // Tope (rectángulo del paño).
+                    segs.Add(new Segmento3D(t00, t10));
+                    segs.Add(new Segmento3D(t10, t11));
+                    segs.Add(new Segmento3D(t11, t01));
+                    segs.Add(new Segmento3D(t01, t00));
+
+                    if (esp > 0f)
+                    {
+                        // K.6: losa como caja delgada extruida por su espesor (fondo a
+                        // cota - espesor) → +4 aristas de fondo y +4 verticales = 12.
+                        float yb = y - esp;
+                        var b00 = new Vector3(x0, yb, z0);
+                        var b10 = new Vector3(x1, yb, z0);
+                        var b11 = new Vector3(x1, yb, z1);
+                        var b01 = new Vector3(x0, yb, z1);
+
+                        segs.Add(new Segmento3D(b00, b10));
+                        segs.Add(new Segmento3D(b10, b11));
+                        segs.Add(new Segmento3D(b11, b01));
+                        segs.Add(new Segmento3D(b01, b00));
+
+                        segs.Add(new Segmento3D(t00, b00));
+                        segs.Add(new Segmento3D(t10, b10));
+                        segs.Add(new Segmento3D(t11, b11));
+                        segs.Add(new Segmento3D(t01, b01));
+                    }
                 }
             }
 

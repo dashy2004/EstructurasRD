@@ -9,8 +9,8 @@ namespace LosasPlus.Tests;
 
 /// <summary>
 /// Tests del constructor de escena 3D del edificio (Fase I.2). Verifica el
-/// massing esquemático: pisos a su cota, columnas entre niveles y la caja
-/// envolvente que usa la cámara para encuadrar.
+/// massing esquemático: pisos a su cota, losas/columnas como volúmenes extruidos
+/// (K.6) y la caja envolvente que usa la cámara para encuadrar.
 /// </summary>
 public class EscenaEdificioTests
 {
@@ -21,7 +21,7 @@ public class EscenaEdificioTests
         {
             var nivel = new Nivel { Cota = cota };
             var sis = new Sistema();
-            sis.Losas.Add(new Losa { Lx = 4, Ly = 4 }); // área 16 → lado 4 → h 2
+            sis.Losas.Add(new Losa { Lx = 4, Ly = 4 }); // área 16 → lado 4 → h 2; espesor default 0.12
             nivel.Sistemas.Add(sis);
             ed.Niveles.Add(nivel);
         }
@@ -36,14 +36,25 @@ public class EscenaEdificioTests
     }
 
     [Fact]
-    public void Dos_niveles_generan_pisos_columnas_y_AABB()
+    public void Dos_niveles_generan_pisos_losas_extruidas_columnas_y_AABB()
     {
         var esc = EscenaEdificio.Construir(EdificioDosNiveles());
 
-        Assert.Equal(20, esc.Segmentos.Count);             // 8 aristas de piso + 8 aristas de losas reales + 4 columnas
-        Assert.Equal(new Vector3(-2, 0, -2), esc.Min);
-        Assert.Equal(new Vector3(4, 3, 4), esc.Max);
-        Assert.Equal(new Vector3(1, 1.5f, 1), esc.Centro);
+        // Por nivel: 4 aristas de piso + 12 de la caja de losa (extruida por espesor).
+        // 2 niveles → 32, + 4 columnas esquemáticas entre niveles = 36.
+        Assert.Equal(36, esc.Segmentos.Count);
+
+        // AABB: piso en [-2,2]; losa default espesor 0.12 extruida hacia abajo →
+        // el nivel base baja a y = -0.12.
+        Assert.Equal(-2.0, esc.Min.X, 3);
+        Assert.Equal(-0.12, esc.Min.Y, 3);
+        Assert.Equal(-2.0, esc.Min.Z, 3);
+        Assert.Equal(4.0, esc.Max.X, 3);
+        Assert.Equal(3.0, esc.Max.Y, 3);
+        Assert.Equal(4.0, esc.Max.Z, 3);
+        Assert.Equal(1.0, esc.Centro.X, 3);
+        Assert.Equal(1.44, esc.Centro.Y, 3);
+        Assert.Equal(1.0, esc.Centro.Z, 3);
     }
 
     [Fact]
@@ -69,10 +80,40 @@ public class EscenaEdificioTests
     }
 
     /// <summary>
-    /// K.6 / bug 3D: una columna real (con sección Base×Peralte y Altura) debe
-    /// dibujarse como una <b>caja extruida</b> (prisma rectangular = 12 aristas),
-    /// no como un único segmento vertical. La caja se centra en (CoordenadaX,
-    /// CoordenadaY) en planta y va de la cota del nivel a cota + Altura.
+    /// K.6 / bug 3D: una losa real se dibuja como una <b>caja delgada extruida</b>
+    /// por su <see cref="Losa.Espesor"/> (prisma = 12 aristas), con el tope a la
+    /// cota del nivel y el fondo a cota − espesor, en vez de un rectángulo plano.
+    /// </summary>
+    [Fact]
+    public void Losa_se_dibuja_como_caja_extruida_por_su_espesor()
+    {
+        var ed = new Edificio();
+        var nivel = new Nivel { Cota = 0 };
+        var sis = new Sistema();
+        sis.Losas.Add(new Losa { Lx = 4, Ly = 3, CoordenadaX = 1, CoordenadaY = 2, Espesor = 0.20 });
+        nivel.Sistemas.Add(sis);
+        ed.Niveles.Add(nivel);
+
+        var esc = EscenaEdificio.Construir(ed);
+
+        // 4 aristas de piso + 12 de la caja de la losa.
+        Assert.Equal(16, esc.Segmentos.Count);
+
+        var caja = esc.Segmentos.Skip(4).ToList();
+        Assert.Equal(12, caja.Count);
+
+        // Paño (1,2)-(5,5) en planta; tope y=0, fondo y=-0.20.
+        Assert.Equal(1.0, caja.Min(s => MathF.Min(s.A.X, s.B.X)), 3);
+        Assert.Equal(5.0, caja.Max(s => MathF.Max(s.A.X, s.B.X)), 3);
+        Assert.Equal(2.0, caja.Min(s => MathF.Min(s.A.Z, s.B.Z)), 3);
+        Assert.Equal(5.0, caja.Max(s => MathF.Max(s.A.Z, s.B.Z)), 3);
+        Assert.Equal(-0.20, caja.Min(s => MathF.Min(s.A.Y, s.B.Y)), 3);
+        Assert.Equal(0.00, caja.Max(s => MathF.Max(s.A.Y, s.B.Y)), 3);
+    }
+
+    /// <summary>
+    /// K.6 / bug 3D: una columna real (sección Base×Peralte, Altura) se dibuja
+    /// como caja extruida (12 aristas), centrada en planta, de la cota a cota+Altura.
     /// </summary>
     [Fact]
     public void Columna_real_se_dibuja_como_caja_extruida_de_su_seccion()
@@ -91,25 +132,15 @@ public class EscenaEdificioTests
         // 4 aristas del piso (sin losas → lado por defecto) + 12 de la caja.
         Assert.Equal(16, esc.Segmentos.Count);
 
-        // La caja es todo menos el rectángulo de piso (que se añade primero).
         var caja = esc.Segmentos.Skip(4).ToList();
         Assert.Equal(12, caja.Count);
 
-        // Sección Base(0.40, eje X) × Peralte(0.30, eje Z) centrada en (5,7),
-        // extruida de y=0 a y=3.
-        float minX = caja.Min(s => MathF.Min(s.A.X, s.B.X));
-        float maxX = caja.Max(s => MathF.Max(s.A.X, s.B.X));
-        float minZ = caja.Min(s => MathF.Min(s.A.Z, s.B.Z));
-        float maxZ = caja.Max(s => MathF.Max(s.A.Z, s.B.Z));
-        float minY = caja.Min(s => MathF.Min(s.A.Y, s.B.Y));
-        float maxY = caja.Max(s => MathF.Max(s.A.Y, s.B.Y));
-
-        Assert.Equal(4.80, minX, 3);
-        Assert.Equal(5.20, maxX, 3);
-        Assert.Equal(6.85, minZ, 3);
-        Assert.Equal(7.15, maxZ, 3);
-        Assert.Equal(0.00, minY, 3);
-        Assert.Equal(3.00, maxY, 3);
+        Assert.Equal(4.80, caja.Min(s => MathF.Min(s.A.X, s.B.X)), 3);
+        Assert.Equal(5.20, caja.Max(s => MathF.Max(s.A.X, s.B.X)), 3);
+        Assert.Equal(6.85, caja.Min(s => MathF.Min(s.A.Z, s.B.Z)), 3);
+        Assert.Equal(7.15, caja.Max(s => MathF.Max(s.A.Z, s.B.Z)), 3);
+        Assert.Equal(0.00, caja.Min(s => MathF.Min(s.A.Y, s.B.Y)), 3);
+        Assert.Equal(3.00, caja.Max(s => MathF.Max(s.A.Y, s.B.Y)), 3);
 
         // Exactamente 4 aristas verticales (esquinas) de y=0 a y=3.
         int verticales = caja.Count(s =>
