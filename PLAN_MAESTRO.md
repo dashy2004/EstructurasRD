@@ -61,8 +61,13 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
   - [x] *(No es bug)* "Densidad de tablas" no existe en el `AparienciaConfig` de
     Avalonia: era setting WPF **no portado**; el banner de `ESTADO_ACTUAL.md` ya
     lo aclara. No se promete en la UI actual.
-- [ ] **A3 · Profundizar editores** — *en progreso*
-  - [ ] Bajada de Cargas: predim. de zapata + reporte (hoy 44 líneas de view).
+- [x] **A3 · Profundizar editores** ✅ (2026-06-02)
+  - [x] *(Ya estaba completo — verificado)* Bajada de Cargas: la View (densa, 44
+    líneas) ya expone todo el VM: presión admisible, Recalcular, **Exportar
+    XLSX**, **Predimensionar zapatas** (reparto por columnas vía
+    `DescensoColumnas`) + grilla por niveles. Core `Transmision/` completo
+    (incl. `PredimZapata.CuadradaDesdeUltima` para Wu→servicio). Tests:
+    `BajadaCargasViewModelTests`, `PredimZapataTests`. No requería trabajo.
   - [x] **Panel αfm visual (2026-06-02):** en el sidebar del Editor, muestra
     αx/αy/αm de la `LosaSeleccionada` + chip OK (αm&gt;2) / CHK (revisar espesor),
     con estado vacío. Nueva prop `LosaSeleccionada` en `MainViewModel`. Build
@@ -70,8 +75,22 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
   - [x] **Editores VigaPrincipal/Bovedilla (2026-06-02):** en el sidebar del
     Editor, bindean `Sistema.VigaPrincipal` (b/h cm) y `Sistema.Bovedilla1D/2D`
     (S·B·L·H m), que alimentan αfm y los cómputos métricos. Build 0/0, 772/772.
-- [ ] **A4 · Roadmap nuevo de la app**
-  - Export SAF · diagramas M/V/Δ reales · DXF Fases 2/3 (polígono→Losa, dibujo).
+- [ ] **A4 · Roadmap nuevo de la app** — *casi todo ya existía*
+  - [x] *(Ya hecho)* **Export SAF**: cableado — menú "Exportar SAF (vigas)…" →
+    `OnExportSafClick` → `MainViewModel.ExportarSaf` → `SafExporter.Export`.
+  - [x] *(Ya hecho)* **Diagramas M/V/Δ reales**: OxyPlot `PlotView` en el editor
+    de Vigas → `ModeloViga`/`ModeloEsfuerzos`(V/M)/`ModeloDeflexion`, computados
+    en `VigaEditorViewModel`. No son placeholders.
+  - [ ] **DXF Fases 2/3** (polígono DXF→`Losa`, editor de dibujo manual) — el
+    único item de Track A genuinamente sin construir. Trabajo CAD grande.
+
+> **Hallazgo del loop (2026-06-02):** la auditoría inicial (basada en docs de la
+> era WPF + conteo de líneas) sobre-marcó pendientes. El código Avalonia ya tenía
+> A3 (BajadaCargas) y A4 (SAF, M/V/Δ) implementados. Los gaps **reales** de Track A
+> eran la pestaña **Aceros** (placeholder), la visibilidad del **panel αfm** y los
+> **editores Viga/Bovedilla** — los tres ya integrados (A1, A3). **Track A queda
+> efectivamente completo salvo DXF Fases 2/3.** El esfuerzo restante del loop se
+> concentra en **Track B (motor FEA)**, donde cada incremento es capacidad nueva.
 
 ## TRACK B — Motor FEA nativo (Python/NumPy/SciPy → servicio)
 
