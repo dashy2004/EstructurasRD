@@ -118,9 +118,13 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
     JSON por stdout. El C# lo invocará igual que hoy lanza `Losas.exe`.
   - 6 tests (round-trip, defaults, análisis, CLI version+analyze). **21/21 verde.**
   - Verificado end-to-end: voladizo por CLI → `uz = -6.667e-4 m` (= `PL³/3EI`).
-- [ ] **B2 · Shells + dinámica**
-  - Elemento MITC4/DKMQ (losas/muros), análisis modal (`eigsh`), diafragma
-    rígido (constraint a nodo maestro), espectral SRSS/CQC.
+- [ ] **B2 · Shells + dinámica** — *en progreso*
+  - [x] **Período fundamental (2026-06-02):** `core/modal.py` — masas nodales,
+    condensación estática Guyan de GDL sin masa, iteración de potencia inversa
+    para ω₁/T₁ + forma modal. Validado vs voladizo+masa `ω=√(3EI/L³/m)`
+    (T=0.1622 s, error ~1e-9). 4 tests. **43/43 motor-fea verde.**
+  - [ ] Elemento shell MITC4/DKMQ (losas/muros), modos múltiples, diafragma
+    rígido (constraint a nodo maestro), combinación espectral SRSS/CQC.
 - [ ] **B3 · Capa normativa (motor de reglas)** — *en progreso*
   - [x] **Viga ACI 318-19 (2026-06-02):** `normativa/aci318.py` — flexión (As req,
     As mín §9.6.1.2, φMn, ratio Mu/φMn) y cortante (Vc §22.5.5.1, Vs, φVn, tope
