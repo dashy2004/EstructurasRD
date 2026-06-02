@@ -125,6 +125,13 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
     (T=0.1622 s, error ~1e-9). 4 tests. **43/43 motor-fea verde.**
   - [ ] Elemento shell MITC4/DKMQ (losas/muros), modos múltiples, diafragma
     rígido (constraint a nodo maestro), combinación espectral SRSS/CQC.
+- [x] **B·sismo — cortante basal estático (2026-06-02)** — *3 capas juntas*
+  - `r001.aceleracion_espectral(T)`: espectro de diseño (rampa T0 / meseta SDS /
+    rama SD1/T). `sismo.cortante_basal_sismico`: módulo de composición que une
+    `core.modal` (T) + `r001` (Sa, Cb) → Cb=max(U·Sa/Rd, 0.03), V=Cb·W.
+  - 6 tests (espectro por tramos + continuidad, V end-to-end, piso 0.03).
+    Demo voladizo Zona I: T=0.162 s → Sa=1.03 g → Cb=0.188 → V=1843 N.
+    **49/49 motor-fea verde.**
 - [ ] **B3 · Capa normativa (motor de reglas)** — *en progreso*
   - [x] **Viga ACI 318-19 (2026-06-02):** `normativa/aci318.py` — flexión (As req,
     As mín §9.6.1.2, φMn, ratio Mu/φMn) y cortante (Vc §22.5.5.1, Vs, φVn, tope

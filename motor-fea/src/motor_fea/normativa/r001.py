@@ -71,3 +71,25 @@ def cortante_basal(u: float, sa: float, rd: float) -> float:
     if rd <= 0:
         raise ValueError("Rd debe ser positivo.")
     return max((u * sa) / rd, CORTANTE_BASAL_MINIMO)
+
+
+def aceleracion_espectral(zona: ZonaSismica, fa: float, fv: float, periodo: float) -> float:
+    """Aceleración espectral de diseño Sa(T) (en g) del espectro tipo ASCE de R-001.
+
+    Tramos: rampa (T<T0), meseta SDS (T0≤T≤Ts) y rama SD1/T (T>Ts). Se omite el
+    tramo de período largo (T>TL); para edificios típicos T<TL.
+
+    Args:
+        zona: zona sísmica (I o II).
+        fa, fv: factores de sitio (períodos cortos / largos).
+        periodo: período de la estructura T (s).
+    """
+    p = espectro_diseno(zona, fa, fv)
+    sds, sd1, t0, ts = p["SDS"], p["SD1"], p["T0"], p["Ts"]
+    if periodo <= 0:
+        return 0.4 * sds
+    if periodo < t0:
+        return sds * (0.4 + 0.6 * periodo / t0)
+    if periodo <= ts:
+        return sds
+    return sd1 / periodo
