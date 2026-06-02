@@ -23,6 +23,11 @@ public class PlantaCanvas : Control
     private Point _dragStartPos;
     private double _dragStartElementX;
     private double _dragStartElementY;
+    private Point? _mousePosForSnap;
+
+    // Snapping configuration
+    public bool IsSnappingEnabled { get; set; } = true;
+    public double StepGrid { get; set; } = 0.5;
 
     public static readonly DirectProperty<PlantaCanvas, Nivel?> NivelProperty =
         AvaloniaProperty.RegisterDirect<PlantaCanvas, Nivel?>(
@@ -114,7 +119,7 @@ public class PlantaCanvas : Control
 
             if (ActiveTool == "Puntero")
             {
-                // Hit test
+                // Hit test using raw mouse coords
                 object? hit = HitTest(pM);
                 SelectedElement = hit;
 
@@ -147,8 +152,13 @@ public class PlantaCanvas : Control
             }
             else if (Nivel != null)
             {
-                double sx = Math.Round(pM.X, 1);
-                double sy = Math.Round(pM.Y, 1);
+                // Snap coordinates on placement
+                var snapResult = PlantaSnapEngine.CalculateSnap(
+                    pM.X, pM.Y,
+                    Nivel, IsSnappingEnabled, StepGrid, 15.0 / _scale);
+
+                double sx = snapResult.X;
+                double sy = snapResult.Y;
 
                 if (ActiveTool == "Losa")
                 {
@@ -220,6 +230,8 @@ public class PlantaCanvas : Control
         base.OnPointerMoved(e);
         var pointer = e.GetCurrentPoint(this);
         var mpos = pointer.Position;
+        var pM = PixelAMetros(mpos);
+        _mousePosForSnap = pM;
 
         if (_isPanning)
         {
@@ -230,31 +242,39 @@ public class PlantaCanvas : Control
         }
         else if (_isDragging && SelectedElement != null)
         {
-            var pM = PixelAMetros(mpos);
             double dx = pM.X - _dragStartPos.X;
             double dy = pM.Y - _dragStartPos.Y;
 
-            // Snap to 0.1 meters
-            double newX = Math.Round(_dragStartElementX + dx, 1);
-            double newY = Math.Round(_dragStartElementY + dy, 1);
+            double rawTargetX = _dragStartElementX + dx;
+            double rawTargetY = _dragStartElementY + dy;
+
+            // Calculate snapped coordinates based on target destination
+            var snapResult = PlantaSnapEngine.CalculateSnap(
+                rawTargetX, rawTargetY,
+                Nivel, IsSnappingEnabled, StepGrid, 15.0 / _scale);
 
             if (SelectedElement is Losa l)
             {
-                l.CoordenadaX = newX;
-                l.CoordenadaY = newY;
+                l.CoordenadaX = snapResult.X;
+                l.CoordenadaY = snapResult.Y;
             }
             else if (SelectedElement is Viga v)
             {
-                v.OrigenX = newX;
-                v.OrigenY = newY;
+                v.OrigenX = snapResult.X;
+                v.OrigenY = snapResult.Y;
             }
             else if (SelectedElement is Columna c)
             {
-                c.CoordenadaX = newX;
-                c.CoordenadaY = newY;
+                c.CoordenadaX = snapResult.X;
+                c.CoordenadaY = snapResult.Y;
             }
 
             SelectionChanged?.Invoke(SelectedElement);
+            InvalidateVisual();
+        }
+        else
+        {
+            // Just hovering, invalidate to update the snap marker tooltip
             InvalidateVisual();
         }
     }
@@ -265,6 +285,13 @@ public class PlantaCanvas : Control
         _isPanning = false;
         _isDragging = false;
         e.Pointer.Capture(null);
+    }
+
+    protected override void OnPointerExited(PointerEventArgs e)
+    {
+        base.OnPointerExited(e);
+        _mousePosForSnap = null;
+        InvalidateVisual();
     }
 
     private object? HitTest(Point p)
@@ -326,7 +353,7 @@ public class PlantaCanvas : Control
     {
         base.Render(context);
 
-        // Draw grid
+        // Draw grid lines
         var gridPen = new Pen(new SolidColorBrush(Color.FromArgb(20, 128, 128, 128)), 1.0);
         var boldGridPen = new Pen(new SolidColorBrush(Color.FromArgb(45, 128, 128, 128)), 1.5);
 
@@ -381,7 +408,7 @@ public class PlantaCanvas : Control
                 bool isSelected = ReferenceEquals(SelectedElement, losa);
                 context.DrawRectangle(slabFill, isSelected ? selectPen : slabPen, rect);
 
-                // Rotulo
+                // Label
                 double fs = Math.Clamp(sh * 0.15, 10.0, 16.0);
                 if (sw > 30 && sh > 30)
                 {
@@ -431,6 +458,32 @@ public class PlantaCanvas : Control
             // Label
             var ft = new FormattedText(col.Nombre, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, boldTypeface, 11.0, Brushes.Black);
             context.DrawText(ft, new Point(rect.Right + 4.0, rect.Y - 4.0));
+        }
+
+        // 4. Draw active snap indicator
+        if (IsSnappingEnabled && _mousePosForSnap.HasValue)
+        {
+            var snapRes = PlantaSnapEngine.CalculateSnap(
+                _mousePosForSnap.Value.X, _mousePosForSnap.Value.Y,
+                Nivel, IsSnappingEnabled, StepGrid, 15.0 / _scale);
+
+            var snapPx = MetrosAPixel(snapRes.X, snapRes.Y);
+
+            // Snapped target marker: crosshair + square
+            var snapMarkerPen = new Pen(Brushes.OrangeRed, 1.5);
+            context.DrawRectangle(null, snapMarkerPen, new Rect(snapPx.X - 6, snapPx.Y - 6, 12, 12));
+            context.DrawLine(snapMarkerPen, new Point(snapPx.X - 10, snapPx.Y), new Point(snapPx.X + 10, snapPx.Y));
+            context.DrawLine(snapMarkerPen, new Point(snapPx.X, snapPx.Y - 10), new Point(snapPx.X, snapPx.Y + 10));
+
+            // Tooltip box showing coordinates and origin
+            var text = $"{snapRes.Description} ({snapRes.X:0.00}, {snapRes.Y:0.00})m";
+            var ft = new FormattedText(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+                new Typeface(new FontFamily("Segoe UI"), FontStyle.Normal, FontWeight.SemiBold, FontStretch.Normal),
+                10.0, Brushes.OrangeRed);
+
+            var tooltipRect = new Rect(snapPx.X + 12, snapPx.Y - 22, ft.Width + 8, ft.Height + 4);
+            context.DrawRectangle(new SolidColorBrush(Color.FromArgb(220, 255, 255, 240)), new Pen(Brushes.OrangeRed, 1.0), tooltipRect);
+            context.DrawText(ft, new Point(tooltipRect.X + 4, tooltipRect.Y + 2));
         }
     }
 }
