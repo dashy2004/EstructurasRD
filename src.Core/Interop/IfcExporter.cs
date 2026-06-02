@@ -57,8 +57,32 @@ public static class IfcExporter
         var pisos = new System.Collections.Generic.List<int>();
         if (edificio is not null)
             foreach (var nivel in edificio.Niveles)
-                pisos.Add(Emit(
-                    $"IFCBUILDINGSTOREY('{Guid22(id + 1)}',$,{Txt(nivel.Nombre)},$,$,$,$,$,.ELEMENT.,{Real(nivel.Cota)})"));
+            {
+                int piso = Emit(
+                    $"IFCBUILDINGSTOREY('{Guid22(id + 1)}',$,{Txt(nivel.Nombre)},$,$,$,$,$,.ELEMENT.,{Real(nivel.Cota)})");
+                pisos.Add(piso);
+
+                // Elementos estructurales del nivel.
+                var elems = new System.Collections.Generic.List<int>();
+                foreach (var columna in nivel.Columnas)
+                {
+                    elems.Add(Emit($"IFCCOLUMN('{Guid22(id + 1)}',$,{Txt(columna.Nombre)},$,$,$,$,$,$)"));
+                    if (columna.Zapata is { } zap)
+                        elems.Add(Emit($"IFCFOOTING('{Guid22(id + 1)}',$,{Txt(zap.Nombre)},$,$,$,$,$,$)"));
+                }
+                foreach (var viga in nivel.Vigas)
+                    elems.Add(Emit($"IFCBEAM('{Guid22(id + 1)}',$,{Txt(viga.Nombre)},$,$,$,$,$,$)"));
+                foreach (var sistema in nivel.Sistemas)
+                    foreach (var losa in sistema.Losas)
+                        elems.Add(Emit($"IFCSLAB('{Guid22(id + 1)}',$,{Txt("Losa " + losa.Id)},$,$,$,$,$,.FLOOR.)"));
+
+                // Contención de los elementos en el piso.
+                if (elems.Count > 0)
+                {
+                    var er = string.Join(",", elems.ConvertAll(e => "#" + e));
+                    Emit($"IFCRELCONTAINEDINSPATIALSTRUCTURE('{Guid22(id + 1)}',$,$,$,({er}),#{piso})");
+                }
+            }
 
         // Agregaciones project→site→building→storeys.
         Emit($"IFCRELAGGREGATES('{Guid22(id + 1)}',$,$,$,#{proyecto},(#{sitio}))");

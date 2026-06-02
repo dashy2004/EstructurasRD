@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using LosasPlus.Interop;
 using LosasPlus.Models;
+using LosasPlus.Vigas;
 using Xunit;
 
 namespace LosasPlus.Tests;
@@ -54,6 +55,38 @@ public class IfcExporterTests
             var m = Regex.Match(ifc, @"IFCPROJECT\('([^']*)'");
             Assert.True(m.Success);
             Assert.Equal(22, m.Groups[1].Value.Length);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    [Fact]
+    public void Exporta_los_elementos_estructurales_contenidos_en_su_piso()
+    {
+        var ed = new Edificio { Nombre = "Torre" };
+        var nivel = new Nivel { Nombre = "Nivel 1", Cota = 0 };
+        var sis = new Sistema();
+        sis.Losas.Add(new Losa { Id = 1, Lx = 4, Ly = 4 });
+        nivel.Sistemas.Add(sis);
+        var viga = new Viga { Nombre = "V-1" };
+        viga.Tramos.Add(new TramoViga { Longitud = 4 });
+        nivel.Vigas.Add(viga);
+        nivel.Columnas.Add(new Columna { Nombre = "C-1", Zapata = new Zapata { Nombre = "Z-1" } });
+        ed.Niveles.Add(nivel);
+
+        var path = Path.Combine(Path.GetTempPath(), $"ifc_{Guid.NewGuid():N}.ifc");
+        try
+        {
+            IfcExporter.Export(ed, path, "Torre");
+            var ifc = File.ReadAllText(path);
+
+            Assert.Equal(1, Count(ifc, "IFCCOLUMN('"));
+            Assert.Equal(1, Count(ifc, "IFCFOOTING('"));
+            Assert.Equal(1, Count(ifc, "IFCBEAM('"));
+            Assert.Equal(1, Count(ifc, "IFCSLAB('"));
+            Assert.Equal(1, Count(ifc, "IFCRELCONTAINEDINSPATIALSTRUCTURE('"));
+            Assert.Contains("'C-1'", ifc);
+            Assert.Contains("'Z-1'", ifc);
+            Assert.Contains("'V-1'", ifc);
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }
