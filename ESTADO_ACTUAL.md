@@ -1,8 +1,19 @@
 # Estado actual — Suite LosasPlus / MemoriaPlus
 
+> ⚠️ **Banner de corrección (2026-06-02):** este documento describe el snapshot
+> WPF v0.7.0 y quedó desactualizado. La realidad verificada hoy es:
+> la suite ya es **Avalonia multiplataforma** (no WPF), corre en **Linux** como
+> plataforma primaria, expone **18 modos** de UI en 7 categorías, el **Lienzo
+> CAD** y la **Vista 3D** están **implementados** (no son stubs), y la batería
+> de tests es de **753/753 verde** corriendo en Linux (`net8.0`, sin `UseWPF`).
+> Único placeholder real de UI: la pestaña **Aceros**. Backlog vivo de
+> correcciones y del motor FEA nativo: ver **`PLAN_MAESTRO.md`**. Para build/run
+> multiplataforma: **`BUILD-Linux.md`**. Las secciones de abajo se conservan
+> como histórico WPF.
+
 > Documento de snapshot del proyecto. Última actualización: **2026-05-18**.
 > Versión: **v0.7.0** · Rama: `main` · Commit: `bef7166` · Working tree limpio.
-> Build: **0 warnings, 0 errors** · Tests: **501/501 verde**.
+> Build: **0 warnings, 0 errors** · Tests: **501/501 verde** (WPF; hoy 753 en Avalonia).
 
 ---
 

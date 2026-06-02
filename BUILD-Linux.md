@@ -110,11 +110,19 @@ dotnet publish src/LosasPlus.csproj -c Release -r osx-x64   --self-contained -o 
 | `LostKeyboardFocus` (`e.NewFocus`) | `LostFocus` + `Dispatcher.Post` + `FocusManager.GetFocusedElement` |
 | `Rect.IsEmpty` / `Rect.Empty` | `default(Rect)` + test `Width/Height <= 0` |
 
+## Tests en Linux
+
+Los tests (`tests/LosasPlus.Tests`) ya son **`net8.0` puro** (sin `UseWPF`) y
+**corren en Linux**. Están incluidos en `LosasPlus.Linux.sln` y el workflow
+`ci-linux.yml` los ejecuta en cada push/PR. Para correrlos local:
+
+```bash
+export DOTNET_ROOT="$HOME/.dotnet" PATH="$PATH:$HOME/.dotnet"
+dotnet test tests/LosasPlus.Tests/LosasPlus.Tests.csproj   # 753/753 verde esperado
+```
+
 ## Pendientes (post-Hito 1)
 
-- **Tests (`tests/LosasPlus.Tests`) siguen Windows-only** (`UseWPF=true`); por eso
-  NO están en `LosasPlus.Linux.sln`. Hacerlos multiplataforma (quitar UseWPF,
-  separar lo que dependa de tipos de vista) es un cleanup aparte.
 - `LosasPlus.sln` (solución Windows histórica) se conserva; el desarrollo y la
   publicación multiplataforma usan `LosasPlus.Linux.sln`.
 - **Fase H** — convergencia de features de v0.8.1 sobre Avalonia (sidebar de 7

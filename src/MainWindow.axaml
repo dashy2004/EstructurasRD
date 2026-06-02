@@ -24,7 +24,7 @@
            · MouseDoubleClick                  → DoubleTapped.
            · Window.InputBindings/KeyBinding   → Window.KeyBindings + KeyGesture
              (los 4 fijos acá; los 6 personalizables los aplica el code-behind).
-           · Lienzo CAD = stub Fase E (cad:CadView placeholder).
+           · Lienzo CAD = CadView completo (canvas + calibrar PDF + muros + DXF).
          ============================================================ -->
     <Window.DataContext>
         <vm:MainViewModel/>
