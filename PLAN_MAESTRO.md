@@ -243,9 +243,14 @@ tests; 780/780 .NET verde. Pendiente menor: posicionamiento por defecto de vigas
 - [ ] **B5 · Escala ciudad**
   - PostGIS, LOD/tiling, CityGML→3D Tiles. Evaluar ensamblaje en Rust (PyO3)
     sólo si el perfilado lo exige.
-- [ ] **B6 · Puente LosasPlus ↔ Motor FEA**
-  - Reemplazar el shell-out a `Losas.exe` por una llamada al motor nativo en la
-    misma frontera (`MainViewModel.LanzarLosasExeAsync`).
+- [ ] **B6 · Puente LosasPlus ↔ Motor FEA** — *en progreso (aditivo)*
+  - [x] **Servicio C# (2026-06-02):** `MotorFeaService` (src.Core) — construye
+    los params JSON desde una `Losa`/`Sistema` (conversión ton·cm→SI: fc·98.0665,
+    q·9806.65, E=4700√fc), invoca `motor-fea --disenar-losa -` por proceso (como
+    `Losas.exe`) y parsea el resultado. Build+parseo puros y testeados (4 tests,
+    784/784 .NET). Integración real verificada: params C# → motor → diseño válido.
+  - [ ] Cablear a la UI: comando/botón "Diseñar con motor FEA" en la pestaña
+    Aceros/Editor (aditivo, sin romper el flujo `Losas.exe`) + config del comando.
 
 ## Atención normativa (fecha dura)
 
