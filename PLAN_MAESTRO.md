@@ -123,8 +123,13 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
     condensación estática Guyan de GDL sin masa, iteración de potencia inversa
     para ω₁/T₁ + forma modal. Validado vs voladizo+masa `ω=√(3EI/L³/m)`
     (T=0.1622 s, error ~1e-9). 4 tests. **43/43 motor-fea verde.**
-  - [ ] Elemento shell MITC4/DKMQ (losas/muros), modos múltiples, diafragma
-    rígido (constraint a nodo maestro), combinación espectral SRSS/CQC.
+  - [x] **Modos múltiples + participación (2026-06-02):** `modos(n)` por
+    iteración inversa con **deflación M-ortogonal**; `participacion_modal`
+    (masa modal efectiva + % por dirección). Validado vs cadena de 2 masas-
+    resorte `ω²=(k/m)(3∓√5)/2` y participación que suma 100% (modo 1 ~95%).
+    **51/51 motor-fea verde.**
+  - [ ] Elemento shell MITC4/DKMQ (losas/muros), diafragma rígido (constraint a
+    nodo maestro), combinación espectral SRSS/CQC.
 - [x] **B·sismo — cortante basal estático (2026-06-02)** — *3 capas juntas*
   - `r001.aceleracion_espectral(T)`: espectro de diseño (rampa T0 / meseta SDS /
     rama SD1/T). `sismo.cortante_basal_sismico`: módulo de composición que une
