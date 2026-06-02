@@ -29,7 +29,8 @@
         <ControlTheme x:Key="FilaResumen" TargetType="DockPanel">
             <Setter Property="Margin" Value="0,3"/>
         </ControlTheme>
-        <ControlTheme x:Key="TabSecundario" TargetType="TabItem">
+        <ControlTheme x:Key="TabSecundario" TargetType="TabItem"
+                      BasedOn="{StaticResource {x:Type TabItem}}">
             <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
             <Setter Property="Padding" Value="16,6"/>
             <Setter Property="FontSize" Value="12"/>
