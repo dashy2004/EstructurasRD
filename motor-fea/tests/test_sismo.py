@@ -5,7 +5,7 @@ from motor_fea import sismo
 from motor_fea.normativa import r001
 from motor_fea.normativa.r001 import ZonaSismica
 
-import tests.test_modal as tm   # reusa el voladizo de masa en punta
+from modelos_ref import voladizo   # constructor de modelo compartido
 
 # Zona I, sitio fa=1.0, fv=1.5 → SDS=2/3·1.55, SD1=2/3·1.5·0.75, T0=0.2·SD1/SDS, Ts=5·T0.
 ZONA, FA, FV = ZonaSismica.ZONA_I, 1.0, 1.5
@@ -37,7 +37,7 @@ def test_espectro_continuo_en_los_quiebres():
 
 def test_cortante_basal_sismico_voladizo():
     masas = {2: 1000.0}
-    r = sismo.cortante_basal_sismico(tm._voladizo(), masas, ZONA, FA, FV, rd=5.5, u=1.0)
+    r = sismo.cortante_basal_sismico(voladizo(), masas, ZONA, FA, FV, rd=5.5, u=1.0)
     # El voladizo tiene T≈0.162 s (en la meseta) → Sa = SDS.
     assert T0 <= r.periodo <= TS
     assert abs(r.sa - SDS) < 1e-9
@@ -48,5 +48,5 @@ def test_cortante_basal_sismico_voladizo():
 
 def test_piso_de_cortante_basal_0_03():
     # Rd enorme → Cb cae al piso de 0.03 (R-001).
-    r = sismo.cortante_basal_sismico(tm._voladizo(), {2: 1000.0}, ZONA, FA, FV, rd=1000.0)
+    r = sismo.cortante_basal_sismico(voladizo(), {2: 1000.0}, ZONA, FA, FV, rd=1000.0)
     assert abs(r.cb - 0.03) < 1e-12
