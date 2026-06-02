@@ -51,11 +51,16 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
     Build 0/0, arranca sin excepción, 772/772 verde. **Pestaña Aceros operativa.**
   - [ ] Enganchar export CSV/XLSX + MemoriaPlus. Quitar placeholder de
     `MainWindow.axaml:784-817`.
-- [ ] **A2 · Limpieza de wiring/settings**
-  - Eliminar el evento muerto `AtajosGuardados` (o conectarlo; decidir uno).
-  - Decidir "densidad de tablas": portarla a `AparienciaConfig` aplicando en vivo
-    (patrón `AparienciaCambiada`) **o** quitarla de docs.
-  - Extraer `JsonSerializerOptions` duplicado (7 clases de `src.Core/Persistence`).
+- [x] **A2 · Limpieza de wiring/settings** ✅ (2026-06-02)
+  - [x] Eliminado el evento muerto `AtajosGuardados` (sin suscriptores; la
+    aplicación en vivo ya va por `AtajosService.AtajosCambiados`, al que LosasPlus
+    y MemoriaPlus se suscriben). Build 0/0, 772/772 verde.
+  - [x] *(Ya resuelto, claim obsoleto)* `JsonSerializerOptions` ya está
+    centralizado en `JsonConfigHelper.DefaultOptions` (7 servicios lo usan);
+    `ProyectoSerializer` queda aparte **a propósito** (Populate + encoder relajado).
+  - [x] *(No es bug)* "Densidad de tablas" no existe en el `AparienciaConfig` de
+    Avalonia: era setting WPF **no portado**; el banner de `ESTADO_ACTUAL.md` ya
+    lo aclara. No se promete en la UI actual.
 - [ ] **A3 · Profundizar editores**
   - Bajada de Cargas: predim. de zapata + reporte (hoy 44 líneas de view).
   - Panel αfm visual en el Editor (chips OK/CHK + αx/αy/αm; Core ya listo).

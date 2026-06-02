@@ -89,13 +89,6 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
     public RelayCommand<string?>      AplicarColorAcentoHexCommand { get; }
 
     /// <summary>
-    /// Disparado después de un Guardar exitoso de los atajos. El MainViewModel
-    /// se suscribe para rebuildar las InputBindings de la ventana principal
-    /// con el nuevo mapa, sin requerir restart.
-    /// </summary>
-    public event System.EventHandler? AtajosGuardados;
-
-    /// <summary>
     /// Disparado tras cualquier mutación de <see cref="Apariencia"/> que deba
     /// reflejarse en runtime: Guardar, Restaurar defaults, Cargar preset,
     /// Aplicar color de acento. El host (LosasPlus.App) se suscribe para
@@ -162,9 +155,11 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
     {
         try
         {
+            // AtajosService.Save dispara AtajosService.AtajosCambiados, al que
+            // tanto LosasPlus como MemoriaPlus se suscriben → aplicación en vivo
+            // sin un evento propio del VM (antes había un AtajosGuardados muerto).
             AtajosService.Save(Atajos);
             StatusGuardado = "✓ Atajos guardados. Cambios aplicados en vivo.";
-            AtajosGuardados?.Invoke(this, System.EventArgs.Empty);
         }
         catch (System.Exception ex)
         {
