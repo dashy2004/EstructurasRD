@@ -77,11 +77,16 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
   - `pyproject.toml`, `docs/ADR-0001-integracion.md` (frontera CLI/HTTP que
     reemplaza el shell-out a `Losas.exe`), `README.md`, `.gitignore`.
   - CI `ci-motor-fea.yml`. **7 smoke-tests stdlib verde** (Python 3.14, sin numpy).
-- [ ] **B1 · Solver rigidez directa — frame 3D 12 GDL**
-  - Elemento viga-columna 12 GDL (Hermite flexión + axial/torsión), matriz de
-    transformación 12×12, ensamblaje disperso (`scipy.sparse`), `spsolve`.
-  - Recuperación de esfuerzos internos + reacciones.
-  - **Validación:** error < 1% vs PyNite en truss/pórticos de referencia.
+- [x] **B1 · Solver rigidez directa — frame 3D 12 GDL** ✅ (2026-06-02)
+  - `core/solver.py`: matriz local 12×12 (axial EA/L, torsión GJ/L, flexión EIz
+    plano x-y y EIy plano x-z), triada local + transformación 12×12, ensamblaje
+    global, condiciones de borde, solve (eliminación gaussiana pura), reacciones.
+  - **Validación cerrada (error ~1e-9, <<1%):** axial `PL/AE`, voladizo
+    `PL³/3EI` (ambos planos), torsión `TL/GJ`, giro `ML/EI`, reacciones en
+    equilibrio, simetría, convergencia 2-elementos → 1-elemento. 8 tests.
+  - Implementado en Python puro (corre en 3.14 sin numpy); numpy/scipy quedan
+    para escala (B5). Cross-check vs PyNite: pendiente cuando haya wheels.
+  - **15/15 tests motor-fea verde.**
 - [ ] **B2 · Shells + dinámica**
   - Elemento MITC4/DKMQ (losas/muros), análisis modal (`eigsh`), diafragma
     rígido (constraint a nodo maestro), espectral SRSS/CQC.
