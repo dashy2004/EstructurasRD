@@ -188,7 +188,13 @@ tests; 780/780 .NET verde. Pendiente menor: posicionamiento por defecto de vigas
       superior) + lo expone en el contrato/CLI. Validado: SS → apoyo≈0; empotrada
       → apoyo gobierna (coef→0.049, >vano) y converge. 4 tests. **104/104 verde.**
       El motor iguala la salida completa de `Losas.exe` (acero inferior+superior).
-    - [ ] Diafragma rígido (constraint horizontal por nivel). MITC4 (placas gruesas).
+    - [x] **Diafragma rígido (2026-06-02):** `core/diafragma.py` — constraint
+      master-slave (método de transformación `K_red=TᵀKT`) que liga ux/uy/rz de
+      los nodos del nivel a un nodo maestro. Validado: tie cinemático (ux iguales),
+      equilibrio (ΣR=−P), reparto de carga (deflexión a la mitad con 2 columnas).
+      3 tests. **107/107 motor-fea verde.**
+    - [ ] MITC4 (placas gruesas, sin shear-locking) — refinamiento de nicho; el
+      ACM (placa delgada) ya cubre las losas típicas.
 - [x] **B·sismo — cortante basal estático (2026-06-02)** — *3 capas juntas*
   - `r001.aceleracion_espectral(T)`: espectro de diseño (rampa T0 / meseta SDS /
     rama SD1/T). `sismo.cortante_basal_sismico`: módulo de composición que une
