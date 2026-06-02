@@ -54,6 +54,11 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         {
             if (_modoActivo == value) return;
             _modoActivo = value;
+            // Sincronización 2D↔3D: al entrar a una vista geométrica, asegurar que
+            // las losas sin posicionar reciban un layout por defecto (no apiladas
+            // en el origen). Conservador: sólo toca sistemas todos en (0,0).
+            if (value is ModoSidebar.Planta2D or ModoSidebar.Vista3D or ModoSidebar.PlanoCad)
+                SincronizadorPlanta.SincronizarEdificio(EdificioActivo);
             OnPropertyChanged();
             OnPropertyChanged(nameof(EsModoEditor));
         }

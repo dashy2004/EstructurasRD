@@ -65,6 +65,11 @@ public class Vista3DControl : Control
         base.OnPropertyChanged(change);
         if (change.Property == EdificioProperty)
             ReconstruirEscena();
+        // Al volver visible (entrar a la pestaña Vista 3D), reconstruir la escena
+        // para reflejar la geometría recién sincronizada (CoordenadaX/Y de las
+        // losas, columnas, vigas y zapatas) sin depender de un cambio de instancia.
+        else if (change.Property == IsVisibleProperty && change.GetNewValue<bool>())
+            ReconstruirEscena();
     }
 
     /// <summary>Reconstruye la escena desde el <see cref="Edificio"/> y reencuadra en el próximo render.</summary>
