@@ -50,7 +50,7 @@ public static class IfcExporter
         // IfcExtrudedAreaSolid → IfcShapeRepresentation → IfcProductDefinitionShape.
         // El perfil se posiciona en (cx,cy,cz) (IFC: X,Y en planta, Z arriba).
         // Devuelve el id del IfcProductDefinitionShape para usarlo como Representation.
-        int PrismaVertical(double cx, double cy, double cz, double b, double h, double altura)
+        int PrismaVertical(double cx, double cy, double cz, double b, double h, double profundidad, double dirZComp = 1.0)
         {
             int p2d = Emit("IFCCARTESIANPOINT((0.,0.))");
             int ax2 = Emit($"IFCAXIS2PLACEMENT2D(#{p2d},$)");
@@ -59,8 +59,9 @@ public static class IfcExporter
             int dirZ = Emit("IFCDIRECTION((0.,0.,1.))");
             int dirX = Emit("IFCDIRECTION((1.,0.,0.))");
             int pos = Emit($"IFCAXIS2PLACEMENT3D(#{pBase},#{dirZ},#{dirX})");
-            int ext = Emit("IFCDIRECTION((0.,0.,1.))");
-            int solid = Emit($"IFCEXTRUDEDAREASOLID(#{prof},#{pos},#{ext},{Real(altura)})");
+            // Dirección de extrusión: +Z (columna, hacia arriba) o -Z (losa, hacia abajo).
+            int ext = Emit($"IFCDIRECTION((0.,0.,{Real(dirZComp)}))");
+            int solid = Emit($"IFCEXTRUDEDAREASOLID(#{prof},#{pos},#{ext},{Real(profundidad)})");
             int rep = Emit($"IFCSHAPEREPRESENTATION(#{ctx},'Body','SweptSolid',(#{solid}))");
             return Emit($"IFCPRODUCTDEFINITIONSHAPE($,$,(#{rep}))");
         }
@@ -102,7 +103,19 @@ public static class IfcExporter
                     elems.Add(Emit($"IFCBEAM('{Guid22(id + 1)}',$,{Txt(viga.Nombre)},$,$,$,$,$,$)"));
                 foreach (var sistema in nivel.Sistemas)
                     foreach (var losa in sistema.Losas)
-                        elems.Add(Emit($"IFCSLAB('{Guid22(id + 1)}',$,{Txt("Losa " + losa.Id)},$,$,$,$,$,.FLOOR.)"));
+                    {
+                        // Perfil Lx×Ly centrado en el centro del paño (esquina + media luz),
+                        // extruido hacia abajo (-Z) por el espesor.
+                        string repLosa = "$";
+                        if (losa.Espesor > 0)
+                        {
+                            int forma = PrismaVertical(
+                                losa.CoordenadaX + losa.Lx / 2.0, losa.CoordenadaY + losa.Ly / 2.0, nivel.Cota,
+                                losa.Lx, losa.Ly, losa.Espesor, -1.0);
+                            repLosa = "#" + forma;
+                        }
+                        elems.Add(Emit($"IFCSLAB('{Guid22(id + 1)}',$,{Txt("Losa " + losa.Id)},$,$,$,{repLosa},$,.FLOOR.)"));
+                    }
 
                 // Contención de los elementos en el piso.
                 if (elems.Count > 0)

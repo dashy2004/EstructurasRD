@@ -150,4 +150,34 @@ public class IfcExporterTests
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }
+
+    /// <summary>
+    /// K.6: una losa se exporta con geometría real — un IfcExtrudedAreaSolid
+    /// (perfil rectangular Lx×Ly extruido hacia −Z por su espesor) enlazado como
+    /// Representation del IfcSlab.
+    /// </summary>
+    [Fact]
+    public void La_losa_exporta_geometria_IfcExtrudedAreaSolid()
+    {
+        var ed = new Edificio { Nombre = "Torre" };
+        var nivel = new Nivel { Nombre = "N1", Cota = 0 };
+        var sis = new Sistema();
+        sis.Losas.Add(new Losa { Id = 1, Lx = 4, Ly = 3, CoordenadaX = 1, CoordenadaY = 2, Espesor = 0.20 });
+        nivel.Sistemas.Add(sis);
+        ed.Niveles.Add(nivel);
+
+        var path = Path.Combine(Path.GetTempPath(), $"ifc_{Guid.NewGuid():N}.ifc");
+        try
+        {
+            IfcExporter.Export(ed, path, "Torre");
+            var ifc = File.ReadAllText(path);
+
+            Assert.Contains("IFCEXTRUDEDAREASOLID(", ifc);
+            Assert.Contains(",4.0,3.0)", ifc);                 // perfil Lx×Ly
+            Assert.Contains("IFCDIRECTION((0.,0.,-1.0))", ifc); // extrusión hacia abajo
+            // El IfcSlab referencia su representación geométrica (ya no es $ en ese slot).
+            Assert.Matches(@"IFCSLAB\('[^']*',\$,'Losa 1',\$,\$,\$,#\d+,\$,\.FLOOR\.\)", ifc);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
 }
