@@ -53,12 +53,38 @@ public static class SincronizadorPlanta
         return layout.Placements.Count > 0;
     }
 
-    /// <summary>Sincroniza todos los sistemas de todos los niveles de un edificio.</summary>
+    /// <summary>Separación por defecto de la grilla de columnas, en metros.</summary>
+    public const double EspaciadoColumnasDefault = 5.0;
+
+    /// <summary>
+    /// Distribuye las columnas del nivel en una grilla cuadrada cuando están todas
+    /// sin posicionar (en (0,0)) — evita que se apilen (y con ellas sus zapatas,
+    /// que se dibujan en la huella de cada columna). Devuelve <c>true</c> si modificó.
+    /// </summary>
+    public static bool SincronizarColumnas(Nivel? nivel, double espaciado = EspaciadoColumnasDefault, bool forzar = false)
+    {
+        if (nivel is null || nivel.Columnas.Count < 2) return false;
+        if (!forzar && !nivel.Columnas.All(c => c.CoordenadaX == 0.0 && c.CoordenadaY == 0.0))
+            return false;
+
+        int porFila = (int)System.Math.Ceiling(System.Math.Sqrt(nivel.Columnas.Count));
+        for (int i = 0; i < nivel.Columnas.Count; i++)
+        {
+            nivel.Columnas[i].CoordenadaX = (i % porFila) * espaciado;
+            nivel.Columnas[i].CoordenadaY = (i / porFila) * espaciado;
+        }
+        return true;
+    }
+
+    /// <summary>Sincroniza losas (por sistema) y columnas (por nivel) de todo el edificio.</summary>
     public static void SincronizarEdificio(Edificio? edificio, bool forzar = false)
     {
         if (edificio is null) return;
         foreach (var nivel in edificio.Niveles)
+        {
             foreach (var sistema in nivel.Sistemas)
                 Sincronizar(sistema, forzar);
+            SincronizarColumnas(nivel, forzar: forzar);
+        }
     }
 }

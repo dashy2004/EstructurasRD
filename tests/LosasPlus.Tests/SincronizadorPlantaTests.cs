@@ -71,4 +71,50 @@ public class SincronizadorPlantaTests
         una.Losas.Add(new Losa { Id = 1 });
         Assert.False(SincronizadorPlanta.RequiereSincronizacion(una));
     }
+
+    [Fact]
+    public void SincronizarColumnas_distribuye_en_grilla_sin_apilar()
+    {
+        var nivel = new Nivel();
+        for (int i = 1; i <= 4; i++) nivel.Columnas.Add(new Columna { Id = i, Nombre = $"C-{i}" });
+
+        bool cambio = SincronizadorPlanta.SincronizarColumnas(nivel);
+
+        Assert.True(cambio);
+        // 4 columnas → grilla 2×2, separación 5 m → posiciones distintas.
+        var posiciones = nivel.Columnas
+            .Select(c => (c.CoordenadaX, c.CoordenadaY))
+            .Distinct()
+            .Count();
+        Assert.Equal(4, posiciones);   // ninguna se apila sobre otra
+    }
+
+    [Fact]
+    public void SincronizarColumnas_respeta_posiciones_manuales()
+    {
+        var nivel = new Nivel();
+        nivel.Columnas.Add(new Columna { Id = 1, CoordenadaX = 3.0 });
+        nivel.Columnas.Add(new Columna { Id = 2 });
+        // Hay una posicionada → no se reposiciona automáticamente.
+        Assert.False(SincronizadorPlanta.SincronizarColumnas(nivel));
+        Assert.Equal(3.0, nivel.Columnas[0].CoordenadaX, 6);
+    }
+
+    [Fact]
+    public void SincronizarEdificio_posiciona_losas_y_columnas()
+    {
+        var edificio = new Edificio();
+        var nivel = new Nivel();
+        nivel.Sistemas.Add(DosLosasAdyacentesEnX());
+        nivel.Columnas.Add(new Columna { Id = 1 });
+        nivel.Columnas.Add(new Columna { Id = 2 });
+        edificio.Niveles.Add(nivel);
+
+        SincronizadorPlanta.SincronizarEdificio(edificio);
+
+        Assert.Equal(4.0, nivel.Sistemas[0].Losas[1].CoordenadaX, 6);   // losa separada
+        Assert.NotEqual(
+            (nivel.Columnas[0].CoordenadaX, nivel.Columnas[0].CoordenadaY),
+            (nivel.Columnas[1].CoordenadaX, nivel.Columnas[1].CoordenadaY));  // columnas separadas
+    }
 }
