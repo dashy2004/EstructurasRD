@@ -120,6 +120,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     public ICommand? AbrirProyectoRecienteCommand { get; private set; }
     public ICommand? AbrirEnEditorCommand      { get; private set; }
     public ICommand? IrAExploradorCommand      { get; private set; }
+    public ICommand? IrAModoCommand            { get; private set; }
     public ICommand? UndoCommand               { get; private set; }
     public ICommand? RedoCommand               { get; private set; }
     public ICommand? AbrirShortcutsCommand     { get; private set; }
@@ -651,6 +652,13 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         }, _ => _proyectoRecienteSeleccionado is not null
                 && !string.IsNullOrEmpty(_proyectoRecienteSeleccionado.Path));
         IrAExploradorCommand = new RelayCommand(_ => ModoActivo = ModoSidebar.Explorador);
+        IrAModoCommand = new RelayCommand(p =>
+        {
+            if (p is string s && Enum.TryParse<ModoSidebar>(s, out var modo))
+                ModoActivo = modo;
+            else if (p is ModoSidebar m)
+                ModoActivo = m;
+        });
         UndoCommand          = new RelayCommand(_ => Undo(), _ => PuedeUndo);
         RedoCommand          = new RelayCommand(_ => Redo(), _ => PuedeRedo);
         AbrirShortcutsCommand = new RelayCommand(_ => AbrirShortcutsModal());

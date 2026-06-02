@@ -26,13 +26,13 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore
-        run: dotnet restore LosasPlus.sln
+        run: dotnet restore build/LosasPlus.sln
 
       - name: Build (Release)
-        run: dotnet build LosasPlus.sln -c Release --no-restore /warnaserror
+        run: dotnet build build/LosasPlus.sln -c Release --no-restore /warnaserror
 
       - name: Test
-        run: dotnet test LosasPlus.sln -c Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
+        run: dotnet test build/LosasPlus.sln -c Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
 
       - name: Upload test results
         if: always()

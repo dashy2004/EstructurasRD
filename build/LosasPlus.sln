@@ -3,15 +3,17 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LosasPlus.Core", "src.Core\LosasPlus.Core.csproj", "{92DAB1C8-90F9-40AD-8A4D-0DE27383D989}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LosasPlus.Core", "..\src\Core\LosasPlus.Core.csproj", "{92DAB1C8-90F9-40AD-8A4D-0DE27383D989}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LosasPlus.Linux", "src.Linux\LosasPlus.Linux.csproj", "{009B533E-D2F1-413E-AF7D-AF9383A2A861}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LosasPlus.Linux", "..\src\Linux\LosasPlus.Linux.csproj", "{009B533E-D2F1-413E-AF7D-AF9383A2A861}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MemoriaPlus.UI.Shared", "src.UI.Shared\MemoriaPlus.UI.Shared.csproj", "{97575F7D-B592-4A2B-9A19-386591CEB068}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MemoriaPlus.UI.Shared", "..\src\UI.Shared\MemoriaPlus.UI.Shared.csproj", "{97575F7D-B592-4A2B-9A19-386591CEB068}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MemoriaPlus.App", "src.Memoria\MemoriaPlus.App.csproj", "{2F45ABB1-3C60-4082-8789-222587047A16}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MemoriaPlus.App", "..\src\MemoriaPlus\MemoriaPlus.App.csproj", "{2F45ABB1-3C60-4082-8789-222587047A16}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LosasPlus", "src\LosasPlus.csproj", "{28FF2ED2-C1DE-4BAE-BA30-A34D5FE71CAF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LosasPlus", "..\src\LosasPlus\LosasPlus.csproj", "{28FF2ED2-C1DE-4BAE-BA30-A34D5FE71CAF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LosasPlus.Tests", "..\tests\LosasPlus.Tests\LosasPlus.Tests.csproj", "{E5A1EB9F-13F8-4E1A-A068-0063E215132D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -42,5 +44,9 @@ Global
 		{28FF2ED2-C1DE-4BAE-BA30-A34D5FE71CAF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{28FF2ED2-C1DE-4BAE-BA30-A34D5FE71CAF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{28FF2ED2-C1DE-4BAE-BA30-A34D5FE71CAF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E5A1EB9F-13F8-4E1A-A068-0063E215132D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E5A1EB9F-13F8-4E1A-A068-0063E215132D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E5A1EB9F-13F8-4E1A-A068-0063E215132D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E5A1EB9F-13F8-4E1A-A068-0063E215132D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

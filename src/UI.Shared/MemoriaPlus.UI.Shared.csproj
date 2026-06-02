@@ -24,7 +24,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\src.Core\LosasPlus.Core.csproj" />
+    <ProjectReference Include="..\Core\LosasPlus.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

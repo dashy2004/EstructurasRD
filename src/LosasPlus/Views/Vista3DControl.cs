@@ -10,6 +10,13 @@ using LosasPlus.Render3D;
 
 namespace LosasPlus.Views;
 
+public enum ModoRender
+{
+    Wireframe,
+    Solido,
+    Hollow
+}
+
 /// <summary>
 /// Viewport 3D alámbrico del edificio (Fase I — reemplazo multiplataforma del
 /// visor SharpDX/Direct3D). Es un <see cref="Control"/> de render inmediato
@@ -34,6 +41,15 @@ public class Vista3DControl : Control
     {
         get => GetValue(EdificioProperty);
         set => SetValue(EdificioProperty, value);
+    }
+
+    public static readonly StyledProperty<ModoRender> ModoRenderProperty =
+        AvaloniaProperty.Register<Vista3DControl, ModoRender>(nameof(ModoRender), ModoRender.Wireframe);
+
+    public ModoRender ModoRender
+    {
+        get => GetValue(ModoRenderProperty);
+        set => SetValue(ModoRenderProperty, value);
     }
 
     private const float EjeLongitud = 3f;
@@ -65,6 +81,8 @@ public class Vista3DControl : Control
         base.OnPropertyChanged(change);
         if (change.Property == EdificioProperty)
             ReconstruirEscena();
+        else if (change.Property == ModoRenderProperty)
+            InvalidateVisual();
     }
 
     /// <summary>Reconstruye la escena desde el <see cref="Edificio"/> y reencuadra en el próximo render.</summary>
@@ -91,7 +109,18 @@ public class Vista3DControl : Control
         var mvp = _camara.MatrizVista * _camara.MatrizProyeccion(w / h);
 
         DibujarSegmentos(context, PrimitivasEscena.RejillaSuelo(RejillaExtension, RejillaPaso), mvp, w, h, PenRejilla);
-        DibujarSegmentos(context, _escena.Segmentos, mvp, w, h, PenModelo);
+
+        if (ModoRender == ModoRender.Wireframe)
+        {
+            DibujarSegmentos(context, _escena.Segmentos, mvp, w, h, PenModelo);
+        }
+        else
+        {
+            // TODO: (Antigravity -> Claude) Necesito que el motor exponga IReadOnlyList<Cara3D> en Escena3D
+            // para poder ordenarlas por profundidad (algoritmo del pintor) y dibujarlas con Fill/Pen.
+            // Por ahora, fallback a wireframe.
+            DibujarSegmentos(context, _escena.Segmentos, mvp, w, h, PenModelo);
+        }
 
         var ejes = PrimitivasEscena.Ejes(EjeLongitud);
         DibujarSegmento(context, ejes[0], mvp, w, h, PenEjeX);

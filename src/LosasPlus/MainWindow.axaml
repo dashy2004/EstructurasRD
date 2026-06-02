@@ -121,89 +121,38 @@
                                Foreground="{DynamicResource FgMuted}"/>
                 </StackPanel>
 
-                <!-- Nav modos: 14 RadioButtons → ModoActivo via EnumToBool. -->
-                <ScrollViewer Grid.Column="1" VerticalAlignment="Bottom"
-                              HorizontalScrollBarVisibility="Auto"
-                              VerticalScrollBarVisibility="Disabled">
-                    <!-- H1 — 7 categorías: Proyecto · Losas Legacy · Modelo · Visualización ·
-                         Análisis · Normativa · Sistema. Mismo binding ModoActivo; sólo se
-                         agrupan los tabs con captions (navcat) y separadores (navsep). -->
-                    <StackPanel Orientation="Horizontal">
-                        <!-- 1 · Proyecto -->
-                        <TextBlock Classes="navcat" Text="PROYECTO"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📂  Explorador"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Explorador}"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🔍  Búsqueda"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Busqueda}"/>
-                        <Border Classes="navsep"/>
-
-                        <!-- 2 · Losas Legacy (flujo clásico de texto) -->
-                        <TextBlock Classes="navcat" Text="LOSAS LEGACY"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="✎  Editor"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Editor}"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="▤  Editor .DL"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DLEditor}"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="⇲  Salida .TXT"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Salida}"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🔩  Aceros"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Aceros}"
-                                     ToolTip.Tip="Diseño de aceros distribuidos por losa. Próximamente."/>
-                        <Border Classes="navsep"/>
-
-                        <!-- 3 · Modelo Estructural -->
-                        <TextBlock Classes="navcat" Text="MODELO"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📊  Cargas y Combinaciones"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=CargasCombinaciones}"
-                                     ToolTip.Tip="Casos y combinaciones de carga del proyecto."/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📐  Vigas Continuas"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vigas}"
-                                     ToolTip.Tip="Editor de vigas continuas: análisis por rigidez directa y diagramas V(x), M(x), δ(x)."/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🏛  Columnas"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Columnas}"
-                                     ToolTip.Tip="Editor de columnas del edificio (posición en planta, sección, altura)."/>
-                        <Border Classes="navsep"/>
-
-                        <!-- 4 · Visualización -->
-                        <TextBlock Classes="navcat" Text="VISUALIZACIÓN"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🗺  Lienzo CAD"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}"
-                                     ToolTip.Tip="Editor visual CAD: importá un plano .DXF de referencia y visualizá las losas."/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📐  Planta 2D"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Planta2D}"
-                                     ToolTip.Tip="Editor 2D de planta: posiciona y arrastra losas, vigas y columnas."/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📄  Visor PDF"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=VisorPdf}"
-                                     ToolTip.Tip="Visor de documentos PDF multipágina (prev/next página, zoom 50–200%)."/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🧊  Vista 3D"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vista3D}"
-                                     ToolTip.Tip="Vista 3D alámbrica del edificio (massing por niveles). Arrastrar: orbitar · rueda: zoom."/>
-                        <Border Classes="navsep"/>
-
-                        <!-- 5 · Análisis -->
-                        <TextBlock Classes="navcat" Text="ANÁLISIS"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🛡  Validación"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="⬇  Bajada de Cargas"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=BajadaCargas}"
-                                     ToolTip.Tip="Transmisión vertical de cargas por niveles hasta la base + predimensionado de zapata."/>
-                        <Border Classes="navsep"/>
-
-                        <!-- 6 · Normativa -->
-                        <TextBlock Classes="navcat" Text="NORMATIVA"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="⚖  Reglamento"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Reglamento}"/>
-                        <Border Classes="navsep"/>
-
-                        <!-- 7 · Sistema -->
-                        <TextBlock Classes="navcat" Text="SISTEMA"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="⚙  Configuración"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Configuracion}"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="◆  Plugins"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Plugins}"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="ℹ  Acerca de"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Acerca}"/>
-                    </StackPanel>
-                </ScrollViewer>
+                <!-- Nav modos: Menu por categorías -->
+                <Menu Grid.Column="1" VerticalAlignment="Bottom" Background="Transparent" Margin="0,0,0,2">
+                    <MenuItem Header="Proyecto" FontWeight="SemiBold" Foreground="{DynamicResource FgPrimary}">
+                        <MenuItem Header="Explorador" Command="{Binding IrAModoCommand}" CommandParameter="Explorador"/>
+                        <MenuItem Header="Búsqueda" Command="{Binding IrAModoCommand}" CommandParameter="Busqueda"/>
+                        <MenuItem Header="Editor (Losas)" Command="{Binding IrAModoCommand}" CommandParameter="Editor"/>
+                        <MenuItem Header="Validación" Command="{Binding IrAModoCommand}" CommandParameter="Validacion"/>
+                    </MenuItem>
+                    <MenuItem Header="Geometría" FontWeight="SemiBold" Foreground="{DynamicResource FgPrimary}">
+                        <MenuItem Header="Planta 2D" Command="{Binding IrAModoCommand}" CommandParameter="Planta2D"/>
+                        <MenuItem Header="Plano CAD" Command="{Binding IrAModoCommand}" CommandParameter="PlanoCad"/>
+                        <MenuItem Header="Vista 3D" Command="{Binding IrAModoCommand}" CommandParameter="Vista3D"/>
+                        <MenuItem Header="Visor PDF" Command="{Binding IrAModoCommand}" CommandParameter="VisorPdf"/>
+                    </MenuItem>
+                    <MenuItem Header="Análisis" FontWeight="SemiBold" Foreground="{DynamicResource FgPrimary}">
+                        <MenuItem Header="Cargas y Combinaciones" Command="{Binding IrAModoCommand}" CommandParameter="CargasCombinaciones"/>
+                        <MenuItem Header="Bajada de Cargas" Command="{Binding IrAModoCommand}" CommandParameter="BajadaCargas"/>
+                        <MenuItem Header="Vigas" Command="{Binding IrAModoCommand}" CommandParameter="Vigas"/>
+                        <MenuItem Header="Columnas" Command="{Binding IrAModoCommand}" CommandParameter="Columnas"/>
+                    </MenuItem>
+                    <MenuItem Header="Salida" FontWeight="SemiBold" Foreground="{DynamicResource FgPrimary}">
+                        <MenuItem Header="Editor .DL" Command="{Binding IrAModoCommand}" CommandParameter="DLEditor"/>
+                        <MenuItem Header="Salida .TXT" Command="{Binding IrAModoCommand}" CommandParameter="Salida"/>
+                        <MenuItem Header="Aceros" Command="{Binding IrAModoCommand}" CommandParameter="Aceros"/>
+                    </MenuItem>
+                    <MenuItem Header="Sistema" FontWeight="SemiBold" Foreground="{DynamicResource FgPrimary}">
+                        <MenuItem Header="Reglamento" Command="{Binding IrAModoCommand}" CommandParameter="Reglamento"/>
+                        <MenuItem Header="Configuración" Command="{Binding IrAModoCommand}" CommandParameter="Configuracion"/>
+                        <MenuItem Header="Plugins" Command="{Binding IrAModoCommand}" CommandParameter="Plugins"/>
+                        <MenuItem Header="Acerca de" Command="{Binding IrAModoCommand}" CommandParameter="Acerca"/>
+                    </MenuItem>
+                </Menu>
 
                 <!-- Selector de SISTEMA activo + tema. -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal"
@@ -734,7 +683,24 @@
 
                 <!-- MODO Vista 3D (Fase I) — viewport alámbrico por software (sin SharpDX/GL). -->
                 <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vista3D}">
-                    <v:Vista3DControl Edificio="{Binding EdificioActivo}"/>
+                    <Grid>
+                        <v:Vista3DControl x:Name="vista3d" Edificio="{Binding EdificioActivo}"/>
+                        
+                        <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="16"
+                                Background="{DynamicResource BgSecondary}"
+                                BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                CornerRadius="4" Padding="12,8">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="ESTILO:" VerticalAlignment="Center" Foreground="{DynamicResource FgMuted}" FontSize="10" FontWeight="Bold" Margin="0,0,12,0"/>
+                                <RadioButton Content="Wireframe" GroupName="Render3D" Margin="0,0,12,0"
+                                             IsChecked="{Binding #vista3d.ModoRender, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Wireframe}"/>
+                                <RadioButton Content="Sólido" GroupName="Render3D" Margin="0,0,12,0"
+                                             IsChecked="{Binding #vista3d.ModoRender, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Solido}"/>
+                                <RadioButton Content="Hollow" GroupName="Render3D"
+                                             IsChecked="{Binding #vista3d.ModoRender, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Hollow}"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
                 </ContentControl>
 
                 <!-- MODO Cargas y Combinaciones. -->

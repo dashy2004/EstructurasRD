@@ -20,8 +20,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\src.Core\LosasPlus.Core.csproj" />
-    <ProjectReference Include="..\src.UI.Shared\MemoriaPlus.UI.Shared.csproj" />
+    <ProjectReference Include="..\Core\LosasPlus.Core.csproj" />
+    <ProjectReference Include="..\UI.Shared\MemoriaPlus.UI.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>

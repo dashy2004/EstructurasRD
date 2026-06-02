@@ -43,14 +43,14 @@ jobs:
 
       - name: Publish LosasPlus.App
         run: |
-          dotnet publish src/LosasPlus.csproj -c Release -r win-x64 `
+          dotnet publish src/LosasPlus/LosasPlus.csproj -c Release -r win-x64 `
             --self-contained=true `
             -p:PublishSingleFile=true `
             -p:IncludeNativeLibrariesForSelfExtract=true
 
       - name: Publish MemoriaPlus.App
         run: |
-          dotnet publish src.Memoria/MemoriaPlus.App.csproj -c Release -r win-x64 `
+          dotnet publish src/MemoriaPlus/MemoriaPlus.App.csproj -c Release -r win-x64 `
             --self-contained=true `
             -p:PublishSingleFile=true `
             -p:IncludeAllContentForSelfExtract=true
@@ -61,8 +61,8 @@ jobs:
           $v = "${{ steps.ver.outputs.version }}"
           $dir = "releases/LosasPlus_Suite_v$v"
           New-Item -ItemType Directory -Force -Path $dir | Out-Null
-          Copy-Item "src/bin/Release/net8.0-windows/win-x64/publish/LosasPlus.exe"          "$dir/"
-          Copy-Item "src.Memoria/bin/Release/net8.0-windows/win-x64/publish/MemoriaPlus.exe" "$dir/"
+          Copy-Item "src/LosasPlus/bin/Release/net8.0-windows/win-x64/publish/LosasPlus.exe"          "$dir/"
+          Copy-Item "src/MemoriaPlus/bin/Release/net8.0-windows/win-x64/publish/MemoriaPlus.exe" "$dir/"
           Copy-Item "CARTA_AL_AUTOR.md" "$dir/"
           Copy-Item "LICENSE"           "$dir/LICENSE.txt"
           Copy-Item "README.md"         "$dir/README.md"
@@ -86,7 +86,7 @@ jobs:
         with:
           files: |
             releases/LosasPlus_Suite_v${{ steps.ver.outputs.version }}.zip
-            src/bin/Release/net8.0-windows/win-x64/publish/LosasPlus.exe
-            src.Memoria/bin/Release/net8.0-windows/win-x64/publish/MemoriaPlus.exe
+            src/LosasPlus/bin/Release/net8.0-windows/win-x64/publish/LosasPlus.exe
+            src/MemoriaPlus/bin/Release/net8.0-windows/win-x64/publish/MemoriaPlus.exe
           generate_release_notes: true
           draft: false
