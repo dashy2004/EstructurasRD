@@ -37,15 +37,20 @@ public class PredimensionarGeometricoTests
         foreach (var c in new[] { Col("C00", 0, 0), Col("C40", 4, 0), c04, Col("C44", 4, 4) })
             nivel.Columnas.Add(c);
 
+        // Default Wu→servicio (factor 1.5): Wu=60 → servicio 40 → área 40/15.
         var res = DescensoColumnas.PredimensionarGeometrico(nivel, 15);
 
         Assert.Equal(4, res.Count);
         var r04 = res.First(r => ReferenceEquals(r.Columna, c04));
-        Assert.Equal(60, r04.CargaAxial, 3);
-        Assert.Equal(2, r04.LadoZapata, 3);          // 60/15 = 4 m² → lado 2
+        Assert.Equal(60, r04.CargaAxial, 3);  // axial reportada = Wu
+        Assert.Equal(System.Math.Sqrt(40.0 / 15.0), r04.LadoZapata, 3);
         Assert.NotNull(c04.Zapata);
-        Assert.Equal(4, c04.Zapata!.AreaContacto, 3);
+        Assert.Equal(40.0 / 15.0, c04.Zapata!.AreaContacto, 3);
         Assert.Equal("Z-C04", c04.Zapata.Nombre);
+
+        // factor 1.0 (sin conversión) → Wu directo: 60/15 = 4 m² → lado 2.
+        var sinConv = DescensoColumnas.PredimensionarGeometrico(nivel, 15, 1.0);
+        Assert.Equal(2, sinConv.First(r => ReferenceEquals(r.Columna, c04)).LadoZapata, 3);
     }
 
     [Fact]

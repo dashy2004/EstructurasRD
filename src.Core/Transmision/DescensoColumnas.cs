@@ -66,14 +66,17 @@ public static class DescensoColumnas
     /// devuelve la axial y el lado por columna. Sólo incluye columnas que
     /// reciben carga de alguna viga.
     /// </summary>
-    public static IReadOnlyList<CargaColumna> PredimensionarGeometrico(Nivel nivel, double presionAdmisible)
+    public static IReadOnlyList<CargaColumna> PredimensionarGeometrico(
+        Nivel nivel, double presionAdmisible,
+        double factorUltima = PredimZapata.FactorUltimaServicioPorDefecto)
     {
         var resultado = new List<CargaColumna>();
         if (nivel is null) return resultado;
 
         foreach (var carga in RepartoGeometrico.AsignarVigasAColumnas(nivel))
         {
-            var z = PredimZapata.Cuadrada(carga.CargaAxial, presionAdmisible);
+            // La axial que baja es última (Wu); el predim de zapata usa servicio.
+            var z = PredimZapata.CuadradaDesdeUltima(carga.CargaAxial, presionAdmisible, factorUltima);
             carga.Columna.Zapata ??= new Zapata { Nombre = $"Z-{carga.Columna.Nombre}" };
             carga.Columna.Zapata.Ancho = z.LadoCuadrada;
             carga.Columna.Zapata.Largo = z.LadoCuadrada;
