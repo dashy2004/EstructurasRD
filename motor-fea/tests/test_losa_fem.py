@@ -80,3 +80,29 @@ def test_rectangular_momento_vano_corto_domina():
     # a/b=2: el momento que flexiona el vano corto (My, con b en Y) domina sobre Mx.
     r = resolver_losa_rectangular(8.0, 4.0, 16, 8, E, NU, T, Q, "simple")
     assert r.my_max > r.mx_max
+
+
+# ---- Momento de apoyo (acero superior): empotrada vs simplemente apoyada ----
+def test_simple_apoyo_casi_cero_y_decrece():
+    r6 = resolver_losa_rectangular(A, A, 6, 6, E, NU, T, Q, "simple")
+    r10 = resolver_losa_rectangular(A, A, 10, 10, E, NU, T, Q, "simple")
+    # Apoyo simple → momento de borde ≈0 (M_n=0) y << momento de vano.
+    assert r10.m_apoyo_max < 0.05 * r10.mx_max
+    assert r10.m_apoyo_max < r6.m_apoyo_max          # decrece hacia 0 al refinar
+
+
+def test_empotrada_tiene_momento_de_apoyo_que_domina():
+    rs = resolver_losa_rectangular(A, A, 8, 8, E, NU, T, Q, "simple")
+    re = resolver_losa_rectangular(A, A, 8, 8, E, NU, T, Q, "empotrado")
+    # La empotrada desarrolla momento de apoyo grande (la SS no).
+    assert re.m_apoyo_max > 10 * rs.m_apoyo_max
+    # En placa empotrada cuadrada el momento de apoyo gobierna sobre el de vano.
+    assert re.m_apoyo_max > re.mx_max
+
+
+def test_empotrada_apoyo_converge():
+    qa2 = Q * A * A
+    c6 = resolver_losa_rectangular(A, A, 6, 6, E, NU, T, Q, "empotrado").m_apoyo_max / qa2
+    c10 = resolver_losa_rectangular(A, A, 10, 10, E, NU, T, Q, "empotrado").m_apoyo_max / qa2
+    assert c6 < c10                                   # converge hacia ~0.05 (Timoshenko)
+    assert 0.04 < c10 < 0.055

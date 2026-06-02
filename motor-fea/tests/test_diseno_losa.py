@@ -50,3 +50,12 @@ def test_diseno_losa_fem_mas_carga_pide_mas_acero():
     d1 = disenar_losa(A, A, 6, 6, E, NU, T, Q, 21.0, 420.0)
     d2 = disenar_losa(A, A, 6, 6, E, NU, T, 4 * Q, 21.0, 420.0)
     assert d2.franja_x.as_requerido >= d1.franja_x.as_requerido
+
+
+def test_acero_superior_empotrada_mayor_que_simple():
+    # La losa empotrada exige acero superior real (momento de apoyo); la SS casi no.
+    ds = disenar_losa(A, A, 8, 8, E, NU, T, Q, 21.0, 420.0, borde="simple")
+    de = disenar_losa(A, A, 8, 8, E, NU, T, Q, 21.0, 420.0, borde="empotrado")
+    assert de.mu_apoyo > ds.mu_apoyo
+    assert de.franja_apoyo.as_requerido > de.franja_x.as_requerido   # apoyo gobierna
+    assert de.franja_apoyo.armadura.cumple

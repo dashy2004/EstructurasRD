@@ -139,10 +139,13 @@ def disenar_losa_dict(p: dict) -> dict:
         "w_central": d.analisis.w_central,
         "mx_max": d.analisis.mx_max,
         "my_max": d.analisis.my_max,
+        "m_apoyo_max": d.analisis.m_apoyo_max,
         "mu_x": d.mu_x,
         "mu_y": d.mu_y,
+        "mu_apoyo": d.mu_apoyo,
         "franja_x": _franja_a_dict(d.franja_x),
         "franja_y": _franja_a_dict(d.franja_y),
+        "franja_apoyo": _franja_a_dict(d.franja_apoyo),
     }
 
 

@@ -183,8 +183,12 @@ tests; 780/780 .NET verde. Pendiente menor: posicionamiento por defecto de vigas
       — por modo Sa(Ti)·M_eff_i combinado con CQC; reporta masa participativa
       (≥90%). Validado vs estático en cadena 2 GDL: V=0.95× estático, 100% masa,
       modo 1 domina. 3 tests. **100/100 motor-fea verde.**
-    - [ ] Momentos negativos en bordes empotrados → acero superior. Diafragma
-      rígido. MITC4 (placas gruesas).
+    - [x] **Acero superior (momento de apoyo) (2026-06-02):** `losa_fem` recupera
+      el momento de apoyo (bordes); `diseno_losa` diseña `franja_apoyo` (acero
+      superior) + lo expone en el contrato/CLI. Validado: SS → apoyo≈0; empotrada
+      → apoyo gobierna (coef→0.049, >vano) y converge. 4 tests. **104/104 verde.**
+      El motor iguala la salida completa de `Losas.exe` (acero inferior+superior).
+    - [ ] Diafragma rígido (constraint horizontal por nivel). MITC4 (placas gruesas).
 - [x] **B·sismo — cortante basal estático (2026-06-02)** — *3 capas juntas*
   - `r001.aceleracion_espectral(T)`: espectro de diseño (rampa T0 / meseta SDS /
     rama SD1/T). `sismo.cortante_basal_sismico`: módulo de composición que une

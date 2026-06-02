@@ -24,9 +24,10 @@ class ResultadoLosa:
     ny: int
     desplazamientos_w: dict[tuple[int, int], float]   # (i,j) → w
     w_central: float
-    mx_max: float = 0.0      # |Mx| máximo (N·m/m)
+    mx_max: float = 0.0      # |Mx| máximo (N·m/m) — momento de vano (centros de elemento)
     my_max: float = 0.0      # |My| máximo
     mxy_max: float = 0.0     # |Mxy| máximo
+    m_apoyo_max: float = 0.0 # |M| máximo en el contorno (momento de apoyo, acero superior)
 
 
 def _idx(i: int, j: int, nx: int) -> int:
@@ -105,7 +106,27 @@ def resolver_losa_rectangular(a: float, b: float, nx: int, ny: int,
             my_max = max(my_max, abs(my))
             mxy_max = max(mxy_max, abs(mxy))
 
-    return ResultadoLosa(nx, ny, desplazamientos, w_central, mx_max, my_max, mxy_max)
+    # Momento de apoyo (acero superior): muestrear el punto medio de la arista que
+    # cae sobre el contorno, en los elementos de borde. En apoyo simple ~0; en
+    # bordes empotrados es donde el momento negativo es máximo.
+    m_apoyo_max = 0.0
+    for cj in range(ny):
+        for ci in range(nx):
+            puntos = []
+            if cj == 0:        puntos.append((0.5, 0.0))   # arista inferior (y=0)
+            if cj == ny - 1:   puntos.append((0.5, 1.0))   # arista superior
+            if ci == 0:        puntos.append((0.0, 0.5))   # arista izquierda (x=0)
+            if ci == nx - 1:   puntos.append((1.0, 0.5))   # arista derecha
+            if not puntos:
+                continue
+            nodos = [_idx(ci, cj, nx), _idx(ci + 1, cj, nx),
+                     _idx(ci + 1, cj + 1, nx), _idx(ci, cj + 1, nx)]
+            d_elem = [u[nd * 3 + d] for nd in nodos for d in range(3)]
+            for fx, fy in puntos:
+                mx, my, _ = momentos_elemento(lx, ly, E, nu, t, d_elem, fx, fy)
+                m_apoyo_max = max(m_apoyo_max, abs(mx), abs(my))
+
+    return ResultadoLosa(nx, ny, desplazamientos, w_central, mx_max, my_max, mxy_max, m_apoyo_max)
 
 
 def rigidez_flexional_placa(E: float, nu: float, t: float) -> float:
