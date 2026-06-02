@@ -90,6 +90,13 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
   - Implementado en Python puro (corre en 3.14 sin numpy); numpy/scipy quedan
     para escala (B5). Cross-check vs PyNite: pendiente cuando haya wheels.
   - **15/15 tests motor-fea verde.**
+- [x] **B1.5 · Contrato JSON + CLI `--analyze`** ✅ (2026-06-02) — *frontera B6*
+  - `api/contrato.py`: (de)serialización `ModeloEstructural ↔ JSON` (round-trip
+    exacto) + `analizar_dict/analizar_json` (modelo→resultados).
+  - `api/cli.py`: `motor-fea --analyze modelo.json` (o `-` stdin) → resultados
+    JSON por stdout. El C# lo invocará igual que hoy lanza `Losas.exe`.
+  - 6 tests (round-trip, defaults, análisis, CLI version+analyze). **21/21 verde.**
+  - Verificado end-to-end: voladizo por CLI → `uz = -6.667e-4 m` (= `PL³/3EI`).
 - [ ] **B2 · Shells + dinámica**
   - Elemento MITC4/DKMQ (losas/muros), análisis modal (`eigsh`), diafragma
     rígido (constraint a nodo maestro), espectral SRSS/CQC.
