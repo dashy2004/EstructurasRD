@@ -36,12 +36,14 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
   - CI Linux (`.github/workflows/ci-linux.yml`): build + test en ubuntu-latest.
   - **Verificación:** `dotnet build LosasPlus.Linux.sln --no-incremental` 0/0 +
     `dotnet test` verde.
-- [ ] **A1 · Pestaña "Aceros" (el único placeholder real)**
-  - Core: As por franja X/Y + separación de barras (ACI 318-19 §25.5) desde los
-    momentos del `.TXT`.
-  - `AcerosViewModel` + `AcerosView`: As req. vs provisto en vivo, selector
+- [ ] **A1 · Pestaña "Aceros" (el único placeholder real)** — *en progreso*
+  - [x] **Core (2026-06-02):** `AcerosLosaDesigner` — As req. por flexión
+    (ACI 318-19), As mín. por temperatura (§24.4.3.2), espaciamiento máx.
+    (§8.7.2.2), selección de barra #3–#6 + "Disponer", diseño de las 4 franjas
+    desde `MomentoLosa`. 15 tests (768/768 total verde).
+  - [ ] `AcerosViewModel` + `AcerosView`: As req. vs provisto en vivo, selector
     #3–#8, alertas de no-cumplimiento.
-  - Enganchar export CSV/XLSX + MemoriaPlus. Quitar placeholder de
+  - [ ] Enganchar export CSV/XLSX + MemoriaPlus. Quitar placeholder de
     `MainWindow.axaml:784-817`.
 - [ ] **A2 · Limpieza de wiring/settings**
   - Eliminar el evento muerto `AtajosGuardados` (o conectarlo; decidir uno).
