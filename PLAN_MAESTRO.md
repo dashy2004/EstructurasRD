@@ -102,10 +102,14 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
 - [ ] **B2 · Shells + dinámica**
   - Elemento MITC4/DKMQ (losas/muros), análisis modal (`eigsh`), diafragma
     rígido (constraint a nodo maestro), espectral SRSS/CQC.
-- [ ] **B3 · Capa normativa (motor de reglas)**
-  - ACI 318-19 (vigas, columnas, losas, zapatas) + R-001 (espectro, Rd, Cb,
-    Fa/Fv, zonas I/II) + R-033. Reglas versionadas por código/edición.
-  - Casos de regresión contra las hojas Excel ACI/MOPC del equipo.
+- [ ] **B3 · Capa normativa (motor de reglas)** — *en progreso*
+  - [x] **Viga ACI 318-19 (2026-06-02):** `normativa/aci318.py` — flexión (As req,
+    As mín §9.6.1.2, φMn, ratio Mu/φMn) y cortante (Vc §22.5.5.1, Vs, φVn, tope
+    Vs §22.5.1.2, ratio Vu/φVn). SI (N·mm·MPa). 8 tests (consistencia interna
+    As→φMn, valor a mano, Vc). **29/29 motor-fea verde.**
+  - [x] R-001 (espectro, Cb, zonas I/II) ya en `normativa/r001.py` (B0).
+  - [ ] Columnas (P-M), zapatas (punzonamiento), losas; R-033; versionado por
+    edición; regresión vs hojas Excel ACI/MOPC.
 - [ ] **B4 · BIM + datos**
   - IfcOpenShell import/export, modelo relacional PostgreSQL, viz
     react-three-fiber. Modelo analítico derivado del geométrico.
