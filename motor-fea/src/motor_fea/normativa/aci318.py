@@ -117,3 +117,95 @@ def verificar_viga_cortante(vu: float, bw: float, d: float, fc: float,
     phi_vn = PHI_CORTANTE * (vc + vs)
     ratio = abs(vu) / phi_vn if phi_vn > 0 else float("inf")
     return ResultadoCortante(vc, vs, phi_vn, excede, ratio, ratio <= 1.0 + 1e-9 and not excede)
+
+
+# --------------------- Columnas (flexo-compresión P-M) ---------------------
+EPS_CU = 0.003          # deformación última del hormigón (ACI 318-19 §22.2.2.1)
+ES_DEFAULT = 200000.0   # módulo del acero (MPa)
+
+
+def beta1(fc: float) -> float:
+    """β1 del bloque de Whitney, ACI 318-19 §22.2.2.4.3: 0.85 (f'c≤28), −0.05/7 MPa, min 0.65."""
+    if fc <= 28.0:
+        return 0.85
+    return max(0.65, 0.85 - 0.05 * (fc - 28.0) / 7.0)
+
+
+def phi_por_deformacion(et: float, fy: float, es: float = ES_DEFAULT, estribos: bool = True) -> float:
+    """φ por deformación neta de tracción εt (ACI 318-19 Tabla 21.2.2), miembros con estribos.
+
+    φ = 0.65 (compresión, εt ≤ εty) → 0.90 (tracción, εt ≥ εty+0.003), lineal en medio.
+    Para zunchos el piso es 0.75 en vez de 0.65.
+    """
+    phi_min = 0.65 if estribos else 0.75
+    ey = fy / es
+    if et <= ey:
+        return phi_min
+    if et >= ey + 0.003:
+        return 0.90
+    return phi_min + (0.90 - phi_min) * (et - ey) / 0.003
+
+
+def axial_pura_nominal(ag: float, ast: float, fc: float, fy: float) -> float:
+    """Po (N) — resistencia axial nominal a compresión pura: 0.85·f'c·(Ag−Ast) + fy·Ast."""
+    return 0.85 * fc * (ag - ast) + fy * ast
+
+
+def axial_maxima_diseno(ag: float, ast: float, fc: float, fy: float, estribos: bool = True) -> float:
+    """φPn,max (N) — tope de compresión, ACI 318-19 §22.4.2.1: 0.80·φ·Po (estribos) / 0.85·φ·Po (zunchos)."""
+    factor = 0.80 if estribos else 0.85
+    phi = 0.65 if estribos else 0.75
+    return factor * phi * axial_pura_nominal(ag, ast, fc, fy)
+
+
+def profundidad_balanceada(d: float, fy: float, es: float = ES_DEFAULT) -> float:
+    """Profundidad del eje neutro en el punto balanceado: c_b = εcu/(εcu+εy)·d."""
+    ey = fy / es
+    return EPS_CU / (EPS_CU + ey) * d
+
+
+@dataclass(frozen=True)
+class PuntoInteraccion:
+    """Un punto (Pn, Mn) del diagrama de interacción, con su φ por εt. Compresión positiva."""
+    c: float          # profundidad del eje neutro (mm)
+    pn: float         # axial nominal (N)
+    mn: float         # momento nominal respecto al centro geométrico (N·mm)
+    et: float         # deformación neta de tracción de la capa extrema
+    phi: float
+
+    @property
+    def phi_pn(self) -> float:
+        return self.phi * self.pn
+
+    @property
+    def phi_mn(self) -> float:
+        return self.phi * self.mn
+
+
+def punto_interaccion(c: float, b: float, h: float, fc: float, fy: float,
+                      capas: list[tuple[float, float]], es: float = ES_DEFAULT) -> PuntoInteraccion:
+    """Punto del diagrama P-M para un eje neutro ``c`` (mm), por compatibilidad de deformaciones.
+
+    ``capas`` = lista de ``(d_i, As_i)``: profundidad desde la fibra comprimida (mm)
+    y área (mm²) de cada capa de refuerzo. Sección rectangular b×h.
+    """
+    if c <= 0:
+        raise ValueError("c debe ser positivo.")
+    a = min(beta1(fc) * c, h)
+    cc = 0.85 * fc * b * a                       # resultante del bloque de hormigón (N)
+    pn = cc
+    mn = cc * (h / 2.0 - a / 2.0)
+
+    d_max = max(d for d, _ in capas)
+    for di, asi in capas:
+        eps = EPS_CU * (c - di) / c              # + compresión, − tracción
+        fs = max(-fy, min(fy, es * eps))
+        fuerza = asi * fs
+        if di <= a:                              # barra dentro del bloque → descontar hormigón desplazado
+            fuerza -= asi * 0.85 * fc
+        pn += fuerza
+        mn += fuerza * (h / 2.0 - di)
+
+    et = EPS_CU * (d_max - c) / c                 # tracción positiva
+    phi = phi_por_deformacion(et, fy, es)
+    return PuntoInteraccion(c, pn, mn, et, phi)

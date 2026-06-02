@@ -60,3 +60,56 @@ def test_cortante_detecta_Vs_excesivo():
     r = aci318.verificar_viga_cortante(150e3, B, D, FC, av=400.0, fyt=420.0, s=40.0)
     assert r.vs_excede_maximo
     assert not r.cumple
+
+
+# --------------------------- Columnas P-M ---------------------------
+# Columna 400×400, f'c=28, fy=420; refuerzo en 2 capas (cubierta ~60 mm).
+CB, CH = 400.0, 400.0
+CAPAS = [(60.0, 1020.0), (340.0, 1020.0)]   # As ≈ 2#8 por capa
+
+
+def test_beta1_segun_fc():
+    assert aci318.beta1(28) == 0.85
+    assert abs(aci318.beta1(35) - 0.80) < 1e-9
+    assert abs(aci318.beta1(56) - 0.65) < 1e-9     # 0.85 - 0.05·(56-28)/7 = 0.65
+    assert aci318.beta1(70) == 0.65                # piso
+
+
+def test_phi_por_deformacion_transicion():
+    ey = 420.0 / 200000.0
+    assert aci318.phi_por_deformacion(ey - 1e-4, 420.0) == 0.65       # compresión
+    assert aci318.phi_por_deformacion(ey + 0.003 + 1e-4, 420.0) == 0.90  # tracción
+    mid = aci318.phi_por_deformacion(ey + 0.0015, 420.0)             # mitad de transición
+    assert 0.65 < mid < 0.90
+
+
+def test_axial_pura_calculada_a_mano():
+    ag = CB * CH                 # 160000 mm²
+    ast = 2 * 1020.0             # 2040 mm²
+    po = aci318.axial_pura_nominal(ag, ast, FC, 420.0)
+    # 0.85·28·(160000−2040) + 420·2040
+    assert abs(po - (0.85 * 28 * (ag - ast) + 420.0 * ast)) < 1e-3
+    # φPn,max estribos = 0.80·0.65·Po
+    assert abs(aci318.axial_maxima_diseno(ag, ast, FC, 420.0) - 0.80 * 0.65 * po) < 1e-3
+
+
+def test_punto_balanceado_et_igual_ey():
+    cb = aci318.profundidad_balanceada(d=340.0, fy=420.0)
+    p = aci318.punto_interaccion(cb, CB, CH, FC, 420.0, CAPAS)
+    ey = 420.0 / 200000.0
+    assert abs(p.et - ey) < 1e-6              # por definición del punto balanceado
+    assert abs(p.phi - 0.65) < 1e-6           # justo en el inicio de la transición
+    assert p.pn > 0 and p.mn > 0
+
+
+def test_interaccion_pn_decrece_al_bajar_c():
+    p_alto = aci318.punto_interaccion(380.0, CB, CH, FC, 420.0, CAPAS)
+    p_bajo = aci318.punto_interaccion(120.0, CB, CH, FC, 420.0, CAPAS)
+    assert p_alto.pn > p_bajo.pn              # más compresión con eje neutro profundo
+    assert p_bajo.et > p_alto.et             # más tracción con c chico
+
+
+def test_interaccion_phi_pn_y_phi_mn():
+    p = aci318.punto_interaccion(200.0, CB, CH, FC, 420.0, CAPAS)
+    assert abs(p.phi_pn - p.phi * p.pn) < 1e-9
+    assert abs(p.phi_mn - p.phi * p.mn) < 1e-9

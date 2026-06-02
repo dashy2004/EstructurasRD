@@ -127,8 +127,13 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
     Vs §22.5.1.2, ratio Vu/φVn). SI (N·mm·MPa). 8 tests (consistencia interna
     As→φMn, valor a mano, Vc). **29/29 motor-fea verde.**
   - [x] R-001 (espectro, Cb, zonas I/II) ya en `normativa/r001.py` (B0).
-  - [ ] Columnas (P-M), zapatas (punzonamiento), losas; R-033; versionado por
-    edición; regresión vs hojas Excel ACI/MOPC.
+  - [x] **Columnas P-M (2026-06-02):** `aci318.py` — β1 (§22.2.2.4.3), φ por εt
+    (Tabla 21.2.2, 0.65→0.90), Po/φPn,max (§22.4.2.1), profundidad balanceada,
+    `punto_interaccion(c)` por compatibilidad de deformaciones (εcu=0.003,
+    descuento de hormigón desplazado). 6 tests (β1, transición φ, balanceado
+    εt=εy, monotonía Pn). **35/35 motor-fea verde.**
+  - [ ] Zapatas (punzonamiento §22.6), losas; R-033; versionado por edición;
+    regresión vs hojas Excel ACI/MOPC.
 - [ ] **B4 · BIM + datos**
   - IfcOpenShell import/export, modelo relacional PostgreSQL, viz
     react-three-fiber. Modelo analítico derivado del geométrico.
