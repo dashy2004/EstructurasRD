@@ -4,6 +4,30 @@ Este documento coordina el trabajo en paralelo de **dos agentes** sobre
 EstructurasRD (LosasPlus / MemoriaPlus, port Avalonia / .NET 8). Léelo al
 arrancar.
 
+## ⚠️ Worktrees — trabajo paralelo seguro (ACTIVO)
+
+Ambos agentes comparten el repo pero **NO deben compartir el working dir** (se
+pisan archivos y el estado de git). Setup en uso:
+
+- **Antigravity** → `/home/gdc/Downloads/EstructurasRD-main` (ramas `ui/*`), UI.
+- **Claude Code** → `/home/gdc/Downloads/EstructurasRD-engine` (rama
+  `avalonia-linux` / `engine/*`), motor. Creado con
+  `git worktree add ../EstructurasRD-engine avalonia-linux`.
+
+Cada agente comitea en su rama; merge a `avalonia-linux` por PR. Claude sólo
+toca `src.Core/**` y `tests/**`; nunca `src/**` ni `git add -A`.
+
+## Fases futuras y dueño (detalle en `VISION_ROADMAP.md`)
+
+- **K** Pulido motor + IFC 4.3 export + georreferenciación → **Claude** (motor);
+  el comando «descenso completo» en la UI → Antigravity sobre la API de Claude.
+- **L** Obras de arte (puentes, muros, alcantarillas, tanques) → **Claude**
+  (dominio + motor de rigidez directa).
+- **M** Mapa 3D urbano (CityGML / 3D Tiles / CesiumJS / 3DCityDB) → datos y
+  exportadores: **Claude**; visor web del mapa: **Antigravity**.
+- **N** Integración **IncidenciasRD** (incidencias ↔ estructuras georreferenciadas)
+  → conjunto, a nivel de datos geoespaciales.
+
 ## Por qué se divide así (asimetría real)
 
 | Agente | Entorno | Fuerte en | Limitación |
