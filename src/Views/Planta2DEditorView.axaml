@@ -1,0 +1,190 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="clr-namespace:LosasPlus.Views"
+             x:Class="LosasPlus.Views.Planta2DEditorView"
+             x:CompileBindings="False"
+             Background="{DynamicResource BgPrimary}">
+
+    <DockPanel>
+        <!-- Barra superior: Nivel, Herramientas, Acciones -->
+        <Border DockPanel.Dock="Top" Padding="12,8"
+                Background="{DynamicResource BgSecondary}"
+                BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <!-- Selector de Nivel -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="Nivel:" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="{DynamicResource FgSecondary}"/>
+                    <ComboBox x:Name="CbNivel" MinWidth="160" VerticalAlignment="Center">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Nombre}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+
+                <!-- Barra de Herramientas / Modos -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
+                    <RadioButton x:Name="BtnPuntero" Content="↖ Puntero" IsChecked="True"
+                                 Classes="tool-button" GroupName="FloorTool" ToolTip.Tip="Seleccionar y arrastrar elementos en planta."/>
+                    <RadioButton x:Name="BtnAddLosa" Content="▭ + Losa"
+                                 Classes="tool-button" GroupName="FloorTool" ToolTip.Tip="Hacer click en el lienzo para colocar una nueva losa."/>
+                    <RadioButton x:Name="BtnAddViga" Content="📐 + Viga"
+                                 Classes="tool-button" GroupName="FloorTool" ToolTip.Tip="Hacer click en el lienzo para colocar una nueva viga."/>
+                    <RadioButton x:Name="BtnAddCol" Content="🏛 + Columna"
+                                 Classes="tool-button" GroupName="FloorTool" ToolTip.Tip="Hacer click en el lienzo para colocar una nueva columna."/>
+                </StackPanel>
+
+                <!-- Acciones globales -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="q adm (t/m²):" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource FgSecondary}"/>
+                    <TextBox x:Name="TxtQAdm" Text="15.0" Width="50" VerticalAlignment="Center"/>
+                    <Button x:Name="BtnRecalcular" Content="⚡ Recalcular Descenso" Classes="accent"
+                            ToolTip.Tip="Calcula el descenso topológico real losa->viga->columna->zapata en este nivel."/>
+                    <Button x:Name="BtnEliminar" Content="🗑 Eliminar" Background="#D32F2F" Foreground="White"
+                            ToolTip.Tip="Elimina el elemento seleccionado."/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Barra inferior: Ayuda y Estado -->
+        <Border DockPanel.Dock="Bottom" Padding="12,4"
+                Background="{DynamicResource BgSecondary}"
+                BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock x:Name="TxtStatus" Grid.Column="0" Foreground="{DynamicResource FgMuted}" FontSize="12"
+                           Text="Rueda = zoom · Arr. Botón Central/Derecho = pan · Click = seleccionar · Arr. Izquierdo = mover."/>
+                <TextBlock Grid.Column="1" Foreground="{DynamicResource FgMuted}" FontSize="12" FontWeight="SemiBold"
+                           Text="Editor 2D de Planta"/>
+            </Grid>
+        </Border>
+
+        <!-- Área de Trabajo: Canvas + Panel de Propiedades -->
+        <Grid ColumnDefinitions="*,300">
+            <!-- Canvas Editor -->
+            <Border Grid.Column="0" Background="{DynamicResource BgInput}" ClipToBounds="True" Focusable="True">
+                <v:PlantaCanvas x:Name="EditorCanvas" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+            </Border>
+
+            <!-- Panel de Propiedades Lateral -->
+            <Border Grid.Column="1" Padding="16" Background="{DynamicResource BgSecondary}"
+                    BorderBrush="{DynamicResource Border}" BorderThickness="1,0,0,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="PROPIEDADES" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource FgMuted}"/>
+
+                        <TextBlock x:Name="TxtNoSelection" Text="Ningún elemento seleccionado. Haga click en una losa, viga o columna para editar."
+                                   Foreground="{DynamicResource FgMuted}" TextWrapping="Wrap" FontStyle="Italic"/>
+
+                        <!-- Panel Losa -->
+                        <StackPanel x:Name="PanelLosa" Spacing="12" IsVisible="False">
+                            <TextBlock Text="◆ Losa" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource Accent}"/>
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,4">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="ID:" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="TxtLosaId" IsReadOnly="True" Background="{DynamicResource BgTertiary}" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Coord X (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="TxtLosaX" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Coord Y (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="TxtLosaY" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Lx (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" x:Name="TxtLosaLx" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Ly (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="4" Grid.Column="1" x:Name="TxtLosaLy" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Carga Wu:" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="5" Grid.Column="1" x:Name="TxtLosaCarga" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="Espesor:" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="6" Grid.Column="1" x:Name="TxtLosaEspesor" Margin="0,0,0,8"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Panel Viga -->
+                        <StackPanel x:Name="PanelViga" Spacing="12" IsVisible="False">
+                            <TextBlock Text="◆ Viga" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource Accent}"/>
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,4">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="ID:" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="TxtVigaId" IsReadOnly="True" Background="{DynamicResource BgTertiary}" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Nombre:" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="TxtVigaNombre" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Origen X (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="TxtVigaX" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Origen Y (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" x:Name="TxtVigaY" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Ángulo (°):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="4" Grid.Column="1" x:Name="TxtVigaAngulo" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Largo (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="5" Grid.Column="1" x:Name="TxtVigaLargo" IsReadOnly="True" Background="{DynamicResource BgTertiary}" Margin="0,0,0,8"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Panel Columna -->
+                        <StackPanel x:Name="PanelColumna" Spacing="12" IsVisible="False">
+                            <TextBlock Text="◆ Columna" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource Accent}"/>
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,4">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="ID:" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="TxtColId" IsReadOnly="True" Background="{DynamicResource BgTertiary}" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Nombre:" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="TxtColNombre" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Coord X (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="TxtColX" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Coord Y (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" x:Name="TxtColY" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Base (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="4" Grid.Column="1" x:Name="TxtColBase" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Peralte (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="5" Grid.Column="1" x:Name="TxtColPeralte" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="Altura (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="6" Grid.Column="1" x:Name="TxtColAltura" Margin="0,0,0,8"/>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+    </DockPanel>
+
+    <!-- Estilos específicos para botones de herramientas compactos -->
+    <UserControl.Styles>
+        <Style Selector="RadioButton.tool-button">
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource FgSecondary}"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Name="bd" CornerRadius="4" Background="Transparent" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter Content="{TemplateBinding Content}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="RadioButton.tool-button:checked /template/ Border#bd">
+            <Setter Property="Background" Value="{DynamicResource Accent}"/>
+        </Style>
+        <Style Selector="RadioButton.tool-button:checked">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="RadioButton.tool-button:pointerover:unchecked /template/ Border#bd">
+            <Setter Property="Background" Value="{DynamicResource BgInput}"/>
+        </Style>
+    </UserControl.Styles>
+</UserControl>

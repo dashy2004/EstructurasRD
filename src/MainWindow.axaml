@@ -168,6 +168,9 @@
                         <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🗺  Lienzo CAD"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}"
                                      ToolTip.Tip="Editor visual CAD: importá un plano .DXF de referencia y visualizá las losas."/>
+                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📐  Planta 2D"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Planta2D}"
+                                     ToolTip.Tip="Editor 2D de planta: posiciona y arrastra losas, vigas y columnas."/>
                         <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📄  Visor PDF"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=VisorPdf}"
                                      ToolTip.Tip="Visor de documentos PDF multipágina (prev/next página, zoom 50–200%)."/>
@@ -717,6 +720,11 @@
                 <!-- MODO Lienzo CAD (stub Fase E). -->
                 <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}">
                     <cad:CadView x:Name="CadEditorView" DataContext="{Binding}"/>
+                </ContentControl>
+
+                <!-- MODO Planta 2D -->
+                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Planta2D}">
+                    <v:Planta2DEditorView DataContext="{Binding}"/>
                 </ContentControl>
 
                 <!-- MODO Visor PDF (H3) — control autónomo, sin DataContext del VM. -->

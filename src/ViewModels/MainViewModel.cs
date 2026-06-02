@@ -1347,6 +1347,8 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         // 1. Side-by-side (release packaged)
         var sidebyside = Path.Combine(dir, "MemoriaPlus.exe");
         if (File.Exists(sidebyside)) return sidebyside;
+        var sidebysideLinux = Path.Combine(dir, "MemoriaPlus");
+        if (File.Exists(sidebysideLinux)) return sidebysideLinux;
 
         // 2-3. Dev: subir hasta encontrar el sibling src.Memoria/
         var probe = new DirectoryInfo(dir);
@@ -1356,6 +1358,12 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             var devRelease = Path.Combine(probe.FullName, "src.Memoria", "bin", "Release", "net8.0-windows", "MemoriaPlus.exe");
             if (File.Exists(devDebug))   return devDebug;
             if (File.Exists(devRelease)) return devRelease;
+
+            var devDebugLinux   = Path.Combine(probe.FullName, "src.Memoria", "bin", "Debug",   "net8.0", "MemoriaPlus");
+            var devReleaseLinux = Path.Combine(probe.FullName, "src.Memoria", "bin", "Release", "net8.0", "MemoriaPlus");
+            if (File.Exists(devDebugLinux))   return devDebugLinux;
+            if (File.Exists(devReleaseLinux)) return devReleaseLinux;
+
             probe = probe.Parent;
         }
         return null;
@@ -1398,6 +1406,8 @@ public enum ModoSidebar
     Editor,
     /// <summary>Editor visual CAD: plano DXF de referencia + losas (Fase 1.B).</summary>
     PlanoCad,
+    /// <summary>Editor 2D de planta (paños reales, vigas y columnas).</summary>
+    Planta2D,
     /// <summary>Visor PDF multipágina con toolbar prev/next + zoom (H3).</summary>
     VisorPdf,
     /// <summary>Vista 3D alámbrica del edificio (Fase I — sin SharpDX).</summary>
