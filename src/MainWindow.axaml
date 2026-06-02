@@ -650,6 +650,50 @@
                                 <TextBox Text="{Binding Sistema.Adicionales}"/>
 
                                 <Separator Margin="0,12"/>
+
+                                <!-- Panel αfm (ACI 318 §9.5.3.3) de la losa seleccionada (A3). -->
+                                <TextBlock Text="αfm — rigidez de bordes (ACI 318 §9.5.3.3)"
+                                           FontWeight="Bold" FontSize="14" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource Accent}"/>
+                                <StackPanel IsVisible="{Binding HayLosaSeleccionada, Converter={StaticResource BoolToCollapsedIfFalse}}">
+                                    <TextBlock Margin="0,6,0,0" FontSize="11" Foreground="{DynamicResource FgMuted}"
+                                               Text="{Binding LosaSeleccionada.Id, StringFormat='Losa {0} seleccionada'}"/>
+                                    <Grid ColumnDefinitions="*,*,*" Margin="0,6,0,0">
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="αx" FontSize="10" Foreground="{DynamicResource FgMuted}"/>
+                                            <TextBlock FontWeight="SemiBold"
+                                                       Text="{Binding LosaSeleccionada.AlphaX, StringFormat='{}{0:0.000}', TargetNullValue='—', FallbackValue='—'}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="αy" FontSize="10" Foreground="{DynamicResource FgMuted}"/>
+                                            <TextBlock FontWeight="SemiBold"
+                                                       Text="{Binding LosaSeleccionada.AlphaY, StringFormat='{}{0:0.000}', TargetNullValue='—', FallbackValue='—'}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="αm" FontSize="10" Foreground="{DynamicResource FgMuted}"/>
+                                            <TextBlock FontWeight="SemiBold"
+                                                       Text="{Binding LosaSeleccionada.AlphaM, StringFormat='{}{0:0.000}', TargetNullValue='—', FallbackValue='—'}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                    <!-- Chip OK/CHK (sólo si αm está calculado). -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                                                IsVisible="{Binding LosaSeleccionada.AlphaM, Converter={StaticResource NullToCollapsed}}">
+                                        <Border CornerRadius="10" Padding="10,3" Background="#2E7D32"
+                                                IsVisible="{Binding LosaSeleccionada.AlphaFmCumple, Converter={StaticResource BoolToCollapsedIfFalse}}">
+                                            <TextBlock Text="✔ αm &gt; 2 — OK" Foreground="White" FontWeight="SemiBold" FontSize="11"/>
+                                        </Border>
+                                        <Border CornerRadius="10" Padding="10,3" Background="#C62828"
+                                                IsVisible="{Binding LosaSeleccionada.AlphaFmCumple, Converter={StaticResource BoolToCollapsedIfTrue}}">
+                                            <TextBlock Text="✖ αm ≤ 2 — revisar espesor" Foreground="White" FontWeight="SemiBold" FontSize="11"/>
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+                                <TextBlock FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource FgMuted}"
+                                           IsVisible="{Binding HayLosaSeleccionada, Converter={StaticResource BoolToCollapsedIfTrue}}"
+                                           Text="Seleccioná una losa en el grid para ver su relación de rigideces αfm."/>
+
+                                <Separator Margin="0,12"/>
                                 <DockPanel LastChildFill="False" Margin="0,0,0,4">
                                     <TextBlock DockPanel.Dock="Left" Text="Bordes adic. SEGÚN X"
                                                FontWeight="Bold" VerticalAlignment="Center"/>

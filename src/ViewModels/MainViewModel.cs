@@ -460,6 +460,17 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
 
     public bool MostrarBulkPanel => _bulkSeleccionadasCount >= 2;
 
+    private Losa? _losaSeleccionada;
+    /// <summary>Primera losa seleccionada en el grid — fuente del panel αfm del Editor (A3).</summary>
+    public Losa? LosaSeleccionada
+    {
+        get => _losaSeleccionada;
+        private set { _losaSeleccionada = value; OnPropertyChanged(); OnPropertyChanged(nameof(HayLosaSeleccionada)); }
+    }
+
+    /// <summary>True si hay al menos una losa seleccionada (controla la visibilidad del panel αfm).</summary>
+    public bool HayLosaSeleccionada => _losaSeleccionada is not null;
+
     // Valores del bulk-apply (strings para permitir "" = no aplicar este campo).
     private string _bulkLx = "", _bulkLy = "", _bulkEspesor = "", _bulkCarga = "", _bulkTipo = "";
     public string BulkLx      { get => _bulkLx;      set { _bulkLx = value; OnPropertyChanged(); } }
@@ -475,6 +486,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         foreach (var item in selectedItems)
             if (item is Losa l) LosasSeleccionadas.Add(l);
         BulkSeleccionadasCount = LosasSeleccionadas.Count;
+        LosaSeleccionada = LosasSeleccionadas.Count > 0 ? LosasSeleccionadas[0] : null;
     }
 
     // Nota: el panel de refuerzo comercial fue movido a la pestaña sidebar

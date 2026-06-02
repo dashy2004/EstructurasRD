@@ -61,10 +61,13 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
   - [x] *(No es bug)* "Densidad de tablas" no existe en el `AparienciaConfig` de
     Avalonia: era setting WPF **no portado**; el banner de `ESTADO_ACTUAL.md` ya
     lo aclara. No se promete en la UI actual.
-- [ ] **A3 · Profundizar editores**
-  - Bajada de Cargas: predim. de zapata + reporte (hoy 44 líneas de view).
-  - Panel αfm visual en el Editor (chips OK/CHK + αx/αy/αm; Core ya listo).
-  - Editores globales `VigaPrincipal` y `Bovedilla 1D/2D`.
+- [ ] **A3 · Profundizar editores** — *en progreso*
+  - [ ] Bajada de Cargas: predim. de zapata + reporte (hoy 44 líneas de view).
+  - [x] **Panel αfm visual (2026-06-02):** en el sidebar del Editor, muestra
+    αx/αy/αm de la `LosaSeleccionada` + chip OK (αm&gt;2) / CHK (revisar espesor),
+    con estado vacío. Nueva prop `LosaSeleccionada` en `MainViewModel`. Build
+    0/0, arranca, 772/772.
+  - [ ] Editores globales `VigaPrincipal` y `Bovedilla 1D/2D`.
 - [ ] **A4 · Roadmap nuevo de la app**
   - Export SAF · diagramas M/V/Δ reales · DXF Fases 2/3 (polígono→Losa, dibujo).
 
