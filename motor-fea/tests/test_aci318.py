@@ -147,3 +147,47 @@ def test_punzonamiento_esquina_alpha_s_20_y_cumple_flag():
     # carga muy alta → no cumple
     r2 = aci318.cortante_punzonamiento(5.0e6, 400, 400, 300, FC, "esquina")
     assert not r2.cumple and r2.ratio > 1.0
+
+
+# --------------------- Losas: diseño a flexión ---------------------
+# Franja de 1 m: b=1000, h=200, d=170 mm; f'c=21, fy=420 MPa.
+LB, LH, LD, LFC, LFY = 1000.0, 200.0, 170.0, 21.0, 420.0
+
+
+def test_diseno_losa_consistencia_phiMn():
+    d = aci318.diseno_losa_franja(50e6, LB, LH, LD, LFC, LFY)   # 50 kN·m/m
+    assert not d.seccion_insuficiente
+    phi_mn = aci318.momento_resistente(d.as_requerido, LB, LD, LFC, LFY)
+    assert abs(phi_mn - 50e6) / 50e6 < 1e-6
+
+
+def test_as_minimo_temperatura_grado_420():
+    # ρ=0.0018 · b · h
+    assert abs(aci318.as_minimo_temperatura(LB, LH, LFY) - 0.0018 * LB * LH) < 1e-9
+    # Grado 280 → ρ=0.0020
+    assert abs(aci318.as_minimo_temperatura(LB, LH, 280.0) - 0.0020 * LB * LH) < 1e-9
+
+
+def test_espaciamiento_maximo_losa():
+    assert aci318.espaciamiento_maximo_losa(200) == 400.0     # min(2·200,450)
+    assert aci318.espaciamiento_maximo_losa(250) == 450.0     # tope 450
+
+
+def test_diseno_losa_minimo_gobierna_con_momento_bajo():
+    d = aci318.diseno_losa_franja(5e6, LB, LH, LD, LFC, LFY)  # momento bajo
+    assert d.gobierna_minimo
+    assert abs(d.as_diseno - aci318.as_minimo_temperatura(LB, LH, LFY)) < 1e-6
+    assert "#" in d.armadura.disponer and "mm" in d.armadura.disponer
+
+
+def test_diseno_losa_selecciona_barra_y_cumple():
+    d = aci318.diseno_losa_franja(50e6, LB, LH, LD, LFC, LFY)
+    assert d.armadura.cumple
+    assert d.armadura.as_provista >= d.as_diseno
+    assert d.armadura.espaciamiento <= aci318.espaciamiento_maximo_losa(LH)
+
+
+def test_diseno_losa_seccion_insuficiente():
+    d = aci318.diseno_losa_franja(900e6, LB, 100.0, 70.0, LFC, LFY)
+    assert d.seccion_insuficiente
+    assert d.armadura.disponer == "SECCIÓN INSUFICIENTE"

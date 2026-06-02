@@ -264,3 +264,82 @@ def cortante_punzonamiento(vu: float, c1: float, c2: float, d: float, fc: float,
     return ResultadoPunzonamiento(bo, beta_c, alpha_s, vc_esf,
                                   (v_base, v_beta, v_alpha), vc, phi_vc,
                                   ratio, ratio <= 1.0 + 1e-9)
+
+
+# --------------------- Losas: diseño de acero a flexión ---------------------
+# Áreas nominales ASTM A615 en mm² (#3..#8 = 3/8"..1").
+AREAS_BARRA_MM2 = {3: 71.0, 4: 129.0, 5: 199.0, 6: 284.0, 7: 387.0, 8: 510.0}
+MODULO_ESP_MM = 10.0       # espaciamientos a múltiplos de 10 mm (1 cm)
+ESP_MIN_MM = 75.0          # separación mínima práctica
+
+
+def as_minimo_temperatura(b: float, h: float, fy: float) -> float:
+    """As mínimo por retracción y temperatura (mm²), ACI 318-19 §24.4.3.2: ρ·b·h.
+
+    ρ = 0.0020 (fy ≤ 350 MPa), 0.0018 (Grado 420) o max(0.0018·420/fy, 0.0014) (>420).
+    Usa el espesor total ``h`` (no el canto útil).
+    """
+    if fy <= 350.0:
+        rho = 0.0020
+    elif fy <= 420.0:
+        rho = 0.0018
+    else:
+        rho = max(0.0018 * 420.0 / fy, 0.0014)
+    return rho * b * h
+
+
+def espaciamiento_maximo_losa(h: float) -> float:
+    """Espaciamiento máximo a flexión en losas en dos direcciones (mm), §8.7.2.2: min(2h, 450)."""
+    return min(2.0 * h, 450.0)
+
+
+@dataclass(frozen=True)
+class ArmaduraLosaSel:
+    numero_barra: int
+    espaciamiento: float       # mm
+    as_provista: float         # mm²/m
+    cumple: bool
+    disponer: str
+
+
+def seleccionar_armadura_losa(as_diseno: float, esp_max: float) -> ArmaduraLosaSel:
+    """Barra más pequeña cuyo espaciamiento práctico cubre ``as_diseno`` (mm²/m) y respeta min/max."""
+    if as_diseno <= 0:
+        ab = AREAS_BARRA_MM2[3]
+        return ArmaduraLosaSel(3, esp_max, ab * 1000.0 / esp_max, True, f"#3 @ {esp_max:.0f} mm")
+    ultima = None
+    for n in (3, 4, 5, 6):
+        ab = AREAS_BARRA_MM2[n]
+        s = math.floor(ab * 1000.0 / as_diseno / MODULO_ESP_MM) * MODULO_ESP_MM
+        if s > esp_max:
+            s = esp_max
+        as_prov = ab * 1000.0 / s
+        cumple = ESP_MIN_MM <= s <= esp_max + 1e-9 and as_prov >= as_diseno - 1e-6
+        ultima = ArmaduraLosaSel(n, s, as_prov, cumple, f"#{n} @ {s:.0f} mm")
+        if s < ESP_MIN_MM:
+            continue
+        if as_prov >= as_diseno - 1e-6:
+            return ultima
+    return ultima  # type: ignore[return-value]
+
+
+@dataclass(frozen=True)
+class DisenoLosaFranja:
+    as_requerido: float        # mm²/m
+    as_minimo: float           # mm²/m (temperatura)
+    as_diseno: float           # mm²/m = max(req, min)
+    seccion_insuficiente: bool
+    gobierna_minimo: bool
+    armadura: ArmaduraLosaSel
+
+
+def diseno_losa_franja(mu: float, b: float, h: float, d: float, fc: float, fy: float) -> DisenoLosaFranja:
+    """Diseña una franja de losa de ancho ``b`` (típ. 1000 mm) a flexión (ACI 318-19, SI)."""
+    as_req, insuf = as_requerido_flexion(mu, b, d, fc, fy)
+    as_min = as_minimo_temperatura(b, h, fy)
+    if insuf:
+        return DisenoLosaFranja(as_req, as_min, float("nan"), True, False,
+                                ArmaduraLosaSel(0, float("nan"), float("nan"), False, "SECCIÓN INSUFICIENTE"))
+    as_dis = max(as_req, as_min)
+    arm = seleccionar_armadura_losa(as_dis, espaciamiento_maximo_losa(h))
+    return DisenoLosaFranja(as_req, as_min, as_dis, False, as_min >= as_req, arm)

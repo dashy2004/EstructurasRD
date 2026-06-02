@@ -156,8 +156,13 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
     — las combos LRFD §5.3.1 (D/L/Lr/S/R/W/E), W y E reversibles (±),
     "(Lr o S o R)"=max, y `envolvente` (máx/mín; el mín captura uplift). 7 tests.
     **58/58 motor-fea verde.**
-  - [ ] Losas (DDM/EFM); R-033; versionado por edición; regresión vs Excel
-    ACI/MOPC. *(Núcleo de code-checking ya cubre viga, columna, zapata y combos.)*
+  - [x] **Losas a flexión (2026-06-02):** `aci318.diseno_losa_franja` (SI) — As
+    req. + As mín. por temperatura (§24.4.3.2, ρ·b·h) + espaciamiento máx.
+    (§8.7.2.2) + selección de barra #3–#6 + "Disponer". Espeja el
+    `AcerosLosaDesigner` de C# (A1). 6 tests. **64/64 motor-fea verde (pytest).**
+  - [ ] Losas DDM/EFM (momentos por coeficientes); R-033; versionado por edición;
+    regresión vs Excel ACI/MOPC. *(Code-checking cubre viga, columna, zapata,
+    combos y losa a flexión.)*
 - [ ] **B4 · BIM + datos**
   - IfcOpenShell import/export, modelo relacional PostgreSQL, viz
     react-three-fiber. Modelo analítico derivado del geométrico.
