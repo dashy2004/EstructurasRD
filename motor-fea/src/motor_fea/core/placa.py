@@ -107,3 +107,20 @@ def rigidez_placa(lx: float, ly: float, E: float, nu: float, t: float) -> list[l
 def matvec(K: list[list[float]], x: list[float]) -> list[float]:
     """Producto matriz·vector (utilidad para tests de cuerpo rígido)."""
     return [sum(K[i][j] * x[j] for j in range(len(x))) for i in range(len(K))]
+
+
+def momentos_elemento(lx: float, ly: float, E: float, nu: float, t: float,
+                      d_elem: list[float], fx: float = 0.5, fy: float = 0.5) -> tuple[float, float, float]:
+    """Momentos flectores (Mx, My, Mxy) por unidad de ancho en un punto del elemento.
+
+    ``d_elem`` = 12 GDL nodales [w,θx,θy ×4] (orden de :func:`rigidez_placa`).
+    ``fx, fy`` ∈ [0,1] = posición natural dentro del elemento (0.5,0.5 = centro).
+    Devuelve N·m/m. Convención: ``M = −Db·κ`` con ``κ=[w_xx, w_yy, 2·w_xy]`` (signo
+    de momento positivo = tracción en la cara inferior). Para diseño se usa |M|.
+    """
+    c = matvec(_inversa(_matriz_C(lx, ly)), d_elem)          # coeficientes del polinomio
+    B = _curvaturas_poly(fx * lx, fy * ly)
+    kappa = [sum(B[r][k] * c[k] for k in range(12)) for r in range(3)]
+    Db = constitutiva_flexion(E, nu, t)
+    m = [-sum(Db[r][k] * kappa[k] for k in range(3)) for r in range(3)]
+    return (m[0], m[1], m[2])

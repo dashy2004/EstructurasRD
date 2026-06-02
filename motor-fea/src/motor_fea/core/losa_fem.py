@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from motor_fea.core.placa import GDL_POR_NODO_PLACA, rigidez_placa
+from motor_fea.core.placa import GDL_POR_NODO_PLACA, momentos_elemento, rigidez_placa
 from motor_fea.core.solver import resolver_lineal
 
 
@@ -24,6 +24,9 @@ class ResultadoLosa:
     ny: int
     desplazamientos_w: dict[tuple[int, int], float]   # (i,j) → w
     w_central: float
+    mx_max: float = 0.0      # |Mx| máximo (N·m/m)
+    my_max: float = 0.0      # |My| máximo
+    mxy_max: float = 0.0     # |Mxy| máximo
 
 
 def _idx(i: int, j: int, nx: int) -> int:
@@ -89,7 +92,20 @@ def resolver_losa_rectangular(a: float, b: float, nx: int, ny: int,
     desplazamientos = {(i, j): u[_idx(i, j, nx) * 3]
                        for i in range(nx + 1) for j in range(ny + 1)}
     w_central = desplazamientos.get((nx // 2, ny // 2), 0.0)
-    return ResultadoLosa(nx, ny, desplazamientos, w_central)
+
+    # Recuperar momentos en el centro de cada elemento y quedarse con los máximos.
+    mx_max = my_max = mxy_max = 0.0
+    for cj in range(ny):
+        for ci in range(nx):
+            nodos = [_idx(ci, cj, nx), _idx(ci + 1, cj, nx),
+                     _idx(ci + 1, cj + 1, nx), _idx(ci, cj + 1, nx)]
+            d_elem = [u[nd * 3 + d] for nd in nodos for d in range(3)]
+            mx, my, mxy = momentos_elemento(lx, ly, E, nu, t, d_elem, 0.5, 0.5)
+            mx_max = max(mx_max, abs(mx))
+            my_max = max(my_max, abs(my))
+            mxy_max = max(mxy_max, abs(mxy))
+
+    return ResultadoLosa(nx, ny, desplazamientos, w_central, mx_max, my_max, mxy_max)
 
 
 def rigidez_flexional_placa(E: float, nu: float, t: float) -> float:

@@ -163,8 +163,12 @@ tests; 780/780 .NET verde. Pendiente menor: posicionamiento por defecto de vigas
       uniforme, solve de w. **Validado por convergencia monótona** vs placa
       cuadrada SS (err 4×4→10×10: −3.4%→−0.48%; <1% a 10×10). 5 tests.
       **80/80 motor-fea verde.**
-    - [ ] Recuperar momentos Mx/My/Mxy de la solución → diseño de acero de losa
-      (cerrar análisis→diseño FEM). Diafragma rígido. SRSS/CQC. MITC4 (refinam.).
+    - [x] **Momentos + diseño (2026-06-02):** `placa.momentos_elemento` (M=−Db·κ),
+      `losa_fem` recupera Mx/My/Mxy máximos; `motor_fea/diseno_losa.py` cierra
+      **análisis→diseño** (FEM → momentos → `aci318.diseno_losa_franja`). Momento
+      convergente y simétrico (coef Mx/qa² 4×4→10×10: 0.035→0.043). 5 tests.
+      **85/85 motor-fea verde.** El motor iguala a `Losas.exe` (momentos→armadura).
+    - [ ] Diafragma rígido. Combinación espectral SRSS/CQC. MITC4 (placas gruesas).
 - [x] **B·sismo — cortante basal estático (2026-06-02)** — *3 capas juntas*
   - `r001.aceleracion_espectral(T)`: espectro de diseño (rampa T0 / meseta SDS /
     rama SD1/T). `sismo.cortante_basal_sismico`: módulo de composición que une
