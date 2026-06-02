@@ -33,6 +33,13 @@ public partial class Planta2DEditorView : UserControl
         // Wire level selection
         CbNivel.SelectionChanged += OnNivelSelectionChanged;
 
+        // Wire snap controls
+        ChkSnap.IsCheckedChanged += OnSnapCheckedChanged;
+        CbGridStep.SelectionChanged += OnGridStepSelectionChanged;
+
+        // Sync initial snap states
+        SyncSnapSettings();
+
         // Wire toolbar tools
         BtnPuntero.IsCheckedChanged += (s, e) => { if (BtnPuntero.IsChecked == true) EditorCanvas.ActiveTool = "Puntero"; };
         BtnAddLosa.IsCheckedChanged += (s, e) => { if (BtnAddLosa.IsChecked == true) EditorCanvas.ActiveTool = "Losa"; };
@@ -71,9 +78,53 @@ public partial class Planta2DEditorView : UserControl
         }
     }
 
+    private void OnSnapCheckedChanged(object? sender, RoutedEventArgs e)
+    {
+        EditorCanvas.IsSnappingEnabled = ChkSnap.IsChecked == true;
+        EditorCanvas.InvalidateVisual();
+    }
+
+    private void OnGridStepSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (CbGridStep == null || EditorCanvas == null) return;
+
+        double step = 0.5;
+        switch (CbGridStep.SelectedIndex)
+        {
+            case 0: step = 0.1; break;
+            case 1: step = 0.2; break;
+            case 2: step = 0.5; break;
+            case 3: step = 1.0; break;
+            case 4: step = 0.0; break; // Free
+        }
+
+        EditorCanvas.StepGrid = step;
+        EditorCanvas.InvalidateVisual();
+    }
+
+    private void SyncSnapSettings()
+    {
+        EditorCanvas.IsSnappingEnabled = ChkSnap.IsChecked == true;
+        OnGridStepSelectionChanged(null, null!);
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        // Pressing S toggles snapping when focus is NOT inside a TextBox
+        if (e.Key == Key.S && e.Source is not TextBox)
+        {
+            ChkSnap.IsChecked = ChkSnap.IsChecked != true;
+            e.Handled = true;
+        }
+    }
+
     private void OnCanvasSelectionChanged(object? selected)
     {
         _updatingProperties = true;
+
+        // Clear previous error backgrounds when selection changes
+        ClearErrorBackgrounds();
 
         TxtNoSelection.IsVisible = selected == null;
         PanelLosa.IsVisible = selected is Losa;
@@ -111,6 +162,31 @@ public partial class Planta2DEditorView : UserControl
         }
 
         _updatingProperties = false;
+    }
+
+    private void ClearErrorBackgrounds()
+    {
+        // Losa textboxes
+        TxtLosaX.ClearValue(TextBox.BackgroundProperty);
+        TxtLosaY.ClearValue(TextBox.BackgroundProperty);
+        TxtLosaLx.ClearValue(TextBox.BackgroundProperty);
+        TxtLosaLy.ClearValue(TextBox.BackgroundProperty);
+        TxtLosaCarga.ClearValue(TextBox.BackgroundProperty);
+        TxtLosaEspesor.ClearValue(TextBox.BackgroundProperty);
+
+        // Viga textboxes
+        TxtVigaNombre.ClearValue(TextBox.BackgroundProperty);
+        TxtVigaX.ClearValue(TextBox.BackgroundProperty);
+        TxtVigaY.ClearValue(TextBox.BackgroundProperty);
+        TxtVigaAngulo.ClearValue(TextBox.BackgroundProperty);
+
+        // Columna textboxes
+        TxtColNombre.ClearValue(TextBox.BackgroundProperty);
+        TxtColX.ClearValue(TextBox.BackgroundProperty);
+        TxtColY.ClearValue(TextBox.BackgroundProperty);
+        TxtColBase.ClearValue(TextBox.BackgroundProperty);
+        TxtColPeralte.ClearValue(TextBox.BackgroundProperty);
+        TxtColAltura.ClearValue(TextBox.BackgroundProperty);
     }
 
     private void RegisterInputHandlers()
@@ -168,24 +244,58 @@ public partial class Planta2DEditorView : UserControl
         }
     }
 
+    private bool ValidateDouble(TextBox textBox, out double val, Func<double, bool> validator)
+    {
+        if (double.TryParse(textBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out val))
+        {
+            if (validator(val))
+            {
+                textBox.ClearValue(TextBox.BackgroundProperty);
+                return true;
+            }
+        }
+        textBox.Background = new SolidColorBrush(Color.Parse("#FFCDD2"));
+        return false;
+    }
+
+    private bool ValidateStringNotEmpty(TextBox textBox, out string val)
+    {
+        val = (textBox.Text ?? "").Trim();
+        if (PlantaValidationRules.IsValidName(val))
+        {
+            textBox.ClearValue(TextBox.BackgroundProperty);
+            return true;
+        }
+        textBox.Background = new SolidColorBrush(Color.Parse("#FFCDD2"));
+        return false;
+    }
+
     private void CommitLosa()
     {
         if (_updatingProperties || EditorCanvas.SelectedElement is not Losa l) return;
 
-        double.TryParse(TxtLosaX.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double x);
-        double.TryParse(TxtLosaY.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double y);
-        double.TryParse(TxtLosaLx.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double lx);
-        double.TryParse(TxtLosaLy.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double ly);
-        double.TryParse(TxtLosaCarga.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double carga);
-        double.TryParse(TxtLosaEspesor.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double espesor);
+        bool isValid = true;
+        isValid &= ValidateDouble(TxtLosaX, out double x, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtLosaY, out double y, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtLosaLx, out double lx, PlantaValidationRules.IsValidDimension);
+        isValid &= ValidateDouble(TxtLosaLy, out double ly, PlantaValidationRules.IsValidDimension);
+        isValid &= ValidateDouble(TxtLosaCarga, out double carga, PlantaValidationRules.IsValidCarga);
+        isValid &= ValidateDouble(TxtLosaEspesor, out double espesor, PlantaValidationRules.IsValidEspesor);
+
+        if (!isValid)
+        {
+            TxtStatus.Text = "✕ Error: Las dimensiones y espesor de losa deben ser mayores que cero. Las coordenadas no pueden ser texto vacío.";
+            return;
+        }
 
         l.CoordenadaX = x;
         l.CoordenadaY = y;
-        l.Lx = lx > 0 ? lx : 1.0;
-        l.Ly = ly > 0 ? ly : 1.0;
+        l.Lx = lx;
+        l.Ly = ly;
         l.Carga = carga;
         l.Espesor = espesor;
 
+        TxtStatus.Text = $"Losa {l.Id} actualizada con éxito.";
         EditorCanvas.InvalidateVisual();
     }
 
@@ -193,15 +303,24 @@ public partial class Planta2DEditorView : UserControl
     {
         if (_updatingProperties || EditorCanvas.SelectedElement is not Viga v) return;
 
-        double.TryParse(TxtVigaX.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double x);
-        double.TryParse(TxtVigaY.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double y);
-        double.TryParse(TxtVigaAngulo.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double ang);
+        bool isValid = true;
+        isValid &= ValidateStringNotEmpty(TxtVigaNombre, out string nombre);
+        isValid &= ValidateDouble(TxtVigaX, out double x, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtVigaY, out double y, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtVigaAngulo, out double ang, PlantaValidationRules.IsValidCoordinate);
 
-        v.Nombre = TxtVigaNombre.Text ?? v.Nombre;
+        if (!isValid)
+        {
+            TxtStatus.Text = "✕ Error: El nombre de la viga no puede estar vacío. Coordenadas y ángulo deben ser válidos.";
+            return;
+        }
+
+        v.Nombre = nombre;
         v.OrigenX = x;
         v.OrigenY = y;
         v.AnguloGrados = ang;
 
+        TxtStatus.Text = $"Viga {v.Nombre} actualizada con éxito.";
         EditorCanvas.InvalidateVisual();
     }
 
@@ -209,19 +328,28 @@ public partial class Planta2DEditorView : UserControl
     {
         if (_updatingProperties || EditorCanvas.SelectedElement is not Columna c) return;
 
-        double.TryParse(TxtColX.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double x);
-        double.TryParse(TxtColY.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double y);
-        double.TryParse(TxtColBase.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double cb);
-        double.TryParse(TxtColPeralte.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double cp);
-        double.TryParse(TxtColAltura.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double alt);
+        bool isValid = true;
+        isValid &= ValidateStringNotEmpty(TxtColNombre, out string nombre);
+        isValid &= ValidateDouble(TxtColX, out double x, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtColY, out double y, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtColBase, out double cb, PlantaValidationRules.IsValidDimension);
+        isValid &= ValidateDouble(TxtColPeralte, out double cp, PlantaValidationRules.IsValidDimension);
+        isValid &= ValidateDouble(TxtColAltura, out double alt, PlantaValidationRules.IsValidDimension);
 
-        c.Nombre = TxtColNombre.Text ?? c.Nombre;
+        if (!isValid)
+        {
+            TxtStatus.Text = "✕ Error: Dimensiones de columna deben ser mayores que cero. El nombre no puede estar vacío.";
+            return;
+        }
+
+        c.Nombre = nombre;
         c.CoordenadaX = x;
         c.CoordenadaY = y;
-        c.Base = cb > 0 ? cb : 0.1;
-        c.Peralte = cp > 0 ? cp : 0.1;
-        c.Altura = alt > 0 ? alt : 1.0;
+        c.Base = cb;
+        c.Peralte = cp;
+        c.Altura = alt;
 
+        TxtStatus.Text = $"Columna {c.Nombre} actualizada con éxito.";
         EditorCanvas.InvalidateVisual();
     }
 
@@ -253,6 +381,7 @@ public partial class Planta2DEditorView : UserControl
 
         EditorCanvas.SelectedElement = null;
         EditorCanvas.InvalidateVisual();
+        TxtStatus.Text = "Elemento eliminado.";
     }
 
     private void OnRecalcularClick(object? sender, RoutedEventArgs e)
@@ -260,8 +389,11 @@ public partial class Planta2DEditorView : UserControl
         var nivel = EditorCanvas.Nivel;
         if (nivel == null) return;
 
-        double.TryParse(TxtQAdm.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double qAdm);
-        if (qAdm <= 0) qAdm = 15.0;
+        if (!ValidateDouble(TxtQAdm, out double qAdm, PlantaValidationRules.IsValidDimension))
+        {
+            TxtStatus.Text = "✕ Error: La presión admisible del suelo q_adm debe ser mayor que cero.";
+            return;
+        }
 
         try
         {
@@ -271,12 +403,12 @@ public partial class Planta2DEditorView : UserControl
             // 2. Descenso geométrico viga -> columna -> zapata
             var zapatasPredim = DescensoColumnas.PredimensionarGeometrico(nivel, qAdm);
 
-            TxtStatus.Text = $"Descenso recalculado: {vigasCargadas} vigas cargadas, {zapatasPredim.Count} zapatas predimensionadas.";
+            TxtStatus.Text = $"⚡ Descenso calculado con éxito: {vigasCargadas} vigas cargadas, {zapatasPredim.Count} zapatas predimensionadas.";
             EditorCanvas.InvalidateVisual();
         }
         catch (Exception ex)
         {
-            TxtStatus.Text = $"Error al recalcular: {ex.Message}";
+            TxtStatus.Text = $"✕ Error al recalcular: {ex.Message}";
         }
     }
 }
