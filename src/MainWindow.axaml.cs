@@ -85,6 +85,11 @@ public partial class MainWindow : Window
 
         AplicarAtajos(AtajosService.Load());
         AtajosService.AtajosCambiados += OnAtajosCambiados;
+
+        if (Environment.GetEnvironmentVariable("EXPORT_SCREENSHOTS") == "true")
+        {
+            Dispatcher.UIThread.Post(async () => await RunVisualVerificationAsync());
+        }
     }
 
     private void OnClosed(object? sender, EventArgs e)
@@ -487,5 +492,122 @@ public partial class MainWindow : Window
         if (Vm.ProyectoRecienteSeleccionado is null) return;
         if (Vm.AbrirEnEditorCommand is { } cmd && cmd.CanExecute(null))
             cmd.Execute(null);
+    }
+
+    private async Task RunVisualVerificationAsync()
+    {
+        Console.WriteLine("[SCREENSHOTS] Starting automated visual verification...");
+        try
+        {
+            // 1. Load legacy .DL
+            var dlPath = "/home/gdc/Downloads/EstructurasRD-main/tests/fixtures/sistema_demo_27_losas.DL";
+            Vm.AbrirDL(dlPath);
+            await Task.Delay(200);
+
+            // 2. Import .TXT
+            var txtPath = "/home/gdc/Downloads/EstructurasRD-main/tests/fixtures/sistema_demo_27_losas.TXT";
+            await Vm.ImportarTxtAsync(txtPath);
+            await Task.Delay(200);
+
+            // 3. Add columns and levels to EdificioActivo to make it look like a real building
+            var ed = Vm.EdificioActivo;
+            if (ed != null)
+            {
+                ed.Niveles.Clear();
+                for (int levelIndex = 0; levelIndex < 3; levelIndex++)
+                {
+                    var level = new Nivel
+                    {
+                        Nombre = $"Nivel {levelIndex + 1}",
+                        Cota = levelIndex * 3.0
+                    };
+                    for (int colIndex = 0; colIndex < 4; colIndex++)
+                    {
+                        var col = new Columna
+                        {
+                            Nombre = $"C-{levelIndex * 4 + colIndex + 1}",
+                            CoordenadaX = colIndex * 5.0,
+                            CoordenadaY = 4.0,
+                            Altura = 3.0,
+                            Base = 0.30,
+                            Peralte = 0.30,
+                            Zapata = levelIndex == 0 ? new Zapata { Ancho = 1.8, Largo = 1.8, Peralte = 0.40 } : null
+                        };
+                        level.Columnas.Add(col);
+                    }
+                    if (levelIndex == 0)
+                    {
+                        level.Sistemas.Add(Vm.SistemaActivo);
+                    }
+                    else
+                    {
+                        var dummySys = new Sistema { Nombre = $"Sistema Nivel {levelIndex + 1}" };
+                        foreach (var l in Vm.SistemaActivo.Losas)
+                        {
+                            dummySys.Losas.Add(new Losa
+                            {
+                                Id = l.Id, Tipo = l.Tipo, Carga = l.Carga, Espesor = l.Espesor, Lx = l.Lx, Ly = l.Ly, Rec = l.Rec
+                            });
+                        }
+                        level.Sistemas.Add(dummySys);
+                    }
+                    ed.Niveles.Add(level);
+                }
+            }
+
+            // 4. Force recalculating and selecting level
+            if (Vm.BajadaCargas != null)
+            {
+                Vm.BajadaCargas.Recalcular();
+            }
+            if (Vm.ColumnasEditor != null && ed != null && ed.Niveles.Count > 0)
+            {
+                Vm.ColumnasEditor.NivelSeleccionado = ed.Niveles[0];
+            }
+
+            // 5. Run loop to capture each view mode
+            var modes = new[]
+            {
+                ModoSidebar.Editor,
+                ModoSidebar.PlanoCad,
+                ModoSidebar.Vista3D,
+                ModoSidebar.Columnas,
+                ModoSidebar.BajadaCargas,
+                ModoSidebar.Validacion
+            };
+
+            var outputDir = "/home/gdc/.gemini/antigravity/brain/9c4cc8ee-768f-4f02-94d3-383b064ae8d7/.tempmediaStorage";
+            Directory.CreateDirectory(outputDir);
+
+            foreach (var mode in modes)
+            {
+                Vm.ModoActivo = mode;
+                // Wait for layout solver & rendering
+                await Task.Delay(1000);
+
+                var bounds = this.Bounds;
+                var width = (int)Math.Max(bounds.Width, 1200);
+                var height = (int)Math.Max(bounds.Height, 800);
+                var pixelSize = new Avalonia.PixelSize(width, height);
+                using var rtb = new Avalonia.Media.Imaging.RenderTargetBitmap(pixelSize);
+                rtb.Render(this);
+
+                var filePath = Path.Combine(outputDir, $"screenshot_{mode.ToString().ToLower()}.png");
+                using (var fs = File.OpenWrite(filePath))
+                {
+                    rtb.Save(fs);
+                }
+                Console.WriteLine($"[SCREENSHOTS] Saved {filePath}");
+            }
+            Console.WriteLine("[SCREENSHOTS] All screenshots saved successfully.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SCREENSHOTS] Error: {ex}");
+        }
+        finally
+        {
+            Environment.Exit(0);
+        }
     }
 }
