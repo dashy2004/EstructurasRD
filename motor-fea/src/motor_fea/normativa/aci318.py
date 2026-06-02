@@ -209,3 +209,58 @@ def punto_interaccion(c: float, b: float, h: float, fc: float, fy: float,
     et = EPS_CU * (d_max - c) / c                 # tracción positiva
     phi = phi_por_deformacion(et, fy, es)
     return PuntoInteraccion(c, pn, mn, et, phi)
+
+
+# ------------- Zapatas: punzonamiento (cortante en dos direcciones) -------------
+ALPHA_S = {"interior": 40.0, "borde": 30.0, "esquina": 20.0}   # ACI 318-19 §22.6.5.3
+
+
+def perimetro_critico(c1: float, c2: float, d: float, posicion: str = "interior") -> float:
+    """Perímetro crítico bo (mm) a d/2 de la cara de la columna, ACI 318-19 §22.6.4.1.
+
+    c1, c2 = lados de la columna (mm); ``posicion`` ∈ {interior, borde, esquina}.
+    """
+    if posicion == "interior":
+        return 2.0 * (c1 + d) + 2.0 * (c2 + d)
+    if posicion == "borde":
+        return 2.0 * (c1 + d / 2.0) + (c2 + d)
+    if posicion == "esquina":
+        return (c1 + d / 2.0) + (c2 + d / 2.0)
+    raise ValueError("posicion debe ser interior, borde o esquina.")
+
+
+@dataclass(frozen=True)
+class ResultadoPunzonamiento:
+    bo: float                 # perímetro crítico (mm)
+    beta_c: float             # relación lado largo/corto de la columna
+    alpha_s: float            # 40 / 30 / 20
+    vc_esfuerzo: float        # vc gobernante (MPa)
+    vc_terminos: tuple[float, float, float]   # (base, βc, αs) en MPa
+    vc: float                 # Vc nominal (N)
+    phi_vc: float             # φVc (N)
+    ratio: float              # Vu / φVc
+    cumple: bool
+
+
+def cortante_punzonamiento(vu: float, c1: float, c2: float, d: float, fc: float,
+                           posicion: str = "interior", lam: float = 1.0) -> ResultadoPunzonamiento:
+    """Verificación a punzonamiento de zapata/losa, ACI 318-19 §22.6.5.2.
+
+    vc = min de los tres términos; Vc = vc·bo·d; φVc = 0.75·Vc; ratio = Vu/φVc.
+    """
+    bo = perimetro_critico(c1, c2, d, posicion)
+    beta_c = max(c1, c2) / min(c1, c2)
+    alpha_s = ALPHA_S[posicion]
+    raiz = lam * math.sqrt(fc)
+
+    v_base = 0.33 * raiz
+    v_beta = 0.17 * (1.0 + 2.0 / beta_c) * raiz
+    v_alpha = 0.083 * (2.0 + alpha_s * d / bo) * raiz
+    vc_esf = min(v_base, v_beta, v_alpha)
+
+    vc = vc_esf * bo * d
+    phi_vc = PHI_CORTANTE * vc
+    ratio = abs(vu) / phi_vc if phi_vc > 0 else float("inf")
+    return ResultadoPunzonamiento(bo, beta_c, alpha_s, vc_esf,
+                                  (v_base, v_beta, v_alpha), vc, phi_vc,
+                                  ratio, ratio <= 1.0 + 1e-9)

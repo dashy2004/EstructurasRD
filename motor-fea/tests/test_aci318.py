@@ -113,3 +113,37 @@ def test_interaccion_phi_pn_y_phi_mn():
     p = aci318.punto_interaccion(200.0, CB, CH, FC, 420.0, CAPAS)
     assert abs(p.phi_pn - p.phi * p.pn) < 1e-9
     assert abs(p.phi_mn - p.phi * p.mn) < 1e-9
+
+
+# --------------------- Zapatas: punzonamiento (§22.6) ---------------------
+def test_perimetro_critico_interior_y_esquina():
+    assert aci318.perimetro_critico(400, 400, 440, "interior") == 2 * 840 + 2 * 840  # 3360
+    assert aci318.perimetro_critico(400, 400, 440, "esquina") == (400 + 220) + (400 + 220)  # 1240
+
+
+def test_punzonamiento_columna_cuadrada_gobierna_termino_base():
+    r = aci318.cortante_punzonamiento(1.5e6, 400, 400, 440, FC, "interior")
+    assert abs(r.bo - 3360.0) < 1e-6
+    assert r.beta_c == 1.0
+    # cuadrada → el término base 0.33√f'c gobierna
+    assert abs(r.vc_esfuerzo - 0.33 * math.sqrt(FC)) < 1e-6
+    assert abs(r.vc - r.vc_esfuerzo * r.bo * 440) < 1e-3
+    assert abs(r.phi_vc - 0.75 * r.vc) < 1e-3
+
+
+def test_punzonamiento_columna_alargada_gobierna_beta_c():
+    r = aci318.cortante_punzonamiento(1.0e6, 800, 200, 300, FC, "interior")
+    assert r.beta_c == 4.0
+    # βc grande → el término 0.17(1+2/βc)√f'c es el menor
+    assert r.vc_esfuerzo == min(r.vc_terminos)
+    assert abs(r.vc_esfuerzo - r.vc_terminos[1]) < 1e-9
+
+
+def test_punzonamiento_esquina_alpha_s_20_y_cumple_flag():
+    r = aci318.cortante_punzonamiento(200e3, 400, 400, 300, FC, "esquina")
+    assert r.alpha_s == 20.0
+    # ratio y cumple coherentes
+    assert r.cumple == (r.ratio <= 1.0 + 1e-9)
+    # carga muy alta → no cumple
+    r2 = aci318.cortante_punzonamiento(5.0e6, 400, 400, 300, FC, "esquina")
+    assert not r2.cumple and r2.ratio > 1.0

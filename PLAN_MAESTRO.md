@@ -132,8 +132,12 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
     `punto_interaccion(c)` por compatibilidad de deformaciones (εcu=0.003,
     descuento de hormigón desplazado). 6 tests (β1, transición φ, balanceado
     εt=εy, monotonía Pn). **35/35 motor-fea verde.**
-  - [ ] Zapatas (punzonamiento §22.6), losas; R-033; versionado por edición;
-    regresión vs hojas Excel ACI/MOPC.
+  - [x] **Zapatas/punzonamiento (2026-06-02):** `aci318.py` — perímetro crítico
+    bo (interior/borde/esquina, §22.6.4.1), los 3 términos de vc §22.6.5.2 (base
+    0.33√f'c, βc, αs=40/30/20), φVc y ratio. 4 tests (gobierna base / gobierna βc
+    / esquina αs=20 / cumple). **39/39 motor-fea verde.**
+  - [ ] Losas (DDM/EFM); R-033; versionado por edición; regresión vs Excel
+    ACI/MOPC. *(Núcleo de code-checking ya cubre viga, columna y zapata.)*
 - [ ] **B4 · BIM + datos**
   - IfcOpenShell import/export, modelo relacional PostgreSQL, viz
     react-three-fiber. Modelo analítico derivado del geométrico.
