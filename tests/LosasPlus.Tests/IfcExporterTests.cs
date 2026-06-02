@@ -180,4 +180,35 @@ public class IfcExporterTests
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }
+
+    /// <summary>
+    /// K.6: una zapata se exporta con geometría real — un IfcExtrudedAreaSolid
+    /// (perfil Ancho×Largo centrado en la columna, extruido hacia −Z por su
+    /// Peralte) enlazado como Representation del IfcFooting.
+    /// </summary>
+    [Fact]
+    public void La_zapata_exporta_geometria_IfcExtrudedAreaSolid()
+    {
+        var ed = new Edificio { Nombre = "Torre" };
+        var nivel = new Nivel { Nombre = "N1", Cota = 0 };
+        nivel.Columnas.Add(new Columna
+        {
+            Nombre = "C-1", CoordenadaX = 2, CoordenadaY = 3,
+            Zapata = new Zapata { Nombre = "Z-1", Ancho = 1.5, Largo = 2.0, Peralte = 0.40 },
+        });
+        ed.Niveles.Add(nivel);
+
+        var path = Path.Combine(Path.GetTempPath(), $"ifc_{Guid.NewGuid():N}.ifc");
+        try
+        {
+            IfcExporter.Export(ed, path, "Torre");
+            var ifc = File.ReadAllText(path);
+
+            Assert.Contains("IFCEXTRUDEDAREASOLID(", ifc);
+            Assert.Contains(",1.5,2.0)", ifc);                 // perfil Ancho×Largo
+            // El IfcFooting referencia su representación geométrica (ya no es $ en ese slot).
+            Assert.Matches(@"IFCFOOTING\('[^']*',\$,'Z-1',\$,\$,\$,#\d+,\$,\$\)", ifc);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
 }

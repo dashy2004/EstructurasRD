@@ -97,7 +97,17 @@ public static class IfcExporter
                                                   columna.Base, columna.Peralte, columna.Altura);
                     elems.Add(Emit($"IFCCOLUMN('{Guid22(id + 1)}',$,{Txt(columna.Nombre)},$,$,$,#{formaCol},$,$)"));
                     if (columna.Zapata is { } zap)
-                        elems.Add(Emit($"IFCFOOTING('{Guid22(id + 1)}',$,{Txt(zap.Nombre)},$,$,$,$,$,$)"));
+                    {
+                        // Perfil Ancho×Largo centrado en la columna, extruido -Z por el peralte.
+                        string repZap = "$";
+                        if (zap.Peralte > 0)
+                        {
+                            int formaZap = PrismaVertical(columna.CoordenadaX, columna.CoordenadaY, nivel.Cota,
+                                                          zap.Ancho, zap.Largo, zap.Peralte, -1.0);
+                            repZap = "#" + formaZap;
+                        }
+                        elems.Add(Emit($"IFCFOOTING('{Guid22(id + 1)}',$,{Txt(zap.Nombre)},$,$,$,{repZap},$,$)"));
+                    }
                 }
                 foreach (var viga in nivel.Vigas)
                     elems.Add(Emit($"IFCBEAM('{Guid22(id + 1)}',$,{Txt(viga.Nombre)},$,$,$,$,$,$)"));
