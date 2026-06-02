@@ -30,11 +30,31 @@ public partial class Edificio : INotifyPropertyChanged
 {
     private string _nombre = "Edificio 1";
 
+    private double _latitud;
+    private double _longitud;
+
     /// <summary>Nombre descriptivo del edificio.</summary>
     public string Nombre
     {
         get => _nombre;
         set { _nombre = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// Latitud geográfica del edificio en grados decimales (Fase K — cimiento de
+    /// la georreferenciación / mapa 3D). 0 = sin georreferenciar. Aditivo.
+    /// </summary>
+    public double Latitud
+    {
+        get => _latitud;
+        set { _latitud = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Longitud geográfica del edificio en grados decimales (ver <see cref="Latitud"/>).</summary>
+    public double Longitud
+    {
+        get => _longitud;
+        set { _longitud = value; OnPropertyChanged(); }
     }
 
     /// <summary>

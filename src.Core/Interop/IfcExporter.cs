@@ -51,7 +51,13 @@ public static class IfcExporter
 
         // Jerarquía espacial.
         int proyecto = Emit($"IFCPROJECT('{Guid22(id + 1)}',$,{Txt(proyectoNombre)},$,$,$,$,(#{ctx}),#{uAssign})");
-        int sitio = Emit($"IFCSITE('{Guid22(id + 1)}',$,'Sitio',$,$,$,$,$,.ELEMENT.,$,$,$,$,$)");
+        string refLat = "$", refLon = "$";
+        if (edificio is not null && (edificio.Latitud != 0 || edificio.Longitud != 0))
+        {
+            refLat = AnguloIfc(edificio.Latitud);
+            refLon = AnguloIfc(edificio.Longitud);
+        }
+        int sitio = Emit($"IFCSITE('{Guid22(id + 1)}',$,'Sitio',$,$,$,$,$,.ELEMENT.,{refLat},{refLon},$,$,$)");
         int edif = Emit($"IFCBUILDING('{Guid22(id + 1)}',$,{Txt(edificio?.Nombre ?? "Edificio")},$,$,$,$,$,.ELEMENT.,$,$,$)");
 
         var pisos = new System.Collections.Generic.List<int>();
@@ -111,6 +117,21 @@ public static class IfcExporter
     private static string Txt(string s) => "'" + Escapar(s) + "'";
     private static string Escapar(string s) => (s ?? "").Replace("'", "''");
     private static string Real(double v) => v.ToString("0.0###", CultureInfo.InvariantCulture);
+
+    /// <summary>Convierte grados decimales a IfcCompoundPlaneAngleMeasure (grados,minutos,segundos,millonésimas).</summary>
+    private static string AnguloIfc(double grados)
+    {
+        int signo = grados < 0 ? -1 : 1;
+        double abs = System.Math.Abs(grados);
+        int d = (int)abs;
+        double rm = (abs - d) * 60.0;
+        int m = (int)rm;
+        double rs = (rm - m) * 60.0;
+        int s = (int)rs;
+        int frac = (int)System.Math.Round((rs - s) * 1_000_000.0);
+        if (frac >= 1_000_000) { frac = 0; s++; }
+        return $"({signo * d},{signo * m},{signo * s},{signo * frac})";
+    }
 
     /// <summary>GlobalId IFC: 22 chars del alfabeto base64 de IFC, derivado de <paramref name="n"/> (determinista).</summary>
     private static string Guid22(int n)

@@ -90,4 +90,29 @@ public class IfcExporterTests
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }
+
+    [Fact]
+    public void Georreferencia_el_sitio_con_latitud_y_longitud()
+    {
+        // Santo Domingo ≈ 18.486, -69.931 → IfcCompoundPlaneAngleMeasure.
+        var ed = new Edificio { Nombre = "Torre", Latitud = 18.486, Longitud = -69.931 };
+        ed.Niveles.Add(new Nivel { Nombre = "N1", Cota = 0 });
+        var path = Path.Combine(Path.GetTempPath(), $"ifc_{Guid.NewGuid():N}.ifc");
+        try
+        {
+            IfcExporter.Export(ed, path, "Torre");
+            var ifc = File.ReadAllText(path);
+            Assert.Contains("(18,29,", ifc);       // RefLatitude
+            Assert.Contains("(-69,-55,", ifc);     // RefLongitude (signo en todos los campos)
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    [Fact]
+    public void Sin_coordenadas_el_sitio_no_lleva_lat_lon()
+    {
+        var (ifc, path) = Exportar(); // edificio sin georreferenciar (lat/lon 0)
+        try { Assert.Contains(".ELEMENT.,$,$,$,$,$)", ifc); }  // IfcSite con RefLat/RefLon = $
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
 }
