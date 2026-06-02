@@ -38,6 +38,16 @@ confirmar antes), **DXF Fases 2/3** (CAD), **BIM/escala urbana** (B4/B5).
 
 ---
 
+## Bugfix (2026-06-02) — sincronización 2D↔3D
+
+`SincronizadorPlanta` (src.Core): Planta 2D y Vista 3D leen `Losa.CoordenadaX/Y`
+y `Columna.CoordenadaX/Y`, pero sólo se asignaban al arrastrar; lo creado en el
+grid del Editor o importado de `.DL`/`.TXT` quedaba en (0,0) → **todo apilado en
+el origen**. Ahora se hornea el layout de `LayoutSolver` en las coordenadas
+(losas) y se distribuyen las columnas en grilla (zapatas siguen), al entrar a
+Planta2D/Vista3D/PlanoCad; `Vista3DControl` reconstruye al volverse visible. 8
+tests; 780/780 .NET verde. Pendiente menor: posicionamiento por defecto de vigas.
+
 ## TRACK A — Correcciones LosasPlus (app C#/Avalonia existente)
 
 - [x] **A0 · Sincronizar la verdad + CI Linux** ✅ (2026-06-02) — sln Linux con
