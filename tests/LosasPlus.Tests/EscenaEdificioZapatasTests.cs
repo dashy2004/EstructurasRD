@@ -7,9 +7,9 @@ using Xunit;
 namespace LosasPlus.Tests;
 
 /// <summary>
-/// Tests del dibujo de zapatas en la escena 3D (Fase I.6): una columna con
-/// zapata aporta, además de su segmento vertical, el recuadro (4 aristas) de la
-/// huella de la zapata en la base.
+/// Tests del dibujo de zapatas en la escena 3D. Una columna se dibuja como caja
+/// extruida (12 aristas, K.6); con zapata aporta además el recuadro (4 aristas)
+/// de la huella de la zapata en la base.
 /// </summary>
 public class EscenaEdificioZapatasTests
 {
@@ -25,8 +25,8 @@ public class EscenaEdificioZapatasTests
     [Fact]
     public void Columna_sin_zapata_no_dibuja_recuadro()
     {
-        // 4 aristas de piso + 1 segmento de columna.
-        Assert.Equal(5, EscenaEdificio.Construir(ConColumna(null)).Segmentos.Count);
+        // 4 aristas de piso + 12 aristas de la caja de columna (sin recuadro de zapata).
+        Assert.Equal(16, EscenaEdificio.Construir(ConColumna(null)).Segmentos.Count);
     }
 
     [Fact]
@@ -35,8 +35,8 @@ public class EscenaEdificioZapatasTests
         var ed = ConColumna(new Zapata { Ancho = 2, Largo = 3 });
         var esc = EscenaEdificio.Construir(ed);
 
-        // 4 piso + 1 columna + 4 zapata.
-        Assert.Equal(9, esc.Segmentos.Count);
+        // 4 piso + 12 caja de columna + 4 zapata.
+        Assert.Equal(20, esc.Segmentos.Count);
 
         // Borde inferior de la huella: de (9,0,6.5) a (11,0,6.5).
         Assert.Contains(esc.Segmentos, s =>

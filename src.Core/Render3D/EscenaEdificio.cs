@@ -123,7 +123,35 @@ public static class EscenaEdificio
                 float cx = (float)columna.CoordenadaX;
                 float cz = (float)columna.CoordenadaY;
                 float yTope = y + (float)columna.Altura;
-                segs.Add(new Segmento3D(new Vector3(cx, y, cz), new Vector3(cx, yTope, cz)));
+                float hb = (float)(columna.Base * 0.5);     // media base (eje X)
+                float hp = (float)(columna.Peralte * 0.5);  // medio peralte (eje Z)
+
+                if (hb > 0f && hp > 0f)
+                {
+                    // K.6: caja extruida (prisma rectangular Base×Peralte×Altura) =
+                    // 12 aristas — sección real en vez de un hilo vertical.
+                    var cb = new[]
+                    {
+                        new Vector3(cx - hb, y, cz - hp), new Vector3(cx + hb, y, cz - hp),
+                        new Vector3(cx + hb, y, cz + hp), new Vector3(cx - hb, y, cz + hp),
+                    };
+                    var ct = new[]
+                    {
+                        new Vector3(cx - hb, yTope, cz - hp), new Vector3(cx + hb, yTope, cz - hp),
+                        new Vector3(cx + hb, yTope, cz + hp), new Vector3(cx - hb, yTope, cz + hp),
+                    };
+                    for (int i = 0; i < 4; i++)
+                    {
+                        segs.Add(new Segmento3D(cb[i], cb[(i + 1) % 4])); // arista base
+                        segs.Add(new Segmento3D(ct[i], ct[(i + 1) % 4])); // arista tope
+                        segs.Add(new Segmento3D(cb[i], ct[i]));           // arista vertical
+                    }
+                }
+                else
+                {
+                    // Columna sin sección definida → segmento vertical (previo).
+                    segs.Add(new Segmento3D(new Vector3(cx, y, cz), new Vector3(cx, yTope, cz)));
+                }
 
                 // Zapata (Fase J): recuadro horizontal de su huella en la base de
                 // la columna, centrado en (cx, cz) y dimensionado por Ancho × Largo.
