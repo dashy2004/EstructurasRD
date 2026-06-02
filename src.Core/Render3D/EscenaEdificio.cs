@@ -107,12 +107,40 @@ public static class EscenaEdificio
             // Vigas reales de la planta (Fase J / Planta 2D)
             foreach (var viga in nivel.Vigas)
             {
-                float x0 = (float)viga.OrigenX;
-                float z0 = (float)viga.OrigenY;
-                float x1 = (float)viga.ExtremoX;
-                float z1 = (float)viga.ExtremoY;
+                var a = new Vector3((float)viga.OrigenX, y, (float)viga.OrigenY);
+                var b = new Vector3((float)viga.ExtremoX, y, (float)viga.ExtremoY);
 
-                segs.Add(new Segmento3D(new Vector3(x0, y, z0), new Vector3(x1, y, z1)));
+                var tramo = viga.Tramos.Count > 0 ? viga.Tramos[0] : null;
+                float bw = tramo is not null ? (float)tramo.Base : 0f;     // ancho (perpendicular al eje)
+                float pe = tramo is not null ? (float)tramo.Peralte : 0f;  // peralte (vertical)
+                float lon = Vector3.Distance(a, b);
+
+                if (bw > 0f && pe > 0f && lon > 1e-6f)
+                {
+                    // K.6: prisma recto extruido a lo largo del eje de la viga = 12 aristas.
+                    var dir = (b - a) / lon;                                // dirección en XZ (y=0)
+                    var perp = new Vector3(-dir.Z, 0f, dir.X) * (bw * 0.5f); // ancho horizontal
+                    var vert = new Vector3(0f, pe * 0.5f, 0f);              // peralte vertical
+                    var pa = new[]
+                    {
+                        a - perp - vert, a + perp - vert, a + perp + vert, a - perp + vert,
+                    };
+                    var pb = new[]
+                    {
+                        b - perp - vert, b + perp - vert, b + perp + vert, b - perp + vert,
+                    };
+                    for (int i = 0; i < 4; i++)
+                    {
+                        segs.Add(new Segmento3D(pa[i], pa[(i + 1) % 4])); // sección en origen
+                        segs.Add(new Segmento3D(pb[i], pb[(i + 1) % 4])); // sección en extremo
+                        segs.Add(new Segmento3D(pa[i], pb[i]));           // arista longitudinal
+                    }
+                }
+                else
+                {
+                    // Viga sin sección/longitud → solo el eje (comportamiento previo).
+                    segs.Add(new Segmento3D(a, b));
+                }
             }
 
             // Columnas reales del modelo (Fase J): segmento vertical en su posición
