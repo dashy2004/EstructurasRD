@@ -66,6 +66,25 @@ public static class IfcExporter
             return Emit($"IFCPRODUCTDEFINITIONSHAPE($,$,(#{rep}))");
         }
 
+        // K.6: geometría de un elemento horizontal (viga) como prisma extruido a lo
+        // largo de su eje en planta. Z local = dirección (dirX,dirY,0); el perfil
+        // b×h queda en el plano local (b horizontal perpendicular, h vertical).
+        // Profundidad de extrusión = longitud de la viga.
+        int PrismaOrientado(double ox, double oy, double oz, double dirX, double dirY, double b, double h, double longitud)
+        {
+            int p2d = Emit("IFCCARTESIANPOINT((0.,0.))");
+            int ax2 = Emit($"IFCAXIS2PLACEMENT2D(#{p2d},$)");
+            int prof = Emit($"IFCRECTANGLEPROFILEDEF(.AREA.,$,#{ax2},{Real(b)},{Real(h)})");
+            int loc = Emit($"IFCCARTESIANPOINT(({Real(ox)},{Real(oy)},{Real(oz)}))");
+            int axisZ = Emit($"IFCDIRECTION(({Real(dirX)},{Real(dirY)},0.))");   // eje de la viga (Z local)
+            int refX = Emit($"IFCDIRECTION(({Real(-dirY)},{Real(dirX)},0.))");   // horizontal perpendicular (X local)
+            int pos = Emit($"IFCAXIS2PLACEMENT3D(#{loc},#{axisZ},#{refX})");
+            int ext = Emit("IFCDIRECTION((0.,0.,1.))");                          // extruir a lo largo de Z local
+            int solid = Emit($"IFCEXTRUDEDAREASOLID(#{prof},#{pos},#{ext},{Real(longitud)})");
+            int rep2 = Emit($"IFCSHAPEREPRESENTATION(#{ctx},'Body','SweptSolid',(#{solid}))");
+            return Emit($"IFCPRODUCTDEFINITIONSHAPE($,$,(#{rep2}))");
+        }
+
         // Unidades SI (metro).
         int uLong = Emit("IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.)");
         int uAssign = Emit($"IFCUNITASSIGNMENT((#{uLong}))");
@@ -110,7 +129,21 @@ public static class IfcExporter
                     }
                 }
                 foreach (var viga in nivel.Vigas)
-                    elems.Add(Emit($"IFCBEAM('{Guid22(id + 1)}',$,{Txt(viga.Nombre)},$,$,$,$,$,$)"));
+                {
+                    // Prisma orientado a lo largo del eje de la viga, sección del primer tramo.
+                    string repViga = "$";
+                    var tramo = viga.Tramos.Count > 0 ? viga.Tramos[0] : null;
+                    double lonViga = viga.LongitudTotal;
+                    if (tramo is not null && lonViga > 0)
+                    {
+                        double dvx = (viga.ExtremoX - viga.OrigenX) / lonViga;
+                        double dvy = (viga.ExtremoY - viga.OrigenY) / lonViga;
+                        int forma = PrismaOrientado(viga.OrigenX, viga.OrigenY, nivel.Cota,
+                                                    dvx, dvy, tramo.Base, tramo.Peralte, lonViga);
+                        repViga = "#" + forma;
+                    }
+                    elems.Add(Emit($"IFCBEAM('{Guid22(id + 1)}',$,{Txt(viga.Nombre)},$,$,$,{repViga},$,$)"));
+                }
                 foreach (var sistema in nivel.Sistemas)
                     foreach (var losa in sistema.Losas)
                     {

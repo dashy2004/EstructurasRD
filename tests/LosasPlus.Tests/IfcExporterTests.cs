@@ -211,4 +211,34 @@ public class IfcExporterTests
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }
+
+    /// <summary>
+    /// K.6: una viga se exporta con geometría real — un IfcExtrudedAreaSolid
+    /// orientado a lo largo de su eje en planta (perfil Base×Peralte del primer
+    /// tramo, extruido por la longitud total) enlazado como Representation del
+    /// IfcBeam.
+    /// </summary>
+    [Fact]
+    public void La_viga_exporta_geometria_IfcExtrudedAreaSolid_orientada()
+    {
+        var ed = new Edificio { Nombre = "Torre" };
+        var nivel = new Nivel { Nombre = "N1", Cota = 0 };
+        var viga = new Viga { Nombre = "V-1", OrigenX = 1, OrigenY = 2, AnguloGrados = 0 };
+        viga.Tramos.Add(new TramoViga { Longitud = 4, Base = 0.30, Peralte = 0.50 });
+        nivel.Vigas.Add(viga);
+        ed.Niveles.Add(nivel);
+
+        var path = Path.Combine(Path.GetTempPath(), $"ifc_{Guid.NewGuid():N}.ifc");
+        try
+        {
+            IfcExporter.Export(ed, path, "Torre");
+            var ifc = File.ReadAllText(path);
+
+            Assert.Contains("IFCEXTRUDEDAREASOLID(", ifc);
+            Assert.Contains(",0.3,0.5)", ifc);                 // perfil Base×Peralte
+            // El IfcBeam referencia su representación geométrica (ya no es $ en ese slot).
+            Assert.Matches(@"IFCBEAM\('[^']*',\$,'V-1',\$,\$,\$,#\d+,\$,\$\)", ifc);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
 }
