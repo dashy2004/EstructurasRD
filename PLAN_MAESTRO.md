@@ -67,7 +67,9 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
     αx/αy/αm de la `LosaSeleccionada` + chip OK (αm&gt;2) / CHK (revisar espesor),
     con estado vacío. Nueva prop `LosaSeleccionada` en `MainViewModel`. Build
     0/0, arranca, 772/772.
-  - [ ] Editores globales `VigaPrincipal` y `Bovedilla 1D/2D`.
+  - [x] **Editores VigaPrincipal/Bovedilla (2026-06-02):** en el sidebar del
+    Editor, bindean `Sistema.VigaPrincipal` (b/h cm) y `Sistema.Bovedilla1D/2D`
+    (S·B·L·H m), que alimentan αfm y los cómputos métricos. Build 0/0, 772/772.
 - [ ] **A4 · Roadmap nuevo de la app**
   - Export SAF · diagramas M/V/Δ reales · DXF Fases 2/3 (polígono→Losa, dibujo).
 

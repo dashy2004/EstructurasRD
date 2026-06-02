@@ -651,6 +651,38 @@
 
                                 <Separator Margin="0,12"/>
 
+                                <!-- Editores globales VigaPrincipal + Bovedilla (A3). Alimentan αfm y cómputos. -->
+                                <TextBlock Text="Viga principal (para αfm)" FontWeight="Bold" FontSize="13"
+                                           Foreground="{DynamicResource Accent}"/>
+                                <Grid ColumnDefinitions="*,*" Margin="0,6,0,0">
+                                    <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                        <TextBlock Text="b [cm]" FontSize="10" Foreground="{DynamicResource FgMuted}"/>
+                                        <TextBox Text="{Binding Sistema.VigaPrincipal.BaseCm, StringFormat='{}{0:0.##}'}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                        <TextBlock Text="h [cm]" FontSize="10" Foreground="{DynamicResource FgMuted}"/>
+                                        <TextBox Text="{Binding Sistema.VigaPrincipal.AlturaCm, StringFormat='{}{0:0.##}'}"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <TextBlock Text="Bovedilla 1D  (S · B · L · H, en m)" FontWeight="Bold" FontSize="13" Margin="0,10,0,0"/>
+                                <Grid ColumnDefinitions="*,*,*,*" Margin="0,4,0,0">
+                                    <TextBox Grid.Column="0" Margin="0,0,2,0" Text="{Binding Sistema.Bovedilla1D.S, StringFormat='{}{0:0.###}'}" ToolTip.Tip="Separación / ancho nervio (m)"/>
+                                    <TextBox Grid.Column="1" Margin="2,0"   Text="{Binding Sistema.Bovedilla1D.B, StringFormat='{}{0:0.###}'}" ToolTip.Tip="Ancho bovedilla (m)"/>
+                                    <TextBox Grid.Column="2" Margin="2,0"   Text="{Binding Sistema.Bovedilla1D.L, StringFormat='{}{0:0.###}'}" ToolTip.Tip="Largo bovedilla (m)"/>
+                                    <TextBox Grid.Column="3" Margin="2,0,0,0" Text="{Binding Sistema.Bovedilla1D.H, StringFormat='{}{0:0.###}'}" ToolTip.Tip="Altura bovedilla (m)"/>
+                                </Grid>
+
+                                <TextBlock Text="Bovedilla 2D  (S · B · L · H, en m)" FontWeight="Bold" FontSize="13" Margin="0,8,0,0"/>
+                                <Grid ColumnDefinitions="*,*,*,*" Margin="0,4,0,0">
+                                    <TextBox Grid.Column="0" Margin="0,0,2,0" Text="{Binding Sistema.Bovedilla2D.S, StringFormat='{}{0:0.###}'}" ToolTip.Tip="Separación / ancho nervio (m)"/>
+                                    <TextBox Grid.Column="1" Margin="2,0"   Text="{Binding Sistema.Bovedilla2D.B, StringFormat='{}{0:0.###}'}" ToolTip.Tip="Ancho bovedilla (m)"/>
+                                    <TextBox Grid.Column="2" Margin="2,0"   Text="{Binding Sistema.Bovedilla2D.L, StringFormat='{}{0:0.###}'}" ToolTip.Tip="Largo bovedilla (m)"/>
+                                    <TextBox Grid.Column="3" Margin="2,0,0,0" Text="{Binding Sistema.Bovedilla2D.H, StringFormat='{}{0:0.###}'}" ToolTip.Tip="Altura bovedilla (m)"/>
+                                </Grid>
+
+                                <Separator Margin="0,12"/>
+
                                 <!-- Panel αfm (ACI 318 §9.5.3.3) de la losa seleccionada (A3). -->
                                 <TextBlock Text="αfm — rigidez de bordes (ACI 318 §9.5.3.3)"
                                            FontWeight="Bold" FontSize="14" TextWrapping="Wrap"
