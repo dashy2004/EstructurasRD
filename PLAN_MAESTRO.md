@@ -41,8 +41,12 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
     (ACI 318-19), As mín. por temperatura (§24.4.3.2), espaciamiento máx.
     (§8.7.2.2), selección de barra #3–#6 + "Disponer", diseño de las 4 franjas
     desde `MomentoLosa`. 15 tests (768/768 total verde).
-  - [ ] `AcerosViewModel` + `AcerosView`: As req. vs provisto en vivo, selector
-    #3–#8, alertas de no-cumplimiento.
+  - [x] **VM (2026-06-02):** `AcerosViewModel` (en `MainViewModel.Aceros`,
+    recalcula al importar `.TXT` y al cambiar de sistema). Verificado pipeline:
+    `TxtParser.Apply` inyecta momentos en `Losa`; el VM diseña por losa/franja.
+    4 tests de VM (772/772 total verde).
+  - [ ] `AcerosView`: reemplazar placeholder por DataGrid (As req. vs provisto,
+    "Disponer", alertas), + editores de recubrimiento/barra.
   - [ ] Enganchar export CSV/XLSX + MemoriaPlus. Quitar placeholder de
     `MainWindow.axaml:784-817`.
 - [ ] **A2 · Limpieza de wiring/settings**

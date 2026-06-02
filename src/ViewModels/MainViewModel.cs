@@ -161,6 +161,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// <summary>VM del editor de columnas (Fase J): CRUD de las columnas del edificio activo.</summary>
     public ColumnasEditorViewModel ColumnasEditor { get; private set; } = null!;
 
+    /// <summary>VM de la pestaña «Aceros» (A1): diseño de acero a flexión por losa desde los momentos del .TXT.</summary>
+    public AcerosViewModel Aceros { get; private set; } = null!;
+
     public ICommand? IrABusquedaCommand { get; private set; }
     public ICommand? GenerarMemoriaCommand { get; private set; }
     public ICommand? AutoBalanceoCommand { get; private set; }
@@ -533,6 +536,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             OnPropertyChanged(nameof(Sistema));
             OnPropertyChanged(nameof(LosasFiltradas));
             RefreshDLContent();
+            Aceros?.Recargar();
         }
     }
 
@@ -680,6 +684,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         VigaEditor = new VigaEditorViewModel(_proyecto, PushUndoSnapshot);
         BajadaCargas = new BajadaCargasViewModel(() => EdificioActivo);
         ColumnasEditor = new ColumnasEditorViewModel(() => EdificioActivo);
+        Aceros = new AcerosViewModel(() => _sistemaActivo);
 
         // Cambios al nombre del proyecto refrescan el título de la ventana.
         _proyecto.PropertyChanged += (_, e) =>
@@ -925,6 +930,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             TxtParser.Apply(parsed, Sistema.Losas);
             TxtParser.ApplyApoyos(parsed, Sistema.BordesX, Sistema.BordesY);
             OnPropertyChanged(nameof(LosasFiltradas));
+            Aceros.Recargar();   // los momentos recién importados alimentan el diseño de acero
 
             await Plugins.LoadAllAsync(Log);
             var ctx = BuildPluginContext(outputTxt: content);
