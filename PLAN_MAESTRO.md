@@ -148,9 +148,13 @@ confirmar antes), **DXF Fases 2/3** (CAD), **BIM/escala urbana** (B4/B5).
       Kirchhoff de 12 GDL (w,θx,θy), `rigidez_placa` por `K=C⁻ᵀ(∫BᵀDbB)C⁻¹` con
       Gauss 3×3. Validado a nivel de elemento: simetría, 3 modos de cuerpo
       rígido con energía nula, escala t³. 7 tests. **75/75 motor-fea verde.**
-    - [ ] Mallador + ensamblaje + solver de losa; validación por convergencia vs
-      placa simplemente apoyada (`w=0.00406 q a⁴/D`). Diafragma rígido. SRSS/CQC.
-    - [ ] MITC4 (placas gruesas, sin shear-locking) como refinamiento.
+    - [x] **Mallador + solver de losa (2026-06-02):** `core/losa_fem.py` —
+      malla nx×ny, ensamblaje global (3 GDL/nodo), apoyos simple/empotrado, carga
+      uniforme, solve de w. **Validado por convergencia monótona** vs placa
+      cuadrada SS (err 4×4→10×10: −3.4%→−0.48%; <1% a 10×10). 5 tests.
+      **80/80 motor-fea verde.**
+    - [ ] Recuperar momentos Mx/My/Mxy de la solución → diseño de acero de losa
+      (cerrar análisis→diseño FEM). Diafragma rígido. SRSS/CQC. MITC4 (refinam.).
 - [x] **B·sismo — cortante basal estático (2026-06-02)** — *3 capas juntas*
   - `r001.aceleracion_espectral(T)`: espectro de diseño (rampa T0 / meseta SDS /
     rama SD1/T). `sismo.cortante_basal_sismico`: módulo de composición que une
