@@ -45,6 +45,26 @@ public static class IfcExporter
         int ejes = Emit($"IFCAXIS2PLACEMENT3D(#{pOrigen},#{dZ},#{dX})");
         int ctx = Emit($"IFCGEOMETRICREPRESENTATIONCONTEXT($,'Model',3,1.0E-05,#{ejes},$)");
 
+        // K.6: geometría de un elemento como prisma rectangular vertical —
+        // IfcRectangleProfileDef (b×h, centrado) extruido +Z por la altura, vía
+        // IfcExtrudedAreaSolid → IfcShapeRepresentation → IfcProductDefinitionShape.
+        // El perfil se posiciona en (cx,cy,cz) (IFC: X,Y en planta, Z arriba).
+        // Devuelve el id del IfcProductDefinitionShape para usarlo como Representation.
+        int PrismaVertical(double cx, double cy, double cz, double b, double h, double altura)
+        {
+            int p2d = Emit("IFCCARTESIANPOINT((0.,0.))");
+            int ax2 = Emit($"IFCAXIS2PLACEMENT2D(#{p2d},$)");
+            int prof = Emit($"IFCRECTANGLEPROFILEDEF(.AREA.,$,#{ax2},{Real(b)},{Real(h)})");
+            int pBase = Emit($"IFCCARTESIANPOINT(({Real(cx)},{Real(cy)},{Real(cz)}))");
+            int dirZ = Emit("IFCDIRECTION((0.,0.,1.))");
+            int dirX = Emit("IFCDIRECTION((1.,0.,0.))");
+            int pos = Emit($"IFCAXIS2PLACEMENT3D(#{pBase},#{dirZ},#{dirX})");
+            int ext = Emit("IFCDIRECTION((0.,0.,1.))");
+            int solid = Emit($"IFCEXTRUDEDAREASOLID(#{prof},#{pos},#{ext},{Real(altura)})");
+            int rep = Emit($"IFCSHAPEREPRESENTATION(#{ctx},'Body','SweptSolid',(#{solid}))");
+            return Emit($"IFCPRODUCTDEFINITIONSHAPE($,$,(#{rep}))");
+        }
+
         // Unidades SI (metro).
         int uLong = Emit("IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.)");
         int uAssign = Emit($"IFCUNITASSIGNMENT((#{uLong}))");
@@ -72,7 +92,9 @@ public static class IfcExporter
                 var elems = new System.Collections.Generic.List<int>();
                 foreach (var columna in nivel.Columnas)
                 {
-                    elems.Add(Emit($"IFCCOLUMN('{Guid22(id + 1)}',$,{Txt(columna.Nombre)},$,$,$,$,$,$)"));
+                    int formaCol = PrismaVertical(columna.CoordenadaX, columna.CoordenadaY, nivel.Cota,
+                                                  columna.Base, columna.Peralte, columna.Altura);
+                    elems.Add(Emit($"IFCCOLUMN('{Guid22(id + 1)}',$,{Txt(columna.Nombre)},$,$,$,#{formaCol},$,$)"));
                     if (columna.Zapata is { } zap)
                         elems.Add(Emit($"IFCFOOTING('{Guid22(id + 1)}',$,{Txt(zap.Nombre)},$,$,$,$,$,$)"));
                 }
