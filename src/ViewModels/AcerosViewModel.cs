@@ -127,4 +127,7 @@ public sealed class DisenoAceroFila
 
     /// <summary>True si la franja está resuelta correctamente (sección OK y espaciamiento normativo).</summary>
     public bool Cumple => !_f.SeccionInsuficiente && _f.CumpleEspaciamiento;
+
+    /// <summary>Estado textual para la grilla: "OK", "REVISAR" o "SECCIÓN INSUF.".</summary>
+    public string Estado => _f.SeccionInsuficiente ? "SECCIÓN INSUF." : (Cumple ? "OK" : "REVISAR");
 }

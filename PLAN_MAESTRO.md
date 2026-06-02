@@ -36,7 +36,7 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
   - CI Linux (`.github/workflows/ci-linux.yml`): build + test en ubuntu-latest.
   - **Verificación:** `dotnet build LosasPlus.Linux.sln --no-incremental` 0/0 +
     `dotnet test` verde.
-- [ ] **A1 · Pestaña "Aceros" (el único placeholder real)** — *en progreso*
+- [ ] **A1 · Pestaña "Aceros"** — *funcional end-to-end; falta export*
   - [x] **Core (2026-06-02):** `AcerosLosaDesigner` — As req. por flexión
     (ACI 318-19), As mín. por temperatura (§24.4.3.2), espaciamiento máx.
     (§8.7.2.2), selección de barra #3–#6 + "Disponer", diseño de las 4 franjas
@@ -45,8 +45,10 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
     recalcula al importar `.TXT` y al cambiar de sistema). Verificado pipeline:
     `TxtParser.Apply` inyecta momentos en `Losa`; el VM diseña por losa/franja.
     4 tests de VM (772/772 total verde).
-  - [ ] `AcerosView`: reemplazar placeholder por DataGrid (As req. vs provisto,
-    "Disponer", alertas), + editores de recubrimiento/barra.
+  - [x] **View (2026-06-02):** placeholder reemplazado por DataGrid en
+    `MainWindow.axaml` (LOSA/TIPO/FRANJA/Mu/d/As req/mín/diseño/Disponer/As
+    prov/ESTADO) + editores recubrimiento/barra + estado vacío "importá .TXT".
+    Build 0/0, arranca sin excepción, 772/772 verde. **Pestaña Aceros operativa.**
   - [ ] Enganchar export CSV/XLSX + MemoriaPlus. Quitar placeholder de
     `MainWindow.axaml:784-817`.
 - [ ] **A2 · Limpieza de wiring/settings**

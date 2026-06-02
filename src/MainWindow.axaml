@@ -781,39 +781,72 @@
                     </TabControl>
                 </Grid>
 
-                <!-- MODO Aceros (placeholder "Próximamente"). -->
-                <Grid Margin="32,24"
+                <!-- MODO Aceros: diseño de acero a flexión por losa/franja (ACI 318-19). -->
+                <Grid Margin="16" RowDefinitions="Auto,*"
                       IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Aceros}">
-                    <Border MaxWidth="640" VerticalAlignment="Center" HorizontalAlignment="Center"
-                            Background="{DynamicResource BgSecondary}"
-                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
-                            CornerRadius="8" Padding="32,28">
+
+                    <!-- Barra de herramientas: título + parámetros + resumen. -->
+                    <DockPanel Grid.Row="0" Margin="0,0,0,10" LastChildFill="False">
+                        <TextBlock DockPanel.Dock="Left" Text="🔩  Diseño de aceros (ACI 318-19)"
+                                   FontSize="16" FontWeight="Bold" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource FgPrimary}"/>
+
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Recubrimiento (cm)" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource FgMuted}" FontSize="12" Margin="0,0,6,0"/>
+                            <TextBox Width="64" VerticalAlignment="Center"
+                                     Text="{Binding Aceros.RecubrimientoCm, UpdateSourceTrigger=LostFocus}"/>
+                            <TextBlock Text="Barra supuesta #" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource FgMuted}" FontSize="12" Margin="14,0,6,0"/>
+                            <TextBox Width="48" VerticalAlignment="Center"
+                                     Text="{Binding Aceros.BarraSupuesta, UpdateSourceTrigger=LostFocus}"/>
+                            <Border Width="1" Margin="14,2" Background="{DynamicResource Border}"/>
+                            <TextBlock VerticalAlignment="Center" FontSize="12"
+                                       Foreground="{DynamicResource FgSecondary}"
+                                       Text="{Binding Aceros.TotalFranjas, StringFormat='Franjas: {0}'}"/>
+                            <TextBlock VerticalAlignment="Center" FontSize="12" Margin="12,0,0,0"
+                                       Foreground="{DynamicResource Err}"
+                                       Text="{Binding Aceros.FranjasNoCumplen, StringFormat='A revisar: {0}'}"/>
+                        </StackPanel>
+                    </DockPanel>
+
+                    <!-- Estado vacío: sin momentos importados. -->
+                    <Border Grid.Row="1" MaxWidth="620" VerticalAlignment="Center" HorizontalAlignment="Center"
+                            Background="{DynamicResource BgSecondary}" BorderBrush="{DynamicResource Border}"
+                            BorderThickness="1" CornerRadius="8" Padding="32,28"
+                            IsVisible="{Binding Aceros.HayMomentos, Converter={StaticResource BoolToCollapsedIfTrue}}">
                         <StackPanel>
-                            <TextBlock Text="🔩  Diseño de aceros" FontSize="22" FontWeight="Bold"
+                            <TextBlock Text="🔩  Diseño de aceros" FontSize="20" FontWeight="Bold"
                                        Foreground="{DynamicResource FgPrimary}" HorizontalAlignment="Center"/>
-                            <Border Margin="0,12,0,0" Padding="10,4" HorizontalAlignment="Center"
-                                    Background="{DynamicResource AccentHi}" CornerRadius="12">
-                                <TextBlock Text="🔜  Próximamente" Foreground="{DynamicResource FgOnAccent}"
-                                           FontWeight="SemiBold" FontSize="12"/>
-                            </Border>
-                            <TextBlock Margin="0,18,0,0" TextAlignment="Center"
-                                       Foreground="{DynamicResource FgSecondary}" FontSize="13" TextWrapping="Wrap"
-                                       Text="Esta pestaña aparece después de Salida .TXT porque el diseño de aceros depende de los momentos calculados por el motor. Una vez importado el .TXT, podrás:"/>
-                            <StackPanel Margin="0,16,0,0">
-                                <TextBlock Foreground="{DynamicResource FgPrimary}" Margin="0,3"
-                                           Text="• Definir cantidad de barras por diámetro comercial (#3–#8) en cada franja X / Y."/>
-                                <TextBlock Foreground="{DynamicResource FgPrimary}" Margin="0,3"
-                                           Text="• Ver As requerido vs As provisto en vivo (cm²/m), con alertas si no cumple."/>
-                                <TextBlock Foreground="{DynamicResource FgPrimary}" Margin="0,3"
-                                           Text="• Calcular separación de barras adicionales según ACI 318 §25.5."/>
-                                <TextBlock Foreground="{DynamicResource FgPrimary}" Margin="0,3"
-                                           Text="• Exportar el reporte de acero por losa al CSV/XLSX y a MemoriaPlus."/>
-                            </StackPanel>
-                            <TextBlock Margin="0,16,0,0" TextAlignment="Center"
-                                       Foreground="{DynamicResource FgMuted}" FontSize="11" TextWrapping="Wrap"
-                                       Text="El modelo y las exportaciones ya están operativos en el Core. Solo falta la UI dedicada."/>
+                            <TextBlock Margin="0,16,0,0" TextAlignment="Center" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource FgSecondary}" FontSize="13"
+                                       Text="{Binding Aceros.MensajeVacio}"/>
+                            <TextBlock Margin="0,14,0,0" TextAlignment="Center" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource FgMuted}" FontSize="11"
+                                       Text="As req. por flexión, As mín. por temperatura (§24.4.3.2) y espaciamiento máx. (§8.7.2.2) se calculan automáticamente por franja X/Y de vano y apoyo."/>
                         </StackPanel>
                     </Border>
+
+                    <!-- Grilla de diseño: una fila por franja. -->
+                    <DataGrid Grid.Row="1" x:Name="AcerosGrid"
+                              ItemsSource="{Binding Aceros.Filas}"
+                              AutoGenerateColumns="False" IsReadOnly="True"
+                              GridLinesVisibility="Horizontal" CanUserSortColumns="True"
+                              IsVisible="{Binding Aceros.HayMomentos, Converter={StaticResource BoolToCollapsedIfFalse}}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="LOSA"    Width="60"  Binding="{Binding LosaId}"/>
+                            <DataGridTextColumn Header="TIPO"    Width="60"  Binding="{Binding Tipo}"/>
+                            <DataGridTextColumn Header="FRANJA"  Width="100" Binding="{Binding Franja}"/>
+                            <DataGridTextColumn Header="Mu (t·m/m)" Width="*" Binding="{Binding MuTonM, StringFormat='0.00'}"/>
+                            <DataGridTextColumn Header="d (cm)"  Width="*"   Binding="{Binding DCm, StringFormat='0.0'}"/>
+                            <DataGridTextColumn Header="As req (cm²/m)" Width="*" Binding="{Binding AsRequeridoCm2M, StringFormat='0.00'}"/>
+                            <DataGridTextColumn Header="As mín (cm²/m)" Width="*" Binding="{Binding AsMinimoCm2M, StringFormat='0.00'}"/>
+                            <DataGridTextColumn Header="As diseño (cm²/m)" Width="*" Binding="{Binding AsDisenoCm2M, StringFormat='0.00'}"/>
+                            <DataGridTextColumn Header="DISPONER" Width="130" Binding="{Binding Disponer}"/>
+                            <DataGridTextColumn Header="As prov (cm²/m)" Width="*" Binding="{Binding AsProvistaCm2M, StringFormat='0.00'}"/>
+                            <DataGridTextColumn Header="ESTADO"  Width="120" Binding="{Binding Estado}"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
                 </Grid>
 
                 <!-- MODO Reglamento. -->
