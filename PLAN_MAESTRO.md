@@ -175,8 +175,12 @@ tests; 780/780 .NET verde. Pendiente menor: posicionamiento por defecto de vigas
     - [x] **Losa rectangular validada (2026-06-02):** deflexión y momentos vs
       Timoshenko (`w=α q b⁴/D`, b=corto): a/b=1.5 → −0.7%, a/b=2 → −0.9% a malla
       fina (convergente); My>Mx (domina el vano corto). 3 tests. **90/90 verde.**
+    - [x] **Combinación modal SRSS/CQC (2026-06-02):** `core/combinacion_modal.py`
+      — `srss`, `coeficiente_correlacion` (Der Kiureghian) y `cqc`. Validado:
+      SRSS(3,4)=5; CQC≈SRSS con modos separados y CQC>SRSS con frecuencias
+      cercanas; ρ=1 coincidentes. 7 tests. **97/97 motor-fea verde.**
     - [ ] Momentos negativos en bordes empotrados → acero superior. Diafragma
-      rígido. Combinación espectral SRSS/CQC. MITC4 (placas gruesas).
+      rígido. Análisis modal-espectral completo (modal+espectro+CQC). MITC4.
 - [x] **B·sismo — cortante basal estático (2026-06-02)** — *3 capas juntas*
   - `r001.aceleracion_espectral(T)`: espectro de diseño (rampa T0 / meseta SDS /
     rama SD1/T). `sismo.cortante_basal_sismico`: módulo de composición que une
