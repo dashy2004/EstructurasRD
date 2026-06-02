@@ -249,8 +249,12 @@ tests; 780/780 .NET verde. Pendiente menor: posicionamiento por defecto de vigas
     q·9806.65, E=4700√fc), invoca `motor-fea --disenar-losa -` por proceso (como
     `Losas.exe`) y parsea el resultado. Build+parseo puros y testeados (4 tests,
     784/784 .NET). Integración real verificada: params C# → motor → diseño válido.
-  - [ ] Cablear a la UI: comando/botón "Diseñar con motor FEA" en la pestaña
-    Aceros/Editor (aditivo, sin romper el flujo `Losas.exe`) + config del comando.
+  - [x] **UI cableada (2026-06-02):** comando async `DisenarConMotorFeaCommand`
+    en `MainViewModel` (corre `MotorFeaService.DisenarLosaAsync` sobre la
+    `LosaSeleccionada`, expone resultado/ocupado); botón **"🧮 Diseñar con motor
+    FEA"** + campo de comando + panel de resultado en la pestaña Aceros de
+    `MainWindow.axaml`. **Aditivo** (no toca el flujo `Losas.exe`). Build 0/0,
+    arranca sin excepción, 784/784 .NET. **Puente B6 funcional end-to-end.**
 
 ## Atención normativa (fecha dura)
 

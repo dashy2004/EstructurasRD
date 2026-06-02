@@ -858,7 +858,7 @@
                 </Grid>
 
                 <!-- MODO Aceros: diseño de acero a flexión por losa/franja (ACI 318-19). -->
-                <Grid Margin="16" RowDefinitions="Auto,*"
+                <Grid Margin="16" RowDefinitions="Auto,*,Auto"
                       IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Aceros}">
 
                     <!-- Barra de herramientas: título + parámetros + resumen. -->
@@ -883,8 +883,26 @@
                             <TextBlock VerticalAlignment="Center" FontSize="12" Margin="12,0,0,0"
                                        Foreground="{DynamicResource Err}"
                                        Text="{Binding Aceros.FranjasNoCumplen, StringFormat='A revisar: {0}'}"/>
+                            <Border Width="1" Margin="14,2" Background="{DynamicResource Border}"/>
+                            <!-- Puente B6: diseñar la losa seleccionada con el motor FEA nativo. -->
+                            <TextBox Width="120" VerticalAlignment="Center" Margin="0,0,6,0"
+                                     Text="{Binding MotorFeaComando, UpdateSourceTrigger=LostFocus}"
+                                     ToolTip.Tip="Comando del motor FEA (p. ej. motor-fea o python3 -m motor_fea.api.cli)"/>
+                            <Button Content="🧮 Diseñar con motor FEA" Padding="10,4"
+                                    Command="{Binding DisenarConMotorFeaCommand}"
+                                    IsEnabled="{Binding MotorFeaOcupado, Converter={StaticResource BoolToCollapsedIfTrue}}"
+                                    ToolTip.Tip="Diseña la losa seleccionada (en el Editor) por elementos finitos con el motor nativo."/>
                         </StackPanel>
                     </DockPanel>
+
+                    <!-- Panel de resultado del motor FEA (B6). -->
+                    <Border Grid.Row="2" Margin="0,10,0,0" Padding="12" CornerRadius="6"
+                            Background="{DynamicResource BgSecondary}" BorderBrush="{DynamicResource Border}"
+                            BorderThickness="1"
+                            IsVisible="{Binding HayResultadoMotorFea, Converter={StaticResource BoolToCollapsedIfFalse}}">
+                        <TextBlock Text="{Binding MotorFeaResultado}" TextWrapping="Wrap" FontFamily="Consolas"
+                                   FontSize="12" Foreground="{DynamicResource FgPrimary}"/>
+                    </Border>
 
                     <!-- Estado vacío: sin momentos importados. -->
                     <Border Grid.Row="1" MaxWidth="620" VerticalAlignment="Center" HorizontalAlignment="Center"

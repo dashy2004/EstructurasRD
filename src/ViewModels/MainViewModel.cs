@@ -169,6 +169,29 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// <summary>VM de la pestaña «Aceros» (A1): diseño de acero a flexión por losa desde los momentos del .TXT.</summary>
     public AcerosViewModel Aceros { get; private set; } = null!;
 
+    // ---- Puente B6: diseño de losa con el motor FEA nativo (aditivo) ----
+    private string _motorFeaComando = "motor-fea";
+    /// <summary>Comando del motor FEA externo (config). Default "motor-fea"; p. ej. "python3 -m motor_fea.api.cli".</summary>
+    public string MotorFeaComando { get => _motorFeaComando; set { _motorFeaComando = value; OnPropertyChanged(); } }
+
+    private string _motorFeaResultado = "";
+    /// <summary>Texto del último resultado del motor FEA (o error). Bound al panel de la pestaña Aceros.</summary>
+    public string MotorFeaResultado
+    {
+        get => _motorFeaResultado;
+        private set { _motorFeaResultado = value; OnPropertyChanged(); OnPropertyChanged(nameof(HayResultadoMotorFea)); }
+    }
+
+    /// <summary>True si hay un resultado del motor FEA para mostrar.</summary>
+    public bool HayResultadoMotorFea => !string.IsNullOrEmpty(_motorFeaResultado);
+
+    private bool _motorFeaOcupado;
+    /// <summary>True mientras el motor FEA está calculando (deshabilita el botón).</summary>
+    public bool MotorFeaOcupado { get => _motorFeaOcupado; private set { _motorFeaOcupado = value; OnPropertyChanged(); } }
+
+    /// <summary>Diseña la <see cref="LosaSeleccionada"/> con el motor FEA nativo (B6, aditivo).</summary>
+    public ICommand DisenarConMotorFeaCommand { get; private set; } = null!;
+
     public ICommand? IrABusquedaCommand { get; private set; }
     public ICommand? GenerarMemoriaCommand { get; private set; }
     public ICommand? AutoBalanceoCommand { get; private set; }
@@ -687,6 +710,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         IrABusquedaCommand = new RelayCommand(_ => ModoActivo = ModoSidebar.Busqueda);
         GenerarMemoriaCommand = new RelayCommand(_ => GenerarMemoria());
         AutoBalanceoCommand   = new RelayCommand(_ => AplicarAutoBalanceo());
+        DisenarConMotorFeaCommand = new MemoriaPlus.Common.AsyncRelayCommand(DisenarConMotorFeaAsync);
 
         // ---- Plano CAD (Fase 1.B/2) — el sub-VM lee las losas del sistema
         // activo y, al mapear un polígono, toma snapshot de undo antes de mutar.
@@ -931,6 +955,36 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// Carga un .TXT producido manualmente por Losas.exe, lo parsea, lo asocia a las losas
     /// del sistema actual y dispara el hook 'post-txt'.
     /// </summary>
+    /// <summary>
+    /// Corre el motor FEA nativo (B6) sobre la <see cref="LosaSeleccionada"/> y
+    /// muestra el diseño (momentos + acero de vano y apoyo). Aditivo: no afecta
+    /// el flujo <c>Losas.exe</c>. Si el motor no está disponible, muestra el error.
+    /// </summary>
+    public async Task DisenarConMotorFeaAsync()
+    {
+        var losa = LosaSeleccionada;
+        if (losa is null) { MotorFeaResultado = "Seleccioná una losa en el Editor primero."; return; }
+        try
+        {
+            MotorFeaOcupado = true;
+            MotorFeaResultado = "Calculando con el motor FEA…";
+            var r = await MotorFeaService.DisenarLosaAsync(losa, SistemaActivo, MotorFeaComando);
+            string apoyo = r.FranjaApoyo is { } fa
+                ? $"\nApoyo (acero superior): {fa.Disponer}  (As {fa.AsDiseno:0} mm²/m)"
+                : "";
+            MotorFeaResultado =
+                $"Losa {losa.Id} — motor FEA (elementos finitos):\n" +
+                $"Deflexión central {r.WCentral * 1000:0.00} mm · Mx {r.MxMax:0} · My {r.MyMax:0} N·m/m\n" +
+                $"Vano X: {r.FranjaX.Disponer}  (As {r.FranjaX.AsDiseno:0} mm²/m, {(r.FranjaX.Cumple ? "cumple" : "REVISAR")})\n" +
+                $"Vano Y: {r.FranjaY.Disponer}  (As {r.FranjaY.AsDiseno:0} mm²/m)" + apoyo;
+        }
+        catch (Exception ex)
+        {
+            MotorFeaResultado = "✕ " + ex.Message;
+        }
+        finally { MotorFeaOcupado = false; }
+    }
+
     public async Task ImportarTxtAsync(string path)
     {
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
