@@ -23,6 +23,21 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
 
 ---
 
+## Hito (2026-06-02) — tras 21 iteraciones del loop
+
+**Track A** efectivamente completo (A0–A3 ✅; A4 SAF/M-V-Δ ya existían; solo DXF
+Fases 2/3 sin construir). **Track B** = MVP del motor FEA completo y validado:
+solver estático 3D · modal multi-modo + participación · ACI 318-19
+(viga/columna/zapata/losa/combos) · sismo R-001 · CLI JSON · CI pytest.
+Suites: **772/772 .NET + 68/68 Python**, verde en cada commit.
+
+Forks grandes restantes (requieren decisión): **shells B2** (losas por FEM,
+keystone para reemplazar `Losas.exe`; grande, validación por convergencia de
+malla), **puente B6** (conectar LosasPlus al motor; **toca la app viva** →
+confirmar antes), **DXF Fases 2/3** (CAD), **BIM/escala urbana** (B4/B5).
+
+---
+
 ## TRACK A — Correcciones LosasPlus (app C#/Avalonia existente)
 
 - [x] **A0 · Sincronizar la verdad + CI Linux** ✅ (2026-06-02) — sln Linux con
