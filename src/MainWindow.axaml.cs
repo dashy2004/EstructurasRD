@@ -570,6 +570,7 @@ public partial class MainWindow : Window
             {
                 ModoSidebar.Editor,
                 ModoSidebar.PlanoCad,
+                ModoSidebar.Planta2D,
                 ModoSidebar.Vista3D,
                 ModoSidebar.Columnas,
                 ModoSidebar.BajadaCargas,

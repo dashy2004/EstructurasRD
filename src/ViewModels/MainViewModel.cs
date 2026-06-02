@@ -1406,6 +1406,8 @@ public enum ModoSidebar
     Editor,
     /// <summary>Editor visual CAD: plano DXF de referencia + losas (Fase 1.B).</summary>
     PlanoCad,
+    /// <summary>Editor 2D de planta (paños reales, vigas y columnas).</summary>
+    Planta2D,
     /// <summary>Visor PDF multipágina con toolbar prev/next + zoom (H3).</summary>
     VisorPdf,
     /// <summary>Vista 3D alámbrica del edificio (Fase I — sin SharpDX).</summary>

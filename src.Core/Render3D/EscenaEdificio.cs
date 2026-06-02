@@ -80,6 +80,41 @@ public static class EscenaEdificio
             for (int i = 0; i < 4; i++)
                 segs.Add(new Segmento3D(esquinas[i], esquinas[(i + 1) % 4]));
 
+            // Paños reales de losas (Fase J / Planta 2D)
+            foreach (var sistema in nivel.Sistemas)
+            {
+                foreach (var losa in sistema.Losas)
+                {
+                    float lx = (float)losa.Lx;
+                    float ly = (float)losa.Ly;
+                    float x0 = (float)losa.CoordenadaX;
+                    float z0 = (float)losa.CoordenadaY;
+                    float x1 = x0 + lx;
+                    float z1 = z0 + ly;
+
+                    var p00 = new Vector3(x0, y, z0);
+                    var p10 = new Vector3(x1, y, z0);
+                    var p11 = new Vector3(x1, y, z1);
+                    var p01 = new Vector3(x0, y, z1);
+
+                    segs.Add(new Segmento3D(p00, p10));
+                    segs.Add(new Segmento3D(p10, p11));
+                    segs.Add(new Segmento3D(p11, p01));
+                    segs.Add(new Segmento3D(p01, p00));
+                }
+            }
+
+            // Vigas reales de la planta (Fase J / Planta 2D)
+            foreach (var viga in nivel.Vigas)
+            {
+                float x0 = (float)viga.OrigenX;
+                float z0 = (float)viga.OrigenY;
+                float x1 = (float)viga.ExtremoX;
+                float z1 = (float)viga.ExtremoY;
+
+                segs.Add(new Segmento3D(new Vector3(x0, y, z0), new Vector3(x1, y, z1)));
+            }
+
             // Columnas reales del modelo (Fase J): segmento vertical en su posición
             // de planta (X, Z) = (CoordenadaX, CoordenadaY), de la cota del nivel a
             // cota + altura.

@@ -1,0 +1,436 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Media;
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using LosasPlus.Models;
+using LosasPlus.Vigas;
+using LosasPlus.Transmision;
+
+namespace LosasPlus.Views;
+
+public class PlantaCanvas : Control
+{
+    private double _scale = 40.0;
+    private double _tx = 100.0;
+    private double _ty = 100.0;
+    private Point _lastMousePos;
+    private bool _isPanning;
+    private bool _isDragging;
+    private Point _dragStartPos;
+    private double _dragStartElementX;
+    private double _dragStartElementY;
+
+    public static readonly DirectProperty<PlantaCanvas, Nivel?> NivelProperty =
+        AvaloniaProperty.RegisterDirect<PlantaCanvas, Nivel?>(
+            nameof(Nivel),
+            o => o.Nivel,
+            (o, v) => o.Nivel = v);
+
+    private Nivel? _nivel;
+    public Nivel? Nivel
+    {
+        get => _nivel;
+        set
+        {
+            if (SetAndRaise(NivelProperty, ref _nivel, value))
+            {
+                SelectedElement = null;
+                InvalidateVisual();
+            }
+        }
+    }
+
+    public event Action<object?>? SelectionChanged;
+
+    private object? _selectedElement;
+    public object? SelectedElement
+    {
+        get => _selectedElement;
+        set
+        {
+            if (_selectedElement != value)
+            {
+                _selectedElement = value;
+                SelectionChanged?.Invoke(value);
+                InvalidateVisual();
+            }
+        }
+    }
+
+    public string ActiveTool { get; set; } = "Puntero";
+
+    public PlantaCanvas()
+    {
+        ClipToBounds = true;
+    }
+
+    private Point MetrosAPixel(double mx, double my)
+    {
+        return new Point(mx * _scale + _tx, my * _scale + _ty);
+    }
+
+    private Point PixelAMetros(Point p)
+    {
+        return new Point((p.X - _tx) / _scale, (p.Y - _ty) / _scale);
+    }
+
+    protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
+    {
+        base.OnPointerWheelChanged(e);
+        var mpos = e.GetPosition(this);
+        var beforeZoom = PixelAMetros(mpos);
+
+        double factor = e.Delta.Y > 0 ? 1.15 : 0.85;
+        _scale = Math.Clamp(_scale * factor, 5.0, 300.0);
+
+        _tx = mpos.X - beforeZoom.X * _scale;
+        _ty = mpos.Y - beforeZoom.Y * _scale;
+
+        InvalidateVisual();
+    }
+
+    protected override void OnPointerPressed(PointerPressedEventArgs e)
+    {
+        base.OnPointerPressed(e);
+        Focus();
+        var pointer = e.GetCurrentPoint(this);
+        _lastMousePos = pointer.Position;
+
+        if (pointer.Properties.IsMiddleButtonPressed || pointer.Properties.IsRightButtonPressed)
+        {
+            _isPanning = true;
+            e.Pointer.Capture(this);
+            e.Handled = true;
+            return;
+        }
+
+        if (pointer.Properties.IsLeftButtonPressed)
+        {
+            var pM = PixelAMetros(pointer.Position);
+
+            if (ActiveTool == "Puntero")
+            {
+                // Hit test
+                object? hit = HitTest(pM);
+                SelectedElement = hit;
+
+                if (hit != null)
+                {
+                    _isDragging = true;
+                    _dragStartPos = pM;
+                    if (hit is Losa l)
+                    {
+                        _dragStartElementX = l.CoordenadaX;
+                        _dragStartElementY = l.CoordenadaY;
+                    }
+                    else if (hit is Viga v)
+                    {
+                        _dragStartElementX = v.OrigenX;
+                        _dragStartElementY = v.OrigenY;
+                    }
+                    else if (hit is Columna c)
+                    {
+                        _dragStartElementX = c.CoordenadaX;
+                        _dragStartElementY = c.CoordenadaY;
+                    }
+                    e.Pointer.Capture(this);
+                }
+                else
+                {
+                    SelectedElement = null;
+                }
+                e.Handled = true;
+            }
+            else if (Nivel != null)
+            {
+                double sx = Math.Round(pM.X, 1);
+                double sy = Math.Round(pM.Y, 1);
+
+                if (ActiveTool == "Losa")
+                {
+                    if (Nivel.Sistemas.Count == 0)
+                    {
+                        Nivel.Sistemas.Add(new Sistema { Nombre = "Sistema 1" });
+                    }
+                    var sys = Nivel.Sistemas[0];
+                    int newId = sys.Losas.Count > 0 ? sys.Losas.Max(l => l.Id) + 1 : 1;
+                    var losa = new Losa
+                    {
+                        Id = newId,
+                        CoordenadaX = sx,
+                        CoordenadaY = sy,
+                        Lx = 4.0,
+                        Ly = 4.0,
+                        Espesor = 0.12,
+                        Carga = 2.0,
+                        Tipo = 10
+                    };
+                    sys.Losas.Add(losa);
+                    SelectedElement = losa;
+                }
+                else if (ActiveTool == "Viga")
+                {
+                    int newId = Nivel.Vigas.Count > 0 ? Nivel.Vigas.Max(v => v.Id) + 1 : 1;
+                    var viga = new Viga
+                    {
+                        Id = newId,
+                        Nombre = $"V-{newId}",
+                        OrigenX = sx,
+                        OrigenY = sy,
+                        AnguloGrados = 0
+                    };
+                    viga.Tramos.Add(new TramoViga { Longitud = 5.0 });
+                    viga.Apoyos.Add(new ApoyoViga { CoordenadaX = 0.0 });
+                    viga.Apoyos.Add(new ApoyoViga { CoordenadaX = 5.0 });
+                    Nivel.Vigas.Add(viga);
+                    SelectedElement = viga;
+                }
+                else if (ActiveTool == "Columna")
+                {
+                    int newId = Nivel.Columnas.Count > 0 ? Nivel.Columnas.Max(c => c.Id) + 1 : 1;
+                    var col = new Columna
+                    {
+                        Id = newId,
+                        Nombre = $"C-{newId}",
+                        CoordenadaX = sx,
+                        CoordenadaY = sy,
+                        Base = 0.30,
+                        Peralte = 0.30,
+                        Altura = 3.0
+                    };
+                    Nivel.Columnas.Add(col);
+                    SelectedElement = col;
+                }
+
+                // Switch tool back to Puntero
+                ActiveTool = "Puntero";
+                SelectionChanged?.Invoke(SelectedElement);
+                InvalidateVisual();
+                e.Handled = true;
+            }
+        }
+    }
+
+    protected override void OnPointerMoved(PointerEventArgs e)
+    {
+        base.OnPointerMoved(e);
+        var pointer = e.GetCurrentPoint(this);
+        var mpos = pointer.Position;
+
+        if (_isPanning)
+        {
+            _tx += mpos.X - _lastMousePos.X;
+            _ty += mpos.Y - _lastMousePos.Y;
+            _lastMousePos = mpos;
+            InvalidateVisual();
+        }
+        else if (_isDragging && SelectedElement != null)
+        {
+            var pM = PixelAMetros(mpos);
+            double dx = pM.X - _dragStartPos.X;
+            double dy = pM.Y - _dragStartPos.Y;
+
+            // Snap to 0.1 meters
+            double newX = Math.Round(_dragStartElementX + dx, 1);
+            double newY = Math.Round(_dragStartElementY + dy, 1);
+
+            if (SelectedElement is Losa l)
+            {
+                l.CoordenadaX = newX;
+                l.CoordenadaY = newY;
+            }
+            else if (SelectedElement is Viga v)
+            {
+                v.OrigenX = newX;
+                v.OrigenY = newY;
+            }
+            else if (SelectedElement is Columna c)
+            {
+                c.CoordenadaX = newX;
+                c.CoordenadaY = newY;
+            }
+
+            SelectionChanged?.Invoke(SelectedElement);
+            InvalidateVisual();
+        }
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
+        base.OnPointerReleased(e);
+        _isPanning = false;
+        _isDragging = false;
+        e.Pointer.Capture(null);
+    }
+
+    private object? HitTest(Point p)
+    {
+        if (Nivel == null) return null;
+
+        // 1. Columns (highest hit priority because they are small)
+        foreach (var col in Nivel.Columnas)
+        {
+            double halfB = col.Base * 0.5;
+            double halfP = col.Peralte * 0.5;
+            if (p.X >= col.CoordenadaX - halfB && p.X <= col.CoordenadaX + halfB &&
+                p.Y >= col.CoordenadaY - halfP && p.Y <= col.CoordenadaY + halfP)
+            {
+                return col;
+            }
+        }
+
+        // 2. Beams (line segment)
+        foreach (var viga in Nivel.Vigas)
+        {
+            var a = new Point(viga.OrigenX, viga.OrigenY);
+            var b = new Point(viga.ExtremoX, viga.ExtremoY);
+            double dist = DistanceToSegment(p, a, b);
+            if (dist <= 0.3) // tolerance in meters
+            {
+                return viga;
+            }
+        }
+
+        // 3. Slabs (filled rectangles)
+        foreach (var sistema in Nivel.Sistemas)
+        {
+            foreach (var losa in sistema.Losas)
+            {
+                if (p.X >= losa.CoordenadaX && p.X <= losa.CoordenadaX + losa.Lx &&
+                    p.Y >= losa.CoordenadaY && p.Y <= losa.CoordenadaY + losa.Ly)
+                {
+                    return losa;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static double DistanceToSegment(Point p, Point a, Point b)
+    {
+        double l2 = (a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y);
+        if (l2 == 0) return Math.Sqrt((p.X - a.X) * (p.X - a.X) + (p.Y - a.Y) * (p.Y - a.Y));
+        double t = ((p.X - a.X) * (b.X - a.X) + (p.Y - a.Y) * (b.Y - a.Y)) / l2;
+        t = Math.Clamp(t, 0.0, 1.0);
+        double prx = a.X + t * (b.X - a.X);
+        double pry = a.Y + t * (b.Y - a.Y);
+        return Math.Sqrt((p.X - prx) * (p.X - prx) + (p.Y - pry) * (p.Y - pry));
+    }
+
+    public override void Render(DrawingContext context)
+    {
+        base.Render(context);
+
+        // Draw grid
+        var gridPen = new Pen(new SolidColorBrush(Color.FromArgb(20, 128, 128, 128)), 1.0);
+        var boldGridPen = new Pen(new SolidColorBrush(Color.FromArgb(45, 128, 128, 128)), 1.5);
+
+        double w = Bounds.Width;
+        double h = Bounds.Height;
+
+        // Draw vertical grid lines
+        double minM_x = PixelAMetros(new Point(0, 0)).X;
+        double maxM_x = PixelAMetros(new Point(w, 0)).X;
+        int startX = (int)Math.Floor(minM_x);
+        int endX = (int)Math.Ceiling(maxM_x);
+
+        for (int x = startX; x <= endX; x++)
+        {
+            var p1 = MetrosAPixel(x, PixelAMetros(new Point(0, 0)).Y);
+            var p2 = MetrosAPixel(x, PixelAMetros(new Point(0, h)).Y);
+            context.DrawLine(x % 5 == 0 ? boldGridPen : gridPen, p1, p2);
+        }
+
+        // Draw horizontal grid lines
+        double minM_y = PixelAMetros(new Point(0, 0)).Y;
+        double maxM_y = PixelAMetros(new Point(0, h)).Y;
+        int startY = (int)Math.Floor(minM_y);
+        int endY = (int)Math.Ceiling(maxM_y);
+
+        for (int y = startY; y <= endY; y++)
+        {
+            var p1 = MetrosAPixel(PixelAMetros(new Point(0, 0)).X, y);
+            var p2 = MetrosAPixel(PixelAMetros(new Point(w, 0)).X, y);
+            context.DrawLine(y % 5 == 0 ? boldGridPen : gridPen, p1, p2);
+        }
+
+        if (Nivel == null) return;
+
+        // 1. Draw Slabs
+        var slabFill = new SolidColorBrush(Color.FromArgb(45, 0x2E, 0x7D, 0x32));
+        var slabPen = new Pen(new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32)), 2.0);
+        var selectPen = new Pen(new SolidColorBrush(Color.FromRgb(0xFF, 0x98, 0x00)), 3.0);
+
+        var normalTypeface = new Typeface(new FontFamily("Segoe UI"), FontStyle.Normal, FontWeight.Normal, FontStretch.Normal);
+        var boldTypeface = new Typeface(new FontFamily("Segoe UI"), FontStyle.Normal, FontWeight.Bold, FontStretch.Normal);
+
+        foreach (var sistema in Nivel.Sistemas)
+        {
+            foreach (var losa in sistema.Losas)
+            {
+                var pTopLeft = MetrosAPixel(losa.CoordenadaX, losa.CoordenadaY);
+                double sw = losa.Lx * _scale;
+                double sh = losa.Ly * _scale;
+                var rect = new Rect(pTopLeft.X, pTopLeft.Y, sw, sh);
+
+                bool isSelected = ReferenceEquals(SelectedElement, losa);
+                context.DrawRectangle(slabFill, isSelected ? selectPen : slabPen, rect);
+
+                // Rotulo
+                double fs = Math.Clamp(sh * 0.15, 10.0, 16.0);
+                if (sw > 30 && sh > 30)
+                {
+                    var ft1 = new FormattedText($"Losa {losa.Id}", CultureInfo.InvariantCulture, FlowDirection.LeftToRight, boldTypeface, fs, Brushes.DarkGreen);
+                    var ft2 = new FormattedText($"{losa.Lx:0.00}x{losa.Ly:0.00}m", CultureInfo.InvariantCulture, FlowDirection.LeftToRight, normalTypeface, fs * 0.8, Brushes.DarkGreen);
+                    context.DrawText(ft1, new Point(rect.X + (rect.Width - ft1.Width) / 2, rect.Y + rect.Height / 2 - ft1.Height));
+                    context.DrawText(ft2, new Point(rect.X + (rect.Width - ft2.Width) / 2, rect.Y + rect.Height / 2));
+                }
+            }
+        }
+
+        // 2. Draw Beams
+        var beamBrush = new SolidColorBrush(Color.FromRgb(0x19, 0x76, 0xD2));
+        var beamPen = new Pen(beamBrush, 4.0);
+        var beamSelectPen = new Pen(new SolidColorBrush(Color.FromRgb(0xFF, 0x98, 0x00)), 6.0);
+
+        foreach (var viga in Nivel.Vigas)
+        {
+            var pStart = MetrosAPixel(viga.OrigenX, viga.OrigenY);
+            var pEnd = MetrosAPixel(viga.ExtremoX, viga.ExtremoY);
+
+            bool isSelected = ReferenceEquals(SelectedElement, viga);
+            context.DrawLine(isSelected ? beamSelectPen : beamPen, pStart, pEnd);
+
+            // Label
+            var ft = new FormattedText(viga.Nombre, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, boldTypeface, 11.0, Brushes.DarkBlue);
+            var mid = new Point((pStart.X + pEnd.X) / 2.0, (pStart.Y + pEnd.Y) / 2.0 - 15.0);
+            context.DrawText(ft, mid);
+        }
+
+        // 3. Draw Columns
+        var colFill = new SolidColorBrush(Color.FromRgb(0x42, 0x42, 0x42));
+        var colPen = new Pen(Brushes.Black, 1.5);
+
+        foreach (var col in Nivel.Columnas)
+        {
+            double halfB = col.Base * 0.5;
+            double halfP = col.Peralte * 0.5;
+            var pTopLeft = MetrosAPixel(col.CoordenadaX - halfB, col.CoordenadaY - halfP);
+            double cw = col.Base * _scale;
+            double ch = col.Peralte * _scale;
+            var rect = new Rect(pTopLeft.X, pTopLeft.Y, cw, ch);
+
+            bool isSelected = ReferenceEquals(SelectedElement, col);
+            context.DrawRectangle(colFill, isSelected ? selectPen : colPen, rect);
+
+            // Label
+            var ft = new FormattedText(col.Nombre, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, boldTypeface, 11.0, Brushes.Black);
+            context.DrawText(ft, new Point(rect.Right + 4.0, rect.Y - 4.0));
+        }
+    }
+}
