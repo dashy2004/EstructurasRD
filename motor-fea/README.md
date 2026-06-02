@@ -47,13 +47,16 @@ quedan declaradas para acelerar a escala urbana (B5).
 cd motor-fea
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"        # numpy/scipy/pytest
-PYTHONPATH=src pytest -q       # 68 tests (sin numpy: la suite es stdlib pura)
+PYTHONPATH=src pytest -q       # 108 tests (sin numpy: la suite es stdlib pura)
 ```
 
 ## Estado (ver PLAN_MAESTRO.md Track B)
 
 - ✅ B0 scaffolding · B1 solver frame 3D · B1.5 contrato JSON+CLI · B2 modal
-  (multi-modo + participación) · B3 ACI 318-19 (viga/columna/zapata/losa/combos)
-  · sismo R-001.
-- ⏳ Shells MITC4/DKT (losas por FEM), diafragma rígido, BIM (IfcOpenShell),
-  escala urbana (PostGIS/3D Tiles, Rust), puente C# ↔ motor.
+  (multi-modo + participación + SRSS/CQC + modal-espectral) · B3 ACI 318-19
+  (viga/columna/zapata/losa/combos) · sismo R-001 · **shells: losas por FEM
+  (elemento ACM, análisis→momentos→diseño vano+apoyo→CLI, validado por
+  convergencia vs Timoshenko, cuadrada/rectangular/empotrada)** · **diafragma
+  rígido**. Capstone: flujo de edificio (pórtico+diafragma+modal+sismo+diseño).
+- ⏳ MITC4 (placas gruesas, nicho), BIM (IfcOpenShell), escala urbana
+  (PostGIS/3D Tiles, Rust), **puente C# ↔ motor (B6)**.

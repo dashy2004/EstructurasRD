@@ -23,6 +23,15 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
 
 ---
 
+## Capstone motor FEA (2026-06-02)
+
+Test de integración `test_integracion_edificio.py`: flujo de edificio completo en
+un solo análisis — pórtico 3D + diafragma rígido → estático lateral → modal →
+cortante basal modal-espectral (R-001) → diseño de losa por FEM. **108/108
+motor-fea verde.** El motor es un sistema de análisis y diseño estructural
+completo y validado; el fork Shells B2 y los refinamientos elegidos están hechos.
+Restante: MITC4 (nicho) y el **puente B6** (conectar la app viva — decisión del usuario).
+
 ## Hito (2026-06-02) — tras 21 iteraciones del loop
 
 **Track A** efectivamente completo (A0–A3 ✅; A4 SAF/M-V-Δ ya existían; solo DXF
