@@ -50,3 +50,35 @@ def test_piso_de_cortante_basal_0_03():
     # Rd enorme → Cb cae al piso de 0.03 (R-001).
     r = sismo.cortante_basal_sismico(voladizo(), {2: 1000.0}, ZONA, FA, FV, rd=1000.0)
     assert abs(r.cb - 0.03) < 1e-12
+
+
+# ---- Análisis modal-espectral (modal + espectro + CQC) sobre la cadena 2 GDL ----
+from modelos_ref import M_MASA, cadena_2gdl   # noqa: E402
+
+_MASAS_CADENA = {1: M_MASA, 2: M_MASA}
+
+
+def test_modal_espectral_captura_toda_la_masa():
+    r = sismo.cortante_basal_modal_espectral(cadena_2gdl(), _MASAS_CADENA, ZONA, FA, FV,
+                                             rd=5.5, direccion="x", n_modos=2)
+    # 2 modos en una cadena de 2 GDL → 100% de la masa (≥90% requerido por norma).
+    assert r.masa_participativa / (2 * M_MASA) > 0.90
+    assert r.cortante_basal > 0
+    assert len(r.modos) == 2
+
+
+def test_modal_espectral_modo_fundamental_domina():
+    r = sismo.cortante_basal_modal_espectral(cadena_2gdl(), _MASAS_CADENA, ZONA, FA, FV,
+                                             rd=5.5, direccion="x", n_modos=2)
+    m1, m2 = r.modos
+    assert m1.masa_efectiva > m2.masa_efectiva       # el 1er modo capta más masa
+    assert m1.cortante > m2.cortante
+
+
+def test_modal_espectral_menor_o_igual_que_estatico():
+    est = sismo.cortante_basal_sismico(cadena_2gdl(), _MASAS_CADENA, ZONA, FA, FV, rd=5.5)
+    mod = sismo.cortante_basal_modal_espectral(cadena_2gdl(), _MASAS_CADENA, ZONA, FA, FV,
+                                               rd=5.5, direccion="x", n_modos=2)
+    # El modal-espectral reparte la masa por modo y combina con CQC → ≤ estático.
+    assert mod.cortante_basal <= est.cortante_basal * 1.001
+    assert mod.cortante_basal > 0.85 * est.cortante_basal

@@ -179,8 +179,12 @@ tests; 780/780 .NET verde. Pendiente menor: posicionamiento por defecto de vigas
       — `srss`, `coeficiente_correlacion` (Der Kiureghian) y `cqc`. Validado:
       SRSS(3,4)=5; CQC≈SRSS con modos separados y CQC>SRSS con frecuencias
       cercanas; ρ=1 coincidentes. 7 tests. **97/97 motor-fea verde.**
+    - [x] **Análisis modal-espectral (2026-06-02):** `sismo.cortante_basal_modal_espectral`
+      — por modo Sa(Ti)·M_eff_i combinado con CQC; reporta masa participativa
+      (≥90%). Validado vs estático en cadena 2 GDL: V=0.95× estático, 100% masa,
+      modo 1 domina. 3 tests. **100/100 motor-fea verde.**
     - [ ] Momentos negativos en bordes empotrados → acero superior. Diafragma
-      rígido. Análisis modal-espectral completo (modal+espectro+CQC). MITC4.
+      rígido. MITC4 (placas gruesas).
 - [x] **B·sismo — cortante basal estático (2026-06-02)** — *3 capas juntas*
   - `r001.aceleracion_espectral(T)`: espectro de diseño (rampa T0 / meseta SDS /
     rama SD1/T). `sismo.cortante_basal_sismico`: módulo de composición que une
