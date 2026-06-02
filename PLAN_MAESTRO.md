@@ -143,8 +143,14 @@ confirmar antes), **DXF Fases 2/3** (CAD), **BIM/escala urbana** (B4/B5).
     (masa modal efectiva + % por dirección). Validado vs cadena de 2 masas-
     resorte `ω²=(k/m)(3∓√5)/2` y participación que suma 100% (modo 1 ~95%).
     **51/51 motor-fea verde.**
-  - [ ] Elemento shell MITC4/DKMQ (losas/muros), diafragma rígido (constraint a
-    nodo maestro), combinación espectral SRSS/CQC.
+  - [~] **Shells (en curso — fork elegido):**
+    - [x] **Elemento de placa ACM (2026-06-02):** `core/placa.py` — rectángulo
+      Kirchhoff de 12 GDL (w,θx,θy), `rigidez_placa` por `K=C⁻ᵀ(∫BᵀDbB)C⁻¹` con
+      Gauss 3×3. Validado a nivel de elemento: simetría, 3 modos de cuerpo
+      rígido con energía nula, escala t³. 7 tests. **75/75 motor-fea verde.**
+    - [ ] Mallador + ensamblaje + solver de losa; validación por convergencia vs
+      placa simplemente apoyada (`w=0.00406 q a⁴/D`). Diafragma rígido. SRSS/CQC.
+    - [ ] MITC4 (placas gruesas, sin shear-locking) como refinamiento.
 - [x] **B·sismo — cortante basal estático (2026-06-02)** — *3 capas juntas*
   - `r001.aceleracion_espectral(T)`: espectro de diseño (rampa T0 / meseta SDS /
     rama SD1/T). `sismo.cortante_basal_sismico`: módulo de composición que une
