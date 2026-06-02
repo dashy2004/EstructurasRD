@@ -172,6 +172,9 @@ tests; 780/780 .NET verde. Pendiente menor: posicionamiento por defecto de vigas
       `motor-fea --disenar-losa params.json` → JSON {w_central, mx/my_max,
       franja_x/y: As + Disponer}. Demo: `#3 @ 190 mm, cumple`. 2 tests, 87/87.
       **El motor diseña una losa por línea de comandos (JSON→JSON) — listo para B6.**
+    - [x] **Losa rectangular validada (2026-06-02):** deflexión y momentos vs
+      Timoshenko (`w=α q b⁴/D`, b=corto): a/b=1.5 → −0.7%, a/b=2 → −0.9% a malla
+      fina (convergente); My>Mx (domina el vano corto). 3 tests. **90/90 verde.**
     - [ ] Momentos negativos en bordes empotrados → acero superior. Diafragma
       rígido. Combinación espectral SRSS/CQC. MITC4 (placas gruesas).
 - [x] **B·sismo — cortante basal estático (2026-06-02)** — *3 capas juntas*

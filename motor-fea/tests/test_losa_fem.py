@@ -49,3 +49,34 @@ def test_w_cero_en_el_borde():
     for (i, j), w in r.desplazamientos_w.items():
         if i in (0, 6) or j in (0, 6):
             assert abs(w) < 1e-18          # apoyo: w=0 en el contorno
+
+
+# ---- Losa RECTANGULAR (caso real, a/b ≠ 1) vs Timoshenko (w = α q b⁴/D, b=corto) ----
+def _w(a: float, b: float, nx: int, ny: int) -> float:
+    return resolver_losa_rectangular(a, b, nx, ny, E, NU, T, Q, "simple").w_central
+
+
+def test_rectangular_ab_2_converge_a_timoshenko():
+    b = 4.0
+    a = 2.0 * b
+    w_ref = 0.01013 * Q * b ** 4 / D          # α(a/b=2) = 0.01013
+    err_grueso = abs(_w(a, b, 8, 4) - w_ref) / w_ref
+    err_fino = abs(_w(a, b, 16, 8) - w_ref) / w_ref
+    assert err_fino < err_grueso              # converge al refinar
+    assert err_fino < 0.02                    # malla fina dentro del 2%
+
+
+def test_rectangular_ab_1_5_converge_a_timoshenko():
+    b = 4.0
+    a = 1.5 * b
+    w_ref = 0.00772 * Q * b ** 4 / D          # α(a/b=1.5) = 0.00772
+    err_grueso = abs(_w(a, b, 6, 4) - w_ref) / w_ref
+    err_fino = abs(_w(a, b, 12, 8) - w_ref) / w_ref
+    assert err_fino < err_grueso
+    assert err_fino < 0.02
+
+
+def test_rectangular_momento_vano_corto_domina():
+    # a/b=2: el momento que flexiona el vano corto (My, con b en Y) domina sobre Mx.
+    r = resolver_losa_rectangular(8.0, 4.0, 16, 8, E, NU, T, Q, "simple")
+    assert r.my_max > r.mx_max
