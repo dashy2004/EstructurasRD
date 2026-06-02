@@ -70,10 +70,13 @@ Licencias: referencia PyNite (MIT), Frame3DD (GPL, solo referencia), scikit-fem
 
 ## TRACK B — Motor FEA nativo (Python/NumPy/SciPy → servicio)
 
-- [ ] **B0 · Decisión de arquitectura + scaffolding**
-  - Crear `motor-fea/` (paquete Python): estructura `core/`, `normativa/`,
-    `api/`, `tests/`. `pyproject.toml`, venv, deps base (numpy, scipy, pytest).
-  - ADR: dónde vive, cómo lo invoca el C# (FastAPI HTTP vs CLI tipo `Losas.exe`).
+- [x] **B0 · Decisión de arquitectura + scaffolding** ✅ (2026-06-02)
+  - Paquete `motor-fea/` con capas `core/` (dominio: Nodo/Material/Seccion/
+    ElementoFrame/Apoyo/CargaNodal/ModeloEstructural, 6 GDL/nodo), `normativa/`
+    (R-001: zonas I/II, espectro, cortante basal), `api/` (CLI `--version`).
+  - `pyproject.toml`, `docs/ADR-0001-integracion.md` (frontera CLI/HTTP que
+    reemplaza el shell-out a `Losas.exe`), `README.md`, `.gitignore`.
+  - CI `ci-motor-fea.yml`. **7 smoke-tests stdlib verde** (Python 3.14, sin numpy).
 - [ ] **B1 · Solver rigidez directa — frame 3D 12 GDL**
   - Elemento viga-columna 12 GDL (Hermite flexión + axial/torsión), matriz de
     transformación 12×12, ensamblaje disperso (`scipy.sparse`), `spsolve`.

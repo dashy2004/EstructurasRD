@@ -1,0 +1,35 @@
+name: ci-motor-fea
+
+# CI del motor FEA nativo (Python). Independiente de la CI .NET. Instala el
+# paquete con sus dependencias numéricas y corre la suite (smoke-tests B0 +
+# solver B1+).
+
+on:
+  push:
+    branches: [main, avalonia-linux]
+    paths: ['motor-fea/**', '.github/workflows/ci-motor-fea.yml']
+  pull_request:
+    branches: [main, avalonia-linux]
+    paths: ['motor-fea/**', '.github/workflows/ci-motor-fea.yml']
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: motor-fea
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Test
+        run: pytest -q
