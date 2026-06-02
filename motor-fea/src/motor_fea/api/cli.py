@@ -15,7 +15,7 @@ import argparse
 import sys
 
 from motor_fea import __version__
-from motor_fea.api.contrato import analizar_json
+from motor_fea.api.contrato import analizar_json, disenar_losa_json
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -23,6 +23,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--version", action="store_true", help="Imprime la versión y sale.")
     parser.add_argument("--analyze", metavar="MODELO.json",
                         help="Resuelve el modelo JSON (ruta o '-' para stdin) y emite resultados JSON.")
+    parser.add_argument("--disenar-losa", metavar="PARAMS.json", dest="disenar_losa",
+                        help="Diseña una losa por FEM desde un JSON de parámetros (ruta o '-') y emite JSON.")
     args = parser.parse_args(argv)
 
     if args.version:
@@ -30,16 +32,24 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.analyze:
-        try:
-            texto = sys.stdin.read() if args.analyze == "-" else _leer(args.analyze)
-            print(analizar_json(texto))
-            return 0
-        except (OSError, ValueError) as ex:
-            print(f"error: {ex}", file=sys.stderr)
-            return 1
+        return _ejecutar(args.analyze, analizar_json)
+
+    if args.disenar_losa:
+        return _ejecutar(args.disenar_losa, disenar_losa_json)
 
     parser.print_help()
     return 0
+
+
+def _ejecutar(ruta: str, pipeline) -> int:
+    """Lee JSON (ruta o '-' = stdin), aplica el pipeline y lo imprime; 1 en error."""
+    try:
+        texto = sys.stdin.read() if ruta == "-" else _leer(ruta)
+        print(pipeline(texto))
+        return 0
+    except (OSError, ValueError, KeyError) as ex:
+        print(f"error: {ex}", file=sys.stderr)
+        return 1
 
 
 def _leer(ruta: str) -> str:

@@ -90,3 +90,34 @@ def test_cli_analyze_archivo():
         assert abs(uz - (-P * L**3 / (3 * E * I))) / (P * L**3 / (3 * E * I)) < 1e-9
     finally:
         os.unlink(path)
+
+
+_PARAMS_LOSA = {
+    "a": 5.0, "b": 5.0, "nx": 6, "ny": 6, "E": 2.0e10, "nu": 0.2, "t": 0.2,
+    "q": 10000.0, "fc": 21.0, "fy": 420.0, "recubrimiento": 25.0, "borde": "simple",
+}
+
+
+def test_disenar_losa_dict_devuelve_momentos_y_acero():
+    out = contrato.disenar_losa_dict(_PARAMS_LOSA)
+    assert out["mx_max"] > 0 and out["my_max"] > 0
+    assert out["w_central"] > 0
+    assert out["franja_x"]["as_diseno"] > 0
+    assert out["franja_x"]["cumple"] is True
+    assert "#" in out["franja_x"]["disponer"]
+
+
+def test_cli_disenar_losa_archivo():
+    fd, path = tempfile.mkstemp(suffix=".json")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(_PARAMS_LOSA, f)
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            rc = cli.main(["--disenar-losa", path])
+        assert rc == 0
+        out = json.loads(buf.getvalue())
+        assert out["franja_x"]["as_diseno"] > 0
+        assert out["mx_max"] > 0
+    finally:
+        os.unlink(path)

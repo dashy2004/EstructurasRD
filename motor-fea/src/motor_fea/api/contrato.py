@@ -103,3 +103,49 @@ def analizar_dict(modelo_dict: dict) -> dict:
 def analizar_json(texto: str) -> str:
     """Pipeline texto→texto: JSON del modelo → JSON de resultados (indentado)."""
     return json.dumps(analizar_dict(json.loads(texto)), indent=2)
+
+
+# ----------------------- Diseño de losa por FEM -----------------------
+# Parámetros (entrada)::
+#   {"a":5,"b":5,"nx":8,"ny":8,"E":2.0e10,"nu":0.2,"t":0.2,"q":10000,
+#    "fc":21,"fy":420,"recubrimiento":25,"borde":"simple"}
+# Resultado (salida): {w_central, mx_max, my_max, franja_x:{...}, franja_y:{...}}.
+def _franja_a_dict(f) -> dict:
+    a = f.armadura
+    return {
+        "as_requerido": f.as_requerido,
+        "as_minimo": f.as_minimo,
+        "as_diseno": f.as_diseno,
+        "seccion_insuficiente": f.seccion_insuficiente,
+        "gobierna_minimo": f.gobierna_minimo,
+        "numero_barra": a.numero_barra,
+        "espaciamiento": a.espaciamiento,
+        "as_provista": a.as_provista,
+        "cumple": a.cumple,
+        "disponer": a.disponer,
+    }
+
+
+def disenar_losa_dict(p: dict) -> dict:
+    """Diseña una losa por FEM desde un dict de parámetros y devuelve un dict JSON-able."""
+    from motor_fea.diseno_losa import disenar_losa
+    d = disenar_losa(
+        a=float(p["a"]), b=float(p["b"]), nx=int(p["nx"]), ny=int(p["ny"]),
+        E=float(p["E"]), nu=float(p.get("nu", 0.2)), t=float(p["t"]), q=float(p["q"]),
+        fc_mpa=float(p["fc"]), fy_mpa=float(p["fy"]),
+        recubrimiento_mm=float(p.get("recubrimiento", 25.0)),
+        borde=str(p.get("borde", "simple")))
+    return {
+        "w_central": d.analisis.w_central,
+        "mx_max": d.analisis.mx_max,
+        "my_max": d.analisis.my_max,
+        "mu_x": d.mu_x,
+        "mu_y": d.mu_y,
+        "franja_x": _franja_a_dict(d.franja_x),
+        "franja_y": _franja_a_dict(d.franja_y),
+    }
+
+
+def disenar_losa_json(texto: str) -> str:
+    """Pipeline texto→texto: JSON de parámetros → JSON del diseño de losa (indentado)."""
+    return json.dumps(disenar_losa_dict(json.loads(texto)), indent=2)
