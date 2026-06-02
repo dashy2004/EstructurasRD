@@ -38,10 +38,10 @@ public class EscenaEdificioTests
     {
         var esc = EscenaEdificio.Construir(EdificioDosNiveles());
 
-        Assert.Equal(12, esc.Segmentos.Count);             // 8 aristas de piso + 4 columnas
+        Assert.Equal(20, esc.Segmentos.Count);             // 8 aristas de piso + 8 aristas de losas reales + 4 columnas
         Assert.Equal(new Vector3(-2, 0, -2), esc.Min);
-        Assert.Equal(new Vector3(2, 3, 2), esc.Max);
-        Assert.Equal(new Vector3(0, 1.5f, 0), esc.Centro);
+        Assert.Equal(new Vector3(4, 3, 4), esc.Max);
+        Assert.Equal(new Vector3(1, 1.5f, 1), esc.Centro);
     }
 
     [Fact]
