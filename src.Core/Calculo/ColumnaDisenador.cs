@@ -298,4 +298,44 @@ public static class ColumnaDisenador
             EstriboColumna(s, numeroBarraLong),
             ChequearDemanda(s, puN, muNmm),
             DiagramaInteraccion(s));
+
+    // ===================================================================
+    // ESBELTEZ (ACI 318-19 §6.2.5 / §6.6.4)
+    // ===================================================================
+
+    /// <summary>
+    /// Radio de giro r (mm) de una sección rectangular: ACI 318-19 §6.2.5.1
+    /// permite r = 0.30·(dimensión total en la dirección de pandeo considerada).
+    /// </summary>
+    public static double RadioGiroRectangular(double dimensionMm) => 0.30 * dimensionMm;
+
+    /// <summary>
+    /// Relación de esbeltez k·Lu/r (adimensional): factor de longitud efectiva
+    /// <paramref name="k"/>, longitud no arriostrada <paramref name="luMm"/> (mm) y
+    /// radio de giro <paramref name="rMm"/> (mm). Radio nulo o negativo → infinito.
+    /// </summary>
+    public static double RelacionEsbeltez(double k, double luMm, double rMm)
+        => rMm > 0 ? k * luMm / rMm : double.PositiveInfinity;
+
+    /// <summary>
+    /// Límite de esbeltez para <b>despreciar</b> los efectos de esbeltez en pórticos
+    /// arriostrados / sin desplazamiento lateral (ACI 318-19 §6.2.5):
+    /// <c>34 − 12·(M1/M2)</c>, sin exceder 40. <paramref name="m1"/> es el menor
+    /// momento de extremo y <paramref name="m2"/> el mayor; <c>M1/M2</c> es negativo
+    /// en curvatura simple y positivo en doble curvatura.
+    /// </summary>
+    public static double LimiteEsbeltezArriostrado(double m1, double m2)
+    {
+        double ratio = m2 != 0.0 ? m1 / m2 : 0.0;
+        return Math.Min(34.0 - 12.0 * ratio, 40.0);
+    }
+
+    /// <summary>
+    /// ¿La columna (arriostrada) es esbelta? Verdadero si <c>k·Lu/r</c> supera el
+    /// <see cref="LimiteEsbeltezArriostrado"/>: en ese caso no pueden despreciarse
+    /// los efectos de esbeltez (ACI 318-19 §6.2.5). <paramref name="dimensionMm"/>
+    /// es la dimensión de la sección en la dirección de pandeo considerada.
+    /// </summary>
+    public static bool EsEsbeltaArriostrada(double k, double luMm, double dimensionMm, double m1, double m2)
+        => RelacionEsbeltez(k, luMm, RadioGiroRectangular(dimensionMm)) > LimiteEsbeltezArriostrado(m1, m2);
 }

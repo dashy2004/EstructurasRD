@@ -244,4 +244,39 @@ public class ColumnaDisenadorTests
         Assert.True(d.Chequeo.Cumple);              // (1000 kN, 50 kN·m) dentro del diagrama
         Assert.NotEmpty(d.Diagrama);
     }
+
+    // ----- Esbeltez (ACI 318-19 §6.2.5 / §6.6.4) -----
+
+    [Fact]
+    public void RadioGiroRectangular_es_0_3_por_la_dimension()
+    {
+        // ACI 318-19 §6.2.5.1: r = 0.30·h en la dirección considerada.
+        Assert.Equal(180.0, ColumnaDisenador.RadioGiroRectangular(600.0), 6);
+    }
+
+    [Fact]
+    public void RelacionEsbeltez_es_k_Lu_sobre_r()
+    {
+        // k=1.0, Lu=3000 mm, r=180 mm → 16.667
+        Assert.Equal(3000.0 / 180.0, ColumnaDisenador.RelacionEsbeltez(1.0, 3000.0, 180.0), 6);
+    }
+
+    [Theory]
+    // ACI 318-19 §6.2.5 (arriostrado): 34 − 12·(M1/M2), tope 40. M1/M2 < 0 en curvatura simple.
+    [InlineData(0.0,    100.0, 34.0)]   // M1/M2 = 0     → 34
+    [InlineData(100.0,  100.0, 22.0)]   // M1/M2 = +1    → 22 (doble curvatura)
+    [InlineData(-100.0, 100.0, 40.0)]   // M1/M2 = −1    → 46 capado a 40 (curvatura simple)
+    public void LimiteEsbeltezArriostrado_es_34_menos_12_ratio_capado_en_40(double m1, double m2, double esperado)
+    {
+        Assert.Equal(esperado, ColumnaDisenador.LimiteEsbeltezArriostrado(m1, m2), 6);
+    }
+
+    [Fact]
+    public void EsEsbeltaArriostrada_compara_kLu_r_contra_el_limite()
+    {
+        // r = 0.3·400 = 120; kLu/r = 1·4000/120 = 33.33; límite (M1/M2=0) = 34 → NO esbelta.
+        Assert.False(ColumnaDisenador.EsEsbeltaArriostrada(k: 1.0, luMm: 4000, dimensionMm: 400, m1: 0, m2: 100));
+        // Lu mayor: kLu/r = 1·5000/120 = 41.67 > 34 → esbelta.
+        Assert.True(ColumnaDisenador.EsEsbeltaArriostrada(k: 1.0, luMm: 5000, dimensionMm: 400, m1: 0, m2: 100));
+    }
 }
