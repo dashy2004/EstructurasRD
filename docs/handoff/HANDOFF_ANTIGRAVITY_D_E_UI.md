@@ -54,6 +54,18 @@ estaba vacío** (nada materializaba vigas desde las losas). Eso ya se resolvió 
 
 ---
 
+## Tarea F-2-UI — Botón «Tomar Pu del descenso» (editor de Columnas)
+
+**Headless ya disponible y testeado (888/888):** `ColumnasEditorViewModel` expone
+`TomarPuDelDescensoCommand` (y el método `TomarPuDelDescenso()`). Calcula la carga
+última en base del edificio (bajada de cargas), la reparte equitativamente entre
+todas las columnas y fija `PuKN` (que recalcula la demanda P-M del diagrama).
+
+**UI a construir:** un botón en `src/Views/ColumnasEditorView.axaml` junto al campo
+`PuKN`, con `Command="{Binding TomarPuDelDescensoCommand}"` y rótulo p. ej.
+«Tomar Pu del descenso». Sin más lógica — el comando ya hace todo. (Este archivo NO
+está en tu WIP actual, podés tomarlo.)
+
 ## Notas de seguridad (Antigravity)
 - `ControlTheme` de controles nativos: siempre `BasedOn="{StaticResource {x:Type <Control>}}"`.
 - Mantené la suite verde: `~/.dotnet/dotnet test tests/LosasPlus.Tests` (878/878 hoy).
