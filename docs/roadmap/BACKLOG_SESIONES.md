@@ -52,7 +52,14 @@ diagramas». Y el **dibujo de sección** (b×h + armado) sí falta de verdad en 
   nivel».
 - Lane mixto: cálculo/materialización (Claude); sección/plot visual (Antigravity).
 
-## F — Columnas: aceros + carga transmitida + características de diseño  🔎 INVESTIGADO
+## F — Columnas  ✅ COMPLETO HEADLESS (900/900 verde)
+- **F-2:** `DescensoColumnas.PuDemandaKN(cargaEnBase, nCol)` (puro) + `ColumnasEditorViewModel.TomarPuDelDescenso()`/`Command` → cierra losa→bajada→columna (Pu deja de teclearse). Falta sólo el **botón** (hand-off `HANDOFF_ANTIGRAVITY_D_E_UI.md` tarea F-2-UI → Antigravity).
+- **F-3 (esbeltez §6.2.5):** `RadioGiroRectangular`, `RelacionEsbeltez`, `LimiteEsbeltezArriostrado`, `EsEsbeltaArriostrada`.
+- **F-3b (magnificación §6.6.4):** `ModuloElasticidadConcreto`, `InerciaBrutaRectangular`, `RigidezEI`, `CargaCriticaPandeo`, `FactorMagnificacion δ`.
+- **Pendiente (UI → Antigravity):** mostrar aceros/estribos (ya calculados), esbeltez y δ en la pestaña Columnas; botón «Tomar Pu del descenso». Requiere campos Lu/k (inputs UI).
+- **Validación usuario:** Pu/diseño vs un caso conocido.
+
+### Detalle histórico (investigación previa de F)
 **Hallazgo:** a diferencia de D/E, F **no tiene una brecha grande de cálculo puro**.
 `DescensoColumnas.RepartirEquitativo(columnas, cargaEnBase, presionAdmisible)` ya devuelve
 `CargaColumna{Columna, CargaAxial(ton), LadoZapata}` por columna; `ColumnasEditorViewModel`
