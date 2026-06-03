@@ -1067,6 +1067,32 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     }
 
     /// <summary>
+    /// Exporta el diseño de acero <b>por franja</b> (pestaña Aceros, A1) a CSV,
+    /// usando el recubrimiento y la barra supuesta actuales del <see cref="Aceros"/>.
+    /// Complementa a <see cref="ExportarCsvAsync"/>, que exporta la tabla por losa.
+    /// </summary>
+    public void ExportarAcerosCsv(string path)
+    {
+        try
+        {
+            AcerosLosaExporter.ExportCsv(Sistema, path, Aceros.RecubrimientoCm, Aceros.BarraSupuesta);
+            Log("CSV de aceros exportado: " + path);
+        }
+        catch (Exception ex) { Log("Error exportando CSV de aceros: " + ex.Message); }
+    }
+
+    /// <summary>Exporta el diseño de acero por franja (pestaña Aceros) a XLSX.</summary>
+    public void ExportarAcerosXlsx(string path)
+    {
+        try
+        {
+            AcerosLosaExporter.ExportXlsx(Sistema, path, Aceros.RecubrimientoCm, Aceros.BarraSupuesta);
+            Log("XLSX de aceros exportado: " + path);
+        }
+        catch (Exception ex) { Log("Error exportando XLSX de aceros: " + ex.Message); }
+    }
+
+    /// <summary>
     /// Exporta a XLSX con varias hojas (Resumen / Losas / Apoyos / Esquema / Combinaciones).
     /// La ventana llama a este método después de capturar el PNG del Canvas (opcional).
     /// </summary>

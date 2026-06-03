@@ -70,7 +70,7 @@ tests; 780/780 .NET verde. Pendiente menor: posicionamiento por defecto de vigas
   - CI Linux (`.github/workflows/ci-linux.yml`): build + test en ubuntu-latest.
   - **Verificación:** `dotnet build LosasPlus.Linux.sln --no-incremental` 0/0 +
     `dotnet test` verde.
-- [ ] **A1 · Pestaña "Aceros"** — *funcional end-to-end; falta export*
+- [x] **A1 · Pestaña "Aceros"** — *funcional end-to-end con export (2026-06-02)*
   - [x] **Core (2026-06-02):** `AcerosLosaDesigner` — As req. por flexión
     (ACI 318-19), As mín. por temperatura (§24.4.3.2), espaciamiento máx.
     (§8.7.2.2), selección de barra #3–#6 + "Disponer", diseño de las 4 franjas
@@ -83,8 +83,15 @@ tests; 780/780 .NET verde. Pendiente menor: posicionamiento por defecto de vigas
     `MainWindow.axaml` (LOSA/TIPO/FRANJA/Mu/d/As req/mín/diseño/Disponer/As
     prov/ESTADO) + editores recubrimiento/barra + estado vacío "importá .TXT".
     Build 0/0, arranca sin excepción, 772/772 verde. **Pestaña Aceros operativa.**
-  - [ ] Enganchar export CSV/XLSX + MemoriaPlus. Quitar placeholder de
-    `MainWindow.axaml:784-817`.
+  - [x] **Export CSV/XLSX (2026-06-02):** `AcerosLosaExporter` (src.Core/Services) —
+    diseño de acero por franja (X/Y centro y apoyo) a CSV (UTF-8/BOM, `;`) y XLSX
+    (1 hoja, shading por ESTADO). `ToCsv` puro/determinista; paridad fila-a-fila con
+    `AcerosViewModel.Filas` testeada. Botones ⬇CSV/⬇XLSX en la barra de Aceros →
+    `ExportarAcerosCsv/Xlsx`. 6 tests. **790/790 .NET verde.** El claim del
+    "placeholder en `MainWindow.axaml:784-817`" estaba obsoleto (la View ya era un
+    DataGrid; esa región hoy es Columnas/CAD).
+  - [ ] *(Residual menor)* Integrar el schedule de aceros por franja en **MemoriaPlus**
+    (hoy MemoriaPlus no consume `AcerosLosaDesigner`/`DisenoAceroFranja`).
 - [x] **A2 · Limpieza de wiring/settings** ✅ (2026-06-02)
   - [x] Eliminado el evento muerto `AtajosGuardados` (sin suscriptores; la
     aplicación en vivo ya va por `AtajosService.AtajosCambiados`, al que LosasPlus

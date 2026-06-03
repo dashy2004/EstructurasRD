@@ -884,6 +884,14 @@
                                        Foreground="{DynamicResource Err}"
                                        Text="{Binding Aceros.FranjasNoCumplen, StringFormat='A revisar: {0}'}"/>
                             <Border Width="1" Margin="14,2" Background="{DynamicResource Border}"/>
+                            <!-- A1: export del diseño de acero por franja (CSV / XLSX). -->
+                            <Button Content="⬇ CSV" Padding="8,4" Click="OnExportAcerosCsvClick"
+                                    IsEnabled="{Binding Aceros.HayMomentos}"
+                                    ToolTip.Tip="Exportar el diseño de acero por franja a CSV"/>
+                            <Button Content="⬇ XLSX" Padding="8,4" Margin="6,0,0,0" Click="OnExportAcerosXlsxClick"
+                                    IsEnabled="{Binding Aceros.HayMomentos}"
+                                    ToolTip.Tip="Exportar el diseño de acero por franja a Excel"/>
+                            <Border Width="1" Margin="14,2" Background="{DynamicResource Border}"/>
                             <!-- Puente B6: diseñar la losa seleccionada con el motor FEA nativo. -->
                             <TextBox Width="120" VerticalAlignment="Center" Margin="0,0,6,0"
                                      Text="{Binding MotorFeaComando, UpdateSourceTrigger=LostFocus}"

@@ -327,6 +327,22 @@ public partial class MainWindow : Window
         Vm.ExportarSaf(path);
     }
 
+    private async void OnExportAcerosCsvClick(object? sender, RoutedEventArgs e)
+    {
+        var path = await AppServices.Dialogs.SaveFileAsync(
+            "Exportar aceros (CSV)", (Vm.Sistema.Nombre ?? "aceros") + "_aceros.csv", ".csv",
+            new FileFilter("CSV separado por ;", new[] { "*.csv" }));
+        if (path is not null) Vm.ExportarAcerosCsv(path);
+    }
+
+    private async void OnExportAcerosXlsxClick(object? sender, RoutedEventArgs e)
+    {
+        var path = await AppServices.Dialogs.SaveFileAsync(
+            "Exportar aceros (Excel)", (Vm.Sistema.Nombre ?? "aceros") + "_aceros.xlsx", ".xlsx",
+            new FileFilter("Excel Workbook", new[] { "*.xlsx" }));
+        if (path is not null) Vm.ExportarAcerosXlsx(path);
+    }
+
     private void OnTrustPluginClick(object? sender, RoutedEventArgs e)
     {
         if (sender is Control c && c.Tag is string fullPath)
