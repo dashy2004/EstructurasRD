@@ -85,4 +85,34 @@ public class CargaUltimaCalculatorTests
         // Ancla independiente: 1.2·(0.541+0.189) + 1.6·0.20 = 1.196 t/m²
         Assert.Equal(1.196, r.Qu, 3);
     }
+
+    [Fact]
+    public void AplicarCargaUltima_escribe_Wu_en_cada_losa_con_mamposteria_compartida()
+    {
+        var cargas = CargasGlobales.SemillaPorDefecto();
+        var sistema = new Sistema { Uso = SistemaUso.Entrepiso };
+        var l1 = new Losa { Lx = 4, Ly = 5, Espesor = 0.12 };  // área 20
+        var l2 = new Losa { Lx = 5, Ly = 4, Espesor = 0.15 };  // área 20
+        sistema.Losas.Add(l1);
+        sistema.Losas.Add(l2);
+        sistema.Muros.Add(Mur(5.0, 0.15, 2.8));                // Qmamp = 3.78 ton
+
+        var res = CargaUltimaCalculator.AplicarCargaUltima(sistema, cargas);
+
+        // Mampostería repartida sobre el área TOTAL (40 m²) → qmap uniforme;
+        // cada losa difiere sólo por su espesor en el qd.
+        var qmamp = 1.8 * 5.0 * 0.15 * 2.8;
+        var qmap = CalculoEngine.ComputeQmap(qmamp, 40.0);
+        var ql = CalculoEngine.ComputeQl(SistemaUso.Entrepiso, cargas);
+        var qu1 = CalculoEngine.ComputeQu(
+            CalculoEngine.ComputeQd(0.12, cargas, SistemaUso.Entrepiso, qmap), ql, cargas.Factores);
+        var qu2 = CalculoEngine.ComputeQu(
+            CalculoEngine.ComputeQd(0.15, cargas, SistemaUso.Entrepiso, qmap), ql, cargas.Factores);
+
+        Assert.Equal(2, res.Count);
+        Assert.Equal(qu1, l1.Carga, 6);     // Wu escrito en la losa
+        Assert.Equal(qu2, l2.Carga, 6);
+        Assert.Equal(qmap, res[0].Qmap, 6); // qmap compartido entre losas
+        Assert.Equal(qmap, res[1].Qmap, 6);
+    }
 }

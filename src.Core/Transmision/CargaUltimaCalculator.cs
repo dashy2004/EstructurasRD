@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using LosasPlus.Calculo;
 using LosasPlus.Models;
 using LosasPlus.Models.Cad;
@@ -80,5 +81,39 @@ public static class CargaUltimaCalculator
         var ql = CalculoEngine.ComputeQl(sistema.Uso, cargas);
         var qu = CalculoEngine.ComputeQu(qd, ql, cargas.Factores);
         return new CargaUltimaResultado(qmamp, qmap, qd, ql, qu);
+    }
+
+    /// <summary>
+    /// Calcula la carga última directa de cada losa del sistema y la <b>escribe</b>
+    /// en <see cref="Losa.Carga"/> (que el resto del modelo —bajada de cargas,
+    /// zapatas, columnas— consume como Wu). Cierra el lazo geometría → Wu sin que
+    /// el usuario teclee la carga ni dependa de Losas.exe.
+    ///
+    /// <para>
+    /// La mampostería de los muros se reparte uniformemente sobre el área total de
+    /// losa del sistema (un <c>qmap</c> común); cada losa aporta su propio espesor
+    /// al peso propio (<c>qd</c>). Es una acción explícita y aditiva: no reemplaza
+    /// el flujo de Losas.exe, sólo ofrece una vía directa. Devuelve el desglose por
+    /// losa en el mismo orden de <see cref="Sistema.Losas"/>.
+    /// </para>
+    /// </summary>
+    public static IReadOnlyList<CargaUltimaResultado> AplicarCargaUltima(Sistema sistema, CargasGlobales cargas)
+    {
+        var resultados = new List<CargaUltimaResultado>();
+        if (sistema is null || sistema.Losas.Count == 0) return resultados;
+
+        var qmamp = PesoMamposteria(sistema);
+        double areaTotal = sistema.Losas.Sum(l => l.Lx * l.Ly);
+        double qmap = CalculoEngine.ComputeQmap(qmamp, areaTotal);
+        double ql = CalculoEngine.ComputeQl(sistema.Uso, cargas);
+
+        foreach (var losa in sistema.Losas)
+        {
+            double qd = CalculoEngine.ComputeQd(losa.Espesor, cargas, sistema.Uso, qmap);
+            double qu = CalculoEngine.ComputeQu(qd, ql, cargas.Factores);
+            losa.Carga = qu;
+            resultados.Add(new CargaUltimaResultado(qmamp, qmap, qd, ql, qu));
+        }
+        return resultados;
     }
 }
