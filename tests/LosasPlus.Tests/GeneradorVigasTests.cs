@@ -112,4 +112,29 @@ public class GeneradorVigasTests
         Assert.Equal(8, generadas.Count);
         Assert.All(niveles, n => Assert.Equal(4, n.Vigas.Count));
     }
+
+    // ----- Viga continua (multi-tramo) — WS1-B -----
+
+    [Fact]
+    public void VigaContinua_arma_tramos_apoyos_acumulados_y_carga_por_tramo()
+    {
+        var luces = new[] { 4.0, 5.0, 4.0 };
+        var cargas = new[] { 10.0, 12.0, 10.0 };
+
+        var viga = GeneradorVigas.VigaContinua(luces, cargas, "D");
+
+        // 3 tramos con su luz y su carga distribuida.
+        Assert.Equal(3, viga.Tramos.Count);
+        Assert.Equal(5.0, viga.Tramos[1].Longitud, 6);
+        var cargaTramo2 = Assert.Single(viga.Tramos[1].Cargas);
+        Assert.Equal(TipoCargaElemento.Distribuida, cargaTramo2.Tipo);
+        Assert.Equal(12.0, cargaTramo2.Magnitud, 6);
+        Assert.Equal("D", cargaTramo2.CodigoCaso);
+
+        // 4 apoyos fijos en posiciones acumuladas 0, 4, 9, 13.
+        Assert.Equal(4, viga.Apoyos.Count);
+        Assert.Equal(new[] { 0.0, 4.0, 9.0, 13.0 },
+            viga.Apoyos.Select(a => a.CoordenadaX).ToArray());
+        Assert.All(viga.Apoyos, a => Assert.Equal(TipoApoyo.Fijo, a.Tipo));
+    }
 }

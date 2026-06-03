@@ -50,6 +50,42 @@ public static class GeneradorVigas
     }
 
     /// <summary>
+    /// Construye una <b>viga continua</b> de varios tramos (WS1-B): <c>N</c> tramos
+    /// con las luces <paramref name="luces"/> (m) y sus cargas distribuidas
+    /// <paramref name="cargas"/> (kN/m), apoyados sobre <c>N+1</c> apoyos
+    /// <see cref="TipoApoyo.Fijo"/> en posiciones acumuladas (0, L₁, L₁+L₂, …). Es
+    /// la base para materializar vigas continuas reales; la analiza
+    /// <c>VigaContinuaEngine</c>. Entradas nulas, vacías, de distinto largo o con
+    /// alguna luz no positiva devuelven una viga vacía.
+    /// </summary>
+    public static Viga VigaContinua(IReadOnlyList<double> luces, IReadOnlyList<double> cargas, string codigoCaso = "D")
+    {
+        var viga = new Viga();
+        if (luces is null || cargas is null || luces.Count == 0 || luces.Count != cargas.Count)
+            return viga;
+        if (luces.Any(l => l <= 0))
+            return viga;
+
+        viga.Apoyos.Add(new ApoyoViga { CoordenadaX = 0.0, Tipo = TipoApoyo.Fijo });
+        double x = 0.0;
+        for (int i = 0; i < luces.Count; i++)
+        {
+            var tramo = new TramoViga { Longitud = luces[i] };
+            tramo.Cargas.Add(new CargaElemento
+            {
+                Tipo = TipoCargaElemento.Distribuida,
+                Magnitud = cargas[i],
+                CodigoCaso = codigoCaso,
+            });
+            viga.Tramos.Add(tramo);
+
+            x += luces[i];
+            viga.Apoyos.Add(new ApoyoViga { CoordenadaX = x, Tipo = TipoApoyo.Fijo });
+        }
+        return viga;
+    }
+
+    /// <summary>
     /// Genera las cuatro vigas de apoyo de un paño de losa, cargadas con la carga
     /// tributaria que cada borde recibe por áreas tributarias
     /// (<see cref="RepartoCargaLosa"/>): dos vigas de la luz corta y dos de la luz
