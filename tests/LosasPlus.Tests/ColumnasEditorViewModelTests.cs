@@ -82,4 +82,23 @@ public class ColumnasEditorViewModelTests
         Assert.Single(n0.Columnas);
         Assert.Single(n1.Columnas);
     }
+
+    [Fact]
+    public void TomarPuDelDescenso_setea_PuKN_desde_el_descenso_equitativo()
+    {
+        var ed = new Edificio();
+        var nivel = new Nivel { Cota = 0 };
+        var s = new Sistema();
+        s.Losas.Add(new Losa { Lx = 10, Ly = 10, Carga = 1.5 }); // 1.5·100 = 150 ton en base
+        nivel.Sistemas.Add(s);
+        nivel.Columnas.Add(new Columna { Nombre = "C1" });
+        nivel.Columnas.Add(new Columna { Nombre = "C2" });
+        ed.Niveles.Add(nivel);
+        var vm = new ColumnasEditorViewModel(() => ed);
+
+        vm.TomarPuDelDescenso();
+
+        // CargaEnBase=150 ton / 2 columnas = 75 ton → 75 × 9.80665 = 735.49875 kN.
+        Assert.Equal(735.49875, vm.PuKN, 4);
+    }
 }

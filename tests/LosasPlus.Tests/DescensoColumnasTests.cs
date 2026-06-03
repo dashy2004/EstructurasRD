@@ -86,4 +86,20 @@ public class DescensoColumnasTests
 
         Assert.Equal(98.0665, puKN, 4);   // 10 tonf × 9.80665
     }
+
+    [Fact]
+    public void PuDemandaKN_equitativo_reparte_la_carga_en_base_entre_las_columnas()
+    {
+        // 300 ton en base / 4 columnas = 75 ton c/u → 75 × 9.80665 = 735.49875 kN.
+        // Versión pura (sin tocar zapatas) para alimentar el Pu del editor de columnas.
+        var puKN = DescensoColumnas.PuDemandaKN(cargaEnBaseTon: 300.0, numColumnas: 4);
+
+        Assert.Equal(735.49875, puKN, 4);
+    }
+
+    [Fact]
+    public void PuDemandaKN_equitativo_sin_columnas_da_cero()
+    {
+        Assert.Equal(0.0, DescensoColumnas.PuDemandaKN(cargaEnBaseTon: 300.0, numColumnas: 0), 6);
+    }
 }

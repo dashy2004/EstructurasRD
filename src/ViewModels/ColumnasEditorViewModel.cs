@@ -3,8 +3,11 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Windows.Input;
 using LosasPlus.Calculo;
 using LosasPlus.Models;
+using LosasPlus.Transmision;
+using MemoriaPlus.Common;
 using OxyPlot;
 using OxyPlot.Annotations;
 using OxyPlot.Axes;
@@ -30,7 +33,30 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
     public ColumnasEditorViewModel(Func<Edificio?> getEdificio)
     {
         _getEdificio = getEdificio ?? throw new ArgumentNullException(nameof(getEdificio));
+        TomarPuDelDescensoCommand = new RelayCommand(_ => TomarPuDelDescenso());
         Recargar();
+    }
+
+    /// <summary>Toma el Pu de demanda desde el descenso de cargas del edificio (botón).</summary>
+    public ICommand TomarPuDelDescensoCommand { get; }
+
+    /// <summary>
+    /// Cierra el lazo losa → bajada → columna: calcula la carga última que llega a
+    /// la base del edificio (<see cref="BajadaCargas.Acumular"/>), la reparte
+    /// equitativamente entre <b>todas</b> las columnas del edificio y fija el
+    /// resultado (kN) como <see cref="PuKN"/>, evitando teclear la carga a mano.
+    /// Sin edificio o sin columnas no hace nada.
+    /// </summary>
+    public void TomarPuDelDescenso()
+    {
+        var edificio = _getEdificio();
+        if (edificio is null) return;
+
+        int numColumnas = edificio.Niveles.Sum(n => n.Columnas.Count);
+        if (numColumnas <= 0) return;
+
+        double cargaEnBase = BajadaCargas.Acumular(edificio).CargaEnBase;
+        PuKN = DescensoColumnas.PuDemandaKN(cargaEnBase, numColumnas);
     }
 
     /// <summary>Niveles del edificio activo, para elegir cuál editar.</summary>

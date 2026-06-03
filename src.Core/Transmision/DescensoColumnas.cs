@@ -42,6 +42,17 @@ public static class DescensoColumnas
     public static double PuDemandaKN(CargaColumna carga) => carga.CargaAxial * KN_por_Ton;
 
     /// <summary>
+    /// Demanda <c>Pu</c> (kN) de una columna por descenso <b>equitativo</b>:
+    /// reparte <paramref name="cargaEnBaseTon"/> (ton) entre
+    /// <paramref name="numColumnas"/> columnas iguales y convierte a kN. Versión
+    /// pura, sin efectos colaterales (no predimensiona zapatas como
+    /// <see cref="RepartirEquitativo"/>): pensada para alimentar el <c>Pu</c> del
+    /// editor de columnas. Cero o menos columnas devuelve 0.
+    /// </summary>
+    public static double PuDemandaKN(double cargaEnBaseTon, int numColumnas)
+        => numColumnas <= 0 ? 0.0 : (cargaEnBaseTon / numColumnas) * KN_por_Ton;
+
+    /// <summary>
     /// Reparte <paramref name="cargaTotalServicio"/> equitativamente entre
     /// <paramref name="columnas"/>, predimensiona la zapata cuadrada de cada una
     /// para la <paramref name="presionAdmisible"/> del terreno (creándola si no
