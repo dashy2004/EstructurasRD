@@ -200,4 +200,48 @@ public class ColumnaDisenadorTests
         Assert.False(r.Cumple);
         Assert.True(3_000_000 > r.PhiPnMaxN);
     }
+
+    [Fact]
+    public void LayoutPerimetral_3x3_da_8_barras_sin_duplicar_esquinas()
+    {
+        var bars = ColumnaDisenador.LayoutPerimetral(400, 400, 40, 3, 3, 8);
+        Assert.Equal(8, bars.Count);                                  // 2·3 + 2·3 − 4
+        double db = 25.40, area = System.Math.PI / 4 * db * db;
+        Assert.All(bars, b => Assert.Equal(area, b.AreaMm2, 2));
+        Assert.All(bars, b => Assert.True(System.Math.Abs(b.X) <= 200 && System.Math.Abs(b.Y) <= 200));
+        // 4 esquinas en (±147.3, ±147.3): inset = 40 + db/2 = 52.7.
+        double ext = 200 - 52.7;
+        int esquinas = bars.Count(b => System.Math.Abs(System.Math.Abs(b.X) - ext) < 0.01
+                                    && System.Math.Abs(System.Math.Abs(b.Y) - ext) < 0.01);
+        Assert.Equal(4, esquinas);
+    }
+
+    [Fact]
+    public void LayoutPerimetral_4x4_da_12_barras()
+        => Assert.Equal(12, ColumnaDisenador.LayoutPerimetral(500, 500, 40, 4, 4, 8).Count);
+
+    [Fact]
+    public void LayoutPerimetral_simetrico_tiene_centroide_plastico_en_el_centro()
+    {
+        var bars = ColumnaDisenador.LayoutPerimetral(400, 400, 40, 4, 4, 8);
+        var s = new ColumnaSeccion(400, 400, 28, 420, bars);
+        var (x, y) = ColumnaDisenador.CentroidePlastico(s);
+        Assert.Equal(0.0, x, 3);
+        Assert.Equal(0.0, y, 3);
+    }
+
+    [Fact]
+    public void DisenarColumna_compone_el_resumen_completo()
+    {
+        var bars = ColumnaDisenador.LayoutPerimetral(400, 400, 40, 3, 3, 8);
+        var s = new ColumnaSeccion(400, 400, 28, 420, bars);
+        var d = ColumnaDisenador.DisenarColumna(s, 8, 1_000_000, 50e6);
+
+        Assert.Equal(s.RhoG, d.RhoG, 6);
+        Assert.True(d.CumpleCuantia);
+        Assert.Equal(ColumnaDisenador.Po(s), d.PoN, 1);
+        Assert.Equal(3, d.Estribo.Numero);          // long #8 → estribo #3
+        Assert.True(d.Chequeo.Cumple);              // (1000 kN, 50 kN·m) dentro del diagrama
+        Assert.NotEmpty(d.Diagrama);
+    }
 }

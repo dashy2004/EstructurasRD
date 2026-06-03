@@ -241,4 +241,61 @@ public static class ColumnaDisenador
         bool cumple = puN <= phiPnMax + 1e-6 && ratio <= 1.0 + 1e-9;
         return new ChequeoColumna(phiPnMax, phiMnCap, ratio, cumple);
     }
+
+    /// <summary>
+    /// Coloca barras iguales en el <b>perímetro</b> de una sección b×h (mm): nx por
+    /// cara horizontal (arriba y abajo, incluyendo esquinas) y ny por cara vertical
+    /// (izquierda y derecha). Las esquinas no se duplican → total = 2·nx + 2·ny − 4.
+    /// Centros a <c>recubrimiento + db/2</c> del borde; posiciones respecto al
+    /// centro geométrico. <paramref name="numeroBarra"/> fija el diámetro/área.
+    /// </summary>
+    public static IReadOnlyList<BarraLong> LayoutPerimetral(
+        double b, double h, double recubrimiento, int nx, int ny, int numeroBarra)
+    {
+        if (nx < 2 || ny < 2)
+            throw new ArgumentOutOfRangeException(nameof(nx), "se necesitan ≥2 barras por cara.");
+        double db = DiametroBarraMm(numeroBarra);
+        double area = Math.PI / 4.0 * db * db;
+        double inset = recubrimiento + db / 2.0;
+        double xExt = b / 2.0 - inset;
+        double yExt = h / 2.0 - inset;
+
+        var barras = new List<BarraLong>(2 * nx + 2 * ny - 4);
+        // Caras horizontal arriba/abajo (incluyen las 4 esquinas).
+        for (int i = 0; i < nx; i++)
+        {
+            double x = -xExt + 2.0 * xExt * i / (nx - 1);
+            barras.Add(new BarraLong(x, +yExt, area));
+            barras.Add(new BarraLong(x, -yExt, area));
+        }
+        // Caras verticales izq/der, sólo interiores (las esquinas ya están).
+        for (int j = 1; j < ny - 1; j++)
+        {
+            double y = -yExt + 2.0 * yExt * j / (ny - 1);
+            barras.Add(new BarraLong(-xExt, y, area));
+            barras.Add(new BarraLong(+xExt, y, area));
+        }
+        return barras;
+    }
+
+    /// <summary>Resumen de diseño de una columna: cuantía, capacidades, estribo, chequeo y diagrama.</summary>
+    public sealed record DisenoColumna(
+        double RhoG, bool CumpleCuantia, double PoN, double PhiPnMaxN,
+        Estribo Estribo, ChequeoColumna Chequeo, IReadOnlyList<PuntoPM> Diagrama);
+
+    /// <summary>
+    /// Diseña una columna de punta a punta: compone cuantía + Po/φPn,max + estribos
+    /// + diagrama de interacción + chequeo de la demanda (Pu, Mu) en un solo resumen,
+    /// listo para que el VM/UI lo muestre.
+    /// </summary>
+    public static DisenoColumna DisenarColumna(
+        ColumnaSeccion s, int numeroBarraLong, double puN, double muNmm)
+        => new DisenoColumna(
+            s.RhoG,
+            CumpleCuantia(s),
+            Po(s),
+            PhiPnMax(s),
+            EstriboColumna(s, numeroBarraLong),
+            ChequearDemanda(s, puN, muNmm),
+            DiagramaInteraccion(s));
 }
