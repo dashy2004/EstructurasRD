@@ -88,6 +88,21 @@ Plan acordado B→A→C + ejes + elevación, todo puro/TDD en `src.Core`:
   vista de sección, botón «Generar viga continua del eje», editar elevación.
 - **Aproximaciones documentadas:** viga en dirección Lx, carga tributaria de un lado, apoyos fijos.
 
+## H — Zapatas aisladas (fundaciones)  ✅ COMPLETO HEADLESS (929/929)
+Diseño completo en `src.Core/Calculo/ZapataDisenador.cs` (ACI 318-19, SI N/mm/MPa, puro/TDD):
+- **Presión de contacto:** `PresionContactoUltima` (q_u = Pu/(B·L)).
+- **Punzonamiento §22.6:** `PerimetroCriticoPunzonamiento`, `CortantePunzonamiento`,
+  `ResistenciaPunzonamiento` (φVc = φ·min de las 3 fórmulas), `ChequeoPunzonamiento`.
+- **Cortante unidireccional §22.5:** `VoladizoZapata`, `CortanteUnidireccional`,
+  `ResistenciaCortanteUnidireccional`, `ChequeoCortanteUnidireccional`.
+- **Flexión §13.3:** `MomentoFlexionZapata`, `AceroFlexionZapata` (Whitney + As mín retracción).
+- **Capstone:** `DisenarZapata(...)` → `DisenoZapata{QuMPa, Punzonamiento, Cortante, MuNmm, Acero, Cumple}`.
+- **Exporter:** `ZapataDisenoExporter.ToCsv/ExportCsv` (`src.Core/Services`).
+- **Supuestos documentados:** columna interior, zapata cuadrada concéntrica sin momento, λ=1.
+- **Pendiente (UI → Antigravity):** mostrar el diseño en la pestaña de bajada de cargas/zapatas
+  (alimentar `DisenarZapata` con el Pu del descenso `DescensoColumnas` y la geometría). Ver
+  `docs/handoff/HANDOFF_ANTIGRAVITY_ZAPATAS.md`.
+
 ## Cómo seguir (loop)
 1. Sesión **D** (carga última) — motor headless + UI mínima.
 2. Aplicar **E** (vigas) y **F** (columnas).
