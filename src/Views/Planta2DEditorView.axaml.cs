@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using LosasPlus.Models;
+using LosasPlus.Models.Cad;
 using LosasPlus.Vigas;
 using LosasPlus.Transmision;
 using LosasPlus.ViewModels;
@@ -377,6 +378,17 @@ public partial class Planta2DEditorView : UserControl
         else if (selected is Columna c)
         {
             nivel.Columnas.Remove(c);
+        }
+        else if (selected is Muro m)
+        {
+            foreach (var sys in nivel.Sistemas)
+            {
+                if (sys.Muros.Contains(m))
+                {
+                    sys.Muros.Remove(m);
+                    break;
+                }
+            }
         }
 
         EditorCanvas.SelectedElement = null;
