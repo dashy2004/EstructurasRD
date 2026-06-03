@@ -88,4 +88,48 @@ public static class ZapataDisenador
         double ratio = phiVc > 0 ? vu / phiVc : double.PositiveInfinity;
         return new ChequeoZapataPunzonamiento(vu, phiVc, ratio, vu <= phiVc + 1e-6);
     }
+
+    // ===================================================================
+    // CORTANTE UNIDIRECCIONAL (one-way shear) — ACI 318-19 §22.5
+    // ===================================================================
+
+    /// <summary>Voladizo de la zapata (mm): <c>(B − c)/2</c>, la proyección libre desde la cara de la columna.</summary>
+    public static double VoladizoZapata(double bMm, double cMm) => (bMm - cMm) / 2.0;
+
+    /// <summary>
+    /// Cortante unidireccional <b>último</b> Vu (N) en la sección crítica a <c>d</c>
+    /// de la cara de la columna: <c>Vu = q_u·B·(voladizo − d)</c>, con
+    /// q_u = Pu/(B·L). Si el voladizo es ≤ d (zapata corta) no hay sección crítica
+    /// de cortante en una dirección → 0.
+    /// </summary>
+    public static double CortanteUnidireccional(double puN, double bMm, double lMm, double cMm, double dMm)
+    {
+        double qu = PresionContactoUltima(puN, bMm, lMm);   // MPa = N/mm²
+        double voladizo = VoladizoZapata(bMm, cMm);
+        double franja = voladizo - dMm;
+        return franja > 0 ? qu * bMm * franja : 0.0;
+    }
+
+    /// <summary>
+    /// Resistencia de diseño a cortante unidireccional <b>φVc</b> (N), ACI 318-19
+    /// §22.5.5.1 (sin armadura de cortante, λ=1): <c>φ·0.17·√f'c·B·d</c>, φ = <see cref="PhiCortante"/>.
+    /// </summary>
+    public static double ResistenciaCortanteUnidireccional(double fcMPa, double bMm, double dMm)
+        => PhiCortante * 0.17 * Math.Sqrt(fcMPa) * bMm * dMm;
+
+    /// <summary>Resultado del chequeo de cortante unidireccional de una zapata (N).</summary>
+    public sealed record ChequeoZapataCortante(double VuN, double PhiVcN, double Ratio, bool Cumple);
+
+    /// <summary>
+    /// Chequea el cortante unidireccional de una zapata (ACI 318-19 §22.5):
+    /// <see cref="CortanteUnidireccional"/> contra <see cref="ResistenciaCortanteUnidireccional"/>.
+    /// </summary>
+    public static ChequeoZapataCortante ChequeoCortanteUnidireccional(
+        double puN, double bMm, double lMm, double cMm, double dMm, double fcMPa)
+    {
+        double vu = CortanteUnidireccional(puN, bMm, lMm, cMm, dMm);
+        double phiVc = ResistenciaCortanteUnidireccional(fcMPa, bMm, dMm);
+        double ratio = phiVc > 0 ? vu / phiVc : double.PositiveInfinity;
+        return new ChequeoZapataCortante(vu, phiVc, ratio, vu <= phiVc + 1e-6);
+    }
 }

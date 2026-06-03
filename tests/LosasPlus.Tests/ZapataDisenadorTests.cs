@@ -61,4 +61,37 @@ public class ZapataDisenadorTests
         Assert.Equal(vu / phiVc, chk.Ratio, 6);
         Assert.True(chk.Cumple);   // 797.5 kN ≤ ~2357 kN
     }
+
+    [Fact]
+    public void VoladizoZapata_es_medio_lado_libre()
+    {
+        // (B − c)/2 = (2000 − 400)/2 = 800 mm.
+        Assert.Equal(800.0, ZapataDisenador.VoladizoZapata(bMm: 2000, cMm: 400), 6);
+    }
+
+    [Fact]
+    public void CortanteUnidireccional_es_qu_por_la_franja_mas_alla_de_d()
+    {
+        // q_u=0.25 MPa, B=2000, voladizo=800, d=500 → Vu = 0.25·2000·(800−500) = 150000 N.
+        var vu = ZapataDisenador.CortanteUnidireccional(puN: 1.0e6, bMm: 2000, lMm: 2000, cMm: 400, dMm: 500);
+        Assert.Equal(150000.0, vu, 1);
+    }
+
+    [Fact]
+    public void ResistenciaCortanteUnidireccional_es_phi_0_17_raiz_fc_b_d()
+    {
+        double esperado = 0.75 * 0.17 * System.Math.Sqrt(28.0) * 2000.0 * 500.0;
+        Assert.Equal(esperado, ZapataDisenador.ResistenciaCortanteUnidireccional(fcMPa: 28, bMm: 2000, dMm: 500), 0);
+    }
+
+    [Fact]
+    public void ChequeoCortanteUnidireccional_compone_Vu_phiVc_y_cumple()
+    {
+        var chk = ZapataDisenador.ChequeoCortanteUnidireccional(
+            puN: 1.0e6, bMm: 2000, lMm: 2000, cMm: 400, dMm: 500, fcMPa: 28);
+
+        Assert.Equal(150000.0, chk.VuN, 1);
+        Assert.Equal(ZapataDisenador.ResistenciaCortanteUnidireccional(28, 2000, 500), chk.PhiVcN, 0);
+        Assert.True(chk.Cumple);
+    }
 }
