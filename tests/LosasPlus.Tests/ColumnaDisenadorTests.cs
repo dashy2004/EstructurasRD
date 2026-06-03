@@ -147,4 +147,57 @@ public class ColumnaDisenadorTests
         Assert.True(d[0].Et > 0);              // arranca en tracción (c chico)
         Assert.True(d[^1].Et < d[0].Et);       // termina en compresión (εt menor)
     }
+
+    [Theory]
+    [InlineData(3, 9.53)]
+    [InlineData(8, 25.40)]
+    [InlineData(11, 35.81)]
+    public void DiametroBarraMm_ASTM_A615(int n, double mm)
+        => Assert.Equal(mm, ColumnaDisenador.DiametroBarraMm(n), 2);
+
+    [Fact]
+    public void EstriboColumna_usa_3_para_long_hasta_10_y_4_desde_11()
+    {
+        var s = new ColumnaSeccion(400, 400, 28, 420, new List<BarraLong>());
+        Assert.Equal(3, ColumnaDisenador.EstriboColumna(s, 8).Numero);   // long #8 ≤ #10 → #3
+        Assert.Equal(4, ColumnaDisenador.EstriboColumna(s, 11).Numero);  // long #11 ≥ #11 → #4
+    }
+
+    [Fact]
+    public void EstriboColumna_separacion_es_el_minimo_de_los_tres_criterios()
+    {
+        var s = new ColumnaSeccion(400, 400, 28, 420, new List<BarraLong>());
+        // long #5 (db 15.88): 16·15.88=254.1 gobierna sobre 48·9.53=457 y minDim=400.
+        Assert.Equal(254.08, ColumnaDisenador.EstriboColumna(s, 5).SeparacionMm, 1);
+        // long #8 (db 25.40): 16·25.40=406.4 > minDim=400 → gobierna la dimensión.
+        Assert.Equal(400.0, ColumnaDisenador.EstriboColumna(s, 8).SeparacionMm, 1);
+    }
+
+    [Fact]
+    public void ChequearDemanda_punto_interior_cumple()
+    {
+        // Pu≈1000 kN, Mu≈50 kN·m: bien dentro del diagrama del 400×400 8Ø20.
+        var r = ColumnaDisenador.ChequearDemanda(Seccion400x400_8Ø20(), 1_000_000, 50e6);
+        Assert.True(r.Cumple);
+        Assert.True(r.Ratio < 1.0);
+        Assert.True(r.PhiMnCapacidadNmm > 0);
+    }
+
+    [Fact]
+    public void ChequearDemanda_momento_excesivo_no_cumple()
+    {
+        // Mismo axial, Mu≈400 kN·m: supera la capacidad a momento → ratio > 1.
+        var r = ColumnaDisenador.ChequearDemanda(Seccion400x400_8Ø20(), 1_000_000, 400e6);
+        Assert.False(r.Cumple);
+        Assert.True(r.Ratio > 1.0);
+    }
+
+    [Fact]
+    public void ChequearDemanda_sobrecarga_axial_no_cumple()
+    {
+        // Pu = 3000 kN > φPn,max (~2498 kN) → no cumple aunque Mu sea chico.
+        var r = ColumnaDisenador.ChequearDemanda(Seccion400x400_8Ø20(), 3_000_000, 10e6);
+        Assert.False(r.Cumple);
+        Assert.True(3_000_000 > r.PhiPnMaxN);
+    }
 }

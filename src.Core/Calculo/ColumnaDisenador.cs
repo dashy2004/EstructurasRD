@@ -180,4 +180,65 @@ public static class ColumnaDisenador
             pts.Add(PuntoInteraccion(s, cMin + (cMax - cMin) * i / (n - 1)));
         return pts;
     }
+
+    /// <summary>Diámetro nominal (mm) de una barra ASTM A615 (#3..#11); 0 si no estándar.</summary>
+    public static double DiametroBarraMm(int numero) => numero switch
+    {
+        3 => 9.53, 4 => 12.70, 5 => 15.88, 6 => 19.05, 7 => 22.23,
+        8 => 25.40, 9 => 28.65, 10 => 32.26, 11 => 35.81,
+        _ => 0.0,
+    };
+
+    /// <summary>Estribo de confinamiento: número de barra y separación (mm).</summary>
+    public sealed record Estribo(int Numero, double SeparacionMm);
+
+    /// <summary>
+    /// Estribo de columna (ACI 318-19 §25.7.2): tamaño #3 si la barra longitudinal
+    /// es ≤ #10, #4 si es ≥ #11; separación = min(16·db_long, 48·db_estribo, menor
+    /// dimensión de la columna).
+    /// </summary>
+    public static Estribo EstriboColumna(ColumnaSeccion s, int numeroBarraLong)
+    {
+        int nEstribo = numeroBarraLong <= 10 ? 3 : 4;
+        double dbLong = DiametroBarraMm(numeroBarraLong);
+        double dbTie = DiametroBarraMm(nEstribo);
+        double sep = Math.Min(Math.Min(16.0 * dbLong, 48.0 * dbTie), Math.Min(s.B, s.H));
+        return new Estribo(nEstribo, sep);
+    }
+
+    /// <summary>Resultado del chequeo de demanda P-M de una columna.</summary>
+    public sealed record ChequeoColumna(
+        double PhiPnMaxN, double PhiMnCapacidadNmm, double Ratio, bool Cumple);
+
+    /// <summary>
+    /// Chequea la demanda (Pu, Mu) contra el diagrama de diseño φPn-φMn (con tope
+    /// <see cref="PhiPnMax"/>): interpola la capacidad a momento φMn al nivel axial
+    /// Pu y devuelve el ratio de demanda |Mu|/φMn. Cumple si Pu ≤ φPn,max y ratio ≤ 1.
+    /// </summary>
+    public static ChequeoColumna ChequearDemanda(
+        ColumnaSeccion s, double puN, double muNmm, int nDiagrama = 60)
+    {
+        double phiPnMax = PhiPnMax(s);
+        var diag = DiagramaInteraccion(s, nDiagrama);
+
+        // Capacidad a momento φMn al nivel axial Pu: interpola la envolvente de
+        // diseño (φPn capado a φPn,max) en los segmentos que cruzan φPn = Pu, y
+        // toma el φMn mayor (la envolvente externa).
+        double phiMnCap = 0.0;
+        for (int i = 0; i + 1 < diag.Count; i++)
+        {
+            double p0 = Math.Min(diag[i].PhiPn, phiPnMax);
+            double p1 = Math.Min(diag[i + 1].PhiPn, phiPnMax);
+            if ((p0 - puN) * (p1 - puN) <= 0 && Math.Abs(p1 - p0) > 1e-9)
+            {
+                double t = (puN - p0) / (p1 - p0);
+                double m = diag[i].PhiMn + t * (diag[i + 1].PhiMn - diag[i].PhiMn);
+                if (m > phiMnCap) phiMnCap = m;
+            }
+        }
+
+        double ratio = phiMnCap > 0 ? Math.Abs(muNmm) / phiMnCap : double.PositiveInfinity;
+        bool cumple = puN <= phiPnMax + 1e-6 && ratio <= 1.0 + 1e-9;
+        return new ChequeoColumna(phiPnMax, phiMnCap, ratio, cumple);
+    }
 }
