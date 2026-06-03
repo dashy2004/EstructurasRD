@@ -98,4 +98,18 @@ public class GeneradorVigasTests
         Assert.Equal(5, nivel.Vigas.Count);
         Assert.Contains(manual, nivel.Vigas);
     }
+
+    [Fact]
+    public void MaterializarVigas_edificio_recorre_todos_los_niveles()
+    {
+        var edificio = new Edificio();
+        var niveles = new[] { NivelConUnaLosa(), NivelConUnaLosa() };
+        foreach (var n in niveles) edificio.Niveles.Add(n);
+
+        var generadas = GeneradorVigas.MaterializarVigas(edificio);
+
+        // 4 vigas por losa × 2 niveles = 8; cada nivel recibe sus 4.
+        Assert.Equal(8, generadas.Count);
+        Assert.All(niveles, n => Assert.Equal(4, n.Vigas.Count));
+    }
 }

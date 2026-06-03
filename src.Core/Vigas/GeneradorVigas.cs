@@ -111,6 +111,22 @@ public static class GeneradorVigas
         return generadas;
     }
 
+    /// <summary>
+    /// Materializa las vigas de <b>todos los niveles</b> de un edificio (ver la
+    /// sobrecarga por nivel, idempotente). Es lo que dispararía un único botón
+    /// «Generar vigas del edificio». Devuelve todas las vigas generadas.
+    /// </summary>
+    public static IReadOnlyList<Viga> MaterializarVigas(Edificio edificio, string codigoCaso = "D")
+    {
+        var generadas = new List<Viga>();
+        if (edificio is null) return generadas;
+
+        foreach (var nivel in edificio.Niveles)
+            generadas.AddRange(MaterializarVigas(nivel, codigoCaso));
+
+        return generadas;
+    }
+
     private static bool EsAutoGenerada(Viga viga)
         => viga.Nombre is not null && viga.Nombre.StartsWith(PrefijoAuto);
 }
