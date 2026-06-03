@@ -44,4 +44,19 @@ public class MotorFeaCutoverTests
         var filas = AcerosLosaExporter.Filas(s);
         Assert.NotEmpty(filas);   // la losa entró al pipeline de Aceros con momentos del motor
     }
+
+    [Fact]
+    public void AplicarMomentoBorde_setea_MuIJ_y_disena_el_acero_de_apoyo()
+    {
+        var s = new Sistema { Fc = 0.210, Fy = 4.200 };
+        var losa = new Losa { Id = 1, Espesor = 0.20, Rec = 0.025, Lx = 4, Ly = 5 };
+        var borde = new BordeAdic { BI = 1, BJ = 2 };
+
+        MotorFeaService.AplicarMomentoBorde(borde, 1.5, losa, s);
+
+        Assert.Equal(1.5, borde.MuIJ!.Value, 4);   // momento de apoyo aplicado (ton·m/m)
+        Assert.True(borde.D!.Value > 0);           // canto útil calculado
+        Assert.True(borde.AsReq!.Value > 0);       // acero de apoyo diseñado
+        Assert.Contains("@", borde.Disponer!);     // disposición "#n @ s cm"
+    }
 }

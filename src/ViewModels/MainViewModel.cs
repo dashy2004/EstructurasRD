@@ -1005,11 +1005,13 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             MotorFeaOcupado = true;
             MotorFeaResultado = $"Calculando {sistema.Losas.Count} losa(s) con el motor FEA (FEM)…";
             await MotorFeaService.CalcularSistemaConMotorAsync(sistema, MotorFeaComando);
+            await MotorFeaService.CalcularBordesConMotorAsync(sistema, MotorFeaComando);   // aceros adicionales (apoyos)
             OnPropertyChanged(nameof(LosasFiltradas));
             Aceros.Recargar();   // los momentos del motor alimentan el diseño de acero
+            int bordes = sistema.BordesX.Count + sistema.BordesY.Count;
             MotorFeaResultado =
-                $"✓ {sistema.Losas.Count} losa(s) calculadas con el motor FEA (FEM). " +
-                "Momentos y aceros actualizados (sin Losas.exe).";
+                $"✓ {sistema.Losas.Count} losa(s)" + (bordes > 0 ? $" + {bordes} borde(s)" : "") +
+                " calculadas con el motor FEA (FEM). Momentos, aceros y aceros adicionales actualizados (sin Losas.exe).";
             Log("Losas calculadas con el motor FEA nativo (alternativa a Losas.exe).");
         }
         catch (Exception ex) { MotorFeaResultado = "✕ " + ex.Message; }
