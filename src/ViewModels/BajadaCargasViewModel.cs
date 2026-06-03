@@ -107,6 +107,9 @@ public sealed class BajadaCargasViewModel : INotifyPropertyChanged
         private set { _resumenZapatas = value; OnPropertyChanged(); }
     }
 
+    /// <summary>Resultados del diseño de zapatas (ACI 318-19).</summary>
+    public ObservableCollection<ZapataDisenoRow> ZapatasDiseno { get; } = new();
+
     /// <summary>
     /// Reparte la carga en base entre todas las columnas del edificio (reparto
     /// equitativo, <see cref="DescensoColumnas"/>) y predimensiona la zapata de
@@ -123,6 +126,30 @@ public sealed class BajadaCargasViewModel : INotifyPropertyChanged
 
         var res = DescensoColumnas.RepartirEquitativo(columnas, CargaEnBase, PresionAdmisible);
         if (res.Count == 0) { ResumenZapatas = "Sin carga que repartir."; return; }
+
+        ZapatasDiseno.Clear();
+        foreach (var r in res)
+        {
+            double puN = r.CargaAxial * 9806.65; // ton -> N
+            double bMm = r.Columna.Zapata!.Ancho * 1000.0;    // m -> mm
+            double lMm = r.Columna.Zapata!.Largo * 1000.0;    // m -> mm
+            double c1Mm = r.Columna.Base * 1000.0;
+            double c2Mm = r.Columna.Peralte * 1000.0;
+            
+            // d ≈ h - recubrimiento (h de Zapata.Peralte)
+            double hMm = r.Columna.Zapata.Peralte * 1000.0; 
+            double dMm = hMm - 75.0; // Recubrimiento típico de zapatas (75 mm)
+            
+            var diseno = LosasPlus.Calculo.ZapataDisenador.DisenarZapata(
+                puN, bMm, lMm, c1Mm, c2Mm, dMm, hMm, fcMPa: 21.0, fyMPa: 420.0);
+                
+            ZapatasDiseno.Add(new ZapataDisenoRow 
+            { 
+                Columna = r.Columna, 
+                PuTon = r.CargaAxial,
+                Diseno = diseno 
+            });
+        }
 
         double axial = res[0].CargaAxial, lado = res[0].LadoZapata;
         ResumenZapatas = $"{res.Count} columna(s): {axial:0.##} t c/u (reparto equitativo, Wu) → zapata {lado:0.##}×{lado:0.##} m";
