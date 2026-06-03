@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using LosasPlus.Calculo;
 using Xunit;
@@ -278,5 +279,52 @@ public class ColumnaDisenadorTests
         Assert.False(ColumnaDisenador.EsEsbeltaArriostrada(k: 1.0, luMm: 4000, dimensionMm: 400, m1: 0, m2: 100));
         // Lu mayor: kLu/r = 1·5000/120 = 41.67 > 34 → esbelta.
         Assert.True(ColumnaDisenador.EsEsbeltaArriostrada(k: 1.0, luMm: 5000, dimensionMm: 400, m1: 0, m2: 100));
+    }
+
+    // ----- Magnificación de momento δ (ACI 318-19 §6.6.4) -----
+
+    [Fact]
+    public void ModuloElasticidadConcreto_es_4700_raiz_fc()
+    {
+        // ACI 318-19 §19.2.2.1: Ec = 4700·√(f'c) MPa.
+        Assert.Equal(4700.0 * Math.Sqrt(28.0), ColumnaDisenador.ModuloElasticidadConcreto(28.0), 4);
+    }
+
+    [Fact]
+    public void InerciaBrutaRectangular_es_b_h3_sobre_12()
+    {
+        Assert.Equal(400.0 * Math.Pow(600.0, 3) / 12.0, ColumnaDisenador.InerciaBrutaRectangular(400.0, 600.0), 4);
+    }
+
+    [Fact]
+    public void RigidezEI_es_0_4_Ec_Ig()
+    {
+        // §6.6.4.4.4 (simplificado, βdns=0): EI = 0.4·Ec·Ig.
+        double ec = ColumnaDisenador.ModuloElasticidadConcreto(28.0);
+        double ig = ColumnaDisenador.InerciaBrutaRectangular(400.0, 600.0);
+        Assert.Equal(0.4 * ec * ig, ColumnaDisenador.RigidezEI(28.0, 400.0, 600.0), 0);
+    }
+
+    [Fact]
+    public void CargaCriticaPandeo_es_pi2_EI_sobre_kLu_cuadrado()
+    {
+        double ei = 7.16e13;
+        Assert.Equal(Math.PI * Math.PI * ei / (4000.0 * 4000.0),
+            ColumnaDisenador.CargaCriticaPandeo(ei, k: 1.0, luMm: 4000.0), 1);
+    }
+
+    [Fact]
+    public void FactorMagnificacion_es_Cm_sobre_uno_menos_Pu_sobre_0_75_Pc()
+    {
+        // Cm=1.0, Pu=1000 kN=1e6 N, Pc=44.18e6 N → δ = 1/(1 − 1e6/(0.75·44.18e6)) ≈ 1.031.
+        double esperado = 1.0 / (1.0 - 1.0e6 / (0.75 * 44.18e6));
+        Assert.Equal(esperado, ColumnaDisenador.FactorMagnificacion(cm: 1.0, puN: 1.0e6, pcN: 44.18e6), 5);
+    }
+
+    [Fact]
+    public void FactorMagnificacion_nunca_es_menor_que_uno()
+    {
+        // Pu muy pequeño → δ teórico < 1, pero ACI §6.6.4.5.2 fija δ ≥ 1.0.
+        Assert.Equal(1.0, ColumnaDisenador.FactorMagnificacion(cm: 0.4, puN: 1.0e3, pcN: 44.18e6), 6);
     }
 }

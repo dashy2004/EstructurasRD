@@ -338,4 +338,46 @@ public static class ColumnaDisenador
     /// </summary>
     public static bool EsEsbeltaArriostrada(double k, double luMm, double dimensionMm, double m1, double m2)
         => RelacionEsbeltez(k, luMm, RadioGiroRectangular(dimensionMm)) > LimiteEsbeltezArriostrado(m1, m2);
+
+    // ===================================================================
+    // MAGNIFICACIÓN DE MOMENTO δ (ACI 318-19 §6.6.4)
+    // ===================================================================
+
+    /// <summary>Módulo de elasticidad del hormigón Ec = 4700·√(f'c) MPa (ACI 318-19 §19.2.2.1).</summary>
+    public static double ModuloElasticidadConcreto(double fcMPa) => 4700.0 * Math.Sqrt(fcMPa);
+
+    /// <summary>Inercia bruta de una sección rectangular Ig = b·h³/12 (mm⁴).</summary>
+    public static double InerciaBrutaRectangular(double bMm, double hMm) => bMm * hMm * hMm * hMm / 12.0;
+
+    /// <summary>
+    /// Rigidez a flexión EI (N·mm²) para el cálculo de esbeltez, ACI 318-19
+    /// §6.6.4.4.4 en su forma simplificada: <c>EI = 0.4·Ec·Ig</c> (asume βdns = 0,
+    /// es decir, sin fluencia por carga sostenida — aproximación conservadora del
+    /// lado de la rigidez para combos de corta duración).
+    /// </summary>
+    public static double RigidezEI(double fcMPa, double bMm, double hMm)
+        => 0.4 * ModuloElasticidadConcreto(fcMPa) * InerciaBrutaRectangular(bMm, hMm);
+
+    /// <summary>
+    /// Carga crítica de pandeo de Euler Pc = π²·EI/(k·Lu)² (N), ACI 318-19
+    /// §6.6.4.4.2. <paramref name="eiNmm2"/> en N·mm², longitudes en mm. Longitud
+    /// efectiva nula o negativa → infinito.
+    /// </summary>
+    public static double CargaCriticaPandeo(double eiNmm2, double k, double luMm)
+    {
+        double kLu = k * luMm;
+        return kLu > 0 ? Math.PI * Math.PI * eiNmm2 / (kLu * kLu) : double.PositiveInfinity;
+    }
+
+    /// <summary>
+    /// Factor de magnificación de momento δ = Cm/(1 − Pu/(0.75·Pc)) ≥ 1.0
+    /// (ACI 318-19 §6.6.4.5.2). Si <c>Pu ≥ 0.75·Pc</c> la columna es inestable y
+    /// debe rediseñarse: se devuelve <see cref="double.PositiveInfinity"/>.
+    /// </summary>
+    public static double FactorMagnificacion(double cm, double puN, double pcN)
+    {
+        double denom = 1.0 - puN / (0.75 * pcN);
+        if (denom <= 0.0) return double.PositiveInfinity;
+        return Math.Max(1.0, cm / denom);
+    }
 }
