@@ -137,4 +137,23 @@ public class GeneradorVigasTests
             viga.Apoyos.Select(a => a.CoordenadaX).ToArray());
         Assert.All(viga.Apoyos, a => Assert.Equal(TipoApoyo.Fijo, a.Tipo));
     }
+
+    [Fact]
+    public void VigaContinuaDeLosas_arma_la_continua_desde_una_fila_de_panos()
+    {
+        // 2 paños 4×5 (q=1 t/m²). Viga a lo largo de Lx (=4). El borde de longitud 4
+        // es el corto → línea equiv = q·a/4 = 1·4/4 = 1.0 t/m → 9.80665 kN/m.
+        var losas = new List<Losa>
+        {
+            new Losa { Lx = 4, Ly = 5, Carga = 1.0 },
+            new Losa { Lx = 4, Ly = 5, Carga = 1.0 },
+        };
+
+        var viga = GeneradorVigas.VigaContinuaDeLosas(losas, "D");
+
+        Assert.Equal(2, viga.Tramos.Count);
+        Assert.All(viga.Tramos, t => Assert.Equal(4.0, t.Longitud, 6));
+        Assert.All(viga.Tramos, t => Assert.Equal(1.0 * 9.80665, t.Cargas[0].Magnitud, 4));
+        Assert.Equal(new[] { 0.0, 4.0, 8.0 }, viga.Apoyos.Select(a => a.CoordenadaX).ToArray());
+    }
 }

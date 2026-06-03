@@ -86,6 +86,37 @@ public static class GeneradorVigas
     }
 
     /// <summary>
+    /// Arma una <b>viga continua</b> a partir de una fila de paños de losa alineados
+    /// (WS1-A): cada paño aporta un tramo cuya luz es su dimensión <see cref="Losa.Lx"/>
+    /// y cuya carga es la línea uniforme equivalente que ese borde recibe por áreas
+    /// tributarias (<see cref="RepartoCargaLosa"/>), convertida ton/m→kN/m. Es el
+    /// puente losa→viga continua previo a la detección automática de topología (WS1-C).
+    ///
+    /// <para>
+    /// Aproximación documentada: la viga corre en la dirección de <c>Lx</c> y toma la
+    /// carga tributaria de UN paño por tramo (no suma ambos lados). Lista nula o vacía
+    /// devuelve una viga vacía.
+    /// </para>
+    /// </summary>
+    public static Viga VigaContinuaDeLosas(IReadOnlyList<Losa> losasEnLinea, string codigoCaso = "D")
+    {
+        if (losasEnLinea is null || losasEnLinea.Count == 0)
+            return new Viga();
+
+        var luces = new List<double>(losasEnLinea.Count);
+        var cargas = new List<double>(losasEnLinea.Count);
+        foreach (var losa in losasEnLinea)
+        {
+            var reparto = RepartoCargaLosa.Calcular(losa);
+            // El borde cuya longitud es Lx: corto si Lx es el lado menor, largo si no.
+            var borde = losa.Lx <= losa.Ly ? reparto.BordeCorto : reparto.BordeLargo;
+            luces.Add(losa.Lx);
+            cargas.Add(borde.LineaUniformeEquivalente * TonF_a_KN);
+        }
+        return VigaContinua(luces, cargas, codigoCaso);
+    }
+
+    /// <summary>
     /// Genera las cuatro vigas de apoyo de un paño de losa, cargadas con la carga
     /// tributaria que cada borde recibe por áreas tributarias
     /// (<see cref="RepartoCargaLosa"/>): dos vigas de la luz corta y dos de la luz
