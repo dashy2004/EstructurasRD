@@ -255,7 +255,18 @@ public partial class Sistema
     public double CotaMetros
     {
         get => _cotaMetros;
-        set { _cotaMetros = value; OnPropertyChanged(); }
+        set { _cotaMetros = value; OnPropertyChanged(); OnPropertyChanged(nameof(Elevacion)); }
+    }
+
+    /// <summary>
+    /// Elevación del sistema (m) — «cada sistema es un nivel de elevación» (WS3).
+    /// Es un <b>alias</b> de <see cref="CotaMetros"/> (comparten almacenamiento):
+    /// expone el vocabulario de elevación sin duplicar estado. Aditivo.
+    /// </summary>
+    public double Elevacion
+    {
+        get => _cotaMetros;
+        set { _cotaMetros = value; OnPropertyChanged(); OnPropertyChanged(nameof(CotaMetros)); }
     }
 
     /// <summary>Salida F. Perdomo parseada para este nivel (null si aún no se importó).</summary>
