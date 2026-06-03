@@ -93,6 +93,7 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
     private double _fcMPa = 28.0, _fyMPa = 420.0, _recubrimientoMm = 40.0;
     private int _numeroBarra = 8, _barrasX = 3, _barrasY = 3;
     private double _puKN, _muKNm;
+    private double _luMm = 3000.0, _factorK = 1.0;
 
     /// <summary>Resistencia del hormigón f'c (MPa) para el diseño de la columna.</summary>
     public double FcMPa { get => _fcMPa; set { _fcMPa = value; OnPropertyChanged(); RecalcularDiseno(); } }
@@ -111,11 +112,22 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
     /// <summary>Momento último de demanda Mu (kN·m).</summary>
     public double MuKNm { get => _muKNm; set { _muKNm = value; OnPropertyChanged(); RecalcularDiseno(); } }
 
+    /// <summary>Longitud no arriostrada Lu (mm) para el chequeo de esbeltez.</summary>
+    public double LuMm { get => _luMm; set { _luMm = value; OnPropertyChanged(); RecalcularDiseno(); } }
+    /// <summary>Factor de longitud efectiva k (ACI 318-19 §6.6.4) para la esbeltez.</summary>
+    public double FactorK { get => _factorK; set { _factorK = value; OnPropertyChanged(); RecalcularDiseno(); } }
+
     /// <summary>
     /// Diseño de la columna seleccionada (cuantía, Po, φPn,max, estribo, diagrama,
     /// chequeo), o <c>null</c> si no hay selección o la geometría/armado es inválido.
     /// </summary>
     public ColumnaDisenador.DisenoColumna? DisenoActual { get; private set; }
+
+    /// <summary>
+    /// Resumen de esbeltez de la columna seleccionada (r, k·Lu/r, límite, δ), o
+    /// <c>null</c> si no hay diseño válido. M1=0 / M2=Mu (curvatura simple, conservador).
+    /// </summary>
+    public ColumnaDisenador.ResumenEsbeltezColumna? EsbeltezActual { get; private set; }
 
     /// <summary>Modelo de OxyPlot que representa el diagrama P-M.</summary>
     public PlotModel? ModeloInteraccion { get; private set; }
@@ -128,6 +140,7 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
             || ColumnaDisenador.DiametroBarraMm(_numeroBarra) <= 0)
         {
             DisenoActual = null;
+            EsbeltezActual = null;
         }
         else
         {
@@ -136,9 +149,12 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
             var barras = ColumnaDisenador.LayoutPerimetral(b, h, _recubrimientoMm, _barrasX, _barrasY, _numeroBarra);
             var sec = new ColumnaSeccion(b, h, _fcMPa, _fyMPa, barras);
             DisenoActual = ColumnaDisenador.DisenarColumna(sec, _numeroBarra, _puKN * 1000.0, _muKNm * 1e6);
+            EsbeltezActual = ColumnaDisenador.ResumenEsbeltez(
+                sec, _factorK, _luMm, _puKN * 1000.0, m1: 0.0, m2: _muKNm * 1e6, cm: 1.0);
         }
         ConstruirPlot();   // maneja DisenoActual==null → ModeloInteraccion=null (evita dejar el plot viejo stale)
         OnPropertyChanged(nameof(DisenoActual));
+        OnPropertyChanged(nameof(EsbeltezActual));
         OnPropertyChanged(nameof(ModeloInteraccion));
     }
 

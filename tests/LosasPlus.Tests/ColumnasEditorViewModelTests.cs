@@ -101,4 +101,23 @@ public class ColumnasEditorViewModelTests
         // CargaEnBase=150 ton / 2 columnas = 75 ton → 75 × 9.80665 = 735.49875 kN.
         Assert.Equal(735.49875, vm.PuKN, 4);
     }
+
+    [Fact]
+    public void EsbeltezActual_se_calcula_para_la_columna_seleccionada()
+    {
+        var ed = new Edificio();
+        var nivel = new Nivel { Cota = 0 };
+        var col = new Columna { Nombre = "C1", Base = 0.4, Peralte = 0.6 }; // 400×600 mm
+        nivel.Columnas.Add(col);
+        ed.Niveles.Add(nivel);
+        var vm = new ColumnasEditorViewModel(() => ed);
+
+        vm.Seleccionada = col;
+        vm.LuMm = 4000;
+
+        var e = vm.EsbeltezActual;
+        Assert.NotNull(e);
+        Assert.Equal(0.3 * 600, e!.RMm, 6);             // r = 0.3·h
+        Assert.Equal(4000.0 / 180.0, e.KLuSobreR, 6);   // k·Lu/r = 1·4000/180
+    }
 }
