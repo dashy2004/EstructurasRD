@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using LosasPlus.Models;
+using LosasPlus.Models.Cad;
 using LosasPlus.Vigas;
 using LosasPlus.Transmision;
 
@@ -149,6 +150,12 @@ public class PlantaCanvas : Control
                         _dragStartElementX = c.CoordenadaX;
                         _dragStartElementY = c.CoordenadaY;
                     }
+                    else if (hit is Muro m)
+                    {
+                        _dragStartElementX = m.PuntoInicio.X;
+                        _dragStartElementY = m.PuntoInicio.Y;
+                        // Not capturing PuntoFin for dragging yet, but allows basic selection
+                    }
                     e.Pointer.Capture(this);
                 }
                 else
@@ -275,6 +282,13 @@ public class PlantaCanvas : Control
                 c.CoordenadaX = snapResult.X;
                 c.CoordenadaY = snapResult.Y;
             }
+            else if (SelectedElement is Muro m)
+            {
+                double dxStart = snapResult.X - m.PuntoInicio.X;
+                double dyStart = snapResult.Y - m.PuntoInicio.Y;
+                m.PuntoInicio = new PuntoCad(m.PuntoInicio.X + dxStart, m.PuntoInicio.Y + dyStart);
+                m.PuntoFin = new PuntoCad(m.PuntoFin.X + dxStart, m.PuntoFin.Y + dyStart);
+            }
 
             SelectionChanged?.Invoke(SelectedElement);
             InvalidateVisual();
@@ -338,6 +352,18 @@ public class PlantaCanvas : Control
                     p.Y >= losa.CoordenadaY && p.Y <= losa.CoordenadaY + losa.Ly)
                 {
                     return losa;
+                }
+            }
+
+            // 4. Walls (line segments with thickness)
+            foreach (var muro in sistema.Muros)
+            {
+                var a = new Point(muro.PuntoInicio.X, muro.PuntoInicio.Y);
+                var b = new Point(muro.PuntoFin.X, muro.PuntoFin.Y);
+                double dist = DistanceToSegment(p, a, b);
+                if (dist <= muro.Espesor / 2.0 + 0.1) // tolerance + half thickness in meters
+                {
+                    return muro;
                 }
             }
         }
@@ -467,7 +493,33 @@ public class PlantaCanvas : Control
             context.DrawText(ft, new Point(rect.Right + 4.0, rect.Y - 4.0));
         }
 
-        // 4. Draw active snap indicator
+        // 4. Draw Walls (Muros)
+        var muroBrush = new SolidColorBrush(Color.FromRgb(0x8D, 0x6E, 0x63)); // Brown
+        var muroSelectBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0x98, 0x00)); // Orange
+
+        foreach (var sistema in Nivel.Sistemas)
+        {
+            foreach (var muro in sistema.Muros)
+            {
+                var pStart = MetrosAPixel(muro.PuntoInicio.X, muro.PuntoInicio.Y);
+                var pEnd = MetrosAPixel(muro.PuntoFin.X, muro.PuntoFin.Y);
+                
+                bool isSelected = ReferenceEquals(SelectedElement, muro);
+                var pen = new Pen(isSelected ? muroSelectBrush : muroBrush, muro.Espesor * _scale)
+                {
+                    LineCap = PenLineCap.Flat
+                };
+                
+                context.DrawLine(pen, pStart, pEnd);
+
+                // Label
+                var ft = new FormattedText($"Muro {muro.Id}", CultureInfo.InvariantCulture, FlowDirection.LeftToRight, boldTypeface, 11.0, Brushes.SaddleBrown);
+                var mid = new Point((pStart.X + pEnd.X) / 2.0, (pStart.Y + pEnd.Y) / 2.0 - (muro.Espesor * _scale) / 2.0 - 15.0);
+                context.DrawText(ft, mid);
+            }
+        }
+
+        // 5. Draw active snap indicator
         if (IsSnappingEnabled && _mousePosForSnap.HasValue)
         {
             var snapRes = PlantaSnapEngine.CalculateSnap(
