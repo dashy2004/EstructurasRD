@@ -74,4 +74,16 @@ public class DescensoColumnasTests
         Assert.Equal(300, pBase, 6);
         Assert.All(res, r => Assert.Equal(75, r.CargaAxial, 6));
     }
+
+    [Fact]
+    public void PuDemandaKN_convierte_el_axial_descendido_de_ton_a_kN()
+    {
+        // Cierra el lazo losa→bajada→columna: el axial descendido (ton) se entrega
+        // como Pu en kN, la unidad que el chequeo P-M de la columna (PuKN) espera.
+        var carga = new CargaColumna(new Columna { Nombre = "C-1" }, CargaAxial: 10.0, LadoZapata: 0.5);
+
+        var puKN = DescensoColumnas.PuDemandaKN(carga);
+
+        Assert.Equal(98.0665, puKN, 4);   // 10 tonf × 9.80665
+    }
 }

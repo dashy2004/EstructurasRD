@@ -29,6 +29,18 @@ public readonly record struct CargaColumna(Columna Columna, double CargaAxial, d
 /// </summary>
 public static class DescensoColumnas
 {
+    /// <summary>Conversión de tonelada-fuerza a kilonewton (1 tonf = 9.80665 kN).</summary>
+    public const double KN_por_Ton = 9.80665;
+
+    /// <summary>
+    /// Entrega el axial descendido de una columna como demanda <c>Pu</c> en kN
+    /// (convierte <see cref="CargaColumna.CargaAxial"/> de ton a kN). Es el puente
+    /// que cierra el lazo losa → bajada de cargas → columna: el resultado alimenta
+    /// directamente el <c>PuKN</c> del chequeo P-M del editor de columnas, en vez
+    /// de teclear la carga a mano.
+    /// </summary>
+    public static double PuDemandaKN(CargaColumna carga) => carga.CargaAxial * KN_por_Ton;
+
     /// <summary>
     /// Reparte <paramref name="cargaTotalServicio"/> equitativamente entre
     /// <paramref name="columnas"/>, predimensiona la zapata cuadrada de cada una

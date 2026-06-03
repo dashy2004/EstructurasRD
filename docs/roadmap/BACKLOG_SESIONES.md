@@ -52,13 +52,22 @@ diagramas». Y el **dibujo de sección** (b×h + armado) sí falta de verdad en 
   nivel».
 - Lane mixto: cálculo/materialización (Claude); sección/plot visual (Antigravity).
 
-## F — Columnas: aceros + carga transmitida + características de diseño
-Surface en la pestaña Columnas (que ya tiene el plot P-M):
-- **Aceros** (ya calculado: P-M, estribos) — asegurarse que se muestren bien.
-- **Carga transmitida de las losas** → usar `DescensoColumnas` para el axial `Pu` que baja
-  de las losas/niveles a cada columna, y **alimentar el `Pu` del chequeo P-M** (hoy el Pu
-  es manual). Cerrar el lazo: losa → descenso → columna.
-- Otras **características de diseño** de la columna (esbeltez, longitud efectiva, etc. — evaluar alcance).
+## F — Columnas: aceros + carga transmitida + características de diseño  🔎 INVESTIGADO
+**Hallazgo:** a diferencia de D/E, F **no tiene una brecha grande de cálculo puro**.
+`DescensoColumnas.RepartirEquitativo(columnas, cargaEnBase, presionAdmisible)` ya devuelve
+`CargaColumna{Columna, CargaAxial(ton), LadoZapata}` por columna; `ColumnasEditorViewModel`
+ya tiene el plot P-M y el punto de demanda, pero el `Pu` (`PuKN`, kN) se **teclea a mano**.
+El trabajo es **puente fino + cableado**, no cálculo nuevo:
+- **F-1 (headless, Claude — PRÓXIMO):** un helper puro que convierta el axial descendido
+  `CargaColumna.CargaAxial` (ton) → `Pu` (kN, ×9.80665), y opcionalmente corra el
+  `ChequearDemanda`/`DisenarColumna` existente. Cierra losa→`AplicarCargaUltima`(D)→bajada→
+  `DescensoColumnas`→`Pu` de la columna. TDD (aunque sea fino, dejarlo testeado).
+- **F-2 (VM/pixeles → Antigravity):** alimentar `PuKN` desde el descenso en vez de manual;
+  mostrar **aceros** (barras long. + estribos, ya calculados por `ColumnaDisenador`) y
+  **características de diseño**. Botón «Tomar Pu del descenso».
+- **Característica de diseño avanzada (fuera de alcance inmediato):** carga tributaria
+  por columna real requiere topología columna→losas que el modelo aún no tiene; el descenso
+  equitativo es la aproximación actual (documentarlo, no bloquear F por esto).
 
 ## Cómo seguir (loop)
 1. Sesión **D** (carga última) — motor headless + UI mínima.
