@@ -31,4 +31,39 @@ public static class ZapataDisenador
     /// </summary>
     public static double PerimetroCriticoPunzonamiento(double c1Mm, double c2Mm, double dMm)
         => 2.0 * (c1Mm + dMm) + 2.0 * (c2Mm + dMm);
+
+    /// <summary>Factor de reducción de resistencia a cortante/punzonamiento (ACI 318-19 Tabla 21.2.1).</summary>
+    public const double PhiCortante = 0.75;
+
+    /// <summary>
+    /// Cortante de punzonamiento <b>último</b> Vu (N) en una zapata: la carga axial
+    /// <paramref name="puN"/> menos la presión de contacto que actúa <i>dentro</i>
+    /// del perímetro crítico → <c>Vu = Pu·(1 − (c1+d)(c2+d)/(B·L))</c> (columna
+    /// interior). Área de zapata no positiva devuelve <paramref name="puN"/>.
+    /// </summary>
+    public static double CortantePunzonamiento(
+        double puN, double bMm, double lMm, double c1Mm, double c2Mm, double dMm)
+    {
+        double areaZapata = bMm * lMm;
+        if (areaZapata <= 0) return puN;
+        double areaInterna = (c1Mm + dMm) * (c2Mm + dMm);
+        return puN * (1.0 - areaInterna / areaZapata);
+    }
+
+    /// <summary>
+    /// Resistencia de diseño a punzonamiento <b>φVc</b> (N), ACI 318-19 §22.6.5.2:
+    /// <c>Vc = min(0.33√f'c, 0.17(1+2/β)√f'c, 0.083(αs·d/b0+2)√f'c)·b0·d</c>, por
+    /// φ = <see cref="PhiCortante"/>. <paramref name="beta"/> = lado largo/corto de
+    /// la columna; <paramref name="alphaS"/> = 40 (interior), 30 (borde), 20 (esquina).
+    /// </summary>
+    public static double ResistenciaPunzonamiento(
+        double fcMPa, double b0Mm, double dMm, double beta, double alphaS = 40.0)
+    {
+        double raiz = Math.Sqrt(fcMPa);
+        double vc1 = 0.33 * raiz;
+        double vc2 = 0.17 * (1.0 + 2.0 / beta) * raiz;
+        double vc3 = 0.083 * (alphaS * dMm / b0Mm + 2.0) * raiz;
+        double vcMPa = Math.Min(vc1, Math.Min(vc2, vc3));
+        return PhiCortante * vcMPa * b0Mm * dMm;
+    }
 }
