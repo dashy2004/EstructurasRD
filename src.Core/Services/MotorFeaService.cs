@@ -136,6 +136,40 @@ public static class MotorFeaService
 
         return ParsearResultado(salida);
     }
+
+    /// <summary>1 N·m en ton·m (1 ton-fuerza = 9806.65 N).</summary>
+    public const double NM_a_TonM = 1.0 / TonM2_a_NM2;
+
+    /// <summary>
+    /// Aplica los momentos del motor a la <see cref="Losa"/>: puebla Mfx/Mfy (vano)
+    /// y MSx/MSy (apoyo) convirtiendo N·m/m → ton·m/m, para que el pipeline de Aceros
+    /// los use igual que los momentos del <c>.TXT</c> de <c>Losas.exe</c>. Ruta
+    /// <b>aditiva</b> (el motor reemplaza la fuente de momentos, no el pipeline).
+    /// </summary>
+    public static void AplicarMomentos(Losa losa, ResultadoMotorLosa r)
+    {
+        if (losa is null) throw new ArgumentNullException(nameof(losa));
+        if (r is null) throw new ArgumentNullException(nameof(r));
+        losa.Mfx = r.MxMax * NM_a_TonM;          // vano X
+        losa.Mfy = r.MyMax * NM_a_TonM;          // vano Y
+        losa.MSx = r.MApoyoMax * NM_a_TonM;      // apoyo (el motor da un único m_apoyo_max)
+        losa.MSy = r.MApoyoMax * NM_a_TonM;
+    }
+
+    /// <summary>
+    /// Calcula los momentos de TODAS las losas del sistema con el motor (alternativa
+    /// aditiva a <c>Losas.exe</c>) y los aplica. No toca el flujo <c>Losas.exe</c>.
+    /// </summary>
+    public static async Task CalcularSistemaConMotorAsync(
+        Sistema sistema, string comando = "motor-fea", int nx = MallaDefault, int ny = MallaDefault)
+    {
+        if (sistema is null) throw new ArgumentNullException(nameof(sistema));
+        foreach (var losa in sistema.Losas)
+        {
+            var r = await DisenarLosaAsync(losa, sistema, comando, nx, ny);
+            AplicarMomentos(losa, r);
+        }
+    }
 }
 
 /// <summary>Resultado del diseño de losa por el motor FEA (unidades SI / mm²·m).</summary>
