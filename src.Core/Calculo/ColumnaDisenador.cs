@@ -102,4 +102,82 @@ public static class ColumnaDisenador
     /// </summary>
     public static double PhiPnMax(ColumnaSeccion s)
         => PhiTied * FactorPnMaxTied * Po(s);
+
+    /// <summary>Un punto (Pn, Mn) del diagrama de interacción P-M, con su φ por εt. Compresión positiva.</summary>
+    public sealed record PuntoPM(double C, double Pn, double Mn, double Et, double Phi)
+    {
+        /// <summary>Axial de diseño φPn (N).</summary>
+        public double PhiPn => Phi * Pn;
+        /// <summary>Momento de diseño φMn (N·mm).</summary>
+        public double PhiMn => Phi * Mn;
+    }
+
+    /// <summary>
+    /// φ por deformación neta de tracción εt (ACI 318-19 Tabla 21.2.2), miembro con
+    /// estribos: 0.65 (compresión, εt ≤ εy) → 0.90 (tracción, εt ≥ εy+0.003), lineal
+    /// en la transición. Para zunchos el piso es 0.75.
+    /// </summary>
+    public static double PhiPorDeformacion(double et, double fy, bool estribos = true)
+    {
+        double phiMin = estribos ? 0.65 : 0.75;
+        double ey = fy / Es;
+        if (et <= ey) return phiMin;
+        if (et >= ey + 0.003) return 0.90;
+        return phiMin + (0.90 - phiMin) * (et - ey) / 0.003;
+    }
+
+    /// <summary>Profundidad del eje neutro balanceado c_b = εcu/(εcu+εy)·d (mm).</summary>
+    public static double ProfundidadBalanceada(double d, double fy)
+        => EpsilonCU / (EpsilonCU + fy / Es) * d;
+
+    /// <summary>
+    /// Punto del diagrama P-M para un eje neutro <paramref name="c"/> (mm), por
+    /// compatibilidad de deformaciones (εcu=0.003, bloque de Whitney a=β1·c, fs
+    /// capado a ±fy, descuento del hormigón desplazado por barras en compresión).
+    /// Momentos respecto al centro geométrico. Compresión positiva. Espeja
+    /// <c>aci318.punto_interaccion</c> del motor FEA.
+    /// </summary>
+    public static PuntoPM PuntoInteraccion(ColumnaSeccion s, double c)
+    {
+        if (c <= 0) throw new ArgumentOutOfRangeException(nameof(c), "c debe ser positivo.");
+        double a = Math.Min(Beta1(s.FcMPa) * c, s.H);
+        double cc = 0.85 * s.FcMPa * s.B * a;        // resultante del bloque de hormigón (N)
+        double pn = cc;
+        double mn = cc * (s.H / 2.0 - a / 2.0);      // momento del hormigón sobre el centro
+
+        double dMax = double.NegativeInfinity;
+        foreach (var bar in s.Barras)
+        {
+            double d = s.H / 2.0 - bar.Y;            // profundidad desde la fibra comprimida (arriba)
+            if (d > dMax) dMax = d;
+        }
+        foreach (var bar in s.Barras)
+        {
+            double d = s.H / 2.0 - bar.Y;
+            double eps = EpsilonCU * (c - d) / c;    // + compresión, − tracción
+            double fs = Math.Max(-s.FyMPa, Math.Min(s.FyMPa, Es * eps));
+            double fuerza = bar.AreaMm2 * fs;
+            if (d <= a) fuerza -= bar.AreaMm2 * 0.85 * s.FcMPa;   // descontar hormigón desplazado
+            pn += fuerza;
+            mn += fuerza * (s.H / 2.0 - d);
+        }
+        double et = EpsilonCU * (dMax - c) / c;      // tracción positiva en la capa extrema
+        return new PuntoPM(c, pn, mn, et, PhiPorDeformacion(et, s.FyMPa));
+    }
+
+    /// <summary>
+    /// Diagrama de interacción P-M: barre el eje neutro c (de 0.05·H a 2·H) y
+    /// devuelve <paramref name="n"/> puntos nominales (Pn, Mn, φ) ordenados de la
+    /// región de tracción/flexión a la de alta compresión. El tope de diseño en
+    /// compresión es <see cref="PhiPnMax"/> (se aplica al envolver/chequear).
+    /// </summary>
+    public static IReadOnlyList<PuntoPM> DiagramaInteraccion(ColumnaSeccion s, int n = 40)
+    {
+        if (n < 2) throw new ArgumentOutOfRangeException(nameof(n), "se necesitan ≥2 puntos.");
+        double cMin = 0.05 * s.H, cMax = 2.0 * s.H;
+        var pts = new List<PuntoPM>(n);
+        for (int i = 0; i < n; i++)
+            pts.Add(PuntoInteraccion(s, cMin + (cMax - cMin) * i / (n - 1)));
+        return pts;
+    }
 }

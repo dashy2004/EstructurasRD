@@ -98,4 +98,53 @@ public class ColumnaDisenadorTests
         var s = Seccion400x400_8Ø20();
         Assert.Equal(0.65 * 0.80 * ColumnaDisenador.Po(s), ColumnaDisenador.PhiPnMax(s), 1);
     }
+
+    [Theory]
+    [InlineData(0.0010, 0.650)]   // εt < εy → compresión controlada
+    [InlineData(0.0021, 0.650)]   // εt = εy → piso
+    [InlineData(0.0036, 0.775)]   // transición: 0.65 + 0.25·(0.0015/0.003)
+    [InlineData(0.0060, 0.900)]   // εt ≥ εy+0.003 → tracción controlada
+    public void PhiPorDeformacion_sigue_Tabla_21_2_2(double et, double esperado)
+        => Assert.Equal(esperado, ColumnaDisenador.PhiPorDeformacion(et, 420), 3);
+
+    [Fact]
+    public void PuntoInteraccion_a_c200_valor_calculado_a_mano()
+    {
+        // 400×400, f'c 28, fy 420, 8Ø20 (3 arriba d=40, 2 medio d=200, 3 abajo d=360).
+        // c=200 → a=170, Cc=1 618 400 N; capas en fluencia ±420.
+        var p = ColumnaDisenador.PuntoInteraccion(Seccion400x400_8Ø20(), 200.0);
+        Assert.True(Math.Abs(p.Pn - 1_595_969.0) < 500, $"Pn={p.Pn}");
+        Assert.True(Math.Abs(p.Mn - 309_195_968.0) < 5e5, $"Mn={p.Mn}");
+        Assert.Equal(0.0024, p.Et, 5);
+        Assert.Equal(0.675, p.Phi, 3);
+    }
+
+    [Fact]
+    public void PuntoInteraccion_en_c_balanceada_da_et_igual_a_ey()
+    {
+        var s = Seccion400x400_8Ø20();
+        double dMax = 360.0;                                   // capa extrema en tracción
+        double cb = ColumnaDisenador.ProfundidadBalanceada(dMax, 420);
+        var p = ColumnaDisenador.PuntoInteraccion(s, cb);
+        Assert.Equal(420.0 / 200_000.0, p.Et, 5);             // εt ≈ εy
+    }
+
+    [Fact]
+    public void Pn_crece_con_c_monotono()
+    {
+        var s = Seccion400x400_8Ø20();
+        Assert.True(ColumnaDisenador.PuntoInteraccion(s, 300).Pn
+                  > ColumnaDisenador.PuntoInteraccion(s, 150).Pn);
+    }
+
+    [Fact]
+    public void DiagramaInteraccion_barre_de_traccion_a_compresion()
+    {
+        var s = Seccion400x400_8Ø20();
+        var d = ColumnaDisenador.DiagramaInteraccion(s, 30);
+        Assert.Equal(30, d.Count);
+        Assert.True(d[0].Pn < d[^1].Pn);       // monótono: más c → más axial
+        Assert.True(d[0].Et > 0);              // arranca en tracción (c chico)
+        Assert.True(d[^1].Et < d[0].Et);       // termina en compresión (εt menor)
+    }
 }
