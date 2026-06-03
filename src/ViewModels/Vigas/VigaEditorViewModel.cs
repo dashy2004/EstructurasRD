@@ -134,6 +134,7 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(CargasDelTramo));
             CargaSeleccionada = value?.Cargas.FirstOrDefault();
+            ConstruirModeloSeccion();
         }
     }
 

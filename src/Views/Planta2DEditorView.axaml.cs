@@ -504,8 +504,8 @@ public partial class Planta2DEditorView : UserControl
 
         try
         {
-            var todasLasLosas = nivel.Sistemas.SelectMany(s => s.Losas).ToList();
-            var viga = GeneradorVigas.VigaContinuaDelEje(eje, todasLasLosas, 0.5, "D");
+            var columnas = nivel.Columnas;
+            var viga = GeneradorVigas.VigaContinuaDeColumnas(eje, columnas, 0.0, 0.5, "D");
             int newId = nivel.Vigas.Count > 0 ? nivel.Vigas.Max(v => v.Id) + 1 : 1;
             viga.Id = newId;
             viga.Nombre = $"V-{newId} ({eje.Etiqueta})";
