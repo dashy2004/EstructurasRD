@@ -76,6 +76,18 @@ El trabajo es **puente fino + cableado**, no cálculo nuevo:
   por columna real requiere topología columna→losas que el modelo aún no tiene; el descenso
   equitativo es la aproximación actual (documentarlo, no bloquear F por esto).
 
+## G — Vigas continuas + Ejes estructurales + Elevación  ✅ COMPLETO HEADLESS (914/914)
+Plan acordado B→A→C + ejes + elevación, todo puro/TDD en `src.Core`:
+- **Vigas continuas:** `GeneradorVigas.VigaContinua(luces,cargas)` (B), `VigaContinuaDeLosas(losas)` (A),
+  `VigaContinuaDelEje(eje, losas, tol)` (C — capstone: geometría→topología→viga continua real con
+  momentos negativos sobre apoyos interiores). Las analiza `VigaContinuaEngine` (ya existía).
+- **Ejes/rejillas:** `EjeEstructural` (`DistanciaA`/`EstaEnSeccion`), `Edificio.Ejes`, y
+  `SeccionPorEje.Columnas/Losas` (selector para "ver secciones del 3D").
+- **Elevación:** `Sistema.Elevacion` (alias aditivo de `CotaMetros`).
+- **Pendiente (UI → Antigravity):** `HANDOFF_ANTIGRAVITY_EJES_VIGAS_CONTINUAS.md` — dibujar rejilla,
+  vista de sección, botón «Generar viga continua del eje», editar elevación.
+- **Aproximaciones documentadas:** viga en dirección Lx, carga tributaria de un lado, apoyos fijos.
+
 ## Cómo seguir (loop)
 1. Sesión **D** (carga última) — motor headless + UI mínima.
 2. Aplicar **E** (vigas) y **F** (columnas).
