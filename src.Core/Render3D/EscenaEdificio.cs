@@ -83,6 +83,9 @@ public static class EscenaEdificio
             // Paños reales de losas (Fase J / Planta 2D)
             foreach (var sistema in nivel.Sistemas)
             {
+                // Cada sistema se dibuja a su elevación = cota del nivel + Sistema.Elevacion,
+                // para que sistemas a distinta cota no se solapen en el 3D.
+                float ySis = y + (float)sistema.Elevacion;
                 foreach (var losa in sistema.Losas)
                 {
                     float lx = (float)losa.Lx;
@@ -93,11 +96,11 @@ public static class EscenaEdificio
                     float z1 = z0 + ly;
                     float esp = (float)losa.Espesor;
 
-                    // Vértices del paño en el tope (cota del nivel).
-                    var t00 = new Vector3(x0, y, z0);
-                    var t10 = new Vector3(x1, y, z0);
-                    var t11 = new Vector3(x1, y, z1);
-                    var t01 = new Vector3(x0, y, z1);
+                    // Vértices del paño en el tope (cota del nivel + elevación del sistema).
+                    var t00 = new Vector3(x0, ySis, z0);
+                    var t10 = new Vector3(x1, ySis, z0);
+                    var t11 = new Vector3(x1, ySis, z1);
+                    var t01 = new Vector3(x0, ySis, z1);
 
                     // Tope (rectángulo del paño).
                     segs.Add(new Segmento3D(t00, t10));
@@ -109,7 +112,7 @@ public static class EscenaEdificio
                     {
                         // K.6: losa como caja delgada extruida por su espesor (fondo a
                         // cota - espesor) → +4 aristas de fondo y +4 verticales = 12.
-                        float yb = y - esp;
+                        float yb = ySis - esp;
                         var b00 = new Vector3(x0, yb, z0);
                         var b10 = new Vector3(x1, yb, z0);
                         var b11 = new Vector3(x1, yb, z1);

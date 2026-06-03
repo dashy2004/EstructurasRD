@@ -147,4 +147,25 @@ public class EscenaEdificioTests
             MathF.Abs(s.A.Y - 0f) < 1e-4f && MathF.Abs(s.B.Y - 3f) < 1e-4f);
         Assert.Equal(4, verticales);
     }
+
+    [Fact]
+    public void Losas_se_dibujan_a_la_elevacion_de_su_sistema()
+    {
+        // Un nivel (cota 0) con dos sistemas: uno a elevación 0 y otro a 3 m.
+        // La losa del sistema elevado debe quedar a y=3 (no solaparse con la otra).
+        var ed = new Edificio();
+        var nivel = new Nivel { Cota = 0 };
+        var sBajo = new Sistema { Elevacion = 0 };
+        sBajo.Losas.Add(new Losa { CoordenadaX = 0, CoordenadaY = 0, Lx = 4, Ly = 4, Espesor = 0.12 });
+        var sAlto = new Sistema { Elevacion = 3 };
+        sAlto.Losas.Add(new Losa { CoordenadaX = 0, CoordenadaY = 0, Lx = 4, Ly = 4, Espesor = 0.12 });
+        nivel.Sistemas.Add(sBajo);
+        nivel.Sistemas.Add(sAlto);
+        ed.Niveles.Add(nivel);
+
+        var esc = EscenaEdificio.Construir(ed);
+
+        // El tope de la losa del sistema elevado llega a y = cota + elevación = 3.
+        Assert.Equal(3.0, esc.Max.Y, 3);
+    }
 }
