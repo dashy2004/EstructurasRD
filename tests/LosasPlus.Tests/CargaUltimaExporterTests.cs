@@ -1,4 +1,7 @@
+using System;
 using System.Globalization;
+using System.IO;
+using ClosedXML.Excel;
 using LosasPlus.Calculo;
 using LosasPlus.Models;
 using LosasPlus.Models.Cad;
@@ -44,5 +47,27 @@ public class CargaUltimaExporterTests
         Assert.Contains("LosaId", csv);                       // cabecera de la tabla
         Assert.Contains("7", csv);                            // id de la losa
         Assert.Contains(qu.ToString("0.000", inv), csv);      // Wu de la losa
+    }
+
+    [Fact]
+    public void ExportXlsx_genera_un_archivo_abrible_con_la_hoja_de_carga_ultima()
+    {
+        var cargas = CargasGlobales.SemillaPorDefecto();
+        var sistema = new Sistema { Uso = SistemaUso.Entrepiso };
+        sistema.Losas.Add(new Losa { Id = 7, Lx = 4, Ly = 5, Espesor = 0.12 });
+        sistema.Muros.Add(Mur(5.0, 0.15, 2.8));
+
+        var path = Path.Combine(Path.GetTempPath(), $"cargau_{Guid.NewGuid():N}.xlsx");
+        try
+        {
+            CargaUltimaExporter.ExportXlsx(sistema, cargas, path);
+
+            Assert.True(File.Exists(path));
+            using var wb = new XLWorkbook(path);
+            Assert.Contains(wb.Worksheets, ws => ws.Name == "Carga última");
+            var ws = wb.Worksheet("Carga última");
+            Assert.Equal(7, ws.Cell(8, 1).GetValue<int>());   // primera fila de datos: LosaId = 7
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
     }
 }
