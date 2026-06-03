@@ -66,6 +66,14 @@ todas las columnas y fija `PuKN` (que recalcula la demanda P-M del diagrama).
 «Tomar Pu del descenso». Sin más lógica — el comando ya hace todo. (Este archivo NO
 está en tu WIP actual, podés tomarlo.)
 
+**Esbeltez/δ (F-4, headless listo y testeado):** el VM ya expone los inputs
+`LuMm` y `FactorK`, y la propiedad `EsbeltezActual`
+(`ColumnaDisenador.ResumenEsbeltezColumna` con `RMm`, `KLuSobreR`, `Limite`,
+`EsEsbelta`, `EINmm2`, `PcN`, `Delta`), recalculada junto al diseño P-M. **UI:**
+dos `TextBox` (Lu en mm, k) y un panel que muestre el resumen — p. ej.
+«k·Lu/r = {KLuSobreR} (límite {Limite}) → {EsEsbelta? "ESBELTA":"corta"}; δ = {Delta}».
+Sólo binding; sin lógica.
+
 ## Notas de seguridad (Antigravity)
 - `ControlTheme` de controles nativos: siempre `BasedOn="{StaticResource {x:Type <Control>}}"`.
 - Mantené la suite verde: `~/.dotnet/dotnet test tests/LosasPlus.Tests` (878/878 hoy).
