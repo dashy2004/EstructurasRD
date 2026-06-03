@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using LosasPlus.Calculo;
 using LosasPlus.Models;
 using LosasPlus.Models.Cad;
 using LosasPlus.Transmision;
@@ -31,5 +32,57 @@ public class CargaUltimaCalculatorTests
         var peso = CargaUltimaCalculator.PesoMamposteria(muros);
 
         Assert.Equal(3.024, peso, 6);
+    }
+
+    [Fact]
+    public void PesoMamposteria_suma_todos_los_muros()
+    {
+        var muros = new List<Muro>
+        {
+            Mur(4.0, 0.15, 2.8),   // 3.024
+            Mur(5.0, 0.20, 2.8),   // 1.8·5·0.20·2.8 = 5.04
+        };
+
+        var peso = CargaUltimaCalculator.PesoMamposteria(muros);
+
+        Assert.Equal(3.024 + 5.04, peso, 6);
+    }
+
+    [Fact]
+    public void PesoMamposteria_desde_sistema_usa_su_coleccion_de_muros()
+    {
+        var sistema = new Sistema();
+        sistema.Muros.Add(Mur(4.0, 0.15, 2.8));   // 3.024
+
+        var peso = CargaUltimaCalculator.PesoMamposteria(sistema);
+
+        Assert.Equal(3.024, peso, 6);
+    }
+
+    [Fact]
+    public void Calcular_compone_muros_con_el_pipeline_de_carga_ultima()
+    {
+        var cargas = CargasGlobales.SemillaPorDefecto();
+        var sistema = new Sistema { Uso = SistemaUso.Entrepiso };
+        sistema.Muros.Add(Mur(5.0, 0.15, 2.8));   // Qmamp = 1.8·5·0.15·2.8 = 3.78 ton
+        const double hEq = 0.15;
+        const double area = 20.0;                 // losa 4×5
+
+        var r = CargaUltimaCalculator.Calcular(sistema, cargas, hEq, area);
+
+        // El orquestador debe encadenar exactamente el pipeline existente:
+        var qmamp = 1.8 * 5.0 * 0.15 * 2.8;
+        var qmap = CalculoEngine.ComputeQmap(qmamp, area);
+        var qd = CalculoEngine.ComputeQd(hEq, cargas, SistemaUso.Entrepiso, qmap);
+        var ql = CalculoEngine.ComputeQl(SistemaUso.Entrepiso, cargas);
+        var qu = CalculoEngine.ComputeQu(qd, ql, cargas.Factores);
+
+        Assert.Equal(qmamp, r.Qmamp, 6);
+        Assert.Equal(qmap, r.Qmap, 6);
+        Assert.Equal(qd, r.Qd, 6);
+        Assert.Equal(ql, r.Ql, 6);
+        Assert.Equal(qu, r.Qu, 6);
+        // Ancla independiente: 1.2·(0.541+0.189) + 1.6·0.20 = 1.196 t/m²
+        Assert.Equal(1.196, r.Qu, 3);
     }
 }
