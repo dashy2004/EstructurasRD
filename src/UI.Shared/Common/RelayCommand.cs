@@ -2,7 +2,7 @@ using System;
 using System.Windows.Input;
 using Avalonia.Threading;
 
-namespace MemoriaPlus.Common;
+namespace Shared.UI.Common;
 
 /// <summary>
 /// <see cref="ICommand"/> minimalista para bindings MVVM. Empuja una <see cref="Action"/>

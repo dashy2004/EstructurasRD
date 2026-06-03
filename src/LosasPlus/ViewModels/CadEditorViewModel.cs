@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia.Media.Imaging;
-using MemoriaPlus.Services;
+using Shared.UI.Services;
 using LosasPlus.Models;
 using LosasPlus.Models.Cad;
 using LosasPlus.Services;

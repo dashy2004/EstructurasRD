@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 
-namespace MemoriaPlus.Views;
+namespace Shared.UI.Views;
 
 public partial class ValidacionView : UserControl
 {

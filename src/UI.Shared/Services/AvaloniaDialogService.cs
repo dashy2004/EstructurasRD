@@ -3,7 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Platform.Storage;
 
-namespace MemoriaPlus.Services;
+namespace Shared.UI.Services;
 
 /// <summary>
 /// Implementación de <see cref="IDialogService"/> con el StorageProvider de

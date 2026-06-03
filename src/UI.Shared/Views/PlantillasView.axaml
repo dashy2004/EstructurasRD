@@ -1,9 +1,9 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
-             xmlns:cmn="clr-namespace:MemoriaPlus.Common"
+             xmlns:vm="clr-namespace:Shared.UI.ViewModels"
+             xmlns:cmn="clr-namespace:Shared.UI.Common"
              xmlns:conv="using:Avalonia.Data.Converters"
-             x:Class="MemoriaPlus.Views.PlantillasView"
+             x:Class="Shared.UI.Views.PlantillasView"
              x:CompileBindings="False"
              Background="{StaticResource SurfaceBrush}">
 

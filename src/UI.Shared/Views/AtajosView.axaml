@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
-             x:Class="MemoriaPlus.Views.AtajosView"
+             xmlns:vm="clr-namespace:Shared.UI.ViewModels"
+             x:Class="Shared.UI.Views.AtajosView"
              x:CompileBindings="False"
              Background="{StaticResource SurfaceBrush}">
 

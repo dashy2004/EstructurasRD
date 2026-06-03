@@ -11,7 +11,7 @@ using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using LosasPlus.Cargas;
 using LosasPlus.ViewModels;
-using MemoriaPlus.Services;
+using Shared.UI.Services;
 
 namespace LosasPlus.Views;
 

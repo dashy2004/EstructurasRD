@@ -1,4 +1,4 @@
-namespace MemoriaPlus.ViewModels;
+namespace Shared.UI.ViewModels;
 
 /// <summary>
 /// Resumen de un proyecto guardado en disco, en la forma que la UI lo

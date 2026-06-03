@@ -5,9 +5,9 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using LosasPlus.Models;
-using MemoriaPlus.Common;
+using Shared.UI.Common;
 
-namespace MemoriaPlus.ViewModels;
+namespace Shared.UI.ViewModels;
 
 /// <summary>
 /// Categorías visibles en los pills del selector de tipo de losa. Mapean al

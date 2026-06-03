@@ -3,9 +3,9 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using LosasPlus.Persistence;
-using MemoriaPlus.Common;
+using Shared.UI.Common;
 
-namespace MemoriaPlus.ViewModels;
+namespace Shared.UI.ViewModels;
 
 /// <summary>
 /// ViewModel del modo Configuración. Mantiene el sub-tab activo y delega al

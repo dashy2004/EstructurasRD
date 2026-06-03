@@ -2,7 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 
-namespace MemoriaPlus.Services;
+namespace Shared.UI.Services;
 
 /// <summary>Filtro de archivos para los pickers (nombre visible + patrones glob).</summary>
 public readonly record struct FileFilter(string Name, string[] Patterns);

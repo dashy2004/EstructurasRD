@@ -1,7 +1,7 @@
 using Avalonia.Data.Converters;
 using Avalonia.Media;
 
-namespace MemoriaPlus.Common;
+namespace Shared.UI.Common;
 
 /// <summary>Converters de color para la UI.</summary>
 public static class ColorConverters

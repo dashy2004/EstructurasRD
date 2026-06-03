@@ -4,7 +4,7 @@ using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using LosasPlus.Services;
-using MemoriaPlus.Services;
+using Shared.UI.Services;
 
 namespace LosasPlus.Views;
 

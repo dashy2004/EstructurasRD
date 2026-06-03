@@ -1,4 +1,4 @@
-namespace MemoriaPlus.ViewModels;
+namespace Shared.UI.ViewModels;
 
 /// <summary>
 /// Implementado por un VM raíz que aloja un <see cref="BusquedaViewModel"/>

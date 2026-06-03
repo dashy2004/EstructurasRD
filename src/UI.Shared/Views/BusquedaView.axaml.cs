@@ -4,9 +4,9 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
-using MemoriaPlus.ViewModels;
+using Shared.UI.ViewModels;
 
-namespace MemoriaPlus.Views;
+namespace Shared.UI.Views;
 
 public partial class BusquedaView : UserControl
 {

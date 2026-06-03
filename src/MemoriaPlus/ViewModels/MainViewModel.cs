@@ -14,9 +14,11 @@ using LosasPlus.Models;
 using LosasPlus.Persistence;
 using LosasPlus.Services;
 using LosasPlus.Validation;
-using MemoriaPlus.Common;
-using MemoriaPlus.Services;
+using Shared.UI.Common;
+using Shared.UI.Services;
+using Shared.UI.Views;
 using MemoriaPlus.Views;
+using Shared.UI.ViewModels;
 
 namespace MemoriaPlus.ViewModels;
 

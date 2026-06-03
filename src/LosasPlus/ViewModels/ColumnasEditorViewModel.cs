@@ -64,7 +64,16 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
         if (nivel is null) return null;
 
         int id = nivel.Columnas.Count > 0 ? nivel.Columnas.Max(c => c.Id) + 1 : 1;
-        var columna = new Columna { Id = id, Nombre = $"C-{id}" };
+        double nuevaX = nivel.Columnas.Count > 0 ? nivel.Columnas.Max(c => c.CoordenadaX) + 5.0 : 0.0;
+        
+        var columna = new Columna 
+        { 
+            Id = id, 
+            Nombre = $"C-{id}",
+            CoordenadaX = nuevaX,
+            CoordenadaY = 0.0
+        };
+        
         nivel.Columnas.Add(columna);
         Seleccionada = columna;
         return columna;

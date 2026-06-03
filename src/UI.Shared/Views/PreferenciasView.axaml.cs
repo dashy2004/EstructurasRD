@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 
-namespace MemoriaPlus.Views;
+namespace Shared.UI.Views;
 
 /// <summary>
 /// Sub-vista «Preferencias» del modo Configuración (H4): formato numérico (decimales,

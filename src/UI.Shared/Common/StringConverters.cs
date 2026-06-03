@@ -1,6 +1,6 @@
 using Avalonia.Data.Converters;
 
-namespace MemoriaPlus.Common;
+namespace Shared.UI.Common;
 
 /// <summary>Converters de string a bool para toggles de IsVisible.</summary>
 public static class StringConverters

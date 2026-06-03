@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Linq;
 using Avalonia.Data.Converters;
 
-namespace MemoriaPlus.Common;
+namespace Shared.UI.Common;
 
 /// <summary>
 /// Multi-converters de booleanos para reemplazar los MultiDataTrigger de WPF

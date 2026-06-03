@@ -3,6 +3,7 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.VisualTree;
 using LosasPlus.Models;
+using Shared.UI.Views;
 
 namespace MemoriaPlus.Views;
 

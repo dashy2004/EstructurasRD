@@ -16,7 +16,7 @@ using LosasPlus.Persistence;
 using LosasPlus.Services;
 using LosasPlus.Validation;
 using LosasPlus.ViewModels.Vigas;
-using MemoriaPlusVm = MemoriaPlus.ViewModels;  // ProyectoResumen vive en src.UI.Shared
+using MemoriaPlusVm = Shared.UI.ViewModels;  // ProyectoResumen vive en src.UI.Shared
 
 namespace LosasPlus.ViewModels;
 
@@ -1101,11 +1101,11 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// </summary>
     public async void AbrirProyectoLpxDialog()
     {
-        var ruta = await MemoriaPlus.Services.AppServices.Dialogs.OpenFileAsync(
+        var ruta = await Shared.UI.Services.AppServices.Dialogs.OpenFileAsync(
             "Abrir proyecto LosasPlus",
-            new MemoriaPlus.Services.FileFilter("Proyecto LosasPlus", new[] { "*.lpx.json" }),
-            new MemoriaPlus.Services.FileFilter("JSON", new[] { "*.json" }),
-            new MemoriaPlus.Services.FileFilter("Todos", new[] { "*.*" }));
+            new Shared.UI.Services.FileFilter("Proyecto LosasPlus", new[] { "*.lpx.json" }),
+            new Shared.UI.Services.FileFilter("JSON", new[] { "*.json" }),
+            new Shared.UI.Services.FileFilter("Todos", new[] { "*.*" }));
         if (ruta is not null) AbrirProyectoLpxPorPath(ruta);
     }
 
@@ -1177,10 +1177,10 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// <summary>Pregunta destino con SaveFileDialog y guarda. Bound a Ctrl+Shift+S.</summary>
     public async void GuardarComoLpx()
     {
-        var ruta = await MemoriaPlus.Services.AppServices.Dialogs.SaveFileAsync(
+        var ruta = await Shared.UI.Services.AppServices.Dialogs.SaveFileAsync(
             "Guardar proyecto LosasPlus", SugerirNombreLpx(), ProyectoSerializer.Extension,
-            new MemoriaPlus.Services.FileFilter("Proyecto LosasPlus", new[] { "*.lpx.json" }),
-            new MemoriaPlus.Services.FileFilter("JSON", new[] { "*.json" }));
+            new Shared.UI.Services.FileFilter("Proyecto LosasPlus", new[] { "*.lpx.json" }),
+            new Shared.UI.Services.FileFilter("JSON", new[] { "*.json" }));
         if (ruta is null) return;
         try
         {

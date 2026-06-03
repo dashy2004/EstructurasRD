@@ -94,16 +94,7 @@ public class Vista3DControl : Control
     {
         base.OnPropertyChanged(change);
         if (change.Property == EdificioProperty)
-        {
-            // El binding XAML escribe la StyledProperty vía SetValue y NO pasa por el
-            // setter CLR, así que la suscripción a ModeloCambiado DEBE vivir acá (acá sí
-            // corre con binding). Sin esto el 3D se dibujaba una sola vez y nunca refrescaba.
-            if (change.OldValue is IModeloObservable oldObs)
-                oldObs.ModeloCambiado -= OnEdificioCambiado;
-            if (change.NewValue is IModeloObservable newObs)
-                newObs.ModeloCambiado += OnEdificioCambiado;
             ReconstruirEscena();
-        }
         else if (change.Property == ModoRenderProperty)
             InvalidateVisual();
     }

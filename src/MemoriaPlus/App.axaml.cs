@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using Shared.UI.ViewModels;
 using MemoriaPlus.ViewModels;
 
 namespace MemoriaPlus;

@@ -4,7 +4,7 @@ using Avalonia.Data.Converters;
 using Avalonia.Media;
 using LosasPlus.Validation;
 
-namespace MemoriaPlus.Common;
+namespace Shared.UI.Common;
 
 /// <summary>
 /// Converters para el formato condicional por severidad de la validación

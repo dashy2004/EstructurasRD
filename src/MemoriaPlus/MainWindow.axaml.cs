@@ -7,7 +7,8 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using LosasPlus.Persistence;
-using MemoriaPlus.Services;
+using Shared.UI.Services;
+using Shared.UI.ViewModels;
 using MemoriaPlus.ViewModels;
 
 namespace MemoriaPlus;

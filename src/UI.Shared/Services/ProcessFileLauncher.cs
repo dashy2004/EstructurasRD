@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace MemoriaPlus.Services;
+namespace Shared.UI.Services;
 
 /// <summary>
 /// Abre un archivo en su aplicación por defecto vía el shell del SO

@@ -1,6 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
+             xmlns:vm="clr-namespace:Shared.UI.ViewModels"
              x:Class="MemoriaPlus.Views.ExploradorView"
              x:CompileBindings="False"
              Background="{StaticResource SurfaceBrush}">

@@ -6,9 +6,9 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using LosasPlus.Models;
 using LosasPlus.Validation;
-using MemoriaPlus.Common;
+using Shared.UI.Common;
 
-namespace MemoriaPlus.ViewModels;
+namespace Shared.UI.ViewModels;
 
 /// <summary>
 /// Filtro activo del panel de validación normativa. Mapea a los pills del
@@ -266,7 +266,7 @@ public sealed class ValidacionViewModel : INotifyPropertyChanged
         {
             // Port a Avalonia: el portapapeles de Avalonia es async; se dispara
             // fire-and-forget para no cambiar el tipo del command (sync).
-            _ = MemoriaPlus.Services.AppServices.Clipboard.SetTextAsync(_reporte.AReporteTexto());
+            _ = Shared.UI.Services.AppServices.Clipboard.SetTextAsync(_reporte.AReporteTexto());
         }
         catch
         {

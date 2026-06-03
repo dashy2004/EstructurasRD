@@ -3,9 +3,9 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.VisualTree;
 using LosasPlus.Persistence;
-using MemoriaPlus.ViewModels;
+using Shared.UI.ViewModels;
 
-namespace MemoriaPlus.Views;
+namespace Shared.UI.Views;
 
 public partial class AtajosView : UserControl
 {

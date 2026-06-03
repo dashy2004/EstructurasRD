@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace MemoriaPlus.Services;
+namespace Shared.UI.Services;
 
 /// <summary>
 /// Implementación de <see cref="IClipboardService"/> con el portapapeles del

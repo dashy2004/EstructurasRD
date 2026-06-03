@@ -9,10 +9,10 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
-using MemoriaPlus.Services;
-using MemoriaPlus.ViewModels;
+using Shared.UI.Services;
+using Shared.UI.ViewModels;
 
-namespace MemoriaPlus.Views;
+namespace Shared.UI.Views;
 
 public partial class DatosIngenieroView : UserControl
 {

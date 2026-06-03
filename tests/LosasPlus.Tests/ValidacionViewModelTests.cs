@@ -1,7 +1,7 @@
 using System.Linq;
 using LosasPlus.Models;
 using LosasPlus.Validation;
-using MemoriaPlus.ViewModels;
+using Shared.UI.ViewModels;
 using Xunit;
 
 namespace LosasPlus.Tests;

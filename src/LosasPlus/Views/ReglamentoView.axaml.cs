@@ -6,7 +6,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Styling;
 using LosasPlus.Services;
-using MemoriaPlus.Services;
+using Shared.UI.Services;
 
 namespace LosasPlus.Views;
 

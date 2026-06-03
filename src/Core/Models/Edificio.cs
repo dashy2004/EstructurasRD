@@ -26,7 +26,7 @@ namespace LosasPlus.Models;
 /// consumidor .NET.
 /// </para>
 /// </summary>
-public partial class Edificio : INotifyPropertyChanged
+public partial class Edificio : INotifyPropertyChanged, IModeloObservable
 {
     private string _nombre = "Edificio 1";
 
@@ -44,9 +44,29 @@ public partial class Edificio : INotifyPropertyChanged
     /// </summary>
     public ObservableCollection<Nivel> Niveles { get; } = new();
 
+    public Edificio()
+    {
+        Niveles.CollectionChanged += (s, e) =>
+        {
+            if (e.NewItems != null)
+                foreach (Nivel n in e.NewItems) n.ModeloCambiado += OnNivelCambiado;
+            if (e.OldItems != null)
+                foreach (Nivel n in e.OldItems) n.ModeloCambiado -= OnNivelCambiado;
+            NotificarModeloCambiado();
+        };
+    }
+
+    private void OnNivelCambiado(object? sender, System.EventArgs e) => NotificarModeloCambiado();
+
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        NotificarModeloCambiado();
+    }
+
+    public event System.EventHandler? ModeloCambiado;
+    public void NotificarModeloCambiado() => ModeloCambiado?.Invoke(this, System.EventArgs.Empty);
 }
 
 /// <summary>
@@ -62,7 +82,7 @@ public partial class Edificio : INotifyPropertyChanged
 ///
 /// <para>Tipo puro de dominio — sin dependencias de WPF.</para>
 /// </summary>
-public partial class Nivel : INotifyPropertyChanged
+public partial class Nivel : INotifyPropertyChanged, IModeloObservable
 {
     private string _nombre = "Nivel 1";
     private double _cota;   // m
@@ -105,5 +125,36 @@ public partial class Nivel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        NotificarModeloCambiado();
+    }
+
+    public event System.EventHandler? ModeloCambiado;
+    public void NotificarModeloCambiado() => ModeloCambiado?.Invoke(this, System.EventArgs.Empty);
+
+    public Nivel()
+    {
+        Sistemas.CollectionChanged += (s, e) =>
+        {
+            if (e.NewItems != null) foreach (Sistema sys in e.NewItems) sys.ModeloCambiado += OnItemChanged;
+            if (e.OldItems != null) foreach (Sistema sys in e.OldItems) sys.ModeloCambiado -= OnItemChanged;
+            NotificarModeloCambiado();
+        };
+        Vigas.CollectionChanged += (s, e) =>
+        {
+            if (e.NewItems != null) foreach (Viga v in e.NewItems) v.PropertyChanged += OnItemChanged2;
+            if (e.OldItems != null) foreach (Viga v in e.OldItems) v.PropertyChanged -= OnItemChanged2;
+            NotificarModeloCambiado();
+        };
+        Columnas.CollectionChanged += (s, e) =>
+        {
+            if (e.NewItems != null) foreach (Columna c in e.NewItems) c.PropertyChanged += OnItemChanged2;
+            if (e.OldItems != null) foreach (Columna c in e.OldItems) c.PropertyChanged -= OnItemChanged2;
+            NotificarModeloCambiado();
+        };
+    }
+
+    private void OnItemChanged(object? sender, System.EventArgs e) => NotificarModeloCambiado();
+    private void OnItemChanged2(object? sender, PropertyChangedEventArgs e) => NotificarModeloCambiado();
 }

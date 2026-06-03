@@ -6,7 +6,7 @@ using Avalonia.Platform;
 using Avalonia.Svg.Skia;
 using LosasPlus.Models;
 
-namespace MemoriaPlus.Common;
+namespace Shared.UI.Common;
 
 /// <summary>
 /// Convierte el <c>Codigo</c> de un <c>TipoLosa</c> (int) en un

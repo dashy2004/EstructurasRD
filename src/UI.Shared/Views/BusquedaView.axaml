@@ -1,8 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="clr-namespace:MemoriaPlus.ViewModels"
-             xmlns:cmn="clr-namespace:MemoriaPlus.Common"
-             x:Class="MemoriaPlus.Views.BusquedaView"
+             xmlns:vm="clr-namespace:Shared.UI.ViewModels"
+             xmlns:cmn="clr-namespace:Shared.UI.Common"
+             x:Class="Shared.UI.Views.BusquedaView"
              x:CompileBindings="False"
              Background="{StaticResource SurfaceBrush}">
 

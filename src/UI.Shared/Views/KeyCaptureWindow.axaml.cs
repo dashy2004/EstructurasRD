@@ -5,7 +5,7 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 
-namespace MemoriaPlus.Views;
+namespace Shared.UI.Views;
 
 /// <summary>
 /// Modal de captura de combinación de teclas. El usuario presiona una secuencia,

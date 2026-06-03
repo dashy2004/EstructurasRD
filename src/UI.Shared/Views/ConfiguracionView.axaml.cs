@@ -4,9 +4,9 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using LosasPlus.Persistence;
-using MemoriaPlus.ViewModels;
+using Shared.UI.ViewModels;
 
-namespace MemoriaPlus.Views;
+namespace Shared.UI.Views;
 
 public partial class ConfiguracionView : UserControl
 {

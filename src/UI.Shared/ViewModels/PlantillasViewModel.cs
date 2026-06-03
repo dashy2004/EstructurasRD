@@ -5,9 +5,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using LosasPlus.Persistence;
-using MemoriaPlus.Common;
+using Shared.UI.Common;
 
-namespace MemoriaPlus.ViewModels;
+namespace Shared.UI.ViewModels;
 
 /// <summary>
 /// ViewModel del tab Plantillas: lista de plantillas <c>.docx</c> registradas
@@ -89,9 +89,9 @@ public sealed class PlantillasViewModel : INotifyPropertyChanged
 
     private async System.Threading.Tasks.Task Importar()
     {
-        var ruta = await MemoriaPlus.Services.AppServices.Dialogs.OpenFileAsync(
+        var ruta = await Shared.UI.Services.AppServices.Dialogs.OpenFileAsync(
             "Importar plantilla de memoria (.docx)",
-            new MemoriaPlus.Services.FileFilter("Documento Word", new[] { "*.docx" }));
+            new Shared.UI.Services.FileFilter("Documento Word", new[] { "*.docx" }));
         if (ruta is null) return;
 
         try

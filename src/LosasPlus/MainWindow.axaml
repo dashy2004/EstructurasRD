@@ -4,7 +4,7 @@
         xmlns:v="clr-namespace:LosasPlus.Views"
         xmlns:cad="clr-namespace:LosasPlus.Views.Cad"
         xmlns:vigas="clr-namespace:LosasPlus.Views.Vigas"
-        xmlns:vws="clr-namespace:MemoriaPlus.Views;assembly=MemoriaPlus.UI.Shared"
+        xmlns:vws="clr-namespace:Shared.UI.Views;assembly=MemoriaPlus.UI.Shared"
         xmlns:sys="clr-namespace:System;assembly=System.Runtime"
         x:Class="LosasPlus.MainWindow"
         x:CompileBindings="False"

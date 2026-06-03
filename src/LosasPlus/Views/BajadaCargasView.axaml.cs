@@ -1,7 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using LosasPlus.ViewModels;
-using MemoriaPlus.Services;
+using Shared.UI.Services;
 
 namespace LosasPlus.Views;
 

@@ -5,7 +5,7 @@ using Avalonia.Data;
 using Avalonia.Data.Converters;
 using Avalonia.Media.Imaging;
 
-namespace MemoriaPlus.Common;
+namespace Shared.UI.Common;
 
 /// <summary>
 /// Convierte un path absoluto en un <see cref="Bitmap"/> de Avalonia cargado

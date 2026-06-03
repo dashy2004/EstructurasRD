@@ -5,9 +5,9 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using LosasPlus.Models;
-using MemoriaPlus.Common;
+using Shared.UI.Common;
 
-namespace MemoriaPlus.ViewModels;
+namespace Shared.UI.ViewModels;
 
 /// <summary>
 /// Resultado individual de búsqueda — wrapper que une un elemento del modelo

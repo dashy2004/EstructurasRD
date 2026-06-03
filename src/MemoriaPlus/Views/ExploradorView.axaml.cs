@@ -1,7 +1,8 @@
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Markup.Xaml;
 using MemoriaPlus.ViewModels;
+using Avalonia.Markup.Xaml;
+using Shared.UI.ViewModels;
 
 namespace MemoriaPlus.Views;
 

@@ -41,12 +41,23 @@ public class PlantaCanvas : Control
         get => _nivel;
         set
         {
+            if (_nivel != null)
+            {
+                if (_nivel is IModeloObservable obs) obs.ModeloCambiado -= OnModeloCambiado;
+            }
+            
             if (SetAndRaise(NivelProperty, ref _nivel, value))
             {
+                if (_nivel is IModeloObservable obs) obs.ModeloCambiado += OnModeloCambiado;
                 SelectedElement = null;
                 InvalidateVisual();
             }
         }
+    }
+
+    private void OnModeloCambiado(object? sender, EventArgs e)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(InvalidateVisual);
     }
 
     public event Action<object?>? SelectionChanged;

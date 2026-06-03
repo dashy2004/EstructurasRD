@@ -1,9 +1,9 @@
 using System;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
-using MemoriaPlus.ViewModels;
+using Shared.UI.ViewModels;
 
-namespace MemoriaPlus.Views;
+namespace Shared.UI.Views;
 
 /// <summary>
 /// Diálogo modal "Seleccionar tipo de losa". El consumidor lo abre con

@@ -183,33 +183,33 @@ public class ConfiguracionTests : IDisposable
     [Fact]
     public void ConfiguracionVM_default_muestra_DatosIngeniero_y_sub_tab_inicial_es_DatosIngeniero()
     {
-        var vm = new MemoriaPlus.ViewModels.ConfiguracionViewModel();
+        var vm = new Shared.UI.ViewModels.ConfiguracionViewModel();
         Assert.False(vm.EsCalculadora);
         Assert.True (vm.MostrarDatosIngeniero);
-        Assert.Equal(MemoriaPlus.ViewModels.SubTabConfig.DatosIngeniero, vm.SubTabActivo);
+        Assert.Equal(Shared.UI.ViewModels.SubTabConfig.DatosIngeniero, vm.SubTabActivo);
     }
 
     [Fact]
     public void ConfiguracionVM_EsCalculadora_oculta_DatosIngeniero_y_redirige_a_Apariencia()
     {
-        var vm = new MemoriaPlus.ViewModels.ConfiguracionViewModel();
+        var vm = new Shared.UI.ViewModels.ConfiguracionViewModel();
         // El default era DatosIngeniero; al setear EsCalculadora=true, el VM debe
         // detectar que estábamos en el sub-tab oculto y saltar al primero visible.
         vm.EsCalculadora = true;
 
         Assert.True (vm.EsCalculadora);
         Assert.False(vm.MostrarDatosIngeniero);
-        Assert.Equal(MemoriaPlus.ViewModels.SubTabConfig.Apariencia, vm.SubTabActivo);
+        Assert.Equal(Shared.UI.ViewModels.SubTabConfig.Apariencia, vm.SubTabActivo);
     }
 
     [Fact]
     public void ConfiguracionVM_EsCalculadora_no_pisa_sub_tab_si_ya_es_otro()
     {
-        var vm = new MemoriaPlus.ViewModels.ConfiguracionViewModel();
-        vm.SubTabActivo = MemoriaPlus.ViewModels.SubTabConfig.Atajos;
+        var vm = new Shared.UI.ViewModels.ConfiguracionViewModel();
+        vm.SubTabActivo = Shared.UI.ViewModels.SubTabConfig.Atajos;
         vm.EsCalculadora = true;
         // Como ya estaba en Atajos (no en DatosIngeniero), no debe cambiar.
-        Assert.Equal(MemoriaPlus.ViewModels.SubTabConfig.Atajos, vm.SubTabActivo);
+        Assert.Equal(Shared.UI.ViewModels.SubTabConfig.Atajos, vm.SubTabActivo);
     }
 
     // =================================================================
@@ -289,7 +289,7 @@ public class ConfiguracionTests : IDisposable
     [Fact]
     public void ConfiguracionVM_GuardarComoPreset_persiste_y_refresca_lista()
     {
-        var vm = new MemoriaPlus.ViewModels.ConfiguracionViewModel();
+        var vm = new Shared.UI.ViewModels.ConfiguracionViewModel();
         vm.Apariencia.Tema = "Oscuro";
         vm.NombrePresetNuevo = "Test1";
 
@@ -304,7 +304,7 @@ public class ConfiguracionTests : IDisposable
     [Fact]
     public void ConfiguracionVM_GuardarComoPreset_rechaza_nombre_vacio()
     {
-        var vm = new MemoriaPlus.ViewModels.ConfiguracionViewModel();
+        var vm = new Shared.UI.ViewModels.ConfiguracionViewModel();
         vm.NombrePresetNuevo = "   ";
         vm.GuardarComoPresetCommand.Execute(null);
         Assert.Empty(vm.PresetsDisponibles);
@@ -314,7 +314,7 @@ public class ConfiguracionTests : IDisposable
     [Fact]
     public void ConfiguracionVM_AplicarColorAcentoHex_setea_y_normaliza_hex()
     {
-        var vm = new MemoriaPlus.ViewModels.ConfiguracionViewModel();
+        var vm = new Shared.UI.ViewModels.ConfiguracionViewModel();
         vm.AplicarColorAcentoHexCommand.Execute("0E639C");  // sin #
         Assert.Equal("#0E639C", vm.Apariencia.ColorAcentoHex);
 

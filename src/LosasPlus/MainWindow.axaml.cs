@@ -14,7 +14,7 @@ using LosasPlus.Models;
 using LosasPlus.Persistence;
 using LosasPlus.Services;
 using LosasPlus.ViewModels;
-using MemoriaPlus.Services;
+using Shared.UI.Services;
 
 namespace LosasPlus;
 
@@ -195,7 +195,7 @@ public partial class MainWindow : Window
     {
         if (sender is not Button btn || btn.Tag is not Losa rowLosa) return;
 
-        var dlg = new MemoriaPlus.Views.SelectorTipoLosaWindow(rowLosa.Tipo);
+        var dlg = new Shared.UI.Views.SelectorTipoLosaWindow(rowLosa.Tipo);
         var resultado = await dlg.ShowDialog<int?>(this);
         if (resultado is not int nuevo) return;
 
@@ -240,7 +240,7 @@ public partial class MainWindow : Window
         await AbrirDoctorModal(diag);
     }
 
-    private void OnAparienciaCambiada(object? sender, MemoriaPlus.Views.AparienciaCambiadaEventArgs e)
+    private void OnAparienciaCambiada(object? sender, Shared.UI.Views.AparienciaCambiadaEventArgs e)
         => App.AplicarApariencia(e.Apariencia);
 
     private async void OnDiagnosticarDLClick(object? sender, RoutedEventArgs e)

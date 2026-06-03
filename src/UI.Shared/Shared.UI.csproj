@@ -9,7 +9,7 @@
     <AssemblyName>MemoriaPlus.UI.Shared</AssemblyName>
     <!-- Namespace raíz mantenido como MemoriaPlus.* para no tocar los
          using/xmlns existentes en src.Memoria. -->
-    <RootNamespace>MemoriaPlus</RootNamespace>
+    <RootNamespace>Shared.UI</RootNamespace>
     <Version>0.5.0</Version>
     <Authors>Emil Guillen De la Cruz</Authors>
     <Product>Memoria Plus UI Shared</Product>

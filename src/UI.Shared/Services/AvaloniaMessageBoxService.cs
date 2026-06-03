@@ -4,7 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 
-namespace MemoriaPlus.Services;
+namespace Shared.UI.Services;
 
 /// <summary>
 /// Implementación de <see cref="IMessageBoxService"/> con una ventana Avalonia

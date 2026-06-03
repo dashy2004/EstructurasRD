@@ -1,6 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:cmn="clr-namespace:MemoriaPlus.Common;assembly=MemoriaPlus.UI.Shared"
+        xmlns:cmn="clr-namespace:Shared.UI.Common;assembly=MemoriaPlus.UI.Shared"
         x:Class="LosasPlus.Views.ImportarCombinacionesWindow"
         x:CompileBindings="False"
         Title="Importar combinaciones desde DISEST"
