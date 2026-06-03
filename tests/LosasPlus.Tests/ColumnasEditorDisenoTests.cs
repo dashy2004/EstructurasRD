@@ -1,5 +1,8 @@
+using System.Linq;
 using LosasPlus.Models;
 using LosasPlus.ViewModels;
+using OxyPlot;
+using OxyPlot.Series;
 using Xunit;
 
 namespace LosasPlus.Tests.ViewModels;
@@ -54,5 +57,46 @@ public class ColumnasEditorDisenoTests
         var vm = VmConColumna();
         vm.BarrasX = 1;                        // < 2 → inválido para LayoutPerimetral
         Assert.Null(vm.DisenoActual);
+    }
+
+    [Fact]
+    public void ModeloInteraccion_tiene_curva_tope_y_punto_de_demanda()
+    {
+        var vm = VmConColumna();
+        var plot = vm.ModeloInteraccion;
+        Assert.NotNull(plot);
+        Assert.Equal(3, plot!.Series.Count);                          // curva + tope + demanda
+        var curva = plot.Series.OfType<LineSeries>().First();
+        Assert.Equal(vm.DisenoActual!.Diagrama.Count, curva.Points.Count);
+        Assert.Single(plot.Series.OfType<ScatterSeries>());          // 1 punto de demanda
+    }
+
+    [Fact]
+    public void Punto_demanda_verde_cuando_cumple()
+    {
+        var vm = VmConColumna();
+        vm.PuKN = 1000; vm.MuKNm = 50;                                // dentro del diagrama
+        Assert.True(vm.DisenoActual!.Chequeo.Cumple);
+        var scatter = vm.ModeloInteraccion!.Series.OfType<ScatterSeries>().Single();
+        Assert.Equal(OxyColor.Parse("#10B981"), scatter.MarkerFill);  // verde
+    }
+
+    [Fact]
+    public void Punto_demanda_rojo_cuando_no_cumple()
+    {
+        var vm = VmConColumna();
+        vm.MuKNm = 1000;                                              // momento excesivo → fuera
+        Assert.False(vm.DisenoActual!.Chequeo.Cumple);
+        var scatter = vm.ModeloInteraccion!.Series.OfType<ScatterSeries>().Single();
+        Assert.Equal(OxyColor.Parse("#EF4444"), scatter.MarkerFill);  // rojo
+    }
+
+    [Fact]
+    public void ModeloInteraccion_se_anula_al_deseleccionar()
+    {
+        var vm = VmConColumna();
+        Assert.NotNull(vm.ModeloInteraccion);
+        vm.Seleccionada = null;
+        Assert.Null(vm.ModeloInteraccion);                           // no debe quedar el plot viejo
     }
 }

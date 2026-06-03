@@ -5,6 +5,10 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using LosasPlus.Calculo;
 using LosasPlus.Models;
+using OxyPlot;
+using OxyPlot.Annotations;
+using OxyPlot.Axes;
+using OxyPlot.Series;
 
 namespace LosasPlus.ViewModels;
 
@@ -87,6 +91,9 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
     /// </summary>
     public ColumnaDisenador.DisenoColumna? DisenoActual { get; private set; }
 
+    /// <summary>Modelo de OxyPlot que representa el diagrama P-M.</summary>
+    public PlotModel? ModeloInteraccion { get; private set; }
+
     private void RecalcularDiseno()
     {
         var col = _seleccionada;
@@ -104,7 +111,92 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
             var sec = new ColumnaSeccion(b, h, _fcMPa, _fyMPa, barras);
             DisenoActual = ColumnaDisenador.DisenarColumna(sec, _numeroBarra, _puKN * 1000.0, _muKNm * 1e6);
         }
+        ConstruirPlot();   // maneja DisenoActual==null → ModeloInteraccion=null (evita dejar el plot viejo stale)
         OnPropertyChanged(nameof(DisenoActual));
+        OnPropertyChanged(nameof(ModeloInteraccion));
+    }
+
+    private void ConstruirPlot()
+    {
+        if (DisenoActual is null)
+        {
+            ModeloInteraccion = null;
+            return;
+        }
+
+        var d = DisenoActual;
+        var plot = new PlotModel
+        {
+            Title = "Diagrama de Interacción P-M",
+            TitleFontSize = 14,
+            TitleFontWeight = OxyPlot.FontWeights.Bold,
+            TextColor = OxyColor.Parse("#E2E8F0"),
+            PlotAreaBorderColor = OxyColor.Parse("#334155")
+        };
+
+        plot.Axes.Add(new LinearAxis
+        {
+            Position = AxisPosition.Bottom,
+            Title = "φMn (kN·m)",
+            MajorGridlineStyle = LineStyle.Solid,
+            MajorGridlineColor = OxyColor.Parse("#1E293B"),
+            TicklineColor = OxyColor.Parse("#334155"),
+            AxislineColor = OxyColor.Parse("#475569")
+        });
+
+        plot.Axes.Add(new LinearAxis
+        {
+            Position = AxisPosition.Left,
+            Title = "φPn (kN)",
+            MajorGridlineStyle = LineStyle.Solid,
+            MajorGridlineColor = OxyColor.Parse("#1E293B"),
+            TicklineColor = OxyColor.Parse("#334155"),
+            AxislineColor = OxyColor.Parse("#475569")
+        });
+
+        // Curva del diagrama
+        var serieCurva = new LineSeries
+        {
+            Title = "Límite de diseño (φPn, φMn)",
+            Color = OxyColor.Parse("#3B82F6"),
+            StrokeThickness = 2
+        };
+        foreach (var p in d.Diagrama)
+        {
+            serieCurva.Points.Add(new DataPoint(p.PhiMn / 1e6, p.PhiPn / 1000.0));
+        }
+        plot.Series.Add(serieCurva);
+
+        // Tope horizontal de compresión máxima
+        double phiPnMaxKN = d.PhiPnMaxN / 1000.0;
+        var serieTope = new LineSeries
+        {
+            Title = "Compresión máx. (φPn,max)",
+            Color = OxyColor.Parse("#94A3B8"),
+            StrokeThickness = 1.5,
+            LineStyle = LineStyle.Dash
+        };
+        // Para que cruce todo el gráfico, tomamos desde 0 hasta el max PhiMn (aproximado)
+        double maxMn = d.Diagrama.Count > 0 ? d.Diagrama.Max(p => p.PhiMn) / 1e6 : 100;
+        serieTope.Points.Add(new DataPoint(0, phiPnMaxKN));
+        serieTope.Points.Add(new DataPoint(maxMn * 1.1, phiPnMaxKN));
+        plot.Series.Add(serieTope);
+
+        // Punto de demanda
+        var colorDemanda = d.Chequeo.Cumple ? OxyColor.Parse("#10B981") : OxyColor.Parse("#EF4444");
+        var serieDemanda = new ScatterSeries
+        {
+            Title = "Demanda (Mu, Pu)",
+            MarkerType = MarkerType.Circle,
+            MarkerSize = 5,
+            MarkerFill = colorDemanda,
+            MarkerStroke = OxyColors.White,
+            MarkerStrokeThickness = 1
+        };
+        serieDemanda.Points.Add(new ScatterPoint(_muKNm, _puKN));
+        plot.Series.Add(serieDemanda);
+
+        ModeloInteraccion = plot;
     }
 
     /// <summary>Agrega una nueva columna al nivel seleccionado, con Id/Nombre correlativos.</summary>
