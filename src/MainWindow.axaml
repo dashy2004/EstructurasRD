@@ -276,6 +276,10 @@
                             <MenuItem Header="Examinar Losas.exe..." Click="OnBrowseLosasExe"/>
                             <MenuItem Header="Lanzar Losas.exe" Click="OnLaunchLosasExeClick"/>
                             <MenuItem Header="Importar .TXT..." Click="OnImportTxtClick"/>
+                            <Separator/>
+                            <MenuItem Header="Calcular losas con el motor (FEM, sin Losas.exe)"
+                                      Command="{Binding CalcularConMotorCommand}"
+                                      ToolTip.Tip="Calcula los momentos de todas las losas con el motor FEA nativo (FEM), alternativa a Losas.exe. Requiere el motor instalado (comando configurable en la pestaña Aceros)."/>
                         </MenuItem>
                         <MenuItem Header="Export">
                             <MenuItem Header="Generar memoria → abrir MemoriaPlus (Ctrl+G)"

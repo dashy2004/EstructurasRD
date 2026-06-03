@@ -192,6 +192,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// <summary>Diseña la <see cref="LosaSeleccionada"/> con el motor FEA nativo (B6, aditivo).</summary>
     public ICommand DisenarConMotorFeaCommand { get; private set; } = null!;
 
+    /// <summary>Calcula TODAS las losas del sistema con el motor FEA (alternativa a Losas.exe).</summary>
+    public ICommand CalcularConMotorCommand { get; private set; } = null!;
+
     public ICommand? IrABusquedaCommand { get; private set; }
     public ICommand? GenerarMemoriaCommand { get; private set; }
     public ICommand? AutoBalanceoCommand { get; private set; }
@@ -711,6 +714,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         GenerarMemoriaCommand = new RelayCommand(_ => GenerarMemoria());
         AutoBalanceoCommand   = new RelayCommand(_ => AplicarAutoBalanceo());
         DisenarConMotorFeaCommand = new MemoriaPlus.Common.AsyncRelayCommand(DisenarConMotorFeaAsync);
+        CalcularConMotorCommand = new MemoriaPlus.Common.AsyncRelayCommand(CalcularConMotorAsync);
 
         // ---- Plano CAD (Fase 1.B/2) — el sub-VM lee las losas del sistema
         // activo y, al mapear un polígono, toma snapshot de undo antes de mutar.
@@ -982,6 +986,33 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         {
             MotorFeaResultado = "✕ " + ex.Message;
         }
+        finally { MotorFeaOcupado = false; }
+    }
+
+    /// <summary>
+    /// Cutover aditivo de <c>Losas.exe</c>: calcula los momentos de TODAS las losas
+    /// del sistema con el motor FEA nativo (FEM) y los aplica, alimentando el mismo
+    /// pipeline de Aceros que hoy usa los momentos del <c>.TXT</c>. No reemplaza el
+    /// flujo <c>Losas.exe</c> — es la alternativa nativa.
+    /// </summary>
+    public async Task CalcularConMotorAsync()
+    {
+        var sistema = Sistema;
+        if (sistema is null || sistema.Losas.Count == 0)
+        { MotorFeaResultado = "No hay losas en el sistema activo."; return; }
+        try
+        {
+            MotorFeaOcupado = true;
+            MotorFeaResultado = $"Calculando {sistema.Losas.Count} losa(s) con el motor FEA (FEM)…";
+            await MotorFeaService.CalcularSistemaConMotorAsync(sistema, MotorFeaComando);
+            OnPropertyChanged(nameof(LosasFiltradas));
+            Aceros.Recargar();   // los momentos del motor alimentan el diseño de acero
+            MotorFeaResultado =
+                $"✓ {sistema.Losas.Count} losa(s) calculadas con el motor FEA (FEM). " +
+                "Momentos y aceros actualizados (sin Losas.exe).";
+            Log("Losas calculadas con el motor FEA nativo (alternativa a Losas.exe).");
+        }
+        catch (Exception ex) { MotorFeaResultado = "✕ " + ex.Message; }
         finally { MotorFeaOcupado = false; }
     }
 
