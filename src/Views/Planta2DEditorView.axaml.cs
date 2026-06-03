@@ -136,6 +136,7 @@ public partial class Planta2DEditorView : UserControl
         PanelViga.IsVisible = selected is Viga;
         PanelColumna.IsVisible = selected is Columna;
         PanelEje.IsVisible = selected is EjeEstructural;
+        PanelMuro.IsVisible = selected is Muro;
 
         if (selected is Losa l)
         {
@@ -174,6 +175,16 @@ public partial class Planta2DEditorView : UserControl
             TxtEjeEndX.Text = eje.PuntoFin.X.ToString("0.##", CultureInfo.InvariantCulture);
             TxtEjeEndY.Text = eje.PuntoFin.Y.ToString("0.##", CultureInfo.InvariantCulture);
         }
+        else if (selected is Muro m)
+        {
+            TxtMuroId.Text = m.Id.ToString();
+            TxtMuroStartX.Text = m.PuntoInicio.X.ToString("0.##", CultureInfo.InvariantCulture);
+            TxtMuroStartY.Text = m.PuntoInicio.Y.ToString("0.##", CultureInfo.InvariantCulture);
+            TxtMuroEndX.Text = m.PuntoFin.X.ToString("0.##", CultureInfo.InvariantCulture);
+            TxtMuroEndY.Text = m.PuntoFin.Y.ToString("0.##", CultureInfo.InvariantCulture);
+            TxtMuroEspesor.Text = m.Espesor.ToString("0.##", CultureInfo.InvariantCulture);
+            TxtMuroAltura.Text = m.Altura.ToString("0.##", CultureInfo.InvariantCulture);
+        }
 
         _updatingProperties = false;
     }
@@ -208,6 +219,14 @@ public partial class Planta2DEditorView : UserControl
         TxtEjeStartY.ClearValue(TextBox.BackgroundProperty);
         TxtEjeEndX.ClearValue(TextBox.BackgroundProperty);
         TxtEjeEndY.ClearValue(TextBox.BackgroundProperty);
+
+        // Muro textboxes
+        TxtMuroStartX.ClearValue(TextBox.BackgroundProperty);
+        TxtMuroStartY.ClearValue(TextBox.BackgroundProperty);
+        TxtMuroEndX.ClearValue(TextBox.BackgroundProperty);
+        TxtMuroEndY.ClearValue(TextBox.BackgroundProperty);
+        TxtMuroEspesor.ClearValue(TextBox.BackgroundProperty);
+        TxtMuroAltura.ClearValue(TextBox.BackgroundProperty);
     }
 
     private void RegisterInputHandlers()
@@ -265,6 +284,21 @@ public partial class Planta2DEditorView : UserControl
         TxtEjeStartY.KeyDown += OnInputKeyDown;
         TxtEjeEndX.KeyDown += OnInputKeyDown;
         TxtEjeEndY.KeyDown += OnInputKeyDown;
+
+        // Muro inputs
+        TxtMuroStartX.LostFocus += (s, e) => CommitMuro();
+        TxtMuroStartY.LostFocus += (s, e) => CommitMuro();
+        TxtMuroEndX.LostFocus += (s, e) => CommitMuro();
+        TxtMuroEndY.LostFocus += (s, e) => CommitMuro();
+        TxtMuroEspesor.LostFocus += (s, e) => CommitMuro();
+        TxtMuroAltura.LostFocus += (s, e) => CommitMuro();
+
+        TxtMuroStartX.KeyDown += OnInputKeyDown;
+        TxtMuroStartY.KeyDown += OnInputKeyDown;
+        TxtMuroEndX.KeyDown += OnInputKeyDown;
+        TxtMuroEndY.KeyDown += OnInputKeyDown;
+        TxtMuroEspesor.KeyDown += OnInputKeyDown;
+        TxtMuroAltura.KeyDown += OnInputKeyDown;
     }
 
     private void OnInputKeyDown(object? sender, KeyEventArgs e)
@@ -275,6 +309,7 @@ public partial class Planta2DEditorView : UserControl
             else if (EditorCanvas.SelectedElement is Viga) CommitViga();
             else if (EditorCanvas.SelectedElement is Columna) CommitColumna();
             else if (EditorCanvas.SelectedElement is EjeEstructural) CommitEje();
+            else if (EditorCanvas.SelectedElement is Muro) CommitMuro();
             e.Handled = true;
         }
     }
@@ -410,6 +445,33 @@ public partial class Planta2DEditorView : UserControl
         eje.PuntoFin = new PuntoCad(ex, ey);
 
         TxtStatus.Text = $"Eje {eje.Etiqueta} actualizado con éxito.";
+        EditorCanvas.InvalidateVisual();
+    }
+
+    private void CommitMuro()
+    {
+        if (_updatingProperties || EditorCanvas.SelectedElement is not Muro m) return;
+
+        bool isValid = true;
+        isValid &= ValidateDouble(TxtMuroStartX, out double sx, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtMuroStartY, out double sy, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtMuroEndX, out double ex, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtMuroEndY, out double ey, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtMuroEspesor, out double espesor, v => v > 0);
+        isValid &= ValidateDouble(TxtMuroAltura, out double altura, v => v > 0);
+
+        if (!isValid)
+        {
+            TxtStatus.Text = "✕ Error: Valores de muro inválidos.";
+            return;
+        }
+
+        m.PuntoInicio = new PuntoCad(sx, sy);
+        m.PuntoFin = new PuntoCad(ex, ey);
+        m.Espesor = espesor;
+        m.Altura = altura;
+
+        TxtStatus.Text = $"Muro {m.Id} actualizado con éxito.";
         EditorCanvas.InvalidateVisual();
     }
 

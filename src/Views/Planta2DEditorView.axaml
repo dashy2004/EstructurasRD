@@ -190,6 +190,33 @@
                             <Button x:Name="BtnVerElevacion" Content="Ver Elevación 3D" HorizontalAlignment="Stretch" Margin="0,8,0,0"/>
                             <Button x:Name="BtnGenerarVigaContinua" Content="Generar Viga Continua" Classes="accent" HorizontalAlignment="Stretch" Margin="0,8,0,0"/>
                         </StackPanel>
+
+                        <!-- Panel Muro -->
+                        <StackPanel x:Name="PanelMuro" Spacing="12" IsVisible="False">
+                            <TextBlock Text="🧱 Muro" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource Accent}"/>
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,4">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="ID:" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="TxtMuroId" IsReadOnly="True" Background="{DynamicResource BgTertiary}" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Inicio X (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="TxtMuroStartX" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Inicio Y (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="TxtMuroStartY" Margin="0,0,0,8"/>
+                                
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Fin X (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" x:Name="TxtMuroEndX" Margin="0,0,0,8"/>
+                                
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Fin Y (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="4" Grid.Column="1" x:Name="TxtMuroEndY" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Espesor (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="5" Grid.Column="1" x:Name="TxtMuroEspesor" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="Altura (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="6" Grid.Column="1" x:Name="TxtMuroAltura" Margin="0,0,0,8"/>
+                            </Grid>
+                        </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
             </Border>

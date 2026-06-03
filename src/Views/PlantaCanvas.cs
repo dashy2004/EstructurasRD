@@ -15,6 +15,7 @@ namespace LosasPlus.Views;
 
 public class PlantaCanvas : Control
 {
+    private int _dragEndpoint = 2; // 0 = start, 1 = end, 2 = whole body
     private double _scale = 40.0;
     private double _tx = 100.0;
     private double _ty = 100.0;
@@ -151,12 +152,13 @@ public class PlantaCanvas : Control
             if (ActiveTool == "Puntero")
             {
                 // Hit test using raw mouse coords
-                object? hit = HitTest(pM);
+                object? hit = HitTest(pM, out int endpointHit);
                 SelectedElement = hit;
 
                 if (hit != null)
                 {
                     _isDragging = true;
+                    _dragEndpoint = endpointHit;
                     _dragStartPos = pM;
                     if (hit is Losa l)
                     {
@@ -165,8 +167,8 @@ public class PlantaCanvas : Control
                     }
                     else if (hit is Viga v)
                     {
-                        _dragStartElementX = v.OrigenX;
-                        _dragStartElementY = v.OrigenY;
+                        _dragStartElementX = _dragEndpoint == 1 ? v.ExtremoX : v.OrigenX;
+                        _dragStartElementY = _dragEndpoint == 1 ? v.ExtremoY : v.OrigenY;
                     }
                     else if (hit is Columna c)
                     {
@@ -181,8 +183,8 @@ public class PlantaCanvas : Control
                     }
                     else if (hit is EjeEstructural eje)
                     {
-                        _dragStartElementX = eje.PuntoInicio.X;
-                        _dragStartElementY = eje.PuntoInicio.Y;
+                        _dragStartElementX = _dragEndpoint == 1 ? eje.PuntoFin.X : eje.PuntoInicio.X;
+                        _dragStartElementY = _dragEndpoint == 1 ? eje.PuntoFin.Y : eje.PuntoInicio.Y;
                     }
                     e.Pointer.Capture(this);
                 }
@@ -317,8 +319,29 @@ public class PlantaCanvas : Control
             }
             else if (SelectedElement is Viga v)
             {
-                v.OrigenX = snapResult.X;
-                v.OrigenY = snapResult.Y;
+                if (_dragEndpoint == 0)
+                {
+                    v.OrigenX = snapResult.X;
+                    v.OrigenY = snapResult.Y;
+                    // Recalculate length/angle
+                    double nx = v.ExtremoX - v.OrigenX;
+                    double ny = v.ExtremoY - v.OrigenY;
+                    v.AnguloGrados = Math.Atan2(ny, nx) * 180 / Math.PI;
+                    if (v.Tramos.Count > 0) v.Tramos[0].Longitud = Math.Sqrt(nx * nx + ny * ny);
+                }
+                else if (_dragEndpoint == 1)
+                {
+                    // Update endpoint by modifying angle and length
+                    double nx = snapResult.X - v.OrigenX;
+                    double ny = snapResult.Y - v.OrigenY;
+                    v.AnguloGrados = Math.Atan2(ny, nx) * 180 / Math.PI;
+                    if (v.Tramos.Count > 0) v.Tramos[0].Longitud = Math.Sqrt(nx * nx + ny * ny);
+                }
+                else
+                {
+                    v.OrigenX = snapResult.X;
+                    v.OrigenY = snapResult.Y;
+                }
             }
             else if (SelectedElement is Columna c)
             {
@@ -334,10 +357,21 @@ public class PlantaCanvas : Control
             }
             else if (SelectedElement is EjeEstructural eje)
             {
-                double dxStart = snapResult.X - eje.PuntoInicio.X;
-                double dyStart = snapResult.Y - eje.PuntoInicio.Y;
-                eje.PuntoInicio = new PuntoCad(eje.PuntoInicio.X + dxStart, eje.PuntoInicio.Y + dyStart);
-                eje.PuntoFin = new PuntoCad(eje.PuntoFin.X + dxStart, eje.PuntoFin.Y + dyStart);
+                if (_dragEndpoint == 0)
+                {
+                    eje.PuntoInicio = new PuntoCad(snapResult.X, snapResult.Y);
+                }
+                else if (_dragEndpoint == 1)
+                {
+                    eje.PuntoFin = new PuntoCad(snapResult.X, snapResult.Y);
+                }
+                else
+                {
+                    double dxStart = snapResult.X - eje.PuntoInicio.X;
+                    double dyStart = snapResult.Y - eje.PuntoInicio.Y;
+                    eje.PuntoInicio = new PuntoCad(eje.PuntoInicio.X + dxStart, eje.PuntoInicio.Y + dyStart);
+                    eje.PuntoFin = new PuntoCad(eje.PuntoFin.X + dxStart, eje.PuntoFin.Y + dyStart);
+                }
             }
 
             SelectionChanged?.Invoke(SelectedElement);
@@ -365,9 +399,12 @@ public class PlantaCanvas : Control
         InvalidateVisual();
     }
 
-    private object? HitTest(Point p)
+    private object? HitTest(Point p, out int endpointHit)
     {
+        endpointHit = 2;
         if (Nivel == null) return null;
+
+        double tolE = 8.0 / _scale;
 
         // 1. Columns (highest hit priority because they are small)
         foreach (var col in Nivel.Columnas)
@@ -386,6 +423,9 @@ public class PlantaCanvas : Control
         {
             var a = new Point(viga.OrigenX, viga.OrigenY);
             var b = new Point(viga.ExtremoX, viga.ExtremoY);
+            if (DistancePoint(p, a) <= tolE) { endpointHit = 0; return viga; }
+            if (DistancePoint(p, b) <= tolE) { endpointHit = 1; return viga; }
+
             double dist = DistanceToSegment(p, a, b);
             if (dist <= 0.3) // tolerance in meters
             {
@@ -425,6 +465,9 @@ public class PlantaCanvas : Control
             {
                 var a = new Point(eje.PuntoInicio.X, eje.PuntoInicio.Y);
                 var b = new Point(eje.PuntoFin.X, eje.PuntoFin.Y);
+                if (DistancePoint(p, a) <= tolE) { endpointHit = 0; return eje; }
+                if (DistancePoint(p, b) <= tolE) { endpointHit = 1; return eje; }
+
                 double dist = DistanceToSegment(p, a, b);
                 if (dist <= 0.5) // tolerance in meters
                 {
@@ -434,6 +477,11 @@ public class PlantaCanvas : Control
         }
 
         return null;
+    }
+
+    private static double DistancePoint(Point p, Point a)
+    {
+        return Math.Sqrt((p.X - a.X) * (p.X - a.X) + (p.Y - a.Y) * (p.Y - a.Y));
     }
 
     private static double DistanceToSegment(Point p, Point a, Point b)

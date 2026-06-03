@@ -21,8 +21,11 @@ public class SeccionElevacionCanvas : Control
     private double _zoom = 20; // px/m
     private double _panX = 0;
     private double _panY = 0;
-    private bool _isDragging = false;
+    private bool _isPanning = false;
+    private bool _isDraggingCol = false;
     private Point _lastMousePos;
+    private Columna? _selectedCol;
+    private double _dragStartProjX;
 
     public SeccionElevacionCanvas()
     {
@@ -43,23 +46,58 @@ public class SeccionElevacionCanvas : Control
     protected override void OnPointerPressed(Avalonia.Input.PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
-        if (e.GetCurrentPoint(this).Properties.IsRightButtonPressed || e.GetCurrentPoint(this).Properties.IsMiddleButtonPressed)
+        var pointer = e.GetCurrentPoint(this);
+        _lastMousePos = pointer.Position;
+
+        if (pointer.Properties.IsRightButtonPressed || pointer.Properties.IsMiddleButtonPressed)
         {
-            _isDragging = true;
-            _lastMousePos = e.GetPosition(this);
+            _isPanning = true;
             e.Pointer.Capture(this);
+        }
+        else if (pointer.Properties.IsLeftButtonPressed)
+        {
+            _selectedCol = HitTest(pointer.Position);
+            if (_selectedCol != null)
+            {
+                _isDraggingCol = true;
+                _dragStartProjX = ProyectarEnEje(new PuntoCad(_selectedCol.CoordenadaX, _selectedCol.CoordenadaY));
+                e.Pointer.Capture(this);
+            }
+            InvalidateVisual();
         }
     }
 
     protected override void OnPointerMoved(Avalonia.Input.PointerEventArgs e)
     {
         base.OnPointerMoved(e);
-        if (_isDragging)
+        var pointer = e.GetCurrentPoint(this);
+        var mpos = pointer.Position;
+
+        if (_isPanning)
         {
-            var p = e.GetPosition(this);
-            _panX += p.X - _lastMousePos.X;
-            _panY += p.Y - _lastMousePos.Y;
-            _lastMousePos = p;
+            _panX += mpos.X - _lastMousePos.X;
+            _panY += mpos.Y - _lastMousePos.Y;
+            _lastMousePos = mpos;
+            InvalidateVisual();
+        }
+        else if (_isDraggingCol && _selectedCol != null && Eje != null)
+        {
+            double dxPx = mpos.X - _lastMousePos.X;
+            double dxM = dxPx / _zoom;
+            _dragStartProjX += dxM;
+
+            double dx_e = Eje.PuntoFin.X - Eje.PuntoInicio.X;
+            double dy_e = Eje.PuntoFin.Y - Eje.PuntoInicio.Y;
+            double len = Math.Sqrt(dx_e * dx_e + dy_e * dy_e);
+            if (len > 0)
+            {
+                double nx = dx_e / len;
+                double ny = dy_e / len;
+                _selectedCol.CoordenadaX = Eje.PuntoInicio.X + nx * _dragStartProjX;
+                _selectedCol.CoordenadaY = Eje.PuntoInicio.Y + ny * _dragStartProjX;
+            }
+            
+            _lastMousePos = mpos;
             InvalidateVisual();
         }
     }
@@ -67,8 +105,45 @@ public class SeccionElevacionCanvas : Control
     protected override void OnPointerReleased(Avalonia.Input.PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
-        _isDragging = false;
+        _isPanning = false;
+        _isDraggingCol = false;
         e.Pointer.Capture(null);
+    }
+
+    private Columna? HitTest(Point p)
+    {
+        if (Eje == null || Edificio == null) return null;
+        double tol = 0.5;
+        double tolPx = 8.0;
+
+        foreach (var nivel in Edificio.Niveles)
+        {
+            foreach (var sistema in nivel.Sistemas)
+            {
+                double z = sistema.Elevacion;
+                var cols = SeccionPorEje.Columnas(Eje, nivel.Columnas, tol);
+                foreach (var col in cols)
+                {
+                    double projX = ProyectarEnEje(new PuntoCad(col.CoordenadaX, col.CoordenadaY));
+                    var p1 = MetrosAPixel(projX, z);
+                    var p2 = MetrosAPixel(projX, z - col.Altura);
+
+                    // Check distance to the vertical line segment (p1 -> p2)
+                    // Since it's a vertical line, distance is primarily horizontal
+                    double minY = Math.Min(p1.Y, p2.Y);
+                    double maxY = Math.Max(p1.Y, p2.Y);
+
+                    if (p.Y >= minY - tolPx && p.Y <= maxY + tolPx)
+                    {
+                        if (Math.Abs(p.X - p1.X) <= tolPx)
+                        {
+                            return col;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     public override void Render(DrawingContext context)
@@ -105,11 +180,14 @@ public class SeccionElevacionCanvas : Control
                 foreach (var col in cols)
                 {
                     double projX = ProyectarEnEje(new PuntoCad(col.CoordenadaX, col.CoordenadaY));
-                    if (projX >= 0 && projX <= lenEje)
+                    if (projX >= -1.0 && projX <= lenEje + 1.0)
                     {
                         var p1 = MetrosAPixel(projX, z);
                         var p2 = MetrosAPixel(projX, z - col.Altura);
-                        context.DrawLine(PenColumna, p1, p2);
+                        
+                        bool isSelected = ReferenceEquals(_selectedCol, col);
+                        var pen = isSelected ? new Pen(Brushes.Orange, 4) : PenColumna;
+                        context.DrawLine(pen, p1, p2);
                     }
                 }
 
