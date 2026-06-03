@@ -18,8 +18,8 @@ public class EscenaEdificioColumnasTests
     public void Nivel_sin_columnas_no_agrega_segmentos_verticales()
     {
         var ed = new Edificio();
-        ed.Niveles.Add(new Nivel { Cota = 0 }); // footprint por defecto → 4 aristas de piso
-        Assert.Equal(4, EscenaEdificio.Construir(ed).Segmentos.Count);
+        ed.Niveles.Add(new Nivel { Cota = 0 }); // nivel vacío → sin massing
+        Assert.Equal(0, EscenaEdificio.Construir(ed).Segmentos.Count);
     }
 
     [Fact]
@@ -32,9 +32,9 @@ public class EscenaEdificioColumnasTests
         ed.Niveles.Add(nivel);
 
         var esc = EscenaEdificio.Construir(ed);
-        Assert.Equal(16, esc.Segmentos.Count); // 4 piso + 12 caja
+        Assert.Equal(12, esc.Segmentos.Count); // 12 caja (sin rectángulo de piso)
 
-        var caja = esc.Segmentos.Skip(4).ToList();
+        var caja = esc.Segmentos.ToList();
         Assert.Equal(12, caja.Count);
         // Caja 0.30×0.30 (half 0.15) centrada en (10,8), extruida de y=0 a y=3.
         Assert.Equal(9.85, caja.Min(s => MathF.Min(s.A.X, s.B.X)), 3);

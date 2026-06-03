@@ -52,33 +52,14 @@ public static class EscenaEdificio
             return Escena3D.Vacia;
 
         var segs = new List<Segmento3D>();
-        var esquinasPorNivel = new List<Vector3[]>(edificio.Niveles.Count);
 
         foreach (var nivel in edificio.Niveles)
         {
-            float area = 0f;
-            foreach (var sistema in nivel.Sistemas)
-                foreach (var losa in sistema.Losas)
-                {
-                    float a = (float)(losa.Lx * losa.Ly);
-                    if (a > 0f) area += a;
-                }
-
-            float lado = area > 0f ? MathF.Sqrt(area) : LadoPorDefecto;
-            if (lado < LadoMinimo) lado = LadoMinimo;
-
-            float h = lado * 0.5f;
+            // Cota del nivel (referencia vertical para sus elementos reales). Ya no se
+            // dibuja el rectángulo esquemático de piso ni el tronco entre niveles: sólo
+            // se dibujan los elementos reales (losas/vigas/columnas), para no confundir
+            // con las losas.
             float y = (float)nivel.Cota;
-            var esquinas = new[]
-            {
-                new Vector3(-h, y, -h), new Vector3(h, y, -h),
-                new Vector3(h, y, h),   new Vector3(-h, y, h),
-            };
-            esquinasPorNivel.Add(esquinas);
-
-            // Rectángulo del piso (4 aristas).
-            for (int i = 0; i < 4; i++)
-                segs.Add(new Segmento3D(esquinas[i], esquinas[(i + 1) % 4]));
 
             // Paños reales de losas (Fase J / Planta 2D)
             foreach (var sistema in nivel.Sistemas)
@@ -224,11 +205,6 @@ public static class EscenaEdificio
                 }
             }
         }
-
-        // Columnas: aristas entre esquinas homólogas de niveles consecutivos.
-        for (int n = 0; n + 1 < esquinasPorNivel.Count; n++)
-            for (int i = 0; i < 4; i++)
-                segs.Add(new Segmento3D(esquinasPorNivel[n][i], esquinasPorNivel[n + 1][i]));
 
         var min = new Vector3(float.MaxValue);
         var max = new Vector3(float.MinValue);

@@ -25,8 +25,8 @@ public class EscenaEdificioZapatasTests
     [Fact]
     public void Columna_sin_zapata_no_dibuja_recuadro()
     {
-        // 4 aristas de piso + 12 aristas de la caja de columna (sin recuadro de zapata).
-        Assert.Equal(16, EscenaEdificio.Construir(ConColumna(null)).Segmentos.Count);
+        // 12 aristas de la caja de columna (sin recuadro de zapata, sin rectángulo de piso).
+        Assert.Equal(12, EscenaEdificio.Construir(ConColumna(null)).Segmentos.Count);
     }
 
     [Fact]
@@ -35,8 +35,8 @@ public class EscenaEdificioZapatasTests
         var ed = ConColumna(new Zapata { Ancho = 2, Largo = 3 });
         var esc = EscenaEdificio.Construir(ed);
 
-        // 4 piso + 12 caja de columna + 4 zapata.
-        Assert.Equal(20, esc.Segmentos.Count);
+        // 12 caja de columna + 4 zapata (sin rectángulo de piso).
+        Assert.Equal(16, esc.Segmentos.Count);
 
         // Borde inferior de la huella: de (9,0,6.5) a (11,0,6.5).
         Assert.Contains(esc.Segmentos, s =>

@@ -27,10 +27,10 @@ public class EscenaEdificioVigasTests
 
         var esc = EscenaEdificio.Construir(ed);
 
-        // 4 aristas de piso (sin losas) + 12 aristas del prisma de la viga.
-        Assert.Equal(16, esc.Segmentos.Count);
+        // Sólo el prisma de la viga (12 aristas), sin rectángulo de piso.
+        Assert.Equal(12, esc.Segmentos.Count);
 
-        var caja = esc.Segmentos.Skip(4).ToList();
+        var caja = esc.Segmentos.ToList();
         Assert.Equal(12, caja.Count);
 
         // Eje +X de (2,3) a (6,3) a cota 0; sección 0.30 (ancho, eje Z) × 0.50
@@ -51,8 +51,8 @@ public class EscenaEdificioVigasTests
         nivel.Vigas.Add(new Viga { OrigenX = 0, OrigenY = 0, AnguloGrados = 0 }); // sin tramos → sin sección
         ed.Niveles.Add(nivel);
 
-        // 4 aristas de piso + 1 segmento de eje (longitud 0 → degenerado, pero sin caja).
+        // Sólo 1 segmento de eje (viga sin sección/longitud), sin rectángulo de piso.
         var esc = EscenaEdificio.Construir(ed);
-        Assert.Equal(5, esc.Segmentos.Count);
+        Assert.Equal(1, esc.Segmentos.Count);
     }
 }

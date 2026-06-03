@@ -40,32 +40,30 @@ public class EscenaEdificioTests
     {
         var esc = EscenaEdificio.Construir(EdificioDosNiveles());
 
-        // Por nivel: 4 aristas de piso + 12 de la caja de losa (extruida por espesor).
-        // 2 niveles → 32, + 4 columnas esquemáticas entre niveles = 36.
-        Assert.Equal(36, esc.Segmentos.Count);
+        // Sólo elementos reales: 12 aristas de la caja de losa por nivel × 2 = 24
+        // (ya no hay rectángulo de piso ni tronco entre niveles).
+        Assert.Equal(24, esc.Segmentos.Count);
 
-        // AABB: piso en [-2,2]; losa default espesor 0.12 extruida hacia abajo →
-        // el nivel base baja a y = -0.12.
-        Assert.Equal(-2.0, esc.Min.X, 3);
+        // AABB de las losas reales: paño en [0,4]×[0,4]; espesor 0.12 hacia abajo.
+        Assert.Equal(0.0, esc.Min.X, 3);
         Assert.Equal(-0.12, esc.Min.Y, 3);
-        Assert.Equal(-2.0, esc.Min.Z, 3);
+        Assert.Equal(0.0, esc.Min.Z, 3);
         Assert.Equal(4.0, esc.Max.X, 3);
         Assert.Equal(3.0, esc.Max.Y, 3);
         Assert.Equal(4.0, esc.Max.Z, 3);
-        Assert.Equal(1.0, esc.Centro.X, 3);
+        Assert.Equal(2.0, esc.Centro.X, 3);
         Assert.Equal(1.44, esc.Centro.Y, 3);
-        Assert.Equal(1.0, esc.Centro.Z, 3);
+        Assert.Equal(2.0, esc.Centro.Z, 3);
     }
 
     [Fact]
-    public void Un_nivel_sin_losas_usa_lado_por_defecto_y_no_tiene_columnas()
+    public void Un_nivel_sin_elementos_no_genera_massing()
     {
         var ed = new Edificio();
         ed.Niveles.Add(new Nivel { Cota = 0 });
 
-        var esc = EscenaEdificio.Construir(ed);
-        Assert.Equal(4, esc.Segmentos.Count);              // solo el rectángulo del piso
-        Assert.Equal(EscenaEdificio.LadoPorDefecto / 2f, esc.Max.X, 3);
+        // Ya no se dibuja el rectángulo esquemático de piso → nivel vacío = sin segmentos.
+        Assert.Empty(EscenaEdificio.Construir(ed).Segmentos);
     }
 
     [Fact]
@@ -96,10 +94,10 @@ public class EscenaEdificioTests
 
         var esc = EscenaEdificio.Construir(ed);
 
-        // 4 aristas de piso + 12 de la caja de la losa.
-        Assert.Equal(16, esc.Segmentos.Count);
+        // Sólo la caja de la losa (12 aristas), sin rectángulo de piso.
+        Assert.Equal(12, esc.Segmentos.Count);
 
-        var caja = esc.Segmentos.Skip(4).ToList();
+        var caja = esc.Segmentos.ToList();
         Assert.Equal(12, caja.Count);
 
         // Paño (1,2)-(5,5) en planta; tope y=0, fondo y=-0.20.
@@ -129,10 +127,10 @@ public class EscenaEdificioTests
 
         var esc = EscenaEdificio.Construir(ed);
 
-        // 4 aristas del piso (sin losas → lado por defecto) + 12 de la caja.
-        Assert.Equal(16, esc.Segmentos.Count);
+        // Sólo la caja de la columna (12 aristas), sin rectángulo de piso.
+        Assert.Equal(12, esc.Segmentos.Count);
 
-        var caja = esc.Segmentos.Skip(4).ToList();
+        var caja = esc.Segmentos.ToList();
         Assert.Equal(12, caja.Count);
 
         Assert.Equal(4.80, caja.Min(s => MathF.Min(s.A.X, s.B.X)), 3);
