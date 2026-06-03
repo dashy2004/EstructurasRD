@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using LosasPlus.Models;
 using LosasPlus.Transmision;
 
@@ -17,6 +18,9 @@ public static class GeneradorVigas
 {
     /// <summary>Conversión de tonelada-fuerza a kilonewton (1 tonf = 9.80665 kN).</summary>
     public const double TonF_a_KN = 9.80665;
+
+    /// <summary>Prefijo del <see cref="Viga.Nombre"/> de las vigas auto-generadas (para regenerar sin duplicar).</summary>
+    public const string PrefijoAuto = "V-auto";
 
     /// <summary>
     /// Construye una viga simplemente apoyada de un solo tramo: dos apoyos
@@ -77,4 +81,36 @@ public static class GeneradorVigas
         vigas.Add(VigaSimplementeApoyada(reparto.LadoLargo, wLargo, codigoCaso));
         return vigas;
     }
+
+    /// <summary>
+    /// Materializa las vigas de apoyo de todas las losas de un <paramref name="nivel"/>
+    /// y las incorpora a <see cref="Nivel.Vigas"/>, de modo que el editor de vigas
+    /// muestre sus diagramas sin construcción manual. Es <b>idempotente</b>: cada
+    /// llamada elimina primero las vigas auto-generadas de una corrida anterior
+    /// (las que llevan <see cref="PrefijoAuto"/> en el nombre) y preserva las que
+    /// el usuario haya creado a mano. Devuelve las vigas generadas en esta corrida.
+    /// </summary>
+    public static IReadOnlyList<Viga> MaterializarVigas(Nivel nivel, string codigoCaso = "D")
+    {
+        var generadas = new List<Viga>();
+        if (nivel is null) return generadas;
+
+        foreach (var previa in nivel.Vigas.Where(EsAutoGenerada).ToList())
+            nivel.Vigas.Remove(previa);
+
+        int n = 1;
+        foreach (var sistema in nivel.Sistemas)
+            foreach (var losa in sistema.Losas)
+                foreach (var viga in VigasDeLosa(losa, codigoCaso))
+                {
+                    viga.Nombre = $"{PrefijoAuto} {n++}";
+                    nivel.Vigas.Add(viga);
+                    generadas.Add(viga);
+                }
+
+        return generadas;
+    }
+
+    private static bool EsAutoGenerada(Viga viga)
+        => viga.Nombre is not null && viga.Nombre.StartsWith(PrefijoAuto);
 }

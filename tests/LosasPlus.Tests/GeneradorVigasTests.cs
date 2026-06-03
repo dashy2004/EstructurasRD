@@ -63,4 +63,39 @@ public class GeneradorVigasTests
             Assert.Equal(1.2 * 9.80665, v.Tramos[0].Cargas[0].Magnitud, 4);
         });
     }
+
+    private static Nivel NivelConUnaLosa()
+    {
+        var nivel = new Nivel { Cota = 0, Nombre = "N1" };
+        var sistema = new Sistema();
+        sistema.Losas.Add(new Losa { Lx = 4.0, Ly = 5.0, Carga = 1.0 });
+        nivel.Sistemas.Add(sistema);
+        return nivel;
+    }
+
+    [Fact]
+    public void MaterializarVigas_agrega_las_vigas_generadas_al_nivel()
+    {
+        var nivel = NivelConUnaLosa();
+
+        var generadas = GeneradorVigas.MaterializarVigas(nivel);
+
+        Assert.Equal(4, generadas.Count);
+        Assert.Equal(4, nivel.Vigas.Count);   // se incorporaron al nivel
+    }
+
+    [Fact]
+    public void MaterializarVigas_es_idempotente_y_preserva_las_vigas_manuales()
+    {
+        var nivel = NivelConUnaLosa();
+        var manual = new Viga { Nombre = "Mi viga manual" };
+        nivel.Vigas.Add(manual);
+
+        GeneradorVigas.MaterializarVigas(nivel);
+        GeneradorVigas.MaterializarVigas(nivel);   // segunda vez: no debe duplicar
+
+        // 1 manual + 4 generadas (no 8): regenerar limpia sólo las auto-generadas.
+        Assert.Equal(5, nivel.Vigas.Count);
+        Assert.Contains(manual, nivel.Vigas);
+    }
 }
