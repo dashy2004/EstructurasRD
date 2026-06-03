@@ -46,10 +46,13 @@ public partial class Planta2DEditorView : UserControl
         BtnAddLosa.IsCheckedChanged += (s, e) => { if (BtnAddLosa.IsChecked == true) EditorCanvas.ActiveTool = "Losa"; };
         BtnAddViga.IsCheckedChanged += (s, e) => { if (BtnAddViga.IsChecked == true) EditorCanvas.ActiveTool = "Viga"; };
         BtnAddCol.IsCheckedChanged += (s, e) => { if (BtnAddCol.IsChecked == true) EditorCanvas.ActiveTool = "Columna"; };
+        BtnAddEje.IsCheckedChanged += (s, e) => { if (BtnAddEje.IsChecked == true) EditorCanvas.ActiveTool = "Eje"; };
 
         // Wire buttons
         BtnRecalcular.Click += OnRecalcularClick;
         BtnEliminar.Click += OnEliminarClick;
+        BtnGenerarVigaContinua.Click += OnGenerarVigaContinuaClick;
+        BtnVerElevacion.Click += OnVerElevacionClick;
     }
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -62,6 +65,7 @@ public partial class Planta2DEditorView : UserControl
     {
         if (Vm?.EdificioActivo != null)
         {
+            EditorCanvas.Edificio = Vm.EdificioActivo;
             CbNivel.ItemsSource = Vm.EdificioActivo.Niveles;
             CbNivel.SelectedItem = Vm.EdificioActivo.Niveles.FirstOrDefault();
         }
@@ -131,6 +135,7 @@ public partial class Planta2DEditorView : UserControl
         PanelLosa.IsVisible = selected is Losa;
         PanelViga.IsVisible = selected is Viga;
         PanelColumna.IsVisible = selected is Columna;
+        PanelEje.IsVisible = selected is EjeEstructural;
 
         if (selected is Losa l)
         {
@@ -161,6 +166,14 @@ public partial class Planta2DEditorView : UserControl
             TxtColPeralte.Text = c.Peralte.ToString("0.##", CultureInfo.InvariantCulture);
             TxtColAltura.Text = c.Altura.ToString("0.##", CultureInfo.InvariantCulture);
         }
+        else if (selected is EjeEstructural eje)
+        {
+            TxtEjeEtiqueta.Text = eje.Etiqueta;
+            TxtEjeStartX.Text = eje.PuntoInicio.X.ToString("0.##", CultureInfo.InvariantCulture);
+            TxtEjeStartY.Text = eje.PuntoInicio.Y.ToString("0.##", CultureInfo.InvariantCulture);
+            TxtEjeEndX.Text = eje.PuntoFin.X.ToString("0.##", CultureInfo.InvariantCulture);
+            TxtEjeEndY.Text = eje.PuntoFin.Y.ToString("0.##", CultureInfo.InvariantCulture);
+        }
 
         _updatingProperties = false;
     }
@@ -188,6 +201,13 @@ public partial class Planta2DEditorView : UserControl
         TxtColBase.ClearValue(TextBox.BackgroundProperty);
         TxtColPeralte.ClearValue(TextBox.BackgroundProperty);
         TxtColAltura.ClearValue(TextBox.BackgroundProperty);
+
+        // Eje textboxes
+        TxtEjeEtiqueta.ClearValue(TextBox.BackgroundProperty);
+        TxtEjeStartX.ClearValue(TextBox.BackgroundProperty);
+        TxtEjeStartY.ClearValue(TextBox.BackgroundProperty);
+        TxtEjeEndX.ClearValue(TextBox.BackgroundProperty);
+        TxtEjeEndY.ClearValue(TextBox.BackgroundProperty);
     }
 
     private void RegisterInputHandlers()
@@ -232,6 +252,19 @@ public partial class Planta2DEditorView : UserControl
         TxtColBase.KeyDown += OnInputKeyDown;
         TxtColPeralte.KeyDown += OnInputKeyDown;
         TxtColAltura.KeyDown += OnInputKeyDown;
+
+        // Eje inputs
+        TxtEjeEtiqueta.LostFocus += (s, e) => CommitEje();
+        TxtEjeStartX.LostFocus += (s, e) => CommitEje();
+        TxtEjeStartY.LostFocus += (s, e) => CommitEje();
+        TxtEjeEndX.LostFocus += (s, e) => CommitEje();
+        TxtEjeEndY.LostFocus += (s, e) => CommitEje();
+
+        TxtEjeEtiqueta.KeyDown += OnInputKeyDown;
+        TxtEjeStartX.KeyDown += OnInputKeyDown;
+        TxtEjeStartY.KeyDown += OnInputKeyDown;
+        TxtEjeEndX.KeyDown += OnInputKeyDown;
+        TxtEjeEndY.KeyDown += OnInputKeyDown;
     }
 
     private void OnInputKeyDown(object? sender, KeyEventArgs e)
@@ -241,6 +274,7 @@ public partial class Planta2DEditorView : UserControl
             if (EditorCanvas.SelectedElement is Losa) CommitLosa();
             else if (EditorCanvas.SelectedElement is Viga) CommitViga();
             else if (EditorCanvas.SelectedElement is Columna) CommitColumna();
+            else if (EditorCanvas.SelectedElement is EjeEstructural) CommitEje();
             e.Handled = true;
         }
     }
@@ -354,6 +388,76 @@ public partial class Planta2DEditorView : UserControl
         EditorCanvas.InvalidateVisual();
     }
 
+    private void CommitEje()
+    {
+        if (_updatingProperties || EditorCanvas.SelectedElement is not EjeEstructural eje) return;
+
+        bool isValid = true;
+        isValid &= ValidateStringNotEmpty(TxtEjeEtiqueta, out string etiqueta);
+        isValid &= ValidateDouble(TxtEjeStartX, out double sx, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtEjeStartY, out double sy, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtEjeEndX, out double ex, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtEjeEndY, out double ey, PlantaValidationRules.IsValidCoordinate);
+
+        if (!isValid)
+        {
+            TxtStatus.Text = "✕ Error: Coordenadas del eje deben ser válidas. La etiqueta no puede estar vacía.";
+            return;
+        }
+
+        eje.Etiqueta = etiqueta;
+        eje.PuntoInicio = new PuntoCad(sx, sy);
+        eje.PuntoFin = new PuntoCad(ex, ey);
+
+        TxtStatus.Text = $"Eje {eje.Etiqueta} actualizado con éxito.";
+        EditorCanvas.InvalidateVisual();
+    }
+
+    private void OnGenerarVigaContinuaClick(object? sender, RoutedEventArgs e)
+    {
+        var eje = EditorCanvas.SelectedElement as EjeEstructural;
+        var nivel = EditorCanvas.Nivel;
+        if (eje == null || nivel == null) return;
+
+        try
+        {
+            var todasLasLosas = nivel.Sistemas.SelectMany(s => s.Losas).ToList();
+            var viga = GeneradorVigas.VigaContinuaDelEje(eje, todasLasLosas, 0.5, "D");
+            int newId = nivel.Vigas.Count > 0 ? nivel.Vigas.Max(v => v.Id) + 1 : 1;
+            viga.Id = newId;
+            viga.Nombre = $"V-{newId} ({eje.Etiqueta})";
+            nivel.Vigas.Add(viga);
+            
+            EditorCanvas.SelectedElement = viga;
+            TxtStatus.Text = $"Viga continua {viga.Nombre} generada con éxito (Apoyos: {viga.Apoyos.Count}).";
+            EditorCanvas.InvalidateVisual();
+        }
+        catch (Exception ex)
+        {
+            TxtStatus.Text = $"✕ Error al generar viga continua: {ex.Message}";
+        }
+    }
+
+    private void OnVerElevacionClick(object? sender, RoutedEventArgs e)
+    {
+        var eje = EditorCanvas.SelectedElement as EjeEstructural;
+        var edificio = EditorCanvas.Edificio;
+        if (eje == null || edificio == null) return;
+
+        var window = new SeccionElevacionWindow();
+        window.Setup(eje, edificio);
+        
+        // Use TopLevel to get the window
+        if (TopLevel.GetTopLevel(this) is Window parentWindow)
+        {
+            window.ShowDialog(parentWindow);
+        }
+        else
+        {
+            window.Show();
+        }
+    }
+
     private void OnEliminarClick(object? sender, RoutedEventArgs e)
     {
         var selected = EditorCanvas.SelectedElement;
@@ -389,6 +493,10 @@ public partial class Planta2DEditorView : UserControl
                     break;
                 }
             }
+        }
+        else if (selected is EjeEstructural eje && EditorCanvas.Edificio != null)
+        {
+            EditorCanvas.Edificio.Ejes.Remove(eje);
         }
 
         EditorCanvas.SelectedElement = null;

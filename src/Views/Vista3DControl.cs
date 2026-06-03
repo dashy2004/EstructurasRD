@@ -116,6 +116,25 @@ public class Vista3DControl : Control
         DibujarSegmento(context, ejes[1], mvp, w, h, PenEjeY);
         DibujarSegmento(context, ejes[2], mvp, w, h, PenEjeZ);
 
+        if (Edificio != null)
+        {
+            var penEjeEstructural = new Pen(new SolidColorBrush(Color.FromRgb(0x9E, 0x9E, 0x9E)), 1.5)
+            {
+                DashStyle = DashStyle.DashDot
+            };
+            foreach (var eje in Edificio.Ejes)
+            {
+                var pA = new Vector3((float)eje.PuntoInicio.X, (float)eje.PuntoInicio.Y, 0f);
+                var pB = new Vector3((float)eje.PuntoFin.X, (float)eje.PuntoFin.Y, 0f);
+                if (Proyector3D.ProyectarSegmento(pA, pB, mvp, w, h, out var pa, out var pb))
+                {
+                    context.DrawLine(penEjeEstructural, new Point(pa.X, pa.Y), new Point(pb.X, pb.Y));
+                    var ftEje = new FormattedText(eje.Etiqueta, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Typeface.Default, 12, PincelTexto);
+                    context.DrawText(ftEje, new Point(pb.X, pb.Y));
+                }
+            }
+        }
+
         var hint = new FormattedText(
             "Vista 3D (esquemática) — arrastrar: orbitar · rueda: zoom · doble-clic: reencuadrar",
             CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Typeface.Default, 12, PincelTexto);

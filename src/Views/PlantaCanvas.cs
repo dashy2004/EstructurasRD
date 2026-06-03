@@ -57,6 +57,29 @@ public class PlantaCanvas : Control
     private void OnModeloCambiado(object? sender, System.EventArgs e)
         => Avalonia.Threading.Dispatcher.UIThread.Post(InvalidateVisual);
 
+    public static readonly DirectProperty<PlantaCanvas, Edificio?> EdificioProperty =
+        AvaloniaProperty.RegisterDirect<PlantaCanvas, Edificio?>(
+            nameof(Edificio),
+            o => o.Edificio,
+            (o, v) => o.Edificio = v);
+
+    private Edificio? _edificio;
+    public Edificio? Edificio
+    {
+        get => _edificio;
+        set
+        {
+            if (_edificio is LosasPlus.Models.IModeloObservable viejo)
+                viejo.ModeloCambiado -= OnModeloCambiado;
+            if (SetAndRaise(EdificioProperty, ref _edificio, value))
+            {
+                if (_edificio is LosasPlus.Models.IModeloObservable nuevo)
+                    nuevo.ModeloCambiado += OnModeloCambiado;
+                InvalidateVisual();
+            }
+        }
+    }
+
     public event Action<object?>? SelectionChanged;
 
     private object? _selectedElement;
@@ -156,6 +179,11 @@ public class PlantaCanvas : Control
                         _dragStartElementY = m.PuntoInicio.Y;
                         // Not capturing PuntoFin for dragging yet, but allows basic selection
                     }
+                    else if (hit is EjeEstructural eje)
+                    {
+                        _dragStartElementX = eje.PuntoInicio.X;
+                        _dragStartElementY = eje.PuntoInicio.Y;
+                    }
                     e.Pointer.Capture(this);
                 }
                 else
@@ -229,6 +257,21 @@ public class PlantaCanvas : Control
                     Nivel.Columnas.Add(col);
                     SelectedElement = col;
                 }
+                else if (ActiveTool == "Eje")
+                {
+                    if (Edificio != null)
+                    {
+                        int count = Edificio.Ejes.Count + 1;
+                        var eje = new EjeEstructural
+                        {
+                            Etiqueta = $"E{count}",
+                            PuntoInicio = new PuntoCad(sx, sy),
+                            PuntoFin = new PuntoCad(sx + 5.0, sy)
+                        };
+                        Edificio.Ejes.Add(eje);
+                        SelectedElement = eje;
+                    }
+                }
 
                 // Switch tool back to Puntero
                 ActiveTool = "Puntero";
@@ -288,6 +331,13 @@ public class PlantaCanvas : Control
                 double dyStart = snapResult.Y - m.PuntoInicio.Y;
                 m.PuntoInicio = new PuntoCad(m.PuntoInicio.X + dxStart, m.PuntoInicio.Y + dyStart);
                 m.PuntoFin = new PuntoCad(m.PuntoFin.X + dxStart, m.PuntoFin.Y + dyStart);
+            }
+            else if (SelectedElement is EjeEstructural eje)
+            {
+                double dxStart = snapResult.X - eje.PuntoInicio.X;
+                double dyStart = snapResult.Y - eje.PuntoInicio.Y;
+                eje.PuntoInicio = new PuntoCad(eje.PuntoInicio.X + dxStart, eje.PuntoInicio.Y + dyStart);
+                eje.PuntoFin = new PuntoCad(eje.PuntoFin.X + dxStart, eje.PuntoFin.Y + dyStart);
             }
 
             SelectionChanged?.Invoke(SelectedElement);
@@ -364,6 +414,21 @@ public class PlantaCanvas : Control
                 if (dist <= muro.Espesor / 2.0 + 0.1) // tolerance + half thickness in meters
                 {
                     return muro;
+                }
+            }
+        }
+
+        // 5. Ejes (líneas)
+        if (Edificio != null)
+        {
+            foreach (var eje in Edificio.Ejes)
+            {
+                var a = new Point(eje.PuntoInicio.X, eje.PuntoInicio.Y);
+                var b = new Point(eje.PuntoFin.X, eje.PuntoFin.Y);
+                double dist = DistanceToSegment(p, a, b);
+                if (dist <= 0.5) // tolerance in meters
+                {
+                    return eje;
                 }
             }
         }
@@ -470,6 +535,26 @@ public class PlantaCanvas : Control
             var ft = new FormattedText(viga.Nombre, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, boldTypeface, 11.0, Brushes.DarkBlue);
             var mid = new Point((pStart.X + pEnd.X) / 2.0, (pStart.Y + pEnd.Y) / 2.0 - 15.0);
             context.DrawText(ft, mid);
+
+            // Apoyos puntuales
+            if (viga.Apoyos.Count > 0)
+            {
+                var apoyoBrush = Brushes.Red;
+                double dx = viga.ExtremoX - viga.OrigenX;
+                double dy = viga.ExtremoY - viga.OrigenY;
+                double largo = Math.Sqrt(dx * dx + dy * dy);
+                if (largo > 0)
+                {
+                    foreach (var apoyo in viga.Apoyos)
+                    {
+                        double t = apoyo.CoordenadaX / largo;
+                        double gx = viga.OrigenX + t * dx;
+                        double gy = viga.OrigenY + t * dy;
+                        var pApoyo = MetrosAPixel(gx, gy);
+                        context.DrawEllipse(apoyoBrush, null, pApoyo, 4, 4);
+                    }
+                }
+            }
         }
 
         // 3. Draw Columns
@@ -543,6 +628,34 @@ public class PlantaCanvas : Control
             var tooltipRect = new Rect(snapPx.X + 12, snapPx.Y - 22, ft.Width + 8, ft.Height + 4);
             context.DrawRectangle(new SolidColorBrush(Color.FromArgb(220, 255, 255, 240)), new Pen(Brushes.OrangeRed, 1.0), tooltipRect);
             context.DrawText(ft, new Point(tooltipRect.X + 4, tooltipRect.Y + 2));
+        }
+
+        // 6. Draw Ejes
+        if (Edificio != null)
+        {
+            var ejePen = new Pen(new SolidColorBrush(Color.FromRgb(0x9E, 0x9E, 0x9E)), 1.5)
+            {
+                DashStyle = DashStyle.DashDot
+            };
+            var ejeSelectPen = new Pen(new SolidColorBrush(Color.FromRgb(0xFF, 0x98, 0x00)), 2.5)
+            {
+                DashStyle = DashStyle.DashDot
+            };
+
+            foreach (var eje in Edificio.Ejes)
+            {
+                var pStart = MetrosAPixel(eje.PuntoInicio.X, eje.PuntoInicio.Y);
+                var pEnd = MetrosAPixel(eje.PuntoFin.X, eje.PuntoFin.Y);
+                
+                bool isSelected = ReferenceEquals(SelectedElement, eje);
+                context.DrawLine(isSelected ? ejeSelectPen : ejePen, pStart, pEnd);
+
+                // Label in circle at PuntoFin
+                double r = 12.0;
+                context.DrawEllipse(Brushes.White, isSelected ? ejeSelectPen : ejePen, pEnd, r, r);
+                var ftEje = new FormattedText(eje.Etiqueta, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, boldTypeface, 12.0, Brushes.Black);
+                context.DrawText(ftEje, new Point(pEnd.X - ftEje.Width / 2, pEnd.Y - ftEje.Height / 2));
+            }
         }
     }
 }

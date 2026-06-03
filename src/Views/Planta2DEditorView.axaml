@@ -44,6 +44,8 @@
                                  Classes="tool-button" GroupName="FloorTool" ToolTip.Tip="Hacer click en el lienzo para colocar una nueva viga."/>
                     <RadioButton x:Name="BtnAddCol" Content="🏛 + Columna"
                                  Classes="tool-button" GroupName="FloorTool" ToolTip.Tip="Hacer click en el lienzo para colocar una nueva columna."/>
+                    <RadioButton x:Name="BtnAddEje" Content="📏 + Eje"
+                                 Classes="tool-button" GroupName="FloorTool" ToolTip.Tip="Hacer click en el lienzo para colocar un nuevo eje estructural."/>
                 </StackPanel>
 
                 <!-- Acciones globales -->
@@ -163,6 +165,30 @@
                                 <TextBlock Grid.Row="6" Grid.Column="0" Text="Altura (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
                                 <TextBox Grid.Row="6" Grid.Column="1" x:Name="TxtColAltura" Margin="0,0,0,8"/>
                             </Grid>
+                        </StackPanel>
+
+                        <!-- Panel Eje -->
+                        <StackPanel x:Name="PanelEje" Spacing="12" IsVisible="False">
+                            <TextBlock Text="📏 Eje Estructural" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource Accent}"/>
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,4">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Etiqueta:" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="TxtEjeEtiqueta" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Inicio X (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="TxtEjeStartX" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Inicio Y (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="TxtEjeStartY" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Fin X (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" x:Name="TxtEjeEndX" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Fin Y (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="4" Grid.Column="1" x:Name="TxtEjeEndY" Margin="0,0,0,8"/>
+                            </Grid>
+                            
+                            <Button x:Name="BtnVerElevacion" Content="Ver Elevación 3D" HorizontalAlignment="Stretch" Margin="0,8,0,0"/>
+                            <Button x:Name="BtnGenerarVigaContinua" Content="Generar Viga Continua" Classes="accent" HorizontalAlignment="Stretch" Margin="0,8,0,0"/>
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>

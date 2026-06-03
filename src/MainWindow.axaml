@@ -230,6 +230,9 @@
                             <MenuItem Header="Lanzar Losas.exe" Click="OnLaunchLosasExeClick"/>
                             <MenuItem Header="Importar .TXT..." Click="OnImportTxtClick"/>
                             <Separator/>
+                            <MenuItem Header="Calcular carga última (Wu) desde geometría"
+                                      Command="{Binding CalcularCargaUltimaCommand}"
+                                      ToolTip.Tip="Calcula la carga última de cada losa en base a espesor, acabados, muros y uso (LRFD 1.2D + 1.6L)."/>
                             <MenuItem Header="Calcular losas con el motor (FEM, sin Losas.exe)"
                                       Command="{Binding CalcularConMotorCommand}"
                                       ToolTip.Tip="Calcula los momentos de todas las losas con el motor FEA nativo (FEM), alternativa a Losas.exe. Requiere el motor instalado (comando configurable en la pestaña Aceros)."/>

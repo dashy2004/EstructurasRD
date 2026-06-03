@@ -198,6 +198,10 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
 
     public ICommand? IrABusquedaCommand { get; private set; }
     public ICommand? GenerarMemoriaCommand { get; private set; }
+    public ICommand? SincronizarDesdePlantaCommand { get; private set; }
+    
+    // ---- Carga Última (Tarea D) ----
+    public ICommand? CalcularCargaUltimaCommand { get; private set; }
     public ICommand? AutoBalanceoCommand { get; private set; }
 
     private bool _modoConectarBordes;
@@ -718,6 +722,16 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             irALosa:               (s, id) => BuscarYActivarSistema(s));
         IrABusquedaCommand = new RelayCommand(_ => ModoActivo = ModoSidebar.Busqueda);
         GenerarMemoriaCommand = new RelayCommand(_ => GenerarMemoria());
+        
+        CalcularCargaUltimaCommand = new RelayCommand(_ => 
+        {
+            if (_proyecto == null) return;
+            foreach (var s in _proyecto.Sistemas)
+            {
+                LosasPlus.Transmision.CargaUltimaCalculator.AplicarCargaUltima(s, _proyecto.Cargas);
+            }
+        });
+
         AutoBalanceoCommand   = new RelayCommand(_ => AplicarAutoBalanceo());
         DisenarConMotorFeaCommand = new MemoriaPlus.Common.AsyncRelayCommand(DisenarConMotorFeaAsync);
         CalcularConMotorCommand = new MemoriaPlus.Common.AsyncRelayCommand(CalcularConMotorAsync);

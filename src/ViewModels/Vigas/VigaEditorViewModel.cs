@@ -69,6 +69,7 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         ModeloViga      = CrearModeloBase("Modelo de la viga");
         ModeloEsfuerzos = CrearModeloBase("Cortante V(x) y Momento M(x)");
         ModeloDeflexion = CrearModeloBase("Deflexión δ(x)");
+        ModeloSeccion   = CrearModeloBase("Sección Transversal");
 
         NuevaVigaCommand     = new RelayCommand(_ => NuevaViga());
         EliminarVigaCommand  = new RelayCommand(_ => EliminarViga(),  _ => _vigaActiva is not null);
@@ -78,6 +79,7 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         EliminarApoyoCommand = new RelayCommand(_ => EliminarApoyo(), _ => _apoyoSeleccionado is not null);
         AgregarCargaCommand  = new RelayCommand(_ => AgregarCarga(),  _ => _tramoSeleccionado is not null);
         EliminarCargaCommand = new RelayCommand(_ => EliminarCarga(), _ => _cargaSeleccionada is not null);
+        GenerarVigasCommand  = new RelayCommand(_ => GenerarVigas());
 
         _proyecto.Combinaciones.Combinaciones.CollectionChanged += OnCombinacionesCambiaron;
 
@@ -180,6 +182,9 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
     /// <summary>Diagrama de deflexión elástica δ(x).</summary>
     public PlotModel ModeloDeflexion { get; }
 
+    /// <summary>Diagrama de la sección transversal de la viga.</summary>
+    public PlotModel ModeloSeccion { get; }
+
     private bool _esInestable;
     /// <summary><c>true</c> si la viga activa es un mecanismo (no resoluble).</summary>
     public bool EsInestable
@@ -206,6 +211,7 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
     public ICommand EliminarApoyoCommand { get; }
     public ICommand AgregarCargaCommand { get; }
     public ICommand EliminarCargaCommand { get; }
+    public ICommand GenerarVigasCommand { get; }
 
     /// <summary>
     /// Lo invoca el code-behind desde <c>DataGrid.BeginningEdit</c>: toma un
@@ -310,6 +316,13 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         _pushUndoSnapshot();
         _tramoSeleccionado.Cargas.Remove(_cargaSeleccionada);
         CargaSeleccionada = _tramoSeleccionado.Cargas.FirstOrDefault();
+    }
+
+    private void GenerarVigas()
+    {
+        _pushUndoSnapshot();
+        GeneradorVigas.MaterializarVigas(_nivel);
+        VigaActiva = _nivel.Vigas.FirstOrDefault();
     }
 
     // ---- Reactividad: enganche del grafo de la viga ----
@@ -474,6 +487,7 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         ConstruirModeloViga();
         ConstruirModeloEsfuerzos();
         ConstruirModeloDeflexion();
+        ConstruirModeloSeccion();
     }
 
     private void LimpiarDiagramas()
@@ -481,7 +495,7 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         _resultado = null;
         EsInestable = false;
         MensajeEstado = "";
-        foreach (var m in new[] { ModeloViga, ModeloEsfuerzos, ModeloDeflexion })
+        foreach (var m in new[] { ModeloViga, ModeloEsfuerzos, ModeloDeflexion, ModeloSeccion })
         {
             m.Series.Clear();
             m.Annotations.Clear();
@@ -646,6 +660,63 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
             if (combo is not null)
                 m.Series.Add(Linea(combo.Diagrama.Select(p => new DataPoint(p.X, p.Deflexion)), "δ(x)", ColorDeflexion));
         }
+        m.InvalidatePlot(true);
+    }
+
+    private void ConstruirModeloSeccion()
+    {
+        var m = ModeloSeccion;
+        m.Series.Clear();
+        m.Axes.Clear();
+        m.Annotations.Clear();
+
+        var tramo = _tramoSeleccionado;
+        if (tramo is null)
+        {
+            m.InvalidatePlot(true);
+            return;
+        }
+
+        double b = tramo.Base;
+        double h = tramo.Peralte;
+
+        // Limites isométricos
+        m.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Minimum = -b * 0.5, Maximum = b * 1.5, IsAxisVisible = false });
+        m.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Minimum = -h * 0.2, Maximum = h * 1.2, IsAxisVisible = false });
+
+        // Rectángulo de concreto
+        m.Annotations.Add(new RectangleAnnotation
+        {
+            MinimumX = 0, MaximumX = b,
+            MinimumY = 0, MaximumY = h,
+            Fill = OxyColor.FromAColor(80, OxyColors.Gray),
+            Stroke = OxyColors.Black,
+            StrokeThickness = 2
+        });
+
+        // Estribo
+        double rec = 0.04;
+        if (b > 2 * rec && h > 2 * rec)
+        {
+            m.Annotations.Add(new RectangleAnnotation
+            {
+                MinimumX = rec, MaximumX = b - rec,
+                MinimumY = rec, MaximumY = h - rec,
+                Fill = OxyColors.Transparent,
+                Stroke = OxyColors.DarkRed,
+                StrokeThickness = 1.5
+            });
+
+            // Refuerzo longitudinal
+            var scatter = new ScatterSeries { MarkerType = MarkerType.Circle, MarkerSize = 5, MarkerFill = OxyColors.DarkBlue, MarkerStroke = OxyColors.White, MarkerStrokeThickness = 1 };
+            scatter.Points.Add(new ScatterPoint(rec, rec));
+            scatter.Points.Add(new ScatterPoint(b - rec, rec));
+            
+            scatter.Points.Add(new ScatterPoint(rec, h - rec));
+            scatter.Points.Add(new ScatterPoint(b - rec, h - rec));
+            m.Series.Add(scatter);
+        }
+
         m.InvalidatePlot(true);
     }
 
