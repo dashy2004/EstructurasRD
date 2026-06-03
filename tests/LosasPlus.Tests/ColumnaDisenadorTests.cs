@@ -327,4 +327,24 @@ public class ColumnaDisenadorTests
         // Pu muy pequeño → δ teórico < 1, pero ACI §6.6.4.5.2 fija δ ≥ 1.0.
         Assert.Equal(1.0, ColumnaDisenador.FactorMagnificacion(cm: 0.4, puN: 1.0e3, pcN: 44.18e6), 6);
     }
+
+    [Fact]
+    public void ResumenEsbeltez_compone_radio_relacion_limite_EI_Pc_y_delta()
+    {
+        var s = new ColumnaSeccion(400, 600, 28, 420, new List<BarraLong>());
+
+        var rsm = ColumnaDisenador.ResumenEsbeltez(s, k: 1.0, luMm: 4000, puN: 1.0e6, m1: 0, m2: 100, cm: 1.0);
+
+        // Cada campo coincide con su primitiva ya probada.
+        double r = ColumnaDisenador.RadioGiroRectangular(600);
+        double ei = ColumnaDisenador.RigidezEI(28, 400, 600);
+        double pc = ColumnaDisenador.CargaCriticaPandeo(ei, 1.0, 4000);
+        Assert.Equal(r, rsm.RMm, 6);
+        Assert.Equal(ColumnaDisenador.RelacionEsbeltez(1.0, 4000, r), rsm.KLuSobreR, 6);
+        Assert.Equal(ColumnaDisenador.LimiteEsbeltezArriostrado(0, 100), rsm.Limite, 6);
+        Assert.Equal(rsm.KLuSobreR > rsm.Limite, rsm.EsEsbelta);
+        Assert.Equal(ei, rsm.EINmm2, 0);
+        Assert.Equal(pc, rsm.PcN, 1);
+        Assert.Equal(ColumnaDisenador.FactorMagnificacion(1.0, 1.0e6, pc), rsm.Delta, 6);
+    }
 }

@@ -380,4 +380,33 @@ public static class ColumnaDisenador
         if (denom <= 0.0) return double.PositiveInfinity;
         return Math.Max(1.0, cm / denom);
     }
+
+    /// <summary>
+    /// Resumen de esbeltez de una columna (ACI 318-19 §6.6.4): radio de giro,
+    /// relación k·Lu/r, límite para despreciarla, si resulta esbelta, y la cadena
+    /// EI → Pc → δ. Listo para que el VM/UI lo muestre.
+    /// </summary>
+    public sealed record ResumenEsbeltezColumna(
+        double RMm, double KLuSobreR, double Limite, bool EsEsbelta,
+        double EINmm2, double PcN, double Delta);
+
+    /// <summary>
+    /// Evalúa la esbeltez de una sección de columna a flexión respecto del eje cuya
+    /// profundidad es <see cref="ColumnaSeccion.H"/>: compone
+    /// <see cref="RadioGiroRectangular"/>, <see cref="RelacionEsbeltez"/>,
+    /// <see cref="LimiteEsbeltezArriostrado"/>, <see cref="RigidezEI"/>,
+    /// <see cref="CargaCriticaPandeo"/> y <see cref="FactorMagnificacion"/> en un
+    /// solo <see cref="ResumenEsbeltezColumna"/>.
+    /// </summary>
+    public static ResumenEsbeltezColumna ResumenEsbeltez(
+        ColumnaSeccion s, double k, double luMm, double puN, double m1, double m2, double cm = 1.0)
+    {
+        double r = RadioGiroRectangular(s.H);
+        double kLuR = RelacionEsbeltez(k, luMm, r);
+        double limite = LimiteEsbeltezArriostrado(m1, m2);
+        double ei = RigidezEI(s.FcMPa, s.B, s.H);
+        double pc = CargaCriticaPandeo(ei, k, luMm);
+        double delta = FactorMagnificacion(cm, puN, pc);
+        return new ResumenEsbeltezColumna(r, kLuR, limite, kLuR > limite, ei, pc, delta);
+    }
 }
