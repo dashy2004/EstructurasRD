@@ -23,4 +23,17 @@ public static class SeccionPorEje
         return columnas.Where(c =>
             eje.EstaEnSeccion(new PuntoCad(c.CoordenadaX, c.CoordenadaY), tolerancia));
     }
+
+    /// <summary>
+    /// Losas cuyo <b>centro</b> de paño (<c>X+Lx/2, Y+Ly/2</c>) cae en la sección
+    /// del <paramref name="eje"/>. Base de la detección de topología de vigas
+    /// continuas a lo largo del eje (WS1-C).
+    /// </summary>
+    public static IEnumerable<Losa> Losas(
+        EjeEstructural eje, IEnumerable<Losa> losas, double tolerancia)
+    {
+        if (eje is null || losas is null) return Enumerable.Empty<Losa>();
+        return losas.Where(l => eje.EstaEnSeccion(
+            new PuntoCad(l.CoordenadaX + l.Lx / 2.0, l.CoordenadaY + l.Ly / 2.0), tolerancia));
+    }
 }
