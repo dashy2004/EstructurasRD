@@ -70,4 +70,48 @@ public class CargaUltimaExporterTests
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }
+
+    private static Edificio EdificioDosNiveles(int losaIdN1, int losaIdN2)
+    {
+        var edificio = new Edificio();
+        foreach (var (cota, losaId) in new[] { (0.0, losaIdN1), (3.0, losaIdN2) })
+        {
+            var nivel = new Nivel { Cota = cota, Nombre = $"N{cota}" };
+            var sistema = new Sistema { Uso = SistemaUso.Entrepiso };
+            sistema.Losas.Add(new Losa { Id = losaId, Lx = 4, Ly = 5, Espesor = 0.12 });
+            nivel.Sistemas.Add(sistema);
+            edificio.Niveles.Add(nivel);
+        }
+        return edificio;
+    }
+
+    [Fact]
+    public void ToCsv_edificio_incluye_los_sistemas_de_todos_los_niveles()
+    {
+        var cargas = CargasGlobales.SemillaPorDefecto();
+        var edificio = EdificioDosNiveles(101, 202);
+
+        var csv = CargaUltimaExporter.ToCsv(edificio, cargas);
+
+        Assert.Contains("101", csv);   // losa del nivel 1
+        Assert.Contains("202", csv);   // losa del nivel 2
+    }
+
+    [Fact]
+    public void ExportXlsx_edificio_genera_una_hoja_por_sistema()
+    {
+        var cargas = CargasGlobales.SemillaPorDefecto();
+        var edificio = EdificioDosNiveles(101, 202);
+
+        var path = Path.Combine(Path.GetTempPath(), $"cargau_ed_{Guid.NewGuid():N}.xlsx");
+        try
+        {
+            CargaUltimaExporter.ExportXlsx(edificio, cargas, path);
+
+            Assert.True(File.Exists(path));
+            using var wb = new XLWorkbook(path);
+            Assert.Equal(2, wb.Worksheets.Count);   // un sistema por nivel
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
 }
