@@ -76,7 +76,26 @@ public static class SincronizadorPlanta
         return true;
     }
 
-    /// <summary>Sincroniza losas (por sistema) y columnas (por nivel) de todo el edificio.</summary>
+    /// <summary>
+    /// Distribuye las vigas del nivel cuando están todas sin posicionar (Origen en
+    /// (0,0)) — evita que arranquen apiladas en el origen, igual que las columnas.
+    /// Devuelve <c>true</c> si modificó.
+    /// </summary>
+    public static bool SincronizarVigas(Nivel? nivel, double espaciado = EspaciadoColumnasDefault, bool forzar = false)
+    {
+        if (nivel is null || nivel.Vigas.Count < 2) return false;
+        if (!forzar && !nivel.Vigas.All(v => v.OrigenX == 0.0 && v.OrigenY == 0.0))
+            return false;
+
+        for (int i = 0; i < nivel.Vigas.Count; i++)
+        {
+            nivel.Vigas[i].OrigenX = 0.0;
+            nivel.Vigas[i].OrigenY = i * espaciado;   // separadas en Y para no solaparse en el origen
+        }
+        return true;
+    }
+
+    /// <summary>Sincroniza losas (por sistema), columnas y vigas (por nivel) de todo el edificio.</summary>
     public static void SincronizarEdificio(Edificio? edificio, bool forzar = false)
     {
         if (edificio is null) return;
@@ -85,6 +104,7 @@ public static class SincronizadorPlanta
             foreach (var sistema in nivel.Sistemas)
                 Sincronizar(sistema, forzar);
             SincronizarColumnas(nivel, forzar: forzar);
+            SincronizarVigas(nivel, forzar: forzar);
         }
     }
 }

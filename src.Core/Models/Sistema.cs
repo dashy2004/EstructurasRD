@@ -141,7 +141,7 @@ public partial class Proyecto : INotifyPropertyChanged
 /// (Pieper-Martens, F. Perdomo Ver. 5.00).
 /// Estructura: NLOSA, FC, FY, ADICIONALES + lista de losas + bordes adicionales según X / Y.
 /// </summary>
-public partial class Sistema : INotifyPropertyChanged
+public partial class Sistema : INotifyPropertyChanged, IModeloObservable
 {
     private string _nombre = "Sistema No 1";
     private double _fc = 0.210;        // ton/cm2
@@ -191,9 +191,33 @@ public partial class Sistema : INotifyPropertyChanged
     /// </summary>
     public ObservableCollection<Muro> Muros { get; } = new();
 
+    public Sistema()
+    {
+        Losas.CollectionChanged += (s, e) =>
+        {
+            if (e.NewItems != null) foreach (Losa l in e.NewItems) l.PropertyChanged += OnItemChanged;
+            if (e.OldItems != null) foreach (Losa l in e.OldItems) l.PropertyChanged -= OnItemChanged;
+            NotificarModeloCambiado();
+        };
+        Muros.CollectionChanged += (s, e) =>
+        {
+            if (e.NewItems != null) foreach (Muro m in e.NewItems) m.PropertyChanged += OnItemChanged;
+            if (e.OldItems != null) foreach (Muro m in e.OldItems) m.PropertyChanged -= OnItemChanged;
+            NotificarModeloCambiado();
+        };
+    }
+
+    private void OnItemChanged(object? sender, PropertyChangedEventArgs e) => NotificarModeloCambiado();
+
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        NotificarModeloCambiado();
+    }
+
+    public event System.EventHandler? ModeloCambiado;
+    public void NotificarModeloCambiado() => ModeloCambiado?.Invoke(this, System.EventArgs.Empty);
 }
 
 /// <summary>

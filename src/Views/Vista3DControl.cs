@@ -64,7 +64,17 @@ public class Vista3DControl : Control
     {
         base.OnPropertyChanged(change);
         if (change.Property == EdificioProperty)
+        {
+            // Refresco en vivo: el binding XAML escribe la StyledProperty vía SetValue
+            // y NO pasa por el setter CLR, así que la suscripción a ModeloCambiado debe
+            // vivir acá (acá sí corre con binding). Sin esto el 3D no reflejaba los
+            // cambios del modelo hasta volver a entrar a la pestaña.
+            if (change.OldValue is LosasPlus.Models.IModeloObservable oldObs)
+                oldObs.ModeloCambiado -= OnEdificioCambiado;
+            if (change.NewValue is LosasPlus.Models.IModeloObservable newObs)
+                newObs.ModeloCambiado += OnEdificioCambiado;
             ReconstruirEscena();
+        }
         // Al volver visible (entrar a la pestaña Vista 3D), reconstruir la escena
         // para reflejar la geometría recién sincronizada (CoordenadaX/Y de las
         // losas, columnas, vigas y zapatas) sin depender de un cambio de instancia.
@@ -79,6 +89,9 @@ public class Vista3DControl : Control
         _encuadrado = false;
         InvalidateVisual();
     }
+
+    private void OnEdificioCambiado(object? sender, System.EventArgs e)
+        => Avalonia.Threading.Dispatcher.UIThread.Post(ReconstruirEscena);
 
     public override void Render(DrawingContext context)
     {

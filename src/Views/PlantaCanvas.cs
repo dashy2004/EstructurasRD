@@ -41,13 +41,20 @@ public class PlantaCanvas : Control
         get => _nivel;
         set
         {
+            if (_nivel is LosasPlus.Models.IModeloObservable viejo)
+                viejo.ModeloCambiado -= OnModeloCambiado;
             if (SetAndRaise(NivelProperty, ref _nivel, value))
             {
+                if (_nivel is LosasPlus.Models.IModeloObservable nuevo)
+                    nuevo.ModeloCambiado += OnModeloCambiado;
                 SelectedElement = null;
                 InvalidateVisual();
             }
         }
     }
+
+    private void OnModeloCambiado(object? sender, System.EventArgs e)
+        => Avalonia.Threading.Dispatcher.UIThread.Post(InvalidateVisual);
 
     public event Action<object?>? SelectionChanged;
 
