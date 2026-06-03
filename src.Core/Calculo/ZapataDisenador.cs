@@ -132,4 +132,53 @@ public static class ZapataDisenador
         double ratio = phiVc > 0 ? vu / phiVc : double.PositiveInfinity;
         return new ChequeoZapataCortante(vu, phiVc, ratio, vu <= phiVc + 1e-6);
     }
+
+    // ===================================================================
+    // FLEXIÓN — ACI 318-19 §13.3 (zapata como voladizo)
+    // ===================================================================
+
+    /// <summary>Factor de reducción a flexión (ACI 318-19 Tabla 21.2.1, sección controlada por tracción).</summary>
+    public const double PhiFlexion = 0.90;
+
+    /// <summary>
+    /// Momento último de flexión Mu (N·mm) en la cara de la columna: la presión de
+    /// contacto última actuando sobre el voladizo como ménsula →
+    /// <c>Mu = q_u·B·voladizo²/2</c> (q_u = Pu/(B·L), voladizo = (B−c)/2).
+    /// </summary>
+    public static double MomentoFlexionZapata(double puN, double bMm, double lMm, double cMm)
+    {
+        double qu = PresionContactoUltima(puN, bMm, lMm);   // MPa
+        double voladizo = VoladizoZapata(bMm, cMm);
+        return qu * bMm * voladizo * voladizo / 2.0;
+    }
+
+    /// <summary>
+    /// Acero de flexión de una zapata (mm²): <see cref="AsReqMm2"/> por el bloque
+    /// rectangular de Whitney, <see cref="AsMinMm2"/> mínimo por retracción
+    /// (§24.4.3.2: 0.0018·B·h), y <see cref="AsMm2"/> = el mayor de ambos.
+    /// <see cref="SeccionInsuficiente"/> si el peralte no alcanza para el momento
+    /// (discriminante negativo).
+    /// </summary>
+    public sealed record AceroZapata(double AsReqMm2, double AsMinMm2, double AsMm2, bool SeccionInsuficiente);
+
+    /// <summary>
+    /// Calcula el acero de flexión por el bloque de Whitney: resuelve <c>a</c> de
+    /// <c>Mu = φ·0.85·f'c·B·a·(d − a/2)</c> (φ = <see cref="PhiFlexion"/>), con
+    /// <c>As = 0.85·f'c·B·a/fy</c>, y aplica el mínimo por retracción 0.0018·B·h.
+    /// </summary>
+    public static AceroZapata AceroFlexionZapata(
+        double muNmm, double fcMPa, double fyMPa, double bMm, double dMm, double hMm)
+    {
+        double asMin = 0.0018 * bMm * hMm;
+        if (muNmm <= 0)
+            return new AceroZapata(0.0, asMin, asMin, false);
+
+        double disc = dMm * dMm - 2.0 * muNmm / (PhiFlexion * 0.85 * fcMPa * bMm);
+        if (disc < 0)
+            return new AceroZapata(double.NaN, asMin, double.NaN, true);
+
+        double a = dMm - Math.Sqrt(disc);
+        double asReq = 0.85 * fcMPa * bMm * a / fyMPa;
+        return new AceroZapata(asReq, asMin, Math.Max(asReq, asMin), false);
+    }
 }

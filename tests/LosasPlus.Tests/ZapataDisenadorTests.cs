@@ -94,4 +94,25 @@ public class ZapataDisenadorTests
         Assert.Equal(ZapataDisenador.ResistenciaCortanteUnidireccional(28, 2000, 500), chk.PhiVcN, 0);
         Assert.True(chk.Cumple);
     }
+
+    [Fact]
+    public void MomentoFlexionZapata_es_qu_B_voladizo_al_cuadrado_medios()
+    {
+        // q_u=0.25 MPa, B=2000, voladizo=800 → Mu = 0.25·2000·800²/2 = 1.6e8 N·mm.
+        var mu = ZapataDisenador.MomentoFlexionZapata(puN: 1.0e6, bMm: 2000, lMm: 2000, cMm: 400);
+        Assert.Equal(1.6e8, mu, 0);
+    }
+
+    [Fact]
+    public void AceroFlexionZapata_devuelve_AsReq_AsMin_y_gobierna_el_mayor()
+    {
+        var acero = ZapataDisenador.AceroFlexionZapata(
+            muNmm: 1.6e8, fcMPa: 28, fyMPa: 420, bMm: 2000, dMm: 500, hMm: 600);
+
+        // As mín por retracción §24.4.3.2 = 0.0018·B·h = 0.0018·2000·600 = 2160 mm².
+        Assert.Equal(2160.0, acero.AsMinMm2, 1);
+        Assert.False(acero.SeccionInsuficiente);
+        Assert.Equal(853.0, acero.AsReqMm2, 0);          // Whitney: ~853 mm²
+        Assert.Equal(2160.0, acero.AsMm2, 1);            // gobierna el mínimo
+    }
 }
