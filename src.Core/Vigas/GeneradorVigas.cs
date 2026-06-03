@@ -1,3 +1,7 @@
+using System.Collections.Generic;
+using LosasPlus.Models;
+using LosasPlus.Transmision;
+
 namespace LosasPlus.Vigas;
 
 /// <summary>
@@ -11,6 +15,9 @@ namespace LosasPlus.Vigas;
 /// </summary>
 public static class GeneradorVigas
 {
+    /// <summary>Conversión de tonelada-fuerza a kilonewton (1 tonf = 9.80665 kN).</summary>
+    public const double TonF_a_KN = 9.80665;
+
     /// <summary>
     /// Construye una viga simplemente apoyada de un solo tramo: dos apoyos
     /// <see cref="TipoApoyo.Fijo"/> en los extremos y una carga
@@ -36,5 +43,38 @@ public static class GeneradorVigas
         viga.Apoyos.Add(new ApoyoViga { CoordenadaX = longitud, Tipo = TipoApoyo.Fijo });
 
         return viga;
+    }
+
+    /// <summary>
+    /// Genera las cuatro vigas de apoyo de un paño de losa, cargadas con la carga
+    /// tributaria que cada borde recibe por áreas tributarias
+    /// (<see cref="RepartoCargaLosa"/>): dos vigas de la luz corta y dos de la luz
+    /// larga. La carga superficial de la losa (<see cref="Losa.Carga"/>, en
+    /// ton/m²) se reparte a línea (ton/m) y se convierte a kN/m para el motor de
+    /// vigas.
+    ///
+    /// <para>
+    /// Aproximación: la carga triangular/trapezoidal real se modela como la carga
+    /// <b>uniforme equivalente</b> que conserva la fuerza total (el modelo de
+    /// dominio sólo soporta cargas distribuidas uniformes). Una losa con
+    /// dimensiones o carga no positivas devuelve una lista vacía.
+    /// </para>
+    /// </summary>
+    public static IReadOnlyList<Viga> VigasDeLosa(Losa losa, string codigoCaso = "D")
+    {
+        var vigas = new List<Viga>();
+        if (losa is null) return vigas;
+
+        var reparto = RepartoCargaLosa.Calcular(losa);
+        if (reparto.CargaTotal <= 0) return vigas;
+
+        double wCorto = reparto.BordeCorto.LineaUniformeEquivalente * TonF_a_KN;
+        double wLargo = reparto.BordeLargo.LineaUniformeEquivalente * TonF_a_KN;
+
+        vigas.Add(VigaSimplementeApoyada(reparto.LadoCorto, wCorto, codigoCaso));
+        vigas.Add(VigaSimplementeApoyada(reparto.LadoCorto, wCorto, codigoCaso));
+        vigas.Add(VigaSimplementeApoyada(reparto.LadoLargo, wLargo, codigoCaso));
+        vigas.Add(VigaSimplementeApoyada(reparto.LadoLargo, wLargo, codigoCaso));
+        return vigas;
     }
 }

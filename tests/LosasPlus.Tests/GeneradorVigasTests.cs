@@ -1,4 +1,5 @@
 using System.Linq;
+using LosasPlus.Models;
 using LosasPlus.Vigas;
 using Xunit;
 
@@ -31,5 +32,35 @@ public class GeneradorVigasTests
         Assert.Equal(TipoCargaElemento.Distribuida, carga.Tipo);
         Assert.Equal(3.2, carga.Magnitud, 6);
         Assert.Equal("D", carga.CodigoCaso);
+    }
+
+    [Fact]
+    public void VigasDeLosa_genera_cuatro_vigas_con_carga_tributaria_en_kN_por_m()
+    {
+        // Paño 4×5, q = 1.0 ton/m². Reparto por áreas tributarias:
+        //   borde corto (L=4): w = q·a/4·... → línea equiv = 1.0 ton/m
+        //   borde largo (L=5): w línea equiv = 1.2 ton/m
+        // Conversión a kN/m: × 9.80665 (1 tonf = 9.80665 kN).
+        var losa = new Losa { Lx = 4.0, Ly = 5.0, Carga = 1.0 };
+
+        var vigas = GeneradorVigas.VigasDeLosa(losa, "D");
+
+        Assert.Equal(4, vigas.Count);
+
+        var cortas = vigas.Where(v => v.LongitudTotal < 4.5).ToList();
+        var largas = vigas.Where(v => v.LongitudTotal >= 4.5).ToList();
+        Assert.Equal(2, cortas.Count);
+        Assert.Equal(2, largas.Count);
+
+        Assert.All(cortas, v =>
+        {
+            Assert.Equal(4.0, v.LongitudTotal, 6);
+            Assert.Equal(1.0 * 9.80665, v.Tramos[0].Cargas[0].Magnitud, 4);
+        });
+        Assert.All(largas, v =>
+        {
+            Assert.Equal(5.0, v.LongitudTotal, 6);
+            Assert.Equal(1.2 * 9.80665, v.Tramos[0].Cargas[0].Magnitud, 4);
+        });
     }
 }
