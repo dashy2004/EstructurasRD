@@ -116,4 +116,23 @@ public static class CargaUltimaCalculator
         }
         return resultados;
     }
+
+    /// <summary>
+    /// Aplica la carga última directa a <b>todo el edificio</b>: recorre cada
+    /// nivel y sistema y escribe el Wu en cada <see cref="Losa.Carga"/> (ver la
+    /// sobrecarga por sistema). Es lo que dispararía un único comando «Calcular Wu
+    /// desde la geometría» sobre el edificio activo. Devuelve el desglose de todas
+    /// las losas, en orden de recorrido (nivel → sistema → losa).
+    /// </summary>
+    public static IReadOnlyList<CargaUltimaResultado> AplicarCargaUltima(Edificio edificio, CargasGlobales cargas)
+    {
+        var resultados = new List<CargaUltimaResultado>();
+        if (edificio is null) return resultados;
+
+        foreach (var nivel in edificio.Niveles)
+            foreach (var sistema in nivel.Sistemas)
+                resultados.AddRange(AplicarCargaUltima(sistema, cargas));
+
+        return resultados;
+    }
 }

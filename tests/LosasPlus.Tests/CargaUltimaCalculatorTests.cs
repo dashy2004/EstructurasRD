@@ -115,4 +115,29 @@ public class CargaUltimaCalculatorTests
         Assert.Equal(qmap, res[0].Qmap, 6); // qmap compartido entre losas
         Assert.Equal(qmap, res[1].Qmap, 6);
     }
+
+    [Fact]
+    public void AplicarCargaUltima_edificio_recorre_todos_los_niveles_y_sistemas()
+    {
+        var cargas = CargasGlobales.SemillaPorDefecto();
+        var edificio = new Edificio();
+        var losas = new List<Losa>();
+        foreach (var cota in new[] { 0.0, 3.0 })
+        {
+            var nivel = new Nivel { Cota = cota, Nombre = $"N{cota}" };
+            var sistema = new Sistema { Uso = SistemaUso.Entrepiso };
+            var losa = new Losa { Lx = 4, Ly = 5, Espesor = 0.12, Carga = 0 };
+            sistema.Losas.Add(losa);
+            losas.Add(losa);
+            nivel.Sistemas.Add(sistema);
+            edificio.Niveles.Add(nivel);
+        }
+
+        var res = CargaUltimaCalculator.AplicarCargaUltima(edificio, cargas);
+
+        // Una entrada por losa del edificio, y todas con Wu escrito (> 0).
+        Assert.Equal(2, res.Count);
+        Assert.All(losas, l => Assert.True(l.Carga > 0));
+        Assert.All(res, r => Assert.True(r.Qu > 0));
+    }
 }
