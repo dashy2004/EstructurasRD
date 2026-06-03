@@ -1,5 +1,6 @@
 using System.Linq;
 using LosasPlus.Models;
+using LosasPlus.Models.Cad;
 using LosasPlus.Vigas;
 using Xunit;
 
@@ -154,6 +155,29 @@ public class GeneradorVigasTests
         Assert.Equal(2, viga.Tramos.Count);
         Assert.All(viga.Tramos, t => Assert.Equal(4.0, t.Longitud, 6));
         Assert.All(viga.Tramos, t => Assert.Equal(1.0 * 9.80665, t.Cargas[0].Magnitud, 4));
+        Assert.Equal(new[] { 0.0, 4.0, 8.0 }, viga.Apoyos.Select(a => a.CoordenadaX).ToArray());
+    }
+
+    [Fact]
+    public void VigaContinuaDelEje_toma_las_losas_en_seccion_ordenadas_por_proyeccion()
+    {
+        // Eje horizontal en y=0. Dos paños en línea (centros x=6 y x=2) dados FUERA
+        // de orden, más uno fuera del eje → la continua debe tener sólo los 2, ordenados.
+        var eje = new EjeEstructural
+        {
+            PuntoInicio = new PuntoCad(0, 0),
+            PuntoFin = new PuntoCad(10, 0),
+        };
+        var losas = new List<Losa>
+        {
+            new Losa { Id = 2, CoordenadaX = 4, CoordenadaY = -2, Lx = 4, Ly = 4, Carga = 1.0 }, // centro (6,0)
+            new Losa { Id = 1, CoordenadaX = 0, CoordenadaY = -2, Lx = 4, Ly = 4, Carga = 1.0 }, // centro (2,0)
+            new Losa { Id = 9, CoordenadaX = 0, CoordenadaY = 20, Lx = 4, Ly = 4, Carga = 1.0 }, // fuera del eje
+        };
+
+        var viga = GeneradorVigas.VigaContinuaDelEje(eje, losas, tolerancia: 0.1, codigoCaso: "D");
+
+        Assert.Equal(2, viga.Tramos.Count);
         Assert.Equal(new[] { 0.0, 4.0, 8.0 }, viga.Apoyos.Select(a => a.CoordenadaX).ToArray());
     }
 }

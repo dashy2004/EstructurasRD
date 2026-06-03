@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using LosasPlus.Models;
+using LosasPlus.Models.Cad;
 using LosasPlus.Transmision;
 
 namespace LosasPlus.Vigas;
@@ -114,6 +115,29 @@ public static class GeneradorVigas
             cargas.Add(borde.LineaUniformeEquivalente * TonF_a_KN);
         }
         return VigaContinua(luces, cargas, codigoCaso);
+    }
+
+    /// <summary>
+    /// <b>Viga continua real de un eje</b> (WS1-C, capstone): toma las losas cuyo
+    /// centro cae en la sección del <paramref name="eje"/>
+    /// (<see cref="SeccionPorEje.Losas"/>), las ordena por su proyección sobre la
+    /// dirección del eje y arma la viga continua con
+    /// <see cref="VigaContinuaDeLosas"/>. Cierra el flujo geometría → topología →
+    /// viga continua. Eje o losas nulos devuelven una viga vacía.
+    /// </summary>
+    public static Viga VigaContinuaDelEje(
+        EjeEstructural eje, IEnumerable<Losa> losas, double tolerancia, string codigoCaso = "D")
+    {
+        if (eje is null || losas is null) return new Viga();
+
+        double dirX = eje.PuntoFin.X - eje.PuntoInicio.X;
+        double dirY = eje.PuntoFin.Y - eje.PuntoInicio.Y;
+
+        var enLinea = SeccionPorEje.Losas(eje, losas, tolerancia)
+            .OrderBy(l => (l.CoordenadaX + l.Lx / 2.0) * dirX + (l.CoordenadaY + l.Ly / 2.0) * dirY)
+            .ToList();
+
+        return VigaContinuaDeLosas(enLinea, codigoCaso);
     }
 
     /// <summary>
