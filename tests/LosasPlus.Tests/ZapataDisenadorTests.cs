@@ -115,4 +115,19 @@ public class ZapataDisenadorTests
         Assert.Equal(853.0, acero.AsReqMm2, 0);          // Whitney: ~853 mm²
         Assert.Equal(2160.0, acero.AsMm2, 1);            // gobierna el mínimo
     }
+
+    [Fact]
+    public void DisenarZapata_compone_los_chequeos_y_una_zapata_amplia_cumple()
+    {
+        var d = ZapataDisenador.DisenarZapata(
+            puN: 1.0e6, bMm: 2000, lMm: 2000, c1Mm: 400, c2Mm: 400,
+            dMm: 500, hMm: 600, fcMPa: 28, fyMPa: 420);
+
+        Assert.Equal(0.25, d.QuMPa, 6);
+        Assert.Equal(1.6e8, d.MuNmm, 0);
+        Assert.Equal(2160.0, d.Acero.AsMm2, 1);
+        Assert.True(d.Punzonamiento.Cumple);
+        Assert.True(d.Cortante.Cumple);
+        Assert.True(d.Cumple);   // 2×2 m, d=500 → todos los chequeos pasan
+    }
 }

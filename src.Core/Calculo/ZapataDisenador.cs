@@ -181,4 +181,46 @@ public static class ZapataDisenador
         double asReq = 0.85 * fcMPa * bMm * a / fyMPa;
         return new AceroZapata(asReq, asMin, Math.Max(asReq, asMin), false);
     }
+
+    // ===================================================================
+    // CAPSTONE — diseño completo de la zapata
+    // ===================================================================
+
+    /// <summary>
+    /// Diseño completo de una zapata aislada (capstone): presión de contacto +
+    /// punzonamiento (§22.6) + cortante unidireccional (§22.5) + flexión/acero
+    /// (§13.3). <see cref="Cumple"/> si pasan los dos cortantes y la sección de
+    /// flexión es suficiente.
+    /// </summary>
+    public sealed record DisenoZapata(
+        double QuMPa,
+        ChequeoZapataPunzonamiento Punzonamiento,
+        ChequeoZapataCortante Cortante,
+        double MuNmm,
+        AceroZapata Acero,
+        bool Cumple);
+
+    /// <summary>
+    /// Diseña una zapata aislada concéntrica bajo una columna interior
+    /// <paramref name="c1Mm"/>×<paramref name="c2Mm"/>, de planta
+    /// <paramref name="bMm"/>×<paramref name="lMm"/>, peralte efectivo
+    /// <paramref name="dMm"/> y altura <paramref name="hMm"/> (ACI 318-19).
+    /// El cortante unidireccional y la flexión se evalúan en la dirección de
+    /// <paramref name="bMm"/> usando el voladizo <c>(B − c1)/2</c>.
+    ///
+    /// <para>Supuestos: columna interior, zapata concéntrica sin momento, λ=1
+    /// (hormigón de peso normal).</para>
+    /// </summary>
+    public static DisenoZapata DisenarZapata(
+        double puN, double bMm, double lMm, double c1Mm, double c2Mm,
+        double dMm, double hMm, double fcMPa, double fyMPa)
+    {
+        double qu = PresionContactoUltima(puN, bMm, lMm);
+        var punz = ChequeoPunzonamiento(puN, bMm, lMm, c1Mm, c2Mm, dMm, fcMPa);
+        var cort = ChequeoCortanteUnidireccional(puN, bMm, lMm, c1Mm, dMm, fcMPa);
+        double mu = MomentoFlexionZapata(puN, bMm, lMm, c1Mm);
+        var acero = AceroFlexionZapata(mu, fcMPa, fyMPa, bMm, dMm, hMm);
+        bool cumple = punz.Cumple && cort.Cumple && !acero.SeccionInsuficiente;
+        return new DisenoZapata(qu, punz, cort, mu, acero, cumple);
+    }
 }
