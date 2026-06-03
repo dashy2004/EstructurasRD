@@ -52,4 +52,34 @@ public static class ColumnaDisenoExporter
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
         File.WriteAllText(path, ToCsv(d), new UTF8Encoding(true));
     }
+
+    /// <summary>
+    /// Diseño de columna a CSV <b>incluyendo</b> el resumen de esbeltez/δ
+    /// (ACI 318-19 §6.6.4): el bloque base seguido de un bloque «# ESBELTEZ».
+    /// </summary>
+    public static string ToCsv(
+        ColumnaDisenador.DisenoColumna d, ColumnaDisenador.ResumenEsbeltezColumna esbeltez, char sep = ';')
+    {
+        var inv = CultureInfo.InvariantCulture;
+        var sb = new StringBuilder(ToCsv(d, sep));
+        sb.AppendLine();
+        sb.AppendLine("# ESBELTEZ (ACI 318-19 §6.6.4)");
+        sb.AppendLine($"r_mm:{sep}{esbeltez.RMm.ToString("0.0", inv)}");
+        sb.AppendLine($"kLu_sobre_r:{sep}{esbeltez.KLuSobreR.ToString("0.00", inv)}");
+        sb.AppendLine($"Limite:{sep}{esbeltez.Limite.ToString("0.00", inv)}");
+        sb.AppendLine($"EsEsbelta:{sep}{esbeltez.EsEsbelta}");
+        sb.AppendLine($"Pc_kN:{sep}{(esbeltez.PcN / 1000.0).ToString("0.0", inv)}");
+        sb.AppendLine($"delta:{sep}{esbeltez.Delta.ToString("0.000", inv)}");
+        return sb.ToString();
+    }
+
+    /// <summary>Escribe el CSV del diseño + esbeltez a <paramref name="path"/> (UTF-8 con BOM).</summary>
+    public static void ExportCsv(
+        ColumnaDisenador.DisenoColumna d, ColumnaDisenador.ResumenEsbeltezColumna esbeltez, string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Ruta de salida vacía.", nameof(path));
+        var dir = Path.GetDirectoryName(Path.GetFullPath(path));
+        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+        File.WriteAllText(path, ToCsv(d, esbeltez), new UTF8Encoding(true));
+    }
 }

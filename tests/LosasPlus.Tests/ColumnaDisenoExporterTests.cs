@@ -51,4 +51,24 @@ public class ColumnaDisenoExporterTests
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }
+
+    [Fact]
+    public void Csv_con_esbeltez_mantiene_el_diseno_y_anexa_el_bloque_de_esbeltez()
+    {
+        var d = Diseno();
+        var s = new ColumnaSeccion(400, 400, 28, 420, ColumnaDisenador.LayoutPerimetral(400, 400, 40, 3, 3, 8));
+        var esb = ColumnaDisenador.ResumenEsbeltez(s, k: 1.0, luMm: 4000, puN: 1_000_000, m1: 0, m2: 50e6, cm: 1.0);
+
+        var csv = ColumnaDisenoExporter.ToCsv(d, esb);
+        var lineas = csv.Replace("\r\n", "\n").Split('\n');
+
+        // Mantiene el contenido base del diseño...
+        Assert.Contains(lineas, l => l.StartsWith("RhoG:"));
+        Assert.Contains("c_mm;Pn_kN;Mn_kNm;phi;phiPn_kN;phiMn_kNm", csv);
+        // ...y anexa el bloque de esbeltez.
+        Assert.Contains("# ESBELTEZ", csv);
+        Assert.Contains(lineas, l => l.StartsWith("kLu_sobre_r:"));
+        Assert.Contains(lineas, l => l.StartsWith("delta:"));
+        Assert.Contains(lineas, l => l.StartsWith("EsEsbelta:"));
+    }
 }
