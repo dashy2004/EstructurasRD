@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using LosasPlus.Models.Cad;
 using LosasPlus.Vigas;
 
 namespace LosasPlus.Models;
@@ -63,6 +64,13 @@ public partial class Edificio : INotifyPropertyChanged, IModeloObservable
     /// la rellena vía <c>Populate</c> al deserializar.
     /// </summary>
     public ObservableCollection<Nivel> Niveles { get; } = new();
+
+    /// <summary>
+    /// Ejes / rejillas estructurales del edificio (WS2) — líneas de referencia
+    /// compartidas por todas las plantas. Aditiva; no afecta el cálculo, sólo
+    /// organiza la geometría y habilita las vistas de sección del 3D.
+    /// </summary>
+    public ObservableCollection<EjeEstructural> Ejes { get; } = new();
 
     public Edificio()
     {
