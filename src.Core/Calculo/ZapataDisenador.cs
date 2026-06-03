@@ -66,4 +66,26 @@ public static class ZapataDisenador
         double vcMPa = Math.Min(vc1, Math.Min(vc2, vc3));
         return PhiCortante * vcMPa * b0Mm * dMm;
     }
+
+    /// <summary>Resultado del chequeo de punzonamiento de una zapata (N).</summary>
+    public sealed record ChequeoZapataPunzonamiento(double VuN, double PhiVcN, double Ratio, bool Cumple);
+
+    /// <summary>
+    /// Chequea el punzonamiento de una zapata cuadrada/rectangular bajo una columna
+    /// interior (ACI 318-19 §22.6): compone el cortante último
+    /// (<see cref="CortantePunzonamiento"/>) contra la resistencia de diseño φVc
+    /// (<see cref="ResistenciaPunzonamiento"/>) sobre el perímetro crítico
+    /// (<see cref="PerimetroCriticoPunzonamiento"/>), con β = lado mayor/menor de la
+    /// columna. <see cref="ChequeoZapataPunzonamiento.Cumple"/> si Vu ≤ φVc.
+    /// </summary>
+    public static ChequeoZapataPunzonamiento ChequeoPunzonamiento(
+        double puN, double bMm, double lMm, double c1Mm, double c2Mm, double dMm, double fcMPa)
+    {
+        double vu = CortantePunzonamiento(puN, bMm, lMm, c1Mm, c2Mm, dMm);
+        double b0 = PerimetroCriticoPunzonamiento(c1Mm, c2Mm, dMm);
+        double beta = Math.Max(c1Mm, c2Mm) / Math.Min(c1Mm, c2Mm);
+        double phiVc = ResistenciaPunzonamiento(fcMPa, b0, dMm, beta);
+        double ratio = phiVc > 0 ? vu / phiVc : double.PositiveInfinity;
+        return new ChequeoZapataPunzonamiento(vu, phiVc, ratio, vu <= phiVc + 1e-6);
+    }
 }

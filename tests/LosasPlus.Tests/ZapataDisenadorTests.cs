@@ -45,4 +45,20 @@ public class ZapataDisenadorTests
 
         Assert.Equal(esperado, phiVc, 0);
     }
+
+    [Fact]
+    public void ChequeoPunzonamiento_compone_Vu_phiVc_ratio_y_cumple()
+    {
+        var chk = ZapataDisenador.ChequeoPunzonamiento(
+            puN: 1.0e6, bMm: 2000, lMm: 2000, c1Mm: 400, c2Mm: 400, dMm: 500, fcMPa: 28);
+
+        var vu = ZapataDisenador.CortantePunzonamiento(1.0e6, 2000, 2000, 400, 400, 500);
+        var b0 = ZapataDisenador.PerimetroCriticoPunzonamiento(400, 400, 500);
+        var phiVc = ZapataDisenador.ResistenciaPunzonamiento(28, b0, 500, beta: 1.0);
+
+        Assert.Equal(vu, chk.VuN, 1);
+        Assert.Equal(phiVc, chk.PhiVcN, 0);
+        Assert.Equal(vu / phiVc, chk.Ratio, 6);
+        Assert.True(chk.Cumple);   // 797.5 kN ≤ ~2357 kN
+    }
 }
