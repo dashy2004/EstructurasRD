@@ -177,7 +177,11 @@
                              Width="120" Margin="6,0,0,0"
                              Text="{Binding SistemaActivo.Nombre, UpdateSourceTrigger=PropertyChanged}"
                              ToolTip.Tip="Renombrar el sistema activo. El selector se actualiza en caliente."/>
-                    <Button Content="+" Width="24" Height="24" Padding="0" Margin="4,0,0,0"
+                    
+                    <TextBlock Text="Elev. Z:" VerticalAlignment="Center" Margin="12,0,4,0" FontSize="11" Foreground="{DynamicResource FgMuted}" ToolTip.Tip="Elevación del sistema (m)"/>
+                    <TextBox Text="{Binding SistemaActivo.Elevacion}" VerticalAlignment="Center" Width="45" FontSize="11" Padding="4,2"/>
+                    
+                    <Button Content="+" Width="24" Height="24" Padding="0" Margin="12,0,0,0"
                             Click="OnAddSistema" VerticalAlignment="Center"
                             Background="Transparent" BorderThickness="0"
                             Foreground="{DynamicResource FgPrimary}"
@@ -226,8 +230,6 @@
                             <MenuItem Header="Pegar de Excel..." Click="OnPasteFromExcelClick"/>
                         </MenuItem>
                         <MenuItem Header="Engine">
-                            <MenuItem Header="Examinar Losas.exe..." Click="OnBrowseLosasExe"/>
-                            <MenuItem Header="Lanzar Losas.exe" Click="OnLaunchLosasExeClick"/>
                             <MenuItem Header="Importar .TXT..." Click="OnImportTxtClick"/>
                             <Separator/>
                             <MenuItem Header="Calcular carga última (Wu) desde geometría"
@@ -247,11 +249,6 @@
                         </MenuItem>
                     </Menu>
 
-                    <Button DockPanel.Dock="Right" Theme="{StaticResource PrimaryButton}"
-                            Content="▶ Lanzar motor" Padding="14,4" Margin="6,0,0,0"
-                            Click="OnLaunchLosasExeClick"
-                            ToolTip.Tip="Abre Losas.exe. Cargá el .DL, ejecutá el cálculo, luego volvé e Importá el .TXT."/>
-
                     <!-- Chip de validación normativa: click → modo Validación.
                          (Color por severidad diferido a un pase visual; texto en vivo.) -->
                     <Button DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,4"
@@ -264,11 +261,6 @@
                                    Foreground="{DynamicResource FgPrimary}"
                                    Text="{Binding Validacion.ResumenIndicador}"/>
                     </Button>
-
-                    <TextBlock DockPanel.Dock="Left" Text="Losas.exe:" VerticalAlignment="Center"
-                               Margin="16,0,6,0" Foreground="{DynamicResource FgMuted}" FontSize="12"/>
-                    <TextBox Text="{Binding LosasExePath, UpdateSourceTrigger=PropertyChanged}"
-                             FontSize="11" VerticalAlignment="Center" MinHeight="26" Margin="0,0,6,0"/>
                 </DockPanel>
             </Border>
 

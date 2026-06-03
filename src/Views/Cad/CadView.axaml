@@ -295,11 +295,6 @@
                                     <Run Text="{Binding Sistema.Muros.Count, FallbackValue=0, Mode=OneWay}"/><Run Text=" muros"/>
                                 </TextBlock>
                                 
-                                <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0">
-                                    <TextBlock Grid.Column="0" Text="Elevación Z (m):" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource FgSecondary}"/>
-                                    <TextBox Grid.Column="1" Text="{Binding Sistema.Elevacion}" Width="60" FontSize="11" Padding="4,2"/>
-                                </Grid>
-                                
                                 <Border Height="1" Margin="0,8" Background="{DynamicResource Border}"/>
                                 <TextBlock Text="MURO SELECCIONADO" FontSize="9" FontWeight="Bold"
                                            Foreground="{DynamicResource FgMuted}" Margin="0,0,0,4"/>

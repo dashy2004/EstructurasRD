@@ -22,6 +22,8 @@
                         </ComboBox.ItemTemplate>
                     </ComboBox>
                     
+                    <Button x:Name="BtnAddNivel" Content="+ Nivel" Padding="6,2" VerticalAlignment="Center" ToolTip.Tip="Agregar un nuevo nivel al edificio."/>
+                    
                     <CheckBox x:Name="ChkSnap" Content="Snap (S)" IsChecked="True" VerticalAlignment="Center" Margin="10,0,0,0" ToolTip.Tip="Activa o desactiva el auto-ajuste (snapping) a rejilla y objetos."/>
                     
                     <TextBlock Text="Paso:" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="{DynamicResource FgSecondary}"/>

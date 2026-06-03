@@ -53,6 +53,7 @@ public partial class Planta2DEditorView : UserControl
         BtnEliminar.Click += OnEliminarClick;
         BtnGenerarVigaContinua.Click += OnGenerarVigaContinuaClick;
         BtnVerElevacion.Click += OnVerElevacionClick;
+        BtnAddNivel.Click += OnAddNivelClick;
     }
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -80,6 +81,26 @@ public partial class Planta2DEditorView : UserControl
         else
         {
             EditorCanvas.Nivel = null;
+        }
+    }
+
+    private void OnAddNivelClick(object? sender, RoutedEventArgs e)
+    {
+        if (Vm?.EdificioActivo != null)
+        {
+            var edificio = Vm.EdificioActivo;
+            int nextNumber = edificio.Niveles.Count + 1;
+            double nextCota = edificio.Niveles.Count > 0 
+                ? edificio.Niveles.Max(n => n.Cota) + 3.0 
+                : 3.0;
+
+            var newNivel = new Nivel
+            {
+                Nombre = $"Nivel {nextNumber}",
+                Cota = nextCota
+            };
+            edificio.Niveles.Add(newNivel);
+            CbNivel.SelectedItem = newNivel;
         }
     }
 
