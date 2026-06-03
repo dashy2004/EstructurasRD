@@ -141,6 +141,44 @@ public static class GeneradorVigas
     }
 
     /// <summary>
+    /// <b>Viga continua con apoyos en las columnas</b> de un eje: detecta las
+    /// columnas cuyo centro cae en la sección del <paramref name="eje"/>
+    /// (<see cref="SeccionPorEje.Columnas"/>), las ordena por su proyección sobre la
+    /// dirección del eje, y coloca un apoyo en cada una → N columnas dan N apoyos y
+    /// N−1 tramos, con las luces = distancias entre columnas consecutivas. Cada
+    /// tramo lleva la carga lineal <paramref name="cargaLinealKNm"/> (kN/m). Modela
+    /// físicamente que la viga se apoya en las columnas, no en los bordes de losa.
+    /// Menos de 2 columnas en el eje → viga vacía.
+    /// </summary>
+    public static Viga VigaContinuaDeColumnas(
+        EjeEstructural eje, IEnumerable<Columna> columnas, double cargaLinealKNm,
+        double tolerancia, string codigoCaso = "D")
+    {
+        if (eje is null || columnas is null) return new Viga();
+
+        double dirX = eje.PuntoFin.X - eje.PuntoInicio.X;
+        double dirY = eje.PuntoFin.Y - eje.PuntoInicio.Y;
+        double largo = System.Math.Sqrt(dirX * dirX + dirY * dirY);
+        if (largo <= 0) return new Viga();
+        double ux = dirX / largo, uy = dirY / largo;
+
+        var proy = SeccionPorEje.Columnas(eje, columnas, tolerancia)
+            .Select(c => c.CoordenadaX * ux + c.CoordenadaY * uy)   // proyección sobre el eje
+            .OrderBy(p => p)
+            .ToList();
+        if (proy.Count < 2) return new Viga();
+
+        var luces = new List<double>(proy.Count - 1);
+        var cargas = new List<double>(proy.Count - 1);
+        for (int i = 0; i + 1 < proy.Count; i++)
+        {
+            luces.Add(proy[i + 1] - proy[i]);
+            cargas.Add(cargaLinealKNm);
+        }
+        return VigaContinua(luces, cargas, codigoCaso);
+    }
+
+    /// <summary>
     /// Genera las cuatro vigas de apoyo de un paño de losa, cargadas con la carga
     /// tributaria que cada borde recibe por áreas tributarias
     /// (<see cref="RepartoCargaLosa"/>): dos vigas de la luz corta y dos de la luz

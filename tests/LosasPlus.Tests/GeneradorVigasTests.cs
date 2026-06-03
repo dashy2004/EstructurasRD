@@ -180,4 +180,30 @@ public class GeneradorVigasTests
         Assert.Equal(2, viga.Tramos.Count);
         Assert.Equal(new[] { 0.0, 4.0, 8.0 }, viga.Apoyos.Select(a => a.CoordenadaX).ToArray());
     }
+
+    [Fact]
+    public void VigaContinuaDeColumnas_pone_un_apoyo_en_cada_columna_del_eje()
+    {
+        // Eje horizontal en y=0. Tres columnas casi sobre el eje, en x=0, 4 y 9
+        // (dadas fuera de orden) → 3 apoyos en 0/4/9 y 2 tramos (luces 4 y 5).
+        var eje = new EjeEstructural
+        {
+            PuntoInicio = new PuntoCad(0, 0),
+            PuntoFin = new PuntoCad(10, 0),
+        };
+        var columnas = new List<Columna>
+        {
+            new Columna { Nombre = "C2", CoordenadaX = 4, CoordenadaY = 0.05 },
+            new Columna { Nombre = "C1", CoordenadaX = 0, CoordenadaY = -0.05 },
+            new Columna { Nombre = "C3", CoordenadaX = 9, CoordenadaY = 0.0 },
+            new Columna { Nombre = "Cx", CoordenadaX = 2, CoordenadaY = 5.0 }, // lejos del eje
+        };
+
+        var viga = GeneradorVigas.VigaContinuaDeColumnas(
+            eje, columnas, cargaLinealKNm: 10.0, tolerancia: 0.2, codigoCaso: "D");
+
+        Assert.Equal(2, viga.Tramos.Count);
+        Assert.Equal(new[] { 0.0, 4.0, 9.0 }, viga.Apoyos.Select(a => a.CoordenadaX).ToArray());
+        Assert.All(viga.Tramos, t => Assert.Equal(10.0, t.Cargas[0].Magnitud, 6));
+    }
 }
