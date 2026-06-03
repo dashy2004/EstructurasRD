@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using LosasPlus.Calculo;
 using LosasPlus.Models;
 
 namespace LosasPlus.ViewModels;
@@ -54,7 +55,56 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
     public Columna? Seleccionada
     {
         get => _seleccionada;
-        set { _seleccionada = value; OnPropertyChanged(); }
+        set { _seleccionada = value; OnPropertyChanged(); RecalcularDiseno(); }
+    }
+
+    // ---- Diseño a flexo-compresión de la columna seleccionada (ACI 318-19) ----
+
+    private double _fcMPa = 28.0, _fyMPa = 420.0, _recubrimientoMm = 40.0;
+    private int _numeroBarra = 8, _barrasX = 3, _barrasY = 3;
+    private double _puKN, _muKNm;
+
+    /// <summary>Resistencia del hormigón f'c (MPa) para el diseño de la columna.</summary>
+    public double FcMPa { get => _fcMPa; set { _fcMPa = value; OnPropertyChanged(); RecalcularDiseno(); } }
+    /// <summary>Resistencia del acero fy (MPa).</summary>
+    public double FyMPa { get => _fyMPa; set { _fyMPa = value; OnPropertyChanged(); RecalcularDiseno(); } }
+    /// <summary>Recubrimiento al centro de la barra (mm).</summary>
+    public double RecubrimientoMm { get => _recubrimientoMm; set { _recubrimientoMm = value; OnPropertyChanged(); RecalcularDiseno(); } }
+    /// <summary>Número de barra longitudinal (#3..#11).</summary>
+    public int NumeroBarra { get => _numeroBarra; set { _numeroBarra = value; OnPropertyChanged(); RecalcularDiseno(); } }
+    /// <summary>Barras por cara horizontal (≥2, incluye esquinas).</summary>
+    public int BarrasX { get => _barrasX; set { _barrasX = value; OnPropertyChanged(); RecalcularDiseno(); } }
+    /// <summary>Barras por cara vertical (≥2, incluye esquinas).</summary>
+    public int BarrasY { get => _barrasY; set { _barrasY = value; OnPropertyChanged(); RecalcularDiseno(); } }
+    /// <summary>Carga axial última de demanda Pu (kN).</summary>
+    public double PuKN { get => _puKN; set { _puKN = value; OnPropertyChanged(); RecalcularDiseno(); } }
+    /// <summary>Momento último de demanda Mu (kN·m).</summary>
+    public double MuKNm { get => _muKNm; set { _muKNm = value; OnPropertyChanged(); RecalcularDiseno(); } }
+
+    /// <summary>
+    /// Diseño de la columna seleccionada (cuantía, Po, φPn,max, estribo, diagrama,
+    /// chequeo), o <c>null</c> si no hay selección o la geometría/armado es inválido.
+    /// </summary>
+    public ColumnaDisenador.DisenoColumna? DisenoActual { get; private set; }
+
+    private void RecalcularDiseno()
+    {
+        var col = _seleccionada;
+        if (col is null || col.Base <= 0 || col.Peralte <= 0
+            || _barrasX < 2 || _barrasY < 2
+            || ColumnaDisenador.DiametroBarraMm(_numeroBarra) <= 0)
+        {
+            DisenoActual = null;
+        }
+        else
+        {
+            double b = col.Base * 1000.0;       // m → mm
+            double h = col.Peralte * 1000.0;
+            var barras = ColumnaDisenador.LayoutPerimetral(b, h, _recubrimientoMm, _barrasX, _barrasY, _numeroBarra);
+            var sec = new ColumnaSeccion(b, h, _fcMPa, _fyMPa, barras);
+            DisenoActual = ColumnaDisenador.DisenarColumna(sec, _numeroBarra, _puKN * 1000.0, _muKNm * 1e6);
+        }
+        OnPropertyChanged(nameof(DisenoActual));
     }
 
     /// <summary>Agrega una nueva columna al nivel seleccionado, con Id/Nombre correlativos.</summary>
