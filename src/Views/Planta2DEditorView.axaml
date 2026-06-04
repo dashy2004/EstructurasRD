@@ -11,19 +11,8 @@
                 Background="{DynamicResource BgSecondary}"
                 BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="Auto,*,Auto">
-                <!-- Selector de Nivel & Snapping controls -->
+                <!-- Snapping controls -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="Nivel:" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="{DynamicResource FgSecondary}"/>
-                    <ComboBox x:Name="CbNivel" MinWidth="110" VerticalAlignment="Center">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Nombre}"/>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                    
-                    <Button x:Name="BtnAddNivel" Content="+ Nivel" Padding="6,2" VerticalAlignment="Center" ToolTip.Tip="Agregar un nuevo nivel al edificio."/>
-                    
                     <CheckBox x:Name="ChkSnap" Content="Snap (S)" IsChecked="True" VerticalAlignment="Center" Margin="10,0,0,0" ToolTip.Tip="Activa o desactiva el auto-ajuste (snapping) a rejilla y objetos."/>
                     
                     <TextBlock Text="Paso:" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="{DynamicResource FgSecondary}"/>
@@ -78,7 +67,8 @@
         <Grid ColumnDefinitions="*,300">
             <!-- Canvas Editor -->
             <Border Grid.Column="0" Background="{DynamicResource BgInput}" ClipToBounds="True" Focusable="True">
-                <v:PlantaCanvas x:Name="EditorCanvas" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                <v:PlantaCanvas x:Name="EditorCanvas" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                Nivel="{Binding NivelActivo}" Edificio="{Binding EdificioActivo}"/>
             </Border>
 
             <!-- Panel de Propiedades Lateral -->

@@ -23,7 +23,7 @@ public class VigaEditorViewModelTests
     {
         int n = 0;
         snapshots = () => n;
-        return new VigaEditorViewModel(proyecto, () => n++);
+        return new VigaEditorViewModel(proyecto, () => n++, () => proyecto.Edificios[0].Niveles[0]);
     }
 
     /// <summary>Viga simplemente apoyada de un tramo con una carga distribuida «D».</summary>

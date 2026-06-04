@@ -29,10 +29,12 @@ namespace LosasPlus.ViewModels;
 public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
 {
     private readonly Func<Edificio?> _getEdificio;
+    private readonly Func<Nivel?> _getNivel;
 
-    public ColumnasEditorViewModel(Func<Edificio?> getEdificio)
+    public ColumnasEditorViewModel(Func<Edificio?> getEdificio, Func<Nivel?> getNivel)
     {
         _getEdificio = getEdificio ?? throw new ArgumentNullException(nameof(getEdificio));
+        _getNivel = getNivel ?? throw new ArgumentNullException(nameof(getNivel));
         TomarPuDelDescensoCommand = new RelayCommand(_ => TomarPuDelDescenso());
         Recargar();
     }
@@ -50,35 +52,18 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
     public void TomarPuDelDescenso()
     {
         var edificio = _getEdificio();
-        if (edificio is null) return;
+        var nivel = _getNivel();
+        if (edificio is null || nivel is null) return;
 
-        int numColumnas = edificio.Niveles.Sum(n => n.Columnas.Count);
+        int numColumnas = nivel.Columnas.Count;
         if (numColumnas <= 0) return;
 
         double cargaEnBase = BajadaCargas.Acumular(edificio).CargaEnBase;
         PuKN = DescensoColumnas.PuDemandaKN(cargaEnBase, numColumnas);
     }
 
-    /// <summary>Niveles del edificio activo, para elegir cuál editar.</summary>
-    public ObservableCollection<Nivel> Niveles { get; } = new();
-
-    private Nivel? _nivelSeleccionado;
-    /// <summary>Nivel cuyas columnas se editan.</summary>
-    public Nivel? NivelSeleccionado
-    {
-        get => _nivelSeleccionado;
-        set
-        {
-            if (ReferenceEquals(_nivelSeleccionado, value)) return;
-            _nivelSeleccionado = value;
-            Seleccionada = null;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(Columnas));
-        }
-    }
-
     /// <summary>Columnas del nivel seleccionado (la colección real — editable).</summary>
-    public ObservableCollection<Columna>? Columnas => _nivelSeleccionado?.Columnas;
+    public ObservableCollection<Columna>? Columnas => _getNivel()?.Columnas;
 
     private Columna? _seleccionada;
     /// <summary>Columna seleccionada en la tabla (objetivo de «Eliminar»).</summary>
@@ -244,7 +229,7 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
     /// <summary>Agrega una nueva columna al nivel seleccionado, con Id/Nombre correlativos.</summary>
     public Columna? Agregar()
     {
-        var nivel = _nivelSeleccionado;
+        var nivel = _getNivel();
         if (nivel is null) return null;
 
         int id = nivel.Columnas.Count > 0 ? nivel.Columnas.Max(c => c.Id) + 1 : 1;
@@ -257,21 +242,17 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
     /// <summary>Elimina la <see cref="Seleccionada"/> (o la indicada) del nivel seleccionado.</summary>
     public void Eliminar(Columna? columna = null)
     {
-        var nivel = _nivelSeleccionado;
+        var nivel = _getNivel();
         var objetivo = columna ?? _seleccionada;
         if (nivel is null || objetivo is null) return;
         nivel.Columnas.Remove(objetivo);
         if (ReferenceEquals(objetivo, _seleccionada)) Seleccionada = null;
     }
 
-    /// <summary>Repuebla la lista de niveles desde el edificio activo y selecciona el primero.</summary>
+    /// <summary>Notifica que el nivel activo cambió y refresca la colección.</summary>
     public void Recargar()
     {
-        Niveles.Clear();
-        var edificio = _getEdificio();
-        if (edificio is not null)
-            foreach (var nivel in edificio.Niveles) Niveles.Add(nivel);
-        NivelSeleccionado = Niveles.FirstOrDefault();
+        Seleccionada = null;
         OnPropertyChanged(nameof(Columnas));
     }
 

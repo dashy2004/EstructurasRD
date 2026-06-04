@@ -441,8 +441,8 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         {
             _restoringSnapshot = true;
             var restored = ProyectoSerializer.FromJson(json);
-            _proyecto.Sistemas.Clear();
-            foreach (var s in restored.Sistemas) _proyecto.Sistemas.Add(s);
+            _proyecto.Edificios.Clear();
+            foreach (var e in restored.Edificios) _proyecto.Edificios.Add(e);
             _proyecto.Archivo     = restored.Archivo;
             _proyecto.Nombre      = restored.Nombre;
             _proyecto.Autor       = restored.Autor;
@@ -465,13 +465,17 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             // Restaurar las vigas del nivel por defecto (Fase 3) — Clear/re-add
             // sobre la ObservableCollection estable, mismo patrón que Sistemas.
             _proyecto.AsegurarEstructura();
-            var nivelRestaurado = _proyecto.Edificios[0].Niveles[0];
+            NivelActivo = _proyecto.Edificios[0].Niveles[0];
+
+            // Restaurar las vigas del nivel por defecto (Fase 3) — Clear/re-add
+            // sobre la ObservableCollection estable, mismo patrón que Sistemas.
+            var nivelRestaurado = NivelActivo;
             nivelRestaurado.Vigas.Clear();
             foreach (var v in restored.Edificios[0].Niveles[0].Vigas)
                 nivelRestaurado.Vigas.Add(v);
             VigaEditor.NotificarRestauracion();
 
-            SistemaActivo = _proyecto.Sistemas.FirstOrDefault() ?? NuevoSistemaDemo();
+            SistemaActivo = NivelActivo?.Sistemas.FirstOrDefault() ?? NuevoSistemaDemo();
             OnPropertyChanged(nameof(Proyecto));
             OnPropertyChanged(nameof(TituloVentana));
             RefreshDLContent();
@@ -588,6 +592,80 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         }
     }
 
+    private Nivel? _nivelActivo;
+    
+    /// <summary>
+    /// Nivel activo del edificio actual (Fase de anclaje a niveles).
+    /// </summary>
+    public Nivel? NivelActivo
+    {
+        get => _nivelActivo;
+        set
+        {
+            if (ReferenceEquals(_nivelActivo, value)) return;
+            _nivelActivo = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IndiceNivelActivo));
+            // Actualizar el sistema activo para que apunte al primer sistema del nuevo nivel
+            if (_nivelActivo != null)
+            {
+                if (_nivelActivo.Sistemas.Count == 0)
+                    _nivelActivo.Sistemas.Add(NuevoSistemaDemo());
+                SistemaActivo = _nivelActivo.Sistemas[0];
+            }
+        }
+    }
+
+    /// <summary>Colección de niveles del edificio activo para bindear la UI.</summary>
+    public ObservableCollection<Nivel>? NivelesDelEdificio => EdificioActivo?.Niveles;
+
+    /// <summary>Índice del nivel activo dentro del edificio activo (para el selector en la UI).</summary>
+    public int IndiceNivelActivo
+    {
+        get
+        {
+            if (EdificioActivo is null || NivelActivo is null) return -1;
+            return EdificioActivo.Niveles.IndexOf(NivelActivo);
+        }
+        set
+        {
+            if (EdificioActivo != null && value >= 0 && value < EdificioActivo.Niveles.Count)
+            {
+                SeleccionarNivel(EdificioActivo.Niveles[value]);
+            }
+        }
+    }
+
+    public void SeleccionarNivel(Nivel nivel)
+    {
+        NivelActivo = nivel;
+    }
+
+    public void AgregarNivel(string nombre, double cota)
+    {
+        if (EdificioActivo is null) return;
+        PushUndoSnapshot();
+        var nuevoNivel = new Nivel { Nombre = nombre, Cota = cota };
+        nuevoNivel.Sistemas.Add(NuevoSistemaDemo());
+        EdificioActivo.Niveles.Add(nuevoNivel);
+        NivelActivo = nuevoNivel;
+    }
+
+    public void EliminarNivel(Nivel nivel)
+    {
+        if (EdificioActivo is null) return;
+        if (EdificioActivo.Niveles.Count <= 1) return; // No se puede eliminar el único nivel
+        PushUndoSnapshot();
+        
+        int index = EdificioActivo.Niveles.IndexOf(nivel);
+        EdificioActivo.Niveles.Remove(nivel);
+        
+        // Seleccionar el nivel adyacente
+        if (index >= EdificioActivo.Niveles.Count)
+            index = EdificioActivo.Niveles.Count - 1;
+        NivelActivo = EdificioActivo.Niveles[index];
+    }
+
     /// <summary>
     /// Edificio activo del proyecto (el primero), fuente del modelo para la
     /// Vista 3D (Fase I). Nulo si el proyecto aún no tiene edificios.
@@ -601,11 +679,11 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         set
         {
             SistemaActivo = value;
-            // Si cambió la referencia, asegurar que esté en el proyecto.
-            if (!_proyecto.Sistemas.Contains(value))
+            // Si cambió la referencia, asegurar que esté en el nivel activo.
+            if (NivelActivo != null && !NivelActivo.Sistemas.Contains(value))
             {
-                _proyecto.Sistemas.Clear();
-                _proyecto.Sistemas.Add(value);
+                NivelActivo.Sistemas.Clear();
+                NivelActivo.Sistemas.Add(value);
             }
         }
     }
@@ -682,8 +760,12 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
 
     public MainViewModel()
     {
-        // El proyecto arranca con el sistema demo activo.
-        _proyecto.Sistemas.Add(_sistemaActivo);
+        _proyecto.AsegurarEstructura();
+        _nivelActivo = _proyecto.Edificios[0].Niveles[0];
+        if (_nivelActivo.Sistemas.Count == 0)
+            _nivelActivo.Sistemas.Add(_sistemaActivo);
+        else
+            _sistemaActivo = _nivelActivo.Sistemas[0];
 
         // ---- Commands de persistencia .lpx.json (commit 32) ----
         NuevoProyectoLpxCommand   = new RelayCommand(_ => NuevoProyectoLpx());
@@ -746,9 +828,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         CargasCombinaciones = new CargasCombinacionesViewModel(_proyecto, PushUndoSnapshot);
 
         // ---- Editor de vigas continuas (Fase 3) ----
-        VigaEditor = new VigaEditorViewModel(_proyecto, PushUndoSnapshot);
+        VigaEditor = new VigaEditorViewModel(_proyecto, PushUndoSnapshot, () => NivelActivo);
         BajadaCargas = new BajadaCargasViewModel(() => EdificioActivo);
-        ColumnasEditor = new ColumnasEditorViewModel(() => EdificioActivo);
+        ColumnasEditor = new ColumnasEditorViewModel(() => EdificioActivo, () => NivelActivo);
         Aceros = new AcerosViewModel(() => _sistemaActivo);
 
         // Cambios al nombre del proyecto refrescan el título de la ventana.
@@ -818,11 +900,16 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             var sistemas = DLFileService.ReadAll(path);
             if (sistemas.Count == 0) { Log("El .DL no contiene ningún sistema."); return; }
 
-            _proyecto.Sistemas.Clear();
-            foreach (var s in sistemas) _proyecto.Sistemas.Add(s);
+            _proyecto.Edificios.Clear();
+            var ed = new Edificio();
+            var niv = new Nivel();
+            foreach (var s in sistemas) niv.Sistemas.Add(s);
+            ed.Niveles.Add(niv);
+            _proyecto.Edificios.Add(ed);
             _proyecto.Archivo = path;
             _proyecto.Nombre = Path.GetFileNameWithoutExtension(path);
-
+            
+            NivelActivo = niv;
             SistemaActivo = sistemas[0];
             DLPath = path;
             Log($"Cargado .DL: {path} ({sistemas.Count} sistema{(sistemas.Count == 1 ? "" : "s")})");
@@ -843,8 +930,8 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         try
         {
             var p = ProyectoService.AbrirProyecto(manifestPath);
-            _proyecto.Sistemas.Clear();
-            foreach (var s in p.Sistemas) _proyecto.Sistemas.Add(s);
+            _proyecto.Edificios.Clear();
+            foreach (var e in p.Edificios) _proyecto.Edificios.Add(e);
             _proyecto.Archivo = p.Archivo;
             _proyecto.Nombre = p.Nombre;
             _proyecto.Autor = p.Autor;
@@ -1069,6 +1156,44 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         finally { Ocupado = false; }
     }
 
+    /// <summary>
+    /// Calcula las losas con el motor nativo Pieper-Martens (sin Losas.exe ni
+    /// .TXT): produce la <see cref="SalidaPerdomo"/>, refleja los momentos en las
+    /// losas y recarga el diseño de acero — el resultado queda visible en la
+    /// pestaña Aceros y disponible para la Memoria, igual que al importar el .TXT.
+    /// </summary>
+    public void CalcularNativo()
+    {
+        try
+        {
+            Ocupado = true;
+            var salida = LosasPlus.Calculo.PieperMartens.SistemaPieperMartensCalculator
+                .Crear().CalcularYAplicar(Sistema);
+            OnPropertyChanged(nameof(LosasFiltradas));
+            Aceros.Recargar();
+            Log($"Cálculo nativo Pieper-Martens: {salida.Momentos.Count} losas (sin Losas.exe).");
+        }
+        catch (Exception ex) { Log("Error en cálculo nativo Pieper-Martens: " + ex.Message); }
+        finally { Ocupado = false; }
+    }
+
+    /// <summary>
+    /// Genera los ejes de rejilla (A,B,C / 1,2,3) del edificio activo a partir de
+    /// las columnas del nivel activo y los deja en <c>Edificio.Ejes</c>, que
+    /// <c>PlantaCanvas</c> ya dibuja. Reemplaza los ejes previos del edificio.
+    /// </summary>
+    public void GenerarEjes()
+    {
+        var ed = EdificioActivo;
+        var nivel = NivelActivo;
+        if (ed is null || nivel is null) { Log("No hay edificio/nivel activo para generar ejes."); return; }
+
+        var ejes = LosasPlus.Calculo.GeneradorEjes.DesdeColumnas(nivel.Columnas);
+        ed.Ejes.Clear();
+        foreach (var e in ejes) ed.Ejes.Add(e);
+        Log($"Ejes generados: {ejes.Count} desde {nivel.Columnas.Count} columnas del nivel '{nivel.Nombre}'.");
+    }
+
     public void AgregarLosa()
     {
         PushUndoSnapshot();
@@ -1230,11 +1355,17 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// </summary>
     public void NuevoProyectoLpx()
     {
-        _proyecto.Sistemas.Clear();
+        _proyecto.Edificios.Clear();
+        var ed = new Edificio();
+        var niv = new Nivel();
+        var demo = NuevoSistemaDemo();
+        niv.Sistemas.Add(demo);
+        ed.Niveles.Add(niv);
+        _proyecto.Edificios.Add(ed);
+        
         _proyecto.Archivo = "";
         _proyecto.Nombre = "Proyecto sin título";
-        var demo = NuevoSistemaDemo();
-        _proyecto.Sistemas.Add(demo);
+        NivelActivo = niv;
         SistemaActivo = demo;
         StatusPersistencia = "Nuevo proyecto creado.";
         Log("Nuevo proyecto .lpx en memoria.");
@@ -1275,8 +1406,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         try
         {
             var p = ProyectoSerializer.Load(path);
-            _proyecto.Sistemas.Clear();
-            foreach (var s in p.Sistemas) _proyecto.Sistemas.Add(s);
+            _proyecto.Edificios.Clear();
+            foreach (var e in p.Edificios) _proyecto.Edificios.Add(e);
+            NivelActivo = _proyecto.Edificios.FirstOrDefault()?.Niveles.FirstOrDefault();
             _proyecto.Archivo     = p.Archivo;
             _proyecto.Nombre      = p.Nombre;
             _proyecto.Autor       = p.Autor;

@@ -3,12 +3,14 @@
         xmlns:vm="clr-namespace:LosasPlus.ViewModels"
         xmlns:v="clr-namespace:LosasPlus.Views"
         xmlns:cad="clr-namespace:LosasPlus.Views.Cad"
+        xmlns:svg="clr-namespace:Avalonia.Svg.Skia;assembly=Avalonia.Svg.Skia"
         xmlns:vigas="clr-namespace:LosasPlus.Views.Vigas"
         xmlns:vws="clr-namespace:MemoriaPlus.Views;assembly=MemoriaPlus.UI.Shared"
         xmlns:sys="clr-namespace:System;assembly=System.Runtime"
         x:Class="LosasPlus.MainWindow"
         x:CompileBindings="False"
         Title="{Binding TituloVentana}"
+        Icon="/Resources/branding/EstructurasRD.png"
         Height="900" Width="1440" MinHeight="640" MinWidth="1100"
         Background="{DynamicResource BgPrimary}"
         WindowStartupLocation="CenterScreen">
@@ -109,16 +111,21 @@
             <Grid ColumnDefinitions="Auto,*,Auto">
 
                 <!-- Branding -->
-                <StackPanel Grid.Column="0" Margin="16,0,12,4" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="LosasPlus" FontSize="16" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource Accent}"/>
-                        <TextBlock Text="{Binding Version}" FontSize="10"
-                                   Foreground="{DynamicResource FgMuted}"
-                                   VerticalAlignment="Bottom" Margin="6,0,0,2"/>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="16,0,12,4" VerticalAlignment="Center">
+                    <svg:Svg Path="avares://LosasPlus/Resources/branding/EstructurasRD.svg"
+                             Width="36" Height="36" Stretch="Uniform"
+                             VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="LosasPlus" FontSize="16" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource Accent}"/>
+                            <TextBlock Text="{Binding Version}" FontSize="10"
+                                       Foreground="{DynamicResource FgMuted}"
+                                       VerticalAlignment="Bottom" Margin="6,0,0,2"/>
+                        </StackPanel>
+                        <TextBlock Text="motor: F. Perdomo" FontSize="9"
+                                   Foreground="{DynamicResource FgMuted}"/>
                     </StackPanel>
-                    <TextBlock Text="motor: F. Perdomo" FontSize="9"
-                               Foreground="{DynamicResource FgMuted}"/>
                 </StackPanel>
 
                 <!-- Nav modos: Menu con dropdowns (Tarea B) -->
@@ -158,14 +165,40 @@
                     </MenuItem>
                 </Menu>
 
-                <!-- Selector de SISTEMA activo + tema. -->
+                <!-- Selector de NIVEL y SISTEMA activo + tema. -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal"
                             VerticalAlignment="Center" Margin="12,0,16,0">
-                    <TextBlock Text="SISTEMA" VerticalAlignment="Center"
+                    <TextBlock Text="NIVEL" VerticalAlignment="Center"
                                FontWeight="Bold" FontSize="10" Margin="0,0,8,0"
                                Foreground="{DynamicResource FgMuted}"/>
+                    <ComboBox x:Name="NivelesList" VerticalAlignment="Center" MinWidth="120"
+                              ItemsSource="{Binding NivelesDelEdificio}"
+                              SelectedIndex="{Binding IndiceNivelActivo, Mode=TwoWay}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Nombre}" FontWeight="SemiBold"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    
+                    <Button Content="+" Width="24" Height="24" Padding="0" Margin="4,0,0,0"
+                            Click="OnAddNivel" VerticalAlignment="Center"
+                            Background="Transparent" BorderThickness="0"
+                            Foreground="{DynamicResource FgPrimary}"
+                            ToolTip.Tip="Agregar nuevo nivel"/>
+                    <Button Content="−" Width="24" Height="24" Padding="0" Margin="0,0,12,0"
+                            Click="OnDeleteNivel" VerticalAlignment="Center"
+                            Background="Transparent" BorderThickness="0"
+                            Foreground="{DynamicResource FgMuted}"
+                            ToolTip.Tip="Eliminar nivel activo"/>
+
+                    <Border Width="1" Background="{DynamicResource Border}" Margin="0,4"/>
+
+                    <TextBlock Text="SISTEMA" VerticalAlignment="Center"
+                               FontWeight="Bold" FontSize="10" Margin="12,0,8,0"
+                               Foreground="{DynamicResource FgMuted}"/>
                     <ComboBox x:Name="SistemasList" VerticalAlignment="Center" MinWidth="160"
-                              ItemsSource="{Binding Proyecto.Sistemas}"
+                              ItemsSource="{Binding NivelActivo.Sistemas}"
                               SelectedItem="{Binding SistemaActivo, Mode=TwoWay}">
                         <ComboBox.ItemTemplate>
                             <DataTemplate>
@@ -238,6 +271,12 @@
                             <MenuItem Header="Calcular losas con el motor (FEM, sin Losas.exe)"
                                       Command="{Binding CalcularConMotorCommand}"
                                       ToolTip.Tip="Calcula los momentos de todas las losas con el motor FEA nativo (FEM), alternativa a Losas.exe. Requiere el motor instalado (comando configurable en la pestaña Aceros)."/>
+                            <MenuItem Header="Calcular losas (Pieper-Martens nativo, sin Losas.exe)"
+                                      Click="OnCalcularNativoClick"
+                                      ToolTip.Tip="Calcula momentos, balanceo y armaduras con el método de Pieper-Martens (tablas de Perdomo) dentro de la app, sin Losas.exe ni .TXT. El resultado aparece en la pestaña Aceros y queda listo para la Memoria."/>
+                            <MenuItem Header="Generar ejes del nivel (desde columnas)"
+                                      Click="OnGenerarEjesClick"
+                                      ToolTip.Tip="Crea la rejilla de ejes A,B,C / 1,2,3 a partir de las columnas del nivel activo. Los ejes se dibujan en Planta 2D."/>
                         </MenuItem>
                         <MenuItem Header="Export">
                             <MenuItem Header="Generar memoria → abrir MemoriaPlus (Ctrl+G)"
@@ -333,9 +372,9 @@
                                 </StackPanel>
                             </Grid>
 
-                            <TextBlock Text="Sistemas del proyecto" Margin="0,16,0,4" FontSize="11"
+                            <TextBlock Text="Sistemas del nivel" Margin="0,16,0,4" FontSize="11"
                                        Foreground="{DynamicResource FgMuted}"/>
-                            <ItemsControl ItemsSource="{Binding Proyecto.Sistemas}">
+                            <ItemsControl ItemsSource="{Binding NivelActivo.Sistemas}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Grid Margin="0,2" ColumnDefinitions="Auto,*,Auto">
@@ -810,98 +849,9 @@
                 </Grid>
 
                 <!-- MODO Aceros: diseño de acero a flexión por losa/franja (ACI 318-19). -->
-                <Grid Margin="16" RowDefinitions="Auto,*,Auto"
-                      IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Aceros}">
-
-                    <!-- Barra de herramientas: título + parámetros + resumen. -->
-                    <DockPanel Grid.Row="0" Margin="0,0,0,10" LastChildFill="False">
-                        <TextBlock DockPanel.Dock="Left" Text="🔩  Diseño de aceros (ACI 318-19)"
-                                   FontSize="16" FontWeight="Bold" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource FgPrimary}"/>
-
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="Recubrimiento (cm)" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource FgMuted}" FontSize="12" Margin="0,0,6,0"/>
-                            <TextBox Width="64" VerticalAlignment="Center"
-                                     Text="{Binding Aceros.RecubrimientoCm, UpdateSourceTrigger=LostFocus}"/>
-                            <TextBlock Text="Barra supuesta #" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource FgMuted}" FontSize="12" Margin="14,0,6,0"/>
-                            <TextBox Width="48" VerticalAlignment="Center"
-                                     Text="{Binding Aceros.BarraSupuesta, UpdateSourceTrigger=LostFocus}"/>
-                            <Border Width="1" Margin="14,2" Background="{DynamicResource Border}"/>
-                            <TextBlock VerticalAlignment="Center" FontSize="12"
-                                       Foreground="{DynamicResource FgSecondary}"
-                                       Text="{Binding Aceros.TotalFranjas, StringFormat='Franjas: {0}'}"/>
-                            <TextBlock VerticalAlignment="Center" FontSize="12" Margin="12,0,0,0"
-                                       Foreground="{DynamicResource Err}"
-                                       Text="{Binding Aceros.FranjasNoCumplen, StringFormat='A revisar: {0}'}"/>
-                            <Border Width="1" Margin="14,2" Background="{DynamicResource Border}"/>
-                            <!-- A1: export del diseño de acero por franja (CSV / XLSX). -->
-                            <Button Content="⬇ CSV" Padding="8,4" Click="OnExportAcerosCsvClick"
-                                    IsEnabled="{Binding Aceros.HayMomentos}"
-                                    ToolTip.Tip="Exportar el diseño de acero por franja a CSV"/>
-                            <Button Content="⬇ XLSX" Padding="8,4" Margin="6,0,0,0" Click="OnExportAcerosXlsxClick"
-                                    IsEnabled="{Binding Aceros.HayMomentos}"
-                                    ToolTip.Tip="Exportar el diseño de acero por franja a Excel"/>
-                            <Border Width="1" Margin="14,2" Background="{DynamicResource Border}"/>
-                            <!-- Puente B6: diseñar la losa seleccionada con el motor FEA nativo. -->
-                            <TextBox Width="120" VerticalAlignment="Center" Margin="0,0,6,0"
-                                     Text="{Binding MotorFeaComando, UpdateSourceTrigger=LostFocus}"
-                                     ToolTip.Tip="Comando del motor FEA (p. ej. motor-fea o python3 -m motor_fea.api.cli)"/>
-                            <Button Content="🧮 Diseñar con motor FEA" Padding="10,4"
-                                    Command="{Binding DisenarConMotorFeaCommand}"
-                                    IsEnabled="{Binding MotorFeaOcupado, Converter={StaticResource BoolToCollapsedIfTrue}}"
-                                    ToolTip.Tip="Diseña la losa seleccionada (en el Editor) por elementos finitos con el motor nativo."/>
-                        </StackPanel>
-                    </DockPanel>
-
-                    <!-- Panel de resultado del motor FEA (B6). -->
-                    <Border Grid.Row="2" Margin="0,10,0,0" Padding="12" CornerRadius="6"
-                            Background="{DynamicResource BgSecondary}" BorderBrush="{DynamicResource Border}"
-                            BorderThickness="1"
-                            IsVisible="{Binding HayResultadoMotorFea, Converter={StaticResource BoolToCollapsedIfFalse}}">
-                        <TextBlock Text="{Binding MotorFeaResultado}" TextWrapping="Wrap" FontFamily="Consolas"
-                                   FontSize="12" Foreground="{DynamicResource FgPrimary}"/>
-                    </Border>
-
-                    <!-- Estado vacío: sin momentos importados. -->
-                    <Border Grid.Row="1" MaxWidth="620" VerticalAlignment="Center" HorizontalAlignment="Center"
-                            Background="{DynamicResource BgSecondary}" BorderBrush="{DynamicResource Border}"
-                            BorderThickness="1" CornerRadius="8" Padding="32,28"
-                            IsVisible="{Binding Aceros.HayMomentos, Converter={StaticResource BoolToCollapsedIfTrue}}">
-                        <StackPanel>
-                            <TextBlock Text="🔩  Diseño de aceros" FontSize="20" FontWeight="Bold"
-                                       Foreground="{DynamicResource FgPrimary}" HorizontalAlignment="Center"/>
-                            <TextBlock Margin="0,16,0,0" TextAlignment="Center" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource FgSecondary}" FontSize="13"
-                                       Text="{Binding Aceros.MensajeVacio}"/>
-                            <TextBlock Margin="0,14,0,0" TextAlignment="Center" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource FgMuted}" FontSize="11"
-                                       Text="As req. por flexión, As mín. por temperatura (§24.4.3.2) y espaciamiento máx. (§8.7.2.2) se calculan automáticamente por franja X/Y de vano y apoyo."/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Grilla de diseño: una fila por franja. -->
-                    <DataGrid Grid.Row="1" x:Name="AcerosGrid"
-                              ItemsSource="{Binding Aceros.Filas}"
-                              AutoGenerateColumns="False" IsReadOnly="True"
-                              GridLinesVisibility="Horizontal" CanUserSortColumns="True"
-                              IsVisible="{Binding Aceros.HayMomentos, Converter={StaticResource BoolToCollapsedIfFalse}}">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="LOSA"    Width="60"  Binding="{Binding LosaId}"/>
-                            <DataGridTextColumn Header="TIPO"    Width="60"  Binding="{Binding Tipo}"/>
-                            <DataGridTextColumn Header="FRANJA"  Width="100" Binding="{Binding Franja}"/>
-                            <DataGridTextColumn Header="Mu (t·m/m)" Width="*" Binding="{Binding MuTonM, StringFormat='0.00'}"/>
-                            <DataGridTextColumn Header="d (cm)"  Width="*"   Binding="{Binding DCm, StringFormat='0.0'}"/>
-                            <DataGridTextColumn Header="As req (cm²/m)" Width="*" Binding="{Binding AsRequeridoCm2M, StringFormat='0.00'}"/>
-                            <DataGridTextColumn Header="As mín (cm²/m)" Width="*" Binding="{Binding AsMinimoCm2M, StringFormat='0.00'}"/>
-                            <DataGridTextColumn Header="As diseño (cm²/m)" Width="*" Binding="{Binding AsDisenoCm2M, StringFormat='0.00'}"/>
-                            <DataGridTextColumn Header="DISPONER" Width="130" Binding="{Binding Disponer}"/>
-                            <DataGridTextColumn Header="As prov (cm²/m)" Width="*" Binding="{Binding AsProvistaCm2M, StringFormat='0.00'}"/>
-                            <DataGridTextColumn Header="ESTADO"  Width="120" Binding="{Binding Estado}"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                </Grid>
+                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Aceros}">
+                    <v:AcerosView DataContext="{Binding}"/>
+                </ContentControl>
 
                 <!-- MODO Reglamento. -->
                 <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Reglamento}">

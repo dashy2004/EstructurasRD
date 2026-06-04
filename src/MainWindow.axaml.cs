@@ -285,6 +285,10 @@ public partial class MainWindow : Window
         if (path is not null) await Vm.ImportarTxtAsync(path);
     }
 
+    private void OnCalcularNativoClick(object? sender, RoutedEventArgs e) => Vm.CalcularNativo();
+
+    private void OnGenerarEjesClick(object? sender, RoutedEventArgs e) => Vm.GenerarEjes();
+
     private async void OnExportCsvClick(object? sender, RoutedEventArgs e)
     {
         var path = await AppServices.Dialogs.SaveFileAsync(
@@ -484,6 +488,17 @@ public partial class MainWindow : Window
         if (SistemasList?.SelectedItem is Sistema s) Vm.EliminarSistema(s);
     }
 
+    private void OnAddNivel(object? sender, RoutedEventArgs e)
+    {
+        Vm.AgregarNivel($"Nivel {(Vm.NivelesDelEdificio?.Count ?? 0) + 1}", (Vm.NivelesDelEdificio?.Count ?? 0) * 3.0);
+    }
+
+    private void OnDeleteNivel(object? sender, RoutedEventArgs e)
+    {
+        if (Vm.NivelActivo != null)
+            Vm.EliminarNivel(Vm.NivelActivo);
+    }
+
     private async void OnReloadPlugins(object? sender, RoutedEventArgs e)
     {
         await Vm.Plugins.LoadAllAsync(Vm.Log);
@@ -578,7 +593,7 @@ public partial class MainWindow : Window
             }
             if (Vm.ColumnasEditor != null && ed != null && ed.Niveles.Count > 0)
             {
-                Vm.ColumnasEditor.NivelSeleccionado = ed.Niveles[0];
+                Vm.NivelActivo = ed.Niveles[0];
             }
 
             // 5. Run loop to capture each view mode

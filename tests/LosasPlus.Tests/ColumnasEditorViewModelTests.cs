@@ -21,7 +21,7 @@ public class ColumnasEditorViewModelTests
     public void Agregar_inserta_columna_correlativa_y_la_selecciona()
     {
         var ed = UnNivel();
-        var vm = new ColumnasEditorViewModel(() => ed);
+        var vm = new ColumnasEditorViewModel(() => ed, () => ed.Niveles[0]);
 
         var c1 = vm.Agregar();
         var c2 = vm.Agregar();
@@ -37,7 +37,7 @@ public class ColumnasEditorViewModelTests
     public void Eliminar_quita_la_columna_seleccionada()
     {
         var ed = UnNivel();
-        var vm = new ColumnasEditorViewModel(() => ed);
+        var vm = new ColumnasEditorViewModel(() => ed, () => ed.Niveles[0]);
         vm.Agregar();
         var c2 = vm.Agregar();
 
@@ -51,7 +51,7 @@ public class ColumnasEditorViewModelTests
     [Fact]
     public void Sin_edificio_no_hace_nada()
     {
-        var vm = new ColumnasEditorViewModel(() => null);
+        var vm = new ColumnasEditorViewModel(() => null, () => null);
         Assert.Null(vm.Columnas);
         Assert.Null(vm.Agregar());
         vm.Eliminar(); // no lanza
@@ -66,17 +66,16 @@ public class ColumnasEditorViewModelTests
         ed.Niveles.Add(n0);
         ed.Niveles.Add(n1);
 
-        var vm = new ColumnasEditorViewModel(() => ed);
+        Nivel? nivelActivo = n0;
+        var vm = new ColumnasEditorViewModel(() => ed, () => nivelActivo);
 
-        // Por defecto se selecciona el primer nivel.
-        Assert.Equal(2, vm.Niveles.Count);
-        Assert.Same(n0, vm.NivelSeleccionado);
         vm.Agregar();
         Assert.Single(n0.Columnas);
         Assert.Empty(n1.Columnas);
 
         // Al cambiar de nivel, las columnas reflejan el nuevo y se agrega allí.
-        vm.NivelSeleccionado = n1;
+        nivelActivo = n1;
+        vm.Recargar();
         Assert.Same(n1.Columnas, vm.Columnas);
         vm.Agregar();
         Assert.Single(n0.Columnas);
@@ -94,7 +93,7 @@ public class ColumnasEditorViewModelTests
         nivel.Columnas.Add(new Columna { Nombre = "C1" });
         nivel.Columnas.Add(new Columna { Nombre = "C2" });
         ed.Niveles.Add(nivel);
-        var vm = new ColumnasEditorViewModel(() => ed);
+        var vm = new ColumnasEditorViewModel(() => ed, () => nivel);
 
         vm.TomarPuDelDescenso();
 
@@ -110,7 +109,7 @@ public class ColumnasEditorViewModelTests
         var col = new Columna { Nombre = "C1", Base = 0.4, Peralte = 0.6 }; // 400×600 mm
         nivel.Columnas.Add(col);
         ed.Niveles.Add(nivel);
-        var vm = new ColumnasEditorViewModel(() => ed);
+        var vm = new ColumnasEditorViewModel(() => ed, () => nivel);
 
         vm.Seleccionada = col;
         vm.LuMm = 4000;

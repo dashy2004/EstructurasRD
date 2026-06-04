@@ -1,0 +1,232 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:LosasPlus.ViewModels"
+             xmlns:v="clr-namespace:LosasPlus.Views"
+             xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+             x:Class="LosasPlus.Views.AcerosView"
+             x:DataType="vm:MainViewModel">
+
+    <UserControl.Resources>
+        <v:EstadoToColorConverter x:Key="EstadoColorConv"/>
+        <v:AsRatioToWidthConverter x:Key="RatioWidthConv"/>
+        <v:RatioToColorConverter x:Key="RatioColorConv"/>
+    </UserControl.Resources>
+
+    <Grid Margin="16" RowDefinitions="Auto,*">
+
+        <!-- Barra de herramientas superior -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,10" LastChildFill="False">
+            <TextBlock DockPanel.Dock="Left" Text="🔩 Diseño de aceros (ACI 318-19)"
+                       FontSize="20" FontWeight="Bold" VerticalAlignment="Center"
+                       Foreground="{DynamicResource FgPrimary}"/>
+
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="Recubrimiento (cm)" VerticalAlignment="Center"
+                           Foreground="{DynamicResource FgMuted}" FontSize="12" Margin="0,0,6,0"/>
+                <TextBox Width="64" VerticalAlignment="Center"
+                         Text="{Binding Aceros.RecubrimientoCm, UpdateSourceTrigger=LostFocus}"/>
+                <TextBlock Text="Barra supuesta #" VerticalAlignment="Center"
+                           Foreground="{DynamicResource FgMuted}" FontSize="12" Margin="14,0,6,0"/>
+                <TextBox Width="48" VerticalAlignment="Center"
+                         Text="{Binding Aceros.BarraSupuesta, UpdateSourceTrigger=LostFocus}"/>
+                
+                <Border Width="1" Margin="14,2" Background="{DynamicResource Border}"/>
+                
+                <TextBlock VerticalAlignment="Center" FontSize="12"
+                           Foreground="{DynamicResource FgSecondary}"
+                           Text="{Binding Aceros.TotalFranjas, StringFormat='Franjas: {0}'}"/>
+                <TextBlock VerticalAlignment="Center" FontSize="12" Margin="12,0,0,0"
+                           Foreground="{DynamicResource Err}"
+                           Text="{Binding Aceros.FranjasNoCumplen, StringFormat='A revisar: {0}'}"/>
+                
+                <Border Width="1" Margin="14,2" Background="{DynamicResource Border}"/>
+                
+                <Button Content="⚙ Calcular nativo" Padding="10,4"
+                        Command="{Binding CalcularConMotorCommand}"
+                        Theme="{StaticResource PrimaryButton}"
+                        ToolTip.Tip="Calcula momentos y armaduras (Pieper-Martens) sin Losas.exe"/>
+
+                <Button Content="⬇ Exportar a Excel" Padding="10,4" Margin="6,0,0,0"
+                        Click="OnExportAcerosXlsxClick"
+                        IsEnabled="{Binding Aceros.HayMomentos}"
+                        ToolTip.Tip="Exportar el diseño de acero por franja a Excel"/>
+            </StackPanel>
+        </DockPanel>
+
+        <!-- Contenido principal -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,350">
+            <!-- Lista de losas agrupadas -->
+            <Border Grid.Column="0" Background="{DynamicResource BgSecondary}" 
+                    BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="6" Padding="8">
+                
+                <Grid>
+                    <!-- Estado vacío -->
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                                IsVisible="{Binding Aceros.HayMomentos, Converter={StaticResource BoolToCollapsedIfTrue}}">
+                        <TextBlock Text="🔩  Diseño de aceros" FontSize="20" FontWeight="Bold"
+                                   Foreground="{DynamicResource FgPrimary}" HorizontalAlignment="Center"/>
+                        <TextBlock Margin="0,16,0,0" TextAlignment="Center" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource FgSecondary}" FontSize="13"
+                                   Text="{Binding Aceros.MensajeVacio}"/>
+                    </StackPanel>
+
+                    <!-- Lista de tarjetas de losas -->
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  IsVisible="{Binding Aceros.HayMomentos, Converter={StaticResource BoolToCollapsedIfFalse}}">
+                        <ItemsControl ItemsSource="{Binding Aceros.Grupos}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource BgInput}" BorderBrush="{DynamicResource Border}" 
+                                            BorderThickness="1" CornerRadius="4" Margin="0,0,0,12" Padding="12">
+                                        <Grid RowDefinitions="Auto,*">
+                                            <!-- Encabezado de la losa -->
+                                            <DockPanel Grid.Row="0" Margin="0,0,0,12">
+                                                <v:TipoLosaIconView DockPanel.Dock="Left" Codigo="{Binding Tipo}" 
+                                                                    Width="32" Height="32" Margin="0,0,12,0"/>
+                                                
+                                                <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding LosaId, StringFormat='Losa {0}'}" 
+                                                               FontSize="16" FontWeight="Bold" Foreground="{DynamicResource FgPrimary}"/>
+                                                    <TextBlock Foreground="{DynamicResource FgMuted}" FontSize="12">
+                                                        <Run Text="{Binding Lx, StringFormat='0.00'}"/>
+                                                        <Run Text="×"/>
+                                                        <Run Text="{Binding Ly, StringFormat='0.00'}"/>
+                                                        <Run Text=" m, h = "/>
+                                                        <Run Text="{Binding Espesor, StringFormat='0.00'}"/>
+                                                        <Run Text=" m"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                                
+                                                <Button DockPanel.Dock="Right" Content="Volver a automático" 
+                                                        Click="OnRecargarClick" Background="Transparent" 
+                                                        Foreground="{DynamicResource Accent}" Padding="8,4" 
+                                                        VerticalAlignment="Top" BorderThickness="0"/>
+                                            </DockPanel>
+
+                                            <!-- Grilla de franjas de la losa -->
+                                            <DataGrid Grid.Row="1" ItemsSource="{Binding Franjas}" 
+                                                      AutoGenerateColumns="False" HeadersVisibility="Column"
+                                                      IsReadOnly="False" GridLinesVisibility="Horizontal"
+                                                      Background="Transparent" BorderThickness="0"
+                                                      FontFamily="Consolas" FontSize="13">
+                                                <DataGrid.Columns>
+                                                    <DataGridTextColumn Header="FRANJA" Width="100" Binding="{Binding Franja}" IsReadOnly="True" />
+                                                    <DataGridTextColumn Header="Mu (t·m/m)" Width="80" Binding="{Binding MuTonM, StringFormat='0.00'}" IsReadOnly="True" />
+                                                    <DataGridTextColumn Header="d (cm)" Width="60" Binding="{Binding DCm, StringFormat='0.0'}" IsReadOnly="True" />
+                                                    <DataGridTextColumn Header="As req" Width="60" Binding="{Binding AsRequeridoCm2M, StringFormat='0.00'}" IsReadOnly="True" />
+                                                    
+                                                    <!-- Edición Inline -->
+                                                    <DataGridTemplateColumn Header="BARRA #" Width="80">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <ComboBox SelectedItem="{Binding NumeroBarra, Mode=TwoWay}" 
+                                                                          HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="2">
+                                                                    <sys:Int32>3</sys:Int32>
+                                                                    <sys:Int32>4</sys:Int32>
+                                                                    <sys:Int32>5</sys:Int32>
+                                                                    <sys:Int32>6</sys:Int32>
+                                                                    <sys:Int32>7</sys:Int32>
+                                                                    <sys:Int32>8</sys:Int32>
+                                                                </ComboBox>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+
+                                                    <DataGridTemplateColumn Header="SEP (cm)" Width="85">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <NumericUpDown Value="{Binding EspaciamientoCm, Mode=TwoWay}" 
+                                                                               Minimum="7.5" Maximum="50" Increment="0.5" 
+                                                                               HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="2"/>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+
+                                                    <DataGridTextColumn Header="As disp" Width="60" Binding="{Binding AsProvistaCm2M, StringFormat='0.00'}" IsReadOnly="True" />
+                                                    
+                                                    <DataGridTemplateColumn Header="DISPONER" Width="100" IsReadOnly="True">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <Border Background="{DynamicResource BgTertiary}" CornerRadius="2" Padding="4,2" 
+                                                                        HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding Disponer}" FontWeight="Bold"/>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                    
+                                                    <!-- Gauge de Demanda vs Capacidad -->
+                                                    <DataGridTemplateColumn Header="CAPACIDAD" Width="80" IsReadOnly="True">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <Grid VerticalAlignment="Center" Height="6" Background="{DynamicResource Border}">
+                                                                    <Border HorizontalAlignment="Left" 
+                                                                            Width="{Binding Converter={StaticResource RatioWidthConv}}" 
+                                                                            Background="{Binding Converter={StaticResource RatioColorConv}}"/>
+                                                                </Grid>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+
+                                                    <!-- Estado con Chip EsManual -->
+                                                    <DataGridTemplateColumn Header="ESTADO" Width="140" IsReadOnly="True">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding Estado}" FontWeight="Bold" 
+                                                                               Foreground="{Binding Estado, Converter={StaticResource EstadoColorConv}}" Margin="0,0,8,0"/>
+                                                                    <Border Background="{DynamicResource AccentHi}" CornerRadius="4" Padding="4,1" 
+                                                                            IsVisible="{Binding EsManual}">
+                                                                        <TextBlock Text="MANUAL" FontSize="10" Foreground="White" FontWeight="Bold"/>
+                                                                    </Border>
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <!-- Panel de Resultados SalidaPerdomo -->
+            <Border Grid.Column="1" Background="{DynamicResource BgSecondary}" 
+                    BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="6" 
+                    Margin="16,0,0,0" Padding="12">
+                <Grid RowDefinitions="Auto,*,Auto,*">
+                    <TextBlock Grid.Row="0" Text="Momentos de Losas (Salida)" FontWeight="Bold" Foreground="{DynamicResource FgPrimary}" Margin="0,0,0,8"/>
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding SistemaActivo.SalidaPerdomo.Momentos}" 
+                              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                              FontFamily="Consolas" FontSize="12" RowHeight="24">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="L" Binding="{Binding LosaId}" />
+                            <DataGridTextColumn Header="Mfx" Binding="{Binding Mfx, StringFormat='0.000'}" />
+                            <DataGridTextColumn Header="Mfy" Binding="{Binding Mfy, StringFormat='0.000'}" />
+                            <DataGridTextColumn Header="MSx" Binding="{Binding NMSx, StringFormat='0.000'}" />
+                            <DataGridTextColumn Header="MSy" Binding="{Binding NMSy, StringFormat='0.000'}" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <TextBlock Grid.Row="2" Text="Armaduras Apoyos X (Salida)" FontWeight="Bold" Foreground="{DynamicResource FgPrimary}" Margin="0,16,0,8"/>
+                    <DataGrid Grid.Row="3" ItemsSource="{Binding SistemaActivo.SalidaPerdomo.ArmadurasXApoyos}" 
+                              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                              FontFamily="Consolas" FontSize="12" RowHeight="24">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="I-J" Binding="{Binding BordeI, StringFormat='{}{0}-'}" />
+                            <DataGridTextColumn Header="Mu I" Binding="{Binding MuI, StringFormat='0.000'}" />
+                            <DataGridTextColumn Header="Mu J" Binding="{Binding MuJ, StringFormat='0.000'}" />
+                            <DataGridTextColumn Header="Mu IJ" Binding="{Binding MuIJ, StringFormat='0.000'}" />
+                            <DataGridTextColumn Header="As" Binding="{Binding As, StringFormat='0.00'}" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

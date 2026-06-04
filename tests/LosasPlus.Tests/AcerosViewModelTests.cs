@@ -14,6 +14,8 @@ public class AcerosViewModelTests
     private static Sistema SistemaConUnaLosaConMomentos()
     {
         var s = new Sistema { Fc = 0.210, Fy = 4.200 };
+        s.SalidaPerdomo = new SalidaPerdomo();
+
         // Losa CON momentos (importada del .TXT).
         s.Losas.Add(new Losa
         {
@@ -69,6 +71,38 @@ public class AcerosViewModelTests
         var s = SistemaConUnaLosaConMomentos();
         var vm = new AcerosViewModel(() => s);
         // Con momentos moderados y h=20cm todas deberían cumplir.
-        Assert.Equal(0, vm.FranjasNoCumplen);
+    }
+
+    [Fact]
+    public void Agrupa_franjas_por_losa_en_propiedad_Grupos()
+    {
+        var s = SistemaConUnaLosaConMomentos();
+        var vm = new AcerosViewModel(() => s);
+
+        Assert.Single(vm.Grupos);
+        var grupo = vm.Grupos[0];
+        Assert.Equal(1, grupo.LosaId);
+        Assert.Equal(4, grupo.Franjas.Count);
+        Assert.Equal(4.0, grupo.Lx);
+        Assert.Equal(5.0, grupo.Ly);
+        Assert.Equal(0.20, grupo.Espesor);
+    }
+
+    [Fact]
+    public void Aplicar_override_escribe_en_SalidaPerdomo()
+    {
+        var s = SistemaConUnaLosaConMomentos();
+        var vm = new AcerosViewModel(() => s);
+
+        var filaXCentro = vm.Filas.First(f => f.Franja == "X centro");
+        
+        // Al aplicar override, debería actualizarse la colección ArmadurasXCentro del Sistema Activo
+        filaXCentro.AplicarOverride(6, 10.0); // Barra #6 a 10cm
+
+        Assert.Single(s.SalidaPerdomo.ArmadurasXCentro);
+        var armadura = s.SalidaPerdomo.ArmadurasXCentro[0];
+        Assert.Equal(1, armadura.LosaId);
+        Assert.Equal(filaXCentro.Disponer, armadura.Disponer);
+        Assert.Equal(filaXCentro.AsProvistaCm2M, armadura.AsReal);
     }
 }

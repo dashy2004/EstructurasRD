@@ -20,7 +20,7 @@ public class ColumnasEditorDisenoTests
         var niv = new Nivel();
         niv.Columnas.Add(new Columna { Id = 1, Nombre = "C-1", Base = 0.40, Peralte = 0.40, Altura = 3.0 });
         ed.Niveles.Add(niv);
-        var vm = new ColumnasEditorViewModel(() => ed);
+        var vm = new ColumnasEditorViewModel(() => ed, () => niv);
         vm.Seleccionada = niv.Columnas[0];
         return vm;
     }

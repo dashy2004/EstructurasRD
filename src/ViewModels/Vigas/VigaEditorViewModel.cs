@@ -46,7 +46,8 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
 
     private readonly Proyecto _proyecto;
     private readonly Action _pushUndoSnapshot;
-    private readonly Nivel _nivel;
+    private readonly Func<Nivel?> _nivelActivoProvider;
+    private Nivel Nivel => _nivelActivoProvider() ?? _proyecto.Edificios[0].Niveles[0];
 
     // Ítems del grafo de la viga activa con suscripción a PropertyChanged.
     private readonly List<TramoViga> _tramosEnganchados = new();
@@ -58,13 +59,13 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
     private CancellationTokenSource? _ctsRecalculo;
     private Task _recalculoActual = Task.CompletedTask;
 
-    public VigaEditorViewModel(Proyecto proyecto, Action pushUndoSnapshot)
+    public VigaEditorViewModel(Proyecto proyecto, Action pushUndoSnapshot, Func<Nivel?> nivelActivoProvider)
     {
         _proyecto = proyecto ?? throw new ArgumentNullException(nameof(proyecto));
         _pushUndoSnapshot = pushUndoSnapshot ?? throw new ArgumentNullException(nameof(pushUndoSnapshot));
+        _nivelActivoProvider = nivelActivoProvider ?? throw new ArgumentNullException(nameof(nivelActivoProvider));
 
         _proyecto.AsegurarEstructura();
-        _nivel = _proyecto.Edificios[0].Niveles[0];
 
         ModeloViga      = CrearModeloBase("Modelo de la viga");
         ModeloEsfuerzos = CrearModeloBase("Cortante V(x) y Momento M(x)");
@@ -84,13 +85,13 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         _proyecto.Combinaciones.Combinaciones.CollectionChanged += OnCombinacionesCambiaron;
 
         RefrescarOpcionesCombinacion();
-        VigaActiva = _nivel.Vigas.FirstOrDefault();
+        VigaActiva = Nivel.Vigas.FirstOrDefault();
     }
 
     // ---- Colecciones pass-through ----
 
-    /// <summary>Vigas del nivel por defecto del proyecto.</summary>
-    public ObservableCollection<Viga> Vigas => _nivel.Vigas;
+    /// <summary>Vigas del nivel activo.</summary>
+    public ObservableCollection<Viga> Vigas => Nivel.Vigas;
 
     /// <summary>Cargas del tramo seleccionado — alimenta el grid de cargas.</summary>
     public ObservableCollection<CargaElemento>? CargasDelTramo => _tramoSeleccionado?.Cargas;
@@ -228,7 +229,8 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
     public void NotificarRestauracion()
     {
         RefrescarOpcionesCombinacion();
-        _vigaActiva = _nivel.Vigas.FirstOrDefault();
+        OnPropertyChanged(nameof(Vigas));
+        _vigaActiva = Nivel.Vigas.FirstOrDefault();
         OnPropertyChanged(nameof(VigaActiva));
         OnPropertyChanged(nameof(HayVigaActiva));
         RehookViga(_vigaActiva);
@@ -244,14 +246,14 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         _pushUndoSnapshot();
         var viga = new Viga
         {
-            Id = _nivel.Vigas.Count == 0 ? 1 : _nivel.Vigas.Max(v => v.Id) + 1,
-            Nombre = $"Viga {_nivel.Vigas.Count + 1}",
+            Id = Nivel.Vigas.Count == 0 ? 1 : Nivel.Vigas.Max(v => v.Id) + 1,
+            Nombre = $"Viga {Nivel.Vigas.Count + 1}",
         };
         var tramo = new TramoViga();
         viga.Tramos.Add(tramo);
         viga.Apoyos.Add(new ApoyoViga(0.0, TipoApoyo.Fijo));
         viga.Apoyos.Add(new ApoyoViga(tramo.Longitud, TipoApoyo.Fijo));
-        _nivel.Vigas.Add(viga);
+        Nivel.Vigas.Add(viga);
         VigaActiva = viga;
     }
 
@@ -259,10 +261,10 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
     {
         if (_vigaActiva is null) return;
         _pushUndoSnapshot();
-        int idx = _nivel.Vigas.IndexOf(_vigaActiva);
-        _nivel.Vigas.Remove(_vigaActiva);
-        VigaActiva = _nivel.Vigas.Count > 0
-            ? _nivel.Vigas[Math.Min(idx, _nivel.Vigas.Count - 1)]
+        int idx = Nivel.Vigas.IndexOf(_vigaActiva);
+        Nivel.Vigas.Remove(_vigaActiva);
+        VigaActiva = Nivel.Vigas.Count > 0
+            ? Nivel.Vigas[Math.Min(idx, Nivel.Vigas.Count - 1)]
             : null;
     }
 
@@ -322,8 +324,8 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
     private void GenerarVigas()
     {
         _pushUndoSnapshot();
-        GeneradorVigas.MaterializarVigas(_nivel);
-        VigaActiva = _nivel.Vigas.FirstOrDefault();
+        GeneradorVigas.MaterializarVigas(Nivel);
+        VigaActiva = Nivel.Vigas.FirstOrDefault();
     }
 
     // ---- Reactividad: enganche del grafo de la viga ----

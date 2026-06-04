@@ -157,6 +157,44 @@ public static class AcerosLosaDesigner
     }
 
     /// <summary>
+    /// Aplica un <b>override manual</b> del ingeniero a una franja ya diseñada:
+    /// fija la barra y el espaciamiento elegidos y recalcula el acero provisto
+    /// (<c>As = ab·100/esp</c>) y si la franja cumple. Conserva los requerimientos
+    /// (<c>AsRequerido/AsMinimo/AsDiseno</c>) — solo cambia lo dispuesto. Es la
+    /// operación base de "editar el acero" en la pestaña Aceros.
+    /// </summary>
+    /// <param name="original">Franja diseñada automáticamente (la que se edita).</param>
+    /// <param name="numeroBarra">Número de barra elegido (#3–#8).</param>
+    /// <param name="espaciamientoCm">Espaciamiento elegido (cm).</param>
+    /// <param name="espMaxCm">Espaciamiento máximo normativo para la losa (min(2h,45)).</param>
+    public static DisenoAceroFranja AplicarOverride(
+        DisenoAceroFranja original, int numeroBarra, double espaciamientoCm, double espMaxCm)
+    {
+        if (original is null) throw new ArgumentNullException(nameof(original));
+        if (espaciamientoCm <= 0)
+            throw new ArgumentOutOfRangeException(nameof(espaciamientoCm), "El espaciamiento debe ser positivo.");
+        double ab = AreasBarras.Para(numeroBarra);
+        if (ab <= 0)
+            throw new ArgumentOutOfRangeException(nameof(numeroBarra), "Número de barra fuera de rango (#3–#8).");
+
+        double asProv = ab * BFranjaCm / espaciamientoCm;
+        bool cumple = !original.SeccionInsuficiente
+            && asProv >= original.AsDisenoCm2M - 1e-6
+            && espaciamientoCm >= EspaciamientoMinimoCm
+            && espaciamientoCm <= espMaxCm + 1e-9;
+        string disponer = string.Create(CultureInfo.InvariantCulture, $"#{numeroBarra} @ {espaciamientoCm:0.#} cm");
+
+        return original with
+        {
+            NumeroBarra = numeroBarra,
+            EspaciamientoCm = espaciamientoCm,
+            AsProvistaCm2M = asProv,
+            CumpleEspaciamiento = cumple,
+            Disponer = disponer,
+        };
+    }
+
+    /// <summary>
     /// Diseña las 4 franjas de una losa a partir de sus momentos: X y Y en el
     /// centro (positivos, <see cref="MomentoLosa.Mfx"/>/<see cref="MomentoLosa.Mfy"/>)
     /// y X, Y sobre apoyos (negativos, <see cref="MomentoLosa.NMSx"/>/<see cref="MomentoLosa.NMSy"/>).

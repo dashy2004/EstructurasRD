@@ -31,8 +31,7 @@ public partial class Planta2DEditorView : UserControl
         // Register event handlers for input fields
         RegisterInputHandlers();
 
-        // Wire level selection
-        CbNivel.SelectionChanged += OnNivelSelectionChanged;
+        // Nivel y Edificio son bindeados en XAML.
 
         // Wire snap controls
         ChkSnap.IsCheckedChanged += OnSnapCheckedChanged;
@@ -53,55 +52,12 @@ public partial class Planta2DEditorView : UserControl
         BtnEliminar.Click += OnEliminarClick;
         BtnGenerarVigaContinua.Click += OnGenerarVigaContinuaClick;
         BtnVerElevacion.Click += OnVerElevacionClick;
-        BtnAddNivel.Click += OnAddNivelClick;
     }
 
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        PopulateNiveles();
-    }
-
-    private void PopulateNiveles()
-    {
-        if (Vm?.EdificioActivo != null)
-        {
-            EditorCanvas.Edificio = Vm.EdificioActivo;
-            CbNivel.ItemsSource = Vm.EdificioActivo.Niveles;
-            CbNivel.SelectedItem = Vm.EdificioActivo.Niveles.FirstOrDefault();
-        }
-    }
-
-    private void OnNivelSelectionChanged(object? sender, SelectionChangedEventArgs e)
-    {
-        if (CbNivel.SelectedItem is Nivel nivel)
-        {
-            EditorCanvas.Nivel = nivel;
-        }
-        else
-        {
-            EditorCanvas.Nivel = null;
-        }
-    }
-
-    private void OnAddNivelClick(object? sender, RoutedEventArgs e)
-    {
-        if (Vm?.EdificioActivo != null)
-        {
-            var edificio = Vm.EdificioActivo;
-            int nextNumber = edificio.Niveles.Count + 1;
-            double nextCota = edificio.Niveles.Count > 0 
-                ? edificio.Niveles.Max(n => n.Cota) + 3.0 
-                : 3.0;
-
-            var newNivel = new Nivel
-            {
-                Nombre = $"Nivel {nextNumber}",
-                Cota = nextCota
-            };
-            edificio.Niveles.Add(newNivel);
-            CbNivel.SelectedItem = newNivel;
-        }
+        // El canvas se actualiza por binding en el XAML
     }
 
     private void OnSnapCheckedChanged(object? sender, RoutedEventArgs e)
