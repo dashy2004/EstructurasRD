@@ -37,6 +37,8 @@
                                  Classes="tool-button" GroupName="FloorTool" ToolTip.Tip="Hacer click en el lienzo para colocar una nueva columna."/>
                     <RadioButton x:Name="BtnAddEje" Content="📏 + Eje"
                                  Classes="tool-button" GroupName="FloorTool" ToolTip.Tip="Hacer click en el lienzo para colocar un nuevo eje estructural."/>
+                    <RadioButton x:Name="BtnAddMuro" Content="🧱 + Muro"
+                                 Classes="tool-button" GroupName="FloorTool" ToolTip.Tip="Hacer click en el lienzo para colocar un nuevo muro."/>
                 </StackPanel>
 
                 <!-- Acciones globales -->

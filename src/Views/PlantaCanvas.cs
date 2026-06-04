@@ -316,6 +316,23 @@ public class PlantaCanvas : Control
                         SelectedElement = eje;
                     }
                 }
+                else if (ActiveTool == "Muro")
+                {
+                    if (Nivel.Sistemas.Count == 0)
+                        Nivel.Sistemas.Add(new Sistema { Nombre = "Sistema 1" });
+                    var sys = Nivel.Sistemas[0];
+                    int newId = sys.Muros.Count > 0 ? sys.Muros.Max(m => m.Id) + 1 : 1;
+                    var muro = new Muro
+                    {
+                        Id = newId,
+                        PuntoInicio = new PuntoCad(sx, sy),
+                        PuntoFin = new PuntoCad(sx + 3.0, sy),
+                        Espesor = 0.15,
+                        Altura = 3.0
+                    };
+                    sys.Muros.Add(muro);
+                    SelectedElement = muro;
+                }
 
                 // Switch tool back to Puntero
                 ActiveTool = "Puntero";

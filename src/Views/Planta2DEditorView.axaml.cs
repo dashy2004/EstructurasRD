@@ -46,6 +46,7 @@ public partial class Planta2DEditorView : UserControl
         BtnAddViga.IsCheckedChanged += (s, e) => { if (BtnAddViga.IsChecked == true) EditorCanvas.ActiveTool = "Viga"; };
         BtnAddCol.IsCheckedChanged += (s, e) => { if (BtnAddCol.IsChecked == true) EditorCanvas.ActiveTool = "Columna"; };
         BtnAddEje.IsCheckedChanged += (s, e) => { if (BtnAddEje.IsChecked == true) EditorCanvas.ActiveTool = "Eje"; };
+        BtnAddMuro.IsCheckedChanged += (s, e) => { if (BtnAddMuro.IsChecked == true) EditorCanvas.ActiveTool = "Muro"; };
 
         // Wire buttons
         BtnRecalcular.Click += OnRecalcularClick;
