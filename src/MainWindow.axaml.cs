@@ -298,6 +298,15 @@ public partial class MainWindow : Window
         if (path is not null) await Vm.GenerarDesdeFotoAsync(path);
     }
 
+    private async void OnGenerarDesdeDxfClick(object? sender, RoutedEventArgs e)
+    {
+        var path = await AppServices.Dialogs.OpenFileAsync(
+            "Importar DXF estructural (capas VIGAS / COLUMNAS / LOSAS)",
+            new FileFilter("DXF", new[] { "*.dxf" }),
+            new FileFilter("Todos los archivos", new[] { "*" }));
+        if (path is not null) await Vm.GenerarDesdeDxfAsync(path);
+    }
+
     private async void OnExportCsvClick(object? sender, RoutedEventArgs e)
     {
         var path = await AppServices.Dialogs.SaveFileAsync(

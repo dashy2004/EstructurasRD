@@ -1261,6 +1261,110 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         finally { Ocupado = false; }
     }
 
+    /// <summary>
+    /// Genera losas, vigas y <b>columnas</b> en el nivel activo a partir de un
+    /// archivo <b>DXF estructural</b>. Pipeline DETERMINISTA: importa la geometría
+    /// exacta (<see cref="LosasPlus.Services.DxfImportService"/>), clasifica las
+    /// capas de forma híbrida (heurística <see cref="LosasPlus.Services.ClasificadorCapas"/>
+    /// + IA de texto Qwen solo para las capas ambiguas) y mapea por capa/forma con
+    /// <see cref="LosasPlus.Services.DxfEstructuraMapper"/>.
+    ///
+    /// <para>A diferencia de la foto, acá la geometría NO se estima: sale exacta del
+    /// DXF. La IA solo clasifica nombres de capa; nunca decide coordenadas ni el
+    /// cálculo. El ingeniero revisa lo generado.</para>
+    /// </summary>
+    public async Task GenerarDesdeDxfAsync(string dxfPath)
+    {
+        var nivel = NivelActivo;
+        if (nivel is null) { Log("No hay nivel activo donde generar el sistema."); return; }
+
+        try
+        {
+            Ocupado = true;
+            Log($"Importando '{Path.GetFileName(dxfPath)}' (DXF)…");
+            PushUndoSnapshot();
+
+            var plano = await Task.Run(() => new LosasPlus.Services.DxfImportService().Importar(dxfPath));
+            var entidades = plano.Entidades;
+
+            // --- Clasificación híbrida de capas: heurística + IA de texto (solo ambiguas) ---
+            var capas = entidades.Select(e => e.Capa)
+                .Where(c => !string.IsNullOrWhiteSpace(c)).Distinct().ToList();
+            var ambiguas = LosasPlus.Services.ClasificadorCapas.Ambiguas(capas);
+            Func<string, LosasPlus.Services.CategoriaEstructural> categoria =
+                LosasPlus.Services.ClasificadorCapas.Clasificar;
+            if (ambiguas.Count > 0)
+            {
+                Log($"Clasificando {ambiguas.Count} capa(s) ambigua(s) con Qwen (texto)…");
+                var cfg = new LosasPlus.IA.QwenConfig();   // 127.0.0.1:11434 · qwen2.5vl:7b
+                var ia = await new LosasPlus.IA.ClasificadorCapasIA(cfg).ClasificarAsync(ambiguas);
+                categoria = LosasPlus.IA.ClasificadorCapasIA.CombinarConHeuristica(ia);
+            }
+
+            var prop = LosasPlus.Services.DxfEstructuraMapper.Mapear(entidades, categoria);
+
+            if (nivel.Sistemas.Count == 0) nivel.Sistemas.Add(new Sistema { Nombre = "Sistema 1" });
+            var sys = nivel.Sistemas[0];
+
+            int losaId = sys.Losas.Count > 0 ? sys.Losas.Max(l => l.Id) : 0;
+            foreach (var l in prop.Losas)
+                sys.Losas.Add(new Losa
+                {
+                    Id = ++losaId,
+                    CoordenadaX = l.XMetros,
+                    CoordenadaY = l.YMetros,
+                    Lx = l.LxM > 0 ? l.LxM : 4.0,
+                    Ly = l.LyM > 0 ? l.LyM : 4.0,
+                    Espesor = 0.12,
+                    Carga = 2.0,
+                    Tipo = 10,
+                });
+
+            int vigaId = nivel.Vigas.Count > 0 ? nivel.Vigas.Max(v => v.Id) : 0;
+            foreach (var v in prop.Vigas)
+            {
+                double dx = v.X2Metros - v.X1Metros, dy = v.Y2Metros - v.Y1Metros;
+                double largo = Math.Sqrt(dx * dx + dy * dy);
+                if (largo <= 0) largo = 3.0;
+
+                var viga = new LosasPlus.Vigas.Viga
+                {
+                    Id = ++vigaId,
+                    Nombre = $"V-{vigaId}",
+                    OrigenX = v.X1Metros,
+                    OrigenY = v.Y1Metros,
+                    AnguloGrados = Math.Atan2(dy, dx) * 180.0 / Math.PI,
+                };
+                viga.Tramos.Add(new LosasPlus.Vigas.TramoViga { Longitud = largo });
+                viga.Apoyos.Add(new LosasPlus.Vigas.ApoyoViga { CoordenadaX = 0.0 });
+                viga.Apoyos.Add(new LosasPlus.Vigas.ApoyoViga { CoordenadaX = largo });
+                nivel.Vigas.Add(viga);
+            }
+
+            int colId = nivel.Columnas.Count > 0 ? nivel.Columnas.Max(c => c.Id) : 0;
+            foreach (var c in prop.Columnas)
+            {
+                colId++;
+                nivel.Columnas.Add(new LosasPlus.Models.Columna
+                {
+                    Id = colId,
+                    Nombre = $"C-{colId}",
+                    CoordenadaX = c.XMetros,
+                    CoordenadaY = c.YMetros,
+                    Base = c.BaseM > 0 ? c.BaseM : 0.30,
+                    Peralte = c.PeralteM > 0 ? c.PeralteM : 0.30,
+                });
+            }
+
+            OnPropertyChanged(nameof(LosasFiltradas));
+            RefreshDLContent();
+            Log($"DXF: {prop.Losas.Count} losas + {prop.Vigas.Count} vigas + {prop.Columnas.Count} columnas en '{nivel.Nombre}'."
+                + (string.IsNullOrEmpty(prop.Advertencias) ? "" : " ⚠ " + prop.Advertencias));
+        }
+        catch (Exception ex) { Log("Error generando desde DXF: " + ex.Message); }
+        finally { Ocupado = false; }
+    }
+
     public void AgregarLosa()
     {
         PushUndoSnapshot();

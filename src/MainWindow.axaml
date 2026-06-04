@@ -281,6 +281,9 @@
                             <MenuItem Header="🖼 Generar sistema desde foto (IA local Qwen)…"
                                       Click="OnGenerarDesdeFotoClick"
                                       ToolTip.Tip="Subí una foto de un esquema de planta; la IA local (Qwen visión) detecta losas y vigas y las crea en el nivel activo. Requiere Ollama + qwen2.5vl corriendo."/>
+                            <MenuItem Header="📐 Generar sistema desde DXF estructural…"
+                                      Click="OnGenerarDesdeDxfClick"
+                                      ToolTip.Tip="Importá un DXF (limpio, solo elementos estructurales) con capas tipo VIGAS/COLUMNAS/LOSAS. Pipeline determinista: usa la geometría EXACTA del DXF para crear losas, vigas y columnas en el nivel activo. Qwen (texto) solo clasifica capas con nombres poco claros; no requiere GPU si las capas están bien nombradas."/>
                         </MenuItem>
                         <MenuItem Header="Export">
                             <MenuItem Header="Generar memoria → abrir MemoriaPlus (Ctrl+G)"
