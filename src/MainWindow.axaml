@@ -791,7 +791,10 @@
 
                 <!-- MODO Planta 2D -->
                 <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Planta2D}">
-                    <v:Planta2DEditorView DataContext="{Binding}"/>
+                    <!-- Paso 5 (unificación): el modo "Planta 2D" abre el editor unificado
+                         (sub-pestañas Estructura + CAD). La vista Planta2DEditorView sigue
+                         existiendo, ahora embebida dentro de EditorUnificadoView. -->
+                    <v:EditorUnificadoView DataContext="{Binding}"/>
                 </ContentControl>
 
                 <!-- MODO Visor PDF (H3) — control autónomo, sin DataContext del VM. -->
