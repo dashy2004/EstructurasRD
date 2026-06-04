@@ -22,12 +22,24 @@ public sealed class QwenAnalizador : IAnalizadorEstructuralIA
     public const string Prompt =
         "Sos un asistente de ingeniería estructural. La imagen es un esquema/planta con " +
         "LOSAS (paños rectangulares) y VIGAS (líneas entre apoyos). Devolvé ÚNICAMENTE un " +
-        "objeto JSON, sin texto adicional ni markdown, con este formato exacto:\n" +
-        "{\"losas\":[{\"x\":0.0,\"y\":0.0,\"lx\":4.0,\"ly\":5.0}],\"vigas\":[{\"x1\":0.0,\"y1\":0.0,\"x2\":6.0,\"y2\":0.0}]}\n" +
-        "Coordenadas en METROS, origen abajo-izquierda. Para cada losa, (x,y) es la esquina " +
-        "inferior-izquierda, lx el ancho en X y ly el alto en Y. Cada viga es un segmento de " +
-        "(x1,y1) a (x2,y2). Estimá dimensiones razonables si no hay cotas. No inventes elementos " +
-        "que no estén en la imagen.";
+        "objeto JSON, sin texto adicional ni markdown. Ejemplo de UN paño 4x5 rodeado por sus 4 " +
+        "vigas (2 horizontales con y constante + 2 verticales con x constante):\n" +
+        "{\"losas\":[{\"x\":0.0,\"y\":0.0,\"lx\":4.0,\"ly\":5.0}]," +
+        "\"vigas\":[{\"x1\":0.0,\"y1\":0.0,\"x2\":4.0,\"y2\":0.0}," +
+        "{\"x1\":0.0,\"y1\":5.0,\"x2\":4.0,\"y2\":5.0}," +
+        "{\"x1\":0.0,\"y1\":0.0,\"x2\":0.0,\"y2\":5.0}," +
+        "{\"x1\":4.0,\"y1\":0.0,\"x2\":4.0,\"y2\":5.0}]}\n" +
+        "SISTEMA DE COORDENADAS (crítico): metros; origen (0,0) en la esquina INFERIOR-IZQUIERDA " +
+        "del dibujo; el eje X crece hacia la DERECHA y el eje Y crece hacia ARRIBA. La fila de " +
+        "abajo en la imagen es y=0; las filas superiores tienen y MAYOR. TODAS las coordenadas " +
+        "deben ser >= 0: NUNCA uses valores negativos (si te da negativo, invertí el eje Y).\n" +
+        "LOSAS: para cada paño, (x,y) es su esquina inferior-izquierda, lx el ancho en X y ly el " +
+        "alto en Y. Usá las cotas si están; si no, estimá dimensiones razonables.\n" +
+        "VIGAS: trazá una viga sobre CADA línea de la retícula que bordea los paños, tanto las " +
+        "HORIZONTALES (y constante) como las VERTICALES (x constante). Una viga entre dos ejes " +
+        "consecutivos va de eje a eje. Incluí los bordes exteriores y los ejes interiores; no " +
+        "omitas líneas. Cada viga es un segmento de (x1,y1) a (x2,y2).\n" +
+        "No inventes elementos que no estén en la imagen.";
 
     private readonly QwenConfig _config;
     private readonly HttpClient _http;
