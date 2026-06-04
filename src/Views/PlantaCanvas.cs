@@ -58,6 +58,48 @@ public class PlantaCanvas : Control
     private void OnModeloCambiado(object? sender, System.EventArgs e)
         => Avalonia.Threading.Dispatcher.UIThread.Post(InvalidateVisual);
 
+    // ---- Underlay PDF (Paso 2 unificación): capa de referencia read-only ----
+    // El plano importado se dibuja DEBAJO de la estructura para calcar sobre él.
+    private PdfReferencia? _pdfRef;
+    public static readonly DirectProperty<PlantaCanvas, PdfReferencia?> PdfRefProperty =
+        AvaloniaProperty.RegisterDirect<PlantaCanvas, PdfReferencia?>(
+            nameof(PdfRef), o => o.PdfRef, (o, v) => o.PdfRef = v);
+    public PdfReferencia? PdfRef
+    {
+        get => _pdfRef;
+        set { if (SetAndRaise(PdfRefProperty, ref _pdfRef, value)) InvalidateVisual(); }
+    }
+
+    private Avalonia.Media.Imaging.Bitmap? _fondoPdf;
+    public static readonly DirectProperty<PlantaCanvas, Avalonia.Media.Imaging.Bitmap?> FondoPdfProperty =
+        AvaloniaProperty.RegisterDirect<PlantaCanvas, Avalonia.Media.Imaging.Bitmap?>(
+            nameof(FondoPdf), o => o.FondoPdf, (o, v) => o.FondoPdf = v);
+    public Avalonia.Media.Imaging.Bitmap? FondoPdf
+    {
+        get => _fondoPdf;
+        set { if (SetAndRaise(FondoPdfProperty, ref _fondoPdf, value)) InvalidateVisual(); }
+    }
+
+    private double _opacidadPdf = 0.6;
+    public static readonly DirectProperty<PlantaCanvas, double> OpacidadPdfProperty =
+        AvaloniaProperty.RegisterDirect<PlantaCanvas, double>(
+            nameof(OpacidadPdf), o => o.OpacidadPdf, (o, v) => o.OpacidadPdf = v);
+    public double OpacidadPdf
+    {
+        get => _opacidadPdf;
+        set { if (SetAndRaise(OpacidadPdfProperty, ref _opacidadPdf, value)) InvalidateVisual(); }
+    }
+
+    private PlanoReferencia? _planoDxf;
+    public static readonly DirectProperty<PlantaCanvas, PlanoReferencia?> PlanoDxfProperty =
+        AvaloniaProperty.RegisterDirect<PlantaCanvas, PlanoReferencia?>(
+            nameof(PlanoDxf), o => o.PlanoDxf, (o, v) => o.PlanoDxf = v);
+    public PlanoReferencia? PlanoDxf
+    {
+        get => _planoDxf;
+        set { if (SetAndRaise(PlanoDxfProperty, ref _planoDxf, value)) InvalidateVisual(); }
+    }
+
     public static readonly DirectProperty<PlantaCanvas, Edificio?> EdificioProperty =
         AvaloniaProperty.RegisterDirect<PlantaCanvas, Edificio?>(
             nameof(Edificio),
@@ -530,6 +572,35 @@ public class PlantaCanvas : Control
             var p1 = MetrosAPixel(PixelAMetros(new Point(0, 0)).X, y);
             var p2 = MetrosAPixel(PixelAMetros(new Point(w, 0)).X, y);
             context.DrawLine(y % 5 == 0 ? boldGridPen : gridPen, p1, p2);
+        }
+
+        // Underlay PDF (capa de referencia importada) — debajo de la estructura,
+        // para calcar losas/columnas/ejes sobre el plano arquitectónico.
+        if (FondoPdf is { } pdfBmp && PdfRef is { } pdfRef && !pdfRef.EstaVacio)
+        {
+            var tl = MetrosAPixel(pdfRef.OffsetX, pdfRef.OffsetY);
+            var br = MetrosAPixel(pdfRef.OffsetX + pdfRef.Ancho * pdfRef.Escala,
+                                  pdfRef.OffsetY + pdfRef.Alto * pdfRef.Escala);
+            var dest = new Rect(Math.Min(tl.X, br.X), Math.Min(tl.Y, br.Y),
+                                Math.Abs(br.X - tl.X), Math.Abs(br.Y - tl.Y));
+            using (context.PushOpacity(Math.Clamp(OpacidadPdf, 0.0, 1.0)))
+                context.DrawImage(pdfBmp, dest);
+        }
+
+        // Underlay DXF (calco vectorial) — líneas y polilíneas, debajo de la estructura.
+        if (PlanoDxf is { } plano && !plano.EstaVacio)
+        {
+            var dxfPen = new Pen(new SolidColorBrush(Color.FromArgb(120, 90, 90, 90)), 1.0);
+            Point W(PuntoCad pt) => MetrosAPixel(plano.OffsetX + pt.X * plano.Escala,
+                                                 plano.OffsetY + pt.Y * plano.Escala);
+            foreach (var ent in plano.Entidades)
+            {
+                if (ent is LineaCad ln)
+                    context.DrawLine(dxfPen, W(ln.Inicio), W(ln.Fin));
+                else if (ent is PolilineaCad pl && pl.Vertices.Count > 1)
+                    for (int i = 1; i < pl.Vertices.Count; i++)
+                        context.DrawLine(dxfPen, W(pl.Vertices[i - 1]), W(pl.Vertices[i]));
+            }
         }
 
         if (Nivel == null) return;

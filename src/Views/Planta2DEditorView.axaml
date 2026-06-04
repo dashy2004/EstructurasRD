@@ -68,7 +68,10 @@
             <!-- Canvas Editor -->
             <Border Grid.Column="0" Background="{DynamicResource BgInput}" ClipToBounds="True" Focusable="True">
                 <v:PlantaCanvas x:Name="EditorCanvas" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                                Nivel="{Binding NivelActivo}" Edificio="{Binding EdificioActivo}"/>
+                                Nivel="{Binding NivelActivo}" Edificio="{Binding EdificioActivo}"
+                                PdfRef="{Binding CadEditor.Pdf}" FondoPdf="{Binding CadEditor.FondoPdf}"
+                                OpacidadPdf="{Binding CadEditor.OpacidadPdf}"
+                                PlanoDxf="{Binding CadEditor.Plano}"/>
             </Border>
 
             <!-- Panel de Propiedades Lateral -->
