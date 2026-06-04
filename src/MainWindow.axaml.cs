@@ -289,6 +289,15 @@ public partial class MainWindow : Window
 
     private void OnGenerarEjesClick(object? sender, RoutedEventArgs e) => Vm.GenerarEjes();
 
+    private async void OnGenerarDesdeFotoClick(object? sender, RoutedEventArgs e)
+    {
+        var path = await AppServices.Dialogs.OpenFileAsync(
+            "Subir foto del esquema (losas / vigas)",
+            new FileFilter("Imágenes", new[] { "*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp" }),
+            new FileFilter("Todos los archivos", new[] { "*" }));
+        if (path is not null) await Vm.GenerarDesdeFotoAsync(path);
+    }
+
     private async void OnExportCsvClick(object? sender, RoutedEventArgs e)
     {
         var path = await AppServices.Dialogs.SaveFileAsync(

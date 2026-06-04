@@ -24,6 +24,9 @@ public sealed record ColumnaPropuesta(double XMetros, double YMetros, double Bas
 /// <summary>Losa propuesta por la IA (esquina + dimensiones, en metros).</summary>
 public sealed record LosaPropuesta(double XMetros, double YMetros, double LxM, double LyM, int Tipo = 10);
 
+/// <summary>Viga propuesta por la IA (segmento (x1,y1)-(x2,y2), en metros).</summary>
+public sealed record VigaPropuesta(double X1Metros, double Y1Metros, double X2Metros, double Y2Metros, string? Nombre = null);
+
 /// <summary>Eje/rejilla propuesto por la IA (etiqueta + recta, en metros).</summary>
 public sealed record EjePropuesto(string Etiqueta, double X1, double Y1, double X2, double Y2);
 
@@ -33,8 +36,9 @@ public sealed record EjePropuesto(string Etiqueta, double X1, double Y1, double 
 /// código.
 /// </summary>
 public sealed record PropuestaElementos(
-    IReadOnlyList<ColumnaPropuesta> Columnas,
     IReadOnlyList<LosaPropuesta> Losas,
+    IReadOnlyList<VigaPropuesta> Vigas,
+    IReadOnlyList<ColumnaPropuesta> Columnas,
     IReadOnlyList<EjePropuesto> Ejes,
     string? Advertencias = null);
 

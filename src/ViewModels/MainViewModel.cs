@@ -1194,6 +1194,73 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         Log($"Ejes generados: {ejes.Count} desde {nivel.Columnas.Count} columnas del nivel '{nivel.Nombre}'.");
     }
 
+    /// <summary>
+    /// Genera losas y vigas en el nivel activo a partir de una FOTO de un esquema,
+    /// usando la IA local (Qwen visión, vía Ollama). La IA solo PROPONE geometría;
+    /// acá se crean los elementos en el modelo (el ingeniero revisa/ajusta luego).
+    /// No modifica el código. Foco actual: losas y vigas.
+    /// </summary>
+    public async Task GenerarDesdeFotoAsync(string imagenPath)
+    {
+        var nivel = NivelActivo;
+        if (nivel is null) { Log("No hay nivel activo donde generar el sistema."); return; }
+
+        try
+        {
+            Ocupado = true;
+            Log($"Analizando '{Path.GetFileName(imagenPath)}' con Qwen (visión)… puede tardar.");
+            PushUndoSnapshot();
+
+            var cfg = new LosasPlus.IA.QwenConfig();   // 127.0.0.1:11434 · qwen2.5vl:7b
+            var prop = await new LosasPlus.IA.QwenAnalizador(cfg).AnalizarAsync(imagenPath);
+
+            if (nivel.Sistemas.Count == 0) nivel.Sistemas.Add(new Sistema { Nombre = "Sistema 1" });
+            var sys = nivel.Sistemas[0];
+
+            int losaId = sys.Losas.Count > 0 ? sys.Losas.Max(l => l.Id) : 0;
+            foreach (var l in prop.Losas)
+                sys.Losas.Add(new Losa
+                {
+                    Id = ++losaId,
+                    CoordenadaX = l.XMetros,
+                    CoordenadaY = l.YMetros,
+                    Lx = l.LxM > 0 ? l.LxM : 4.0,
+                    Ly = l.LyM > 0 ? l.LyM : 4.0,
+                    Espesor = 0.12,
+                    Carga = 2.0,
+                    Tipo = 10,
+                });
+
+            int vigaId = nivel.Vigas.Count > 0 ? nivel.Vigas.Max(v => v.Id) : 0;
+            foreach (var v in prop.Vigas)
+            {
+                double dx = v.X2Metros - v.X1Metros, dy = v.Y2Metros - v.Y1Metros;
+                double largo = Math.Sqrt(dx * dx + dy * dy);
+                if (largo <= 0) largo = 3.0;
+
+                var viga = new LosasPlus.Vigas.Viga
+                {
+                    Id = ++vigaId,
+                    Nombre = $"V-{vigaId}",
+                    OrigenX = v.X1Metros,
+                    OrigenY = v.Y1Metros,
+                    AnguloGrados = Math.Atan2(dy, dx) * 180.0 / Math.PI,
+                };
+                viga.Tramos.Add(new LosasPlus.Vigas.TramoViga { Longitud = largo });
+                viga.Apoyos.Add(new LosasPlus.Vigas.ApoyoViga { CoordenadaX = 0.0 });
+                viga.Apoyos.Add(new LosasPlus.Vigas.ApoyoViga { CoordenadaX = largo });
+                nivel.Vigas.Add(viga);
+            }
+
+            OnPropertyChanged(nameof(LosasFiltradas));
+            RefreshDLContent();
+            Log($"IA: {prop.Losas.Count} losas + {prop.Vigas.Count} vigas generadas en '{nivel.Nombre}'."
+                + (string.IsNullOrEmpty(prop.Advertencias) ? "" : " ⚠ " + prop.Advertencias));
+        }
+        catch (Exception ex) { Log("Error generando desde foto (IA): " + ex.Message); }
+        finally { Ocupado = false; }
+    }
+
     public void AgregarLosa()
     {
         PushUndoSnapshot();

@@ -277,6 +277,10 @@
                             <MenuItem Header="Generar ejes del nivel (desde columnas)"
                                       Click="OnGenerarEjesClick"
                                       ToolTip.Tip="Crea la rejilla de ejes A,B,C / 1,2,3 a partir de las columnas del nivel activo. Los ejes se dibujan en Planta 2D."/>
+                            <Separator/>
+                            <MenuItem Header="🖼 Generar sistema desde foto (IA local Qwen)…"
+                                      Click="OnGenerarDesdeFotoClick"
+                                      ToolTip.Tip="Subí una foto de un esquema de planta; la IA local (Qwen visión) detecta losas y vigas y las crea en el nivel activo. Requiere Ollama + qwen2.5vl corriendo."/>
                         </MenuItem>
                         <MenuItem Header="Export">
                             <MenuItem Header="Generar memoria → abrir MemoriaPlus (Ctrl+G)"
