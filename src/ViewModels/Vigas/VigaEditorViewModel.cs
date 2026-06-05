@@ -12,6 +12,7 @@ using OxyPlot;
 using OxyPlot.Annotations;
 using OxyPlot.Axes;
 using OxyPlot.Series;
+using LosasPlus.Calculo;
 using LosasPlus.Cargas;
 using LosasPlus.Models;
 using LosasPlus.Services;
@@ -682,10 +683,11 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
 
         double b = tramo.Base;
         double h = tramo.Peralte;
+        if (b <= 0 || h <= 0) { m.InvalidatePlot(true); return; }
 
-        // Limites isométricos
-        m.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Minimum = -b * 0.5, Maximum = b * 1.5, IsAxisVisible = false });
-        m.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Minimum = -h * 0.2, Maximum = h * 1.2, IsAxisVisible = false });
+        // Límites isométricos (holgura para cotas y el resumen de armado).
+        m.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Minimum = -b * 0.40, Maximum = b * 1.40, IsAxisVisible = false });
+        m.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Minimum = -h * 0.28, Maximum = h * 1.32, IsAxisVisible = false });
 
         // Rectángulo de concreto
         m.Annotations.Add(new RectangleAnnotation
@@ -697,31 +699,108 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
             StrokeThickness = 2
         });
 
-        // Estribo
-        double rec = 0.04;
-        if (b > 2 * rec && h > 2 * rec)
-        {
-            m.Annotations.Add(new RectangleAnnotation
-            {
-                MinimumX = rec, MaximumX = b - rec,
-                MinimumY = rec, MaximumY = h - rec,
-                Fill = OxyColors.Transparent,
-                Stroke = OxyColors.DarkRed,
-                StrokeThickness = 1.5
-            });
+        // Cotas b (abajo) y h (al costado).
+        m.Annotations.Add(TextoSeccion($"b = {b:0.##} m", b / 2.0, -h * 0.14, OxyPlot.HorizontalAlignment.Center));
+        m.Annotations.Add(TextoSeccion($"h = {h:0.##} m", -b * 0.20, h / 2.0, OxyPlot.HorizontalAlignment.Center, rotation: -90));
 
-            // Refuerzo longitudinal
-            var scatter = new ScatterSeries { MarkerType = MarkerType.Circle, MarkerSize = 5, MarkerFill = OxyColors.DarkBlue, MarkerStroke = OxyColors.White, MarkerStrokeThickness = 1 };
-            scatter.Points.Add(new ScatterPoint(rec, rec));
-            scatter.Points.Add(new ScatterPoint(b - rec, rec));
-            
-            scatter.Points.Add(new ScatterPoint(rec, h - rec));
-            scatter.Points.Add(new ScatterPoint(b - rec, h - rec));
-            m.Series.Add(scatter);
-        }
+        double rec = VigaFlexionDesigner.RecubrimientoDefaultM;
+        if (b <= 2 * rec || h <= 2 * rec) { m.InvalidatePlot(true); return; }
+
+        // Estribo
+        m.Annotations.Add(new RectangleAnnotation
+        {
+            MinimumX = rec, MaximumX = b - rec,
+            MinimumY = rec, MaximumY = h - rec,
+            Fill = OxyColors.Transparent,
+            Stroke = OxyColors.DarkRed,
+            StrokeThickness = 1.5
+        });
+
+        // ---- Armado real: nº de barras desde la envolvente de diseño ----
+        // Cara inferior por el momento positivo (tracción abajo), superior por el
+        // negativo, tomados de la envolvente DENTRO del tramo seleccionado (cada
+        // tramo arma según sus propios momentos). Sin resultado válido aún → 0/0
+        // y gobierna el As mínimo.
+        var (mPos, mNeg) = MomentosDeDisenoDelTramo(tramo);
+
+        // f'c desde el módulo del tramo (Ec = 4700·√f'c, ACI 318 §19.2.2.1); fy grado 60.
+        double eMPa = tramo.ModuloElasticidad / 1000.0;            // kN/m² → MPa
+        double fcMPa = eMPa > 0 ? Math.Pow(eMPa / 4700.0, 2) : 28.0;
+        const double fyMPa = 420.0;
+
+        var dis = VigaFlexionDesigner.DisenarTramo(mPos, mNeg, b, h, fcMPa, fyMPa);
+        AgregarBarrasSeccion(m, dis.Inferior.NumeroDeBarras, rec, b - rec, rec);        // inferior (+M)
+        AgregarBarrasSeccion(m, dis.Superior.NumeroDeBarras, rec, b - rec, h - rec);    // superior (−M)
+
+        // Resumen de armado (arriba de la sección).
+        m.Annotations.Add(TextoSeccion(
+            $"Sup: {ResumenCara(dis.Superior)}   ·   Inf: {ResumenCara(dis.Inferior)}",
+            b / 2.0, h * 1.18, OxyPlot.HorizontalAlignment.Center));
 
         m.InvalidatePlot(true);
     }
+
+    /// <summary>
+    /// Momentos de diseño (positivo y negativo, kN·m) de la envolvente
+    /// restringidos al span del <paramref name="tramo"/> seleccionado, para que
+    /// la sección arme según sus propios momentos. Si no hay envolvente o el
+    /// tramo no está en la viga, cae a la envolvente global; (0,0) si no hay
+    /// resultado válido (→ gobierna el As mínimo).
+    /// </summary>
+    private (double mPos, double mNeg) MomentosDeDisenoDelTramo(TramoViga tramo)
+    {
+        var env = _resultado is { EsInestable: false } ? _resultado.Envolvente : null;
+        if (env is null) return (0.0, 0.0);
+        if (_vigaActiva is null) return (env.MomentoMaximo, env.MomentoMinimo);
+
+        int idx = _vigaActiva.Tramos.IndexOf(tramo);
+        if (idx < 0) return (env.MomentoMaximo, env.MomentoMinimo);
+
+        double x0 = 0.0;
+        for (int i = 0; i < idx; i++) x0 += _vigaActiva.Tramos[i].Longitud;
+        double x1 = x0 + tramo.Longitud;
+
+        const double tol = 1e-6;
+        var enRango = env.Puntos.Where(p => p.X >= x0 - tol && p.X <= x1 + tol).ToList();
+        if (enRango.Count == 0) return (env.MomentoMaximo, env.MomentoMinimo);
+        return (enRango.Max(p => p.MomentoMaximo), enRango.Min(p => p.MomentoMinimo));
+    }
+
+    /// <summary>Dibuja <paramref name="n"/> barras (puntos) repartidas entre x0 y x1 a la altura y.</summary>
+    private static void AgregarBarrasSeccion(PlotModel m, int n, double x0, double x1, double y)
+    {
+        if (n <= 0) return;
+        var scatter = new ScatterSeries
+        {
+            MarkerType = MarkerType.Circle, MarkerSize = 5,
+            MarkerFill = OxyColors.DarkBlue, MarkerStroke = OxyColors.White, MarkerStrokeThickness = 1,
+        };
+        if (n == 1)
+            scatter.Points.Add(new ScatterPoint((x0 + x1) / 2.0, y));
+        else
+            for (int i = 0; i < n; i++)
+                scatter.Points.Add(new ScatterPoint(x0 + (x1 - x0) * i / (n - 1), y));
+        m.Series.Add(scatter);
+    }
+
+    /// <summary>Texto corto del armado de una cara: «4#5» o «sección insuf.».</summary>
+    private static string ResumenCara(DisenoFlexionViga c)
+        => c.SeccionInsuficiente ? "sección insuf." : $"{c.NumeroDeBarras}#{c.NumeroBarra}";
+
+    /// <summary>Anotación de texto reutilizable para cotas y rótulos de la sección.</summary>
+    private static TextAnnotation TextoSeccion(string texto, double x, double y,
+        OxyPlot.HorizontalAlignment ha, double rotation = 0)
+        => new()
+        {
+            Text = texto,
+            TextPosition = new DataPoint(x, y),
+            TextHorizontalAlignment = ha,
+            TextVerticalAlignment = OxyPlot.VerticalAlignment.Middle,
+            TextColor = ColorEje,
+            FontSize = 11,
+            TextRotation = rotation,
+            StrokeThickness = 0,
+        };
 
     // ---- Helpers de OxyPlot ----
 
