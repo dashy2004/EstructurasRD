@@ -1,1 +1,26 @@
-<!doctype html><title>placeholder</title>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Visor estructural — motor-fea</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #101418;
+                 font-family: system-ui, sans-serif; }
+    #msg { position: fixed; top: 8px; left: 8px; padding: 6px 10px;
+           background: rgba(0,0,0,.6); color: #fff; border-radius: 6px; font-size: 14px; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="msg">Cargando…</div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
