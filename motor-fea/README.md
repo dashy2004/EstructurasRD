@@ -51,6 +51,12 @@ peso propio + cargas, y los **modos 1–3**. Un slider exagera el desplazamiento
 se muestra el período real `T` de cada modo; el cálculo ocurre en el servidor
 (reusa el solver y el análisis modal) y el visor solo anima en el cliente.
 
+La vista también obtiene `GET /losa`: el selector gana estados **losa: deflexión /
+momento Mx / momento My** que muestran una losa como superficie coloreada (mapa de
+calor) y abombada según su deformada. Tocar un punto de la losa muestra el valor
+interpolado del campo activo (deflexión en mm, momentos en kN·m/m). El FEM de la
+losa corre en el servidor (reusa `losa_fem`); el visor solo colorea y anima.
+
 ## Desarrollo
 
 ```bash
