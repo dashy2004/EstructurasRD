@@ -34,3 +34,17 @@ def test_index_se_sirve():
     r = cli.get("/")
     assert r.status_code == 200
     assert "text/html" in r.headers["content-type"]
+
+
+def test_cli_serve_invoca_servir(monkeypatch):
+    import motor_fea.api.servidor as srv
+    llamado = {}
+
+    def fake_servir(ruta=None, host="127.0.0.1", port=8000):
+        llamado["args"] = (ruta, host, port)
+
+    monkeypatch.setattr(srv, "servir", fake_servir)
+    from motor_fea.api.cli import main
+    rc = main(["--serve", "--port", "9001"])
+    assert rc == 0
+    assert llamado["args"] == (None, "127.0.0.1", 9001)

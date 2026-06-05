@@ -25,6 +25,11 @@ def main(argv: list[str] | None = None) -> int:
                         help="Resuelve el modelo JSON (ruta o '-' para stdin) y emite resultados JSON.")
     parser.add_argument("--disenar-losa", metavar="PARAMS.json", dest="disenar_losa",
                         help="Diseña una losa por FEM desde un JSON de parámetros (ruta o '-') y emite JSON.")
+    parser.add_argument("--serve", nargs="?", const="", metavar="MODELO.json",
+                        help="Levanta el visor 3D WebXR (requiere el extra api). "
+                             "Sin MODELO.json sirve un pórtico de ejemplo.")
+    parser.add_argument("--host", default="127.0.0.1", help="Host del servidor (--serve).")
+    parser.add_argument("--port", type=int, default=8000, help="Puerto del servidor (--serve).")
     args = parser.parse_args(argv)
 
     if args.version:
@@ -36,6 +41,16 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.disenar_losa:
         return _ejecutar(args.disenar_losa, disenar_losa_json)
+
+    if args.serve is not None:
+        try:
+            from motor_fea.api.servidor import servir
+        except ImportError:
+            print("error: el visor requiere FastAPI. Instala: pip install -e '.[api]'",
+                  file=sys.stderr)
+            return 1
+        servir(args.serve or None, args.host, args.port)
+        return 0
 
     parser.print_help()
     return 0
