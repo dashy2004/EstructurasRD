@@ -74,10 +74,12 @@ def crear_app(modelo: ModeloEstructural) -> FastAPI:
 
     @app.get("/losa")
     def losa():
-        # Losa de ejemplo autónoma (parámetros por defecto): el modelo de barras no
-        # tiene concepto de losa, así que /losa no depende de `modelo` a propósito.
+        # Losa de ejemplo autónoma: el modelo de barras no tiene concepto de losa,
+        # así que /losa no depende de `modelo` a propósito. Se sirve empotrada para
+        # que el momento de apoyo (negativo) ejerza el rango completo del mapa de
+        # color divergente (azul ↔ rojo), no solo el vano positivo.
         try:
-            return calcular_resultados_losa()
+            return calcular_resultados_losa(borde="empotrado")
         except ValueError as ex:
             raise HTTPException(status_code=400, detail=str(ex))
 
