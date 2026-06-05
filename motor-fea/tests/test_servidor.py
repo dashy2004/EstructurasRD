@@ -59,3 +59,12 @@ def test_resultados_ok():
     assert "desplazamientos" in data["deformada"]
     assert len(data["modos"]) == 3          # los 4 nodos superiores tienen masa de peso propio
     assert all(m["periodo"] > 0 for m in data["modos"])
+
+
+def test_losa_ok():
+    cli = TestClient(crear_app(modelo_ejemplo()))
+    r = cli.get("/losa")
+    assert r.status_code == 200
+    data = r.json()
+    assert set(data) >= {"a", "b", "nx", "ny", "factor_sugerido", "campos"}
+    assert set(data["campos"]) == {"deflexion", "momento_mx", "momento_my"}
