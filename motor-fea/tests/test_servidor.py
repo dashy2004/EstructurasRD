@@ -48,3 +48,14 @@ def test_cli_serve_invoca_servir(monkeypatch):
     rc = main(["--serve", "--port", "9001"])
     assert rc == 0
     assert llamado["args"] == (None, "127.0.0.1", 9001)
+
+
+def test_resultados_ok():
+    cli = TestClient(crear_app(modelo_ejemplo()))
+    r = cli.get("/resultados")
+    assert r.status_code == 200
+    data = r.json()
+    assert set(data) >= {"deformada", "modos"}
+    assert "desplazamientos" in data["deformada"]
+    assert len(data["modos"]) == 3          # los 4 nodos superiores tienen masa de peso propio
+    assert all(m["periodo"] > 0 for m in data["modos"])

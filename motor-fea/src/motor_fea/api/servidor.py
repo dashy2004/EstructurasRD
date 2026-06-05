@@ -13,9 +13,10 @@ from fastapi.staticfiles import StaticFiles
 
 from motor_fea.api.contrato import modelo_desde_dict
 from motor_fea.core.modelo import (
-    Apoyo, ElementoFrame, Material, ModeloEstructural, Nodo, Seccion,
+    Apoyo, CargaNodal, ElementoFrame, Material, ModeloEstructural, Nodo, Seccion,
 )
 from motor_fea.viz.escena import exportar_escena
+from motor_fea.viz.resultados import calcular_resultados
 
 _STATIC = Path(__file__).resolve().parent.parent / "viz" / "static"
 
@@ -38,6 +39,8 @@ def modelo_ejemplo() -> ModeloEstructural:
         eid += 1
     for n in (1, 2, 3, 4):
         m.apoyos.append(Apoyo.empotrado(n))
+    for n in (5, 6, 7, 8):                      # carga lateral en +X (deformada visible)
+        m.cargas.append(CargaNodal(n, fx=10000.0))
     return m
 
 
@@ -57,6 +60,13 @@ def crear_app(modelo: ModeloEstructural) -> FastAPI:
     def escena():
         try:
             return exportar_escena(modelo)
+        except ValueError as ex:
+            raise HTTPException(status_code=400, detail=str(ex))
+
+    @app.get("/resultados")
+    def resultados():
+        try:
+            return calcular_resultados(modelo)
         except ValueError as ex:
             raise HTTPException(status_code=400, detail=str(ex))
 
