@@ -45,6 +45,12 @@ quedan declaradas para acelerar a escala urbana (B5).
   Sin `modelo.json` sirve un pórtico de ejemplo. Usa `--host 0.0.0.0` para
   acceder desde el celular/Quest en la misma red.
 
+Además de la geometría, el visor obtiene `GET /resultados` y ofrece un panel
+(arriba a la derecha) para alternar entre **sin deformar**, la **deformada** bajo
+peso propio + cargas, y los **modos 1–3**. Un slider exagera el desplazamiento y
+se muestra el período real `T` de cada modo; el cálculo ocurre en el servidor
+(reusa el solver y el análisis modal) y el visor solo anima en el cliente.
+
 ## Desarrollo
 
 ```bash
