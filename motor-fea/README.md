@@ -40,6 +40,10 @@ quedan declaradas para acelerar a escala urbana (B5).
 
 **Frontera (`api`)**
 - `motor-fea --analyze modelo.json` → resultados JSON (o `-` para stdin).
+- `motor-fea --serve [modelo.json]` → visor 3D WebXR (VR + móvil) en
+  `http://<host>:8000/`. Requiere el extra `api` (`pip install -e ".[api]"`).
+  Sin `modelo.json` sirve un pórtico de ejemplo. Usa `--host 0.0.0.0` para
+  acceder desde el celular/Quest en la misma red.
 
 ## Desarrollo
 
