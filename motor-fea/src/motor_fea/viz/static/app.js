@@ -36,6 +36,12 @@ const MAT = {
 const basePos = {};          // id -> THREE.Vector3 (posición sin deformar)
 const barras = [];           // { mesh, i, j } con caja unitaria en Z (escalable)
 let resultados = null;       // DTO de /resultados (deformada + modos)
+let frameBbox = null;        // bbox del pórtico (de /escena) para reencuadrar
+
+let losa = null;             // DTO de /losa
+let losaMesh = null;         // superficie de la losa (BufferGeometry coloreada)
+let losaActiva = false;      // ¿hay un estado de losa seleccionado?
+let campoLosa = 'deflexion'; // campo activo: deflexion | momento_mx | momento_my
 
 let estado = 'sin-deformar';
 let exag = 0;
@@ -56,7 +62,6 @@ function addBarra(b) {
   barras.push({ mesh, i: b.i, j: b.j });
 }
 
-// Desplazamiento del nodo en el estado activo (THREE.Vector3 a sumar a la base).
 function despNodo(id, fase) {
   if (!resultados) return new THREE.Vector3();
   if (estado === 'deformada') {
@@ -85,9 +90,95 @@ function actualizarBarras(fase) {
     if (!vi || !vj) continue;
     const L = vi.distanceTo(vj);
     bar.mesh.position.copy(vi).lerp(vj, 0.5);
-    bar.mesh.lookAt(vj);                 // orienta el lado +Z hacia el nodo j
+    bar.mesh.lookAt(vj);
     bar.mesh.scale.z = L === 0 ? 1e-6 : L;
   }
+}
+
+// --- Encuadre de cámara reutilizable ---
+function encuadrar(min, max) {
+  const mn = new THREE.Vector3(min[0], min[1], min[2]);
+  const mx = new THREE.Vector3(max[0], max[1], max[2]);
+  const centro = mn.clone().add(mx).multiplyScalar(0.5);
+  const radio = Math.max(mn.distanceTo(mx) / 2, 1);
+  controls.target.copy(centro);
+  camera.position.copy(centro).add(new THREE.Vector3(radio * 1.6, radio * 1.2, radio * 1.6));
+  controls.update();
+}
+
+// --- Losa: construcción de la malla, color por campo y relieve ---
+function valorLosa(campoNombre, i, j) {
+  return losa.campos[campoNombre].valores[`${i},${j}`];
+}
+
+function colorDeCampo(nombre, v, min, max) {
+  if (nombre === 'deflexion') {                       // secuencial azul→rojo
+    const t = max > min ? (v - min) / (max - min) : 0;
+    return new THREE.Color().setHSL((1 - t) * 240 / 360, 1, 0.5);
+  }
+  const M = Math.max(Math.abs(min), Math.abs(max)) || 1;   // divergente centrado en 0
+  const s = v / M;
+  const destino = s < 0 ? new THREE.Color(0x2222ff) : new THREE.Color(0xff2222);
+  return new THREE.Color(1, 1, 1).lerp(destino, Math.min(1, Math.abs(s)));
+}
+
+function construirLosa() {
+  const { a, b, nx, ny } = losa;
+  const nvx = (nx + 1) * (ny + 1);
+  const pos = new Float32Array(nvx * 3);
+  const col = new Float32Array(nvx * 3);
+  for (let j = 0; j <= ny; j++) {
+    for (let i = 0; i <= nx; i++) {
+      const n = j * (nx + 1) + i;
+      pos[n * 3] = i * a / nx;
+      pos[n * 3 + 1] = j * b / ny;
+      pos[n * 3 + 2] = 0;
+    }
+  }
+  const idx = [];
+  for (let cj = 0; cj < ny; cj++) {
+    for (let ci = 0; ci < nx; ci++) {
+      const n00 = cj * (nx + 1) + ci, n10 = cj * (nx + 1) + ci + 1;
+      const n11 = (cj + 1) * (nx + 1) + ci + 1, n01 = (cj + 1) * (nx + 1) + ci;
+      idx.push(n00, n10, n11, n00, n11, n01);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.setIndex(idx);
+  // Heatmap sin iluminación (MeshBasic): el color leído es el dato, no la sombra.
+  const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  losaMesh = new THREE.Mesh(geo, mat);
+  losaMesh.visible = false;
+  scene.add(losaMesh);
+}
+
+function colorearLosa(nombre) {
+  const campo = losa.campos[nombre];
+  const col = losaMesh.geometry.getAttribute('color');
+  const { nx, ny } = losa;
+  for (let j = 0; j <= ny; j++) {
+    for (let i = 0; i <= nx; i++) {
+      const n = j * (nx + 1) + i;
+      const c = colorDeCampo(nombre, valorLosa(nombre, i, j), campo.min, campo.max);
+      col.setXYZ(n, c.r, c.g, c.b);
+    }
+  }
+  col.needsUpdate = true;
+}
+
+function actualizarLosa() {                            // relieve z = −w·exag (cada frame)
+  const pos = losaMesh.geometry.getAttribute('position');
+  const { nx, ny } = losa;
+  for (let j = 0; j <= ny; j++) {
+    for (let i = 0; i <= nx; i++) {
+      const n = j * (nx + 1) + i;
+      const w_m = valorLosa('deflexion', i, j) / 1000;   // mm → m
+      pos.setZ(n, -w_m * exag);
+    }
+  }
+  pos.needsUpdate = true;
 }
 
 // --- Panel de control ---
@@ -101,12 +192,31 @@ function fsDe(est) {
   return 1;
 }
 
+function entrarLosa(est) {
+  campoLosa = est.slice(5);                            // 'deflexion' | 'momento_mx' | 'momento_my'
+  losaActiva = true;
+  for (const bar of barras) bar.mesh.visible = false;
+  losaMesh.visible = true;
+  colorearLosa(campoLosa);
+  const fs = losa.factor_sugerido;
+  exagInput.min = 0; exagInput.max = fs * 5; exagInput.step = fs / 100;
+  exagInput.value = fs; exag = fs;
+  const campo = losa.campos[campoLosa];
+  const et = { deflexion: 'deflexión', momento_mx: 'momento Mx', momento_my: 'momento My' }[campoLosa];
+  info.textContent = `${et}: ${campo.min.toFixed(1)} … ${campo.max.toFixed(1)} ${campo.unidad}`;
+  encuadrar([0, 0, 0], [losa.a, losa.b, 0]);
+}
+
 function setEstado(nuevo) {
+  if (nuevo.startsWith('losa-')) { estado = nuevo; entrarLosa(nuevo); return; }
+  const veniaDeLosa = losaActiva;
   estado = nuevo;
+  losaActiva = false;
+  if (losaMesh) losaMesh.visible = false;
+  for (const bar of barras) bar.mesh.visible = true;
+  if (veniaDeLosa && frameBbox) encuadrar(frameBbox.min, frameBbox.max);
   const fs = fsDe(estado);
-  exagInput.min = 0;
-  exagInput.max = fs * 5;                // rango 0 … factor_sugerido×5
-  exagInput.step = fs / 100;
+  exagInput.min = 0; exagInput.max = fs * 5; exagInput.step = fs / 100;
   exagInput.value = estado === 'sin-deformar' ? 0 : fs;
   exag = parseFloat(exagInput.value);
   if (estado.startsWith('modo-')) {
@@ -127,6 +237,33 @@ btnPlay.addEventListener('click', () => {
   btnPlay.setAttribute('aria-label', playing ? 'pausar' : 'reanudar');
 });
 
+// --- Tocar la losa → valor interpolado del campo activo ---
+const punteroRay = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+renderer.domElement.addEventListener('pointerdown', (ev) => {
+  if (!losaActiva || !losaMesh || renderer.xr.isPresenting) return;
+  ndc.x = (ev.clientX / innerWidth) * 2 - 1;
+  ndc.y = -(ev.clientY / innerHeight) * 2 + 1;
+  punteroRay.setFromCamera(ndc, camera);
+  const hits = punteroRay.intersectObject(losaMesh);
+  if (!hits.length) return;
+  mostrarValorEnPunto(hits[0].point.x, hits[0].point.y);
+});
+
+function mostrarValorEnPunto(x, y) {
+  const { a, b, nx, ny } = losa;
+  const lx = a / nx, ly = b / ny;
+  const ci = Math.max(0, Math.min(nx - 1, Math.floor(x / lx)));
+  const cj = Math.max(0, Math.min(ny - 1, Math.floor(y / ly)));
+  const fx = Math.max(0, Math.min(1, (x - ci * lx) / lx));
+  const fy = Math.max(0, Math.min(1, (y - cj * ly) / ly));
+  const V = (i, j) => valorLosa(campoLosa, i, j);
+  const v = (1 - fx) * (1 - fy) * V(ci, cj) + fx * (1 - fy) * V(ci + 1, cj)
+          + fx * fy * V(ci + 1, cj + 1) + (1 - fx) * fy * V(ci, cj + 1);
+  const et = { deflexion: 'w', momento_mx: 'Mx', momento_my: 'My' }[campoLosa];
+  info.textContent = `${et} = ${v.toFixed(2)} ${losa.campos[campoLosa].unidad} @ (${x.toFixed(1)}, ${y.toFixed(1)}) m`;
+}
+
 // --- Carga de geometría (/escena) ---
 async function cargar() {
   let data;
@@ -142,21 +279,15 @@ async function cargar() {
   for (const b of data.barras) {
     if (basePos[b.i] && basePos[b.j]) addBarra(b);
   }
-
-  // Auto-encuadre con bbox.
-  const mn = new THREE.Vector3(data.bbox.min[0], data.bbox.min[1], data.bbox.min[2]);
-  const mx = new THREE.Vector3(data.bbox.max[0], data.bbox.max[1], data.bbox.max[2]);
-  const centro = mn.clone().add(mx).multiplyScalar(0.5);
-  const radio = Math.max(mn.distanceTo(mx) / 2, 1);
-  controls.target.copy(centro);
-  camera.position.copy(centro).add(new THREE.Vector3(radio * 1.6, radio * 1.2, radio * 1.6));
-  controls.update();
+  frameBbox = data.bbox;
+  encuadrar(data.bbox.min, data.bbox.max);
   setMsg(`${data.barras.length} barras · ${data.nodos.length} nodos`);
 
   await cargarResultados();
+  await cargarLosa();
 }
 
-// --- Carga de resultados (/resultados) ---
+// --- Carga de resultados de pórtico (/resultados) ---
 async function cargarResultados() {
   try {
     const r = await fetch('./resultados');
@@ -170,6 +301,21 @@ async function cargarResultados() {
   for (const m of resultados.modos) {
     selEstado.add(new Option('modo ' + m.indice, 'modo-' + m.indice));
   }
+}
+
+// --- Carga de la losa (/losa) ---
+async function cargarLosa() {
+  try {
+    const r = await fetch('./losa');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    losa = await r.json();
+  } catch (e) {
+    return;   // sin losa: simplemente no se agregan los estados de losa
+  }
+  construirLosa();
+  selEstado.add(new Option('losa: deflexión', 'losa-deflexion'));
+  selEstado.add(new Option('losa: momento Mx', 'losa-momento_mx'));
+  selEstado.add(new Option('losa: momento My', 'losa-momento_my'));
 }
 
 // --- WebXR: botón solo si hay soporte ---
@@ -245,7 +391,8 @@ renderer.setAnimationLoop((time) => {
   if (playing) tAcum += dt;
   const fase = Math.sin((2 * Math.PI * tAcum) / T_DISPLAY);
 
-  actualizarBarras(fase);
+  if (losaActiva) actualizarLosa();
+  else actualizarBarras(fase);
 
   if (renderer.xr.isPresenting) actualizarTeletransporte();
   else controls.update();
