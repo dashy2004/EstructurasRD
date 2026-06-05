@@ -9,6 +9,12 @@
                  font-family: system-ui, sans-serif; }
     #msg { position: fixed; top: 8px; left: 8px; padding: 6px 10px;
            background: rgba(0,0,0,.6); color: #fff; border-radius: 6px; font-size: 14px; }
+    #panel { position: fixed; top: 8px; right: 8px; padding: 8px 10px;
+             background: rgba(0,0,0,.6); color: #fff; border-radius: 6px;
+             font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
+    #panel .fila { display: flex; align-items: center; gap: 6px; }
+    #panel select, #panel button { font-size: 13px; }
+    #info { min-height: 16px; opacity: .85; }
   </style>
   <!-- three.js vendorizado (sin CDN): el visor funciona 100% offline y se elimina
        el riesgo de cadena de suministro. Mapeos explícitos por-archivo: solo se
@@ -25,6 +31,19 @@
 </head>
 <body>
   <div id="msg">Cargando…</div>
+  <div id="panel">
+    <div class="fila">
+      <select id="estado" aria-label="estado de visualización">
+        <option value="sin-deformar">sin deformar</option>
+      </select>
+      <button id="play" type="button" aria-label="pausar">⏸</button>
+    </div>
+    <div class="fila">
+      <label for="exag">exag</label>
+      <input type="range" id="exag" min="0" max="100" step="1" value="0">
+    </div>
+    <span id="info"></span>
+  </div>
   <script type="module" src="./app.js"></script>
 </body>
 </html>
