@@ -32,7 +32,13 @@ motor-fea = "motor_fea.api.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"motor_fea.viz" = ["static/*.html", "static/*.js"]
+"motor_fea.viz" = [
+    "static/*.html",
+    "static/*.js",
+    "static/vendor/*.js",
+    "static/vendor/addons/controls/*.js",
+    "static/vendor/addons/webxr/*.js",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

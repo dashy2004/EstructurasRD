@@ -10,11 +10,15 @@
     #msg { position: fixed; top: 8px; left: 8px; padding: 6px 10px;
            background: rgba(0,0,0,.6); color: #fff; border-radius: 6px; font-size: 14px; }
   </style>
+  <!-- three.js vendorizado (sin CDN): el visor funciona 100% offline y se elimina
+       el riesgo de cadena de suministro. Mapeos explícitos por-archivo: solo se
+       exponen los dos addons realmente usados. -->
   <script type="importmap">
   {
     "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      "three": "./vendor/three.module.js",
+      "three/addons/controls/OrbitControls.js": "./vendor/addons/controls/OrbitControls.js",
+      "three/addons/webxr/VRButton.js": "./vendor/addons/webxr/VRButton.js"
     }
   }
   </script>
