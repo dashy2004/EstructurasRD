@@ -117,6 +117,12 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
     /// <summary>Modelo de OxyPlot que representa el diagrama P-M.</summary>
     public PlotModel? ModeloInteraccion { get; private set; }
 
+    /// <summary>Resumen del armado longitudinal: «N #b · As = … cm²», o null si no hay diseño válido.</summary>
+    public string? ArmadoLongitudinal { get; private set; }
+
+    /// <summary>Sección transversal de la columna (concreto + estribo + barras reales), o null.</summary>
+    public PlotModel? ModeloSeccionColumna { get; private set; }
+
     private void RecalcularDiseno()
     {
         var col = _seleccionada;
@@ -126,6 +132,8 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
         {
             DisenoActual = null;
             EsbeltezActual = null;
+            ArmadoLongitudinal = null;
+            ModeloSeccionColumna = null;
         }
         else
         {
@@ -136,12 +144,78 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
             DisenoActual = ColumnaDisenador.DisenarColumna(sec, _numeroBarra, _puKN * 1000.0, _muKNm * 1e6);
             EsbeltezActual = ColumnaDisenador.ResumenEsbeltez(
                 sec, _factorK, _luMm, _puKN * 1000.0, m1: 0.0, m2: _muKNm * 1e6, cm: 1.0);
+            // Armado longitudinal real (nº de barras y As total, mm² → cm²) y su dibujo de sección.
+            ArmadoLongitudinal = $"{barras.Count} #{_numeroBarra}  ·  As = {sec.Ast / 100.0:0.0} cm²";
+            ModeloSeccionColumna = ConstruirSeccionColumna(col, b, h, _recubrimientoMm, barras);
         }
         ConstruirPlot();   // maneja DisenoActual==null → ModeloInteraccion=null (evita dejar el plot viejo stale)
         OnPropertyChanged(nameof(DisenoActual));
         OnPropertyChanged(nameof(EsbeltezActual));
         OnPropertyChanged(nameof(ModeloInteraccion));
+        OnPropertyChanged(nameof(ArmadoLongitudinal));
+        OnPropertyChanged(nameof(ModeloSeccionColumna));
     }
+
+    /// <summary>
+    /// Dibuja la sección transversal de la columna: concreto B×H, estribo y las
+    /// barras longitudinales REALES en sus posiciones (coords respecto al centro,
+    /// mm) más las cotas B/H. Solo presentación — la geometría/armado salen del
+    /// diseño (<see cref="ColumnaDisenador.LayoutPerimetral"/>).
+    /// </summary>
+    private static PlotModel ConstruirSeccionColumna(
+        Columna col, double bMm, double hMm, double recMm, System.Collections.Generic.IReadOnlyList<BarraLong> barras)
+    {
+        var m = new PlotModel { Background = OxyColors.Transparent, PlotAreaBorderColor = OxyColors.Transparent };
+        m.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Minimum = -bMm * 0.80, Maximum = bMm * 0.80, IsAxisVisible = false });
+        m.Axes.Add(new LinearAxis { Position = AxisPosition.Left,   Minimum = -hMm * 0.85, Maximum = hMm * 0.85, IsAxisVisible = false });
+
+        // Concreto B×H (centrado en el origen).
+        m.Annotations.Add(new RectangleAnnotation
+        {
+            MinimumX = -bMm / 2, MaximumX = bMm / 2, MinimumY = -hMm / 2, MaximumY = hMm / 2,
+            Fill = OxyColor.FromAColor(80, OxyColors.Gray), Stroke = OxyColors.Black, StrokeThickness = 2,
+        });
+
+        // Estribo (recubrimiento al centro de la barra).
+        double xi = bMm / 2 - recMm, yi = hMm / 2 - recMm;
+        if (xi > 0 && yi > 0)
+            m.Annotations.Add(new RectangleAnnotation
+            {
+                MinimumX = -xi, MaximumX = xi, MinimumY = -yi, MaximumY = yi,
+                Fill = OxyColors.Transparent, Stroke = OxyColors.DarkRed, StrokeThickness = 1.5,
+            });
+
+        // Barras longitudinales reales.
+        var scatter = new ScatterSeries
+        {
+            MarkerType = MarkerType.Circle, MarkerSize = 5,
+            MarkerFill = OxyColors.DarkBlue, MarkerStroke = OxyColors.White, MarkerStrokeThickness = 1,
+        };
+        foreach (var br in barras) scatter.Points.Add(new ScatterPoint(br.X, br.Y));
+        m.Series.Add(scatter);
+
+        // Cotas B (abajo) y H (al costado).
+        var cota = OxyColor.Parse("#94A3B8");
+        m.Annotations.Add(TextoCota($"B = {col.Base:0.##} m", 0, -hMm * 0.64, cota, 0));
+        m.Annotations.Add(TextoCota($"H = {col.Peralte:0.##} m", -bMm * 0.64, 0, cota, -90));
+
+        m.InvalidatePlot(true);
+        return m;
+    }
+
+    /// <summary>Anotación de texto para las cotas de la sección.</summary>
+    private static TextAnnotation TextoCota(string texto, double x, double y, OxyColor color, double rotation)
+        => new()
+        {
+            Text = texto,
+            TextPosition = new DataPoint(x, y),
+            TextHorizontalAlignment = OxyPlot.HorizontalAlignment.Center,
+            TextVerticalAlignment = OxyPlot.VerticalAlignment.Middle,
+            TextColor = color,
+            FontSize = 11,
+            TextRotation = rotation,
+            StrokeThickness = 0,
+        };
 
     private void ConstruirPlot()
     {

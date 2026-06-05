@@ -137,6 +137,14 @@
                         <Border Height="1" Background="{DynamicResource Border}" Margin="0,4"/>
 
                         <TextBlock Text="Resultados del Diseño" Theme="{StaticResource EtiquetaSeccion}" FontSize="14"/>
+
+                        <!-- Armado longitudinal real (nº de barras + As), bound al VM -->
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                            <TextBlock Grid.Column="0" Text="Armado longitudinal" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="{Binding ArmadoLongitudinal}"
+                                       FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </Grid>
+
                         <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,0,0,12"
                               DataContext="{Binding DisenoActual}">
                             
@@ -189,6 +197,12 @@
                             </StackPanel>
                         </Grid>
 
+                        <TextBlock Text="Sección transversal" Theme="{StaticResource EtiquetaSeccion}" FontSize="14"/>
+                        <Border Height="220" BorderBrush="{DynamicResource Border}" BorderThickness="1" Background="{DynamicResource BgInput}">
+                            <oxy:PlotView Model="{Binding ModeloSeccionColumna}" Background="Transparent" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
+                        </Border>
+
+                        <TextBlock Text="Diagrama de Interacción P-M" Theme="{StaticResource EtiquetaSeccion}" FontSize="14"/>
                         <Border Height="300" BorderBrush="{DynamicResource Border}" BorderThickness="1" Background="{DynamicResource BgInput}">
                             <oxy:PlotView Model="{Binding ModeloInteraccion}" Background="Transparent" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
                         </Border>
