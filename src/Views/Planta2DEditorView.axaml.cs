@@ -462,7 +462,11 @@ public partial class Planta2DEditorView : UserControl
         try
         {
             var columnas = nivel.Columnas;
-            var viga = GeneradorVigas.VigaContinuaDeColumnas(eje, columnas, 0.0, 0.5, "D");
+            // Carga lineal tributaria de las losas del nivel sobre el eje (kN/m),
+            // en vez de 0 → la viga continua queda realmente cargada.
+            var losas = nivel.Sistemas.SelectMany(s => s.Losas);
+            double w = GeneradorVigas.CargaLinealTributariaDelEje(eje, losas, 0.5);
+            var viga = GeneradorVigas.VigaContinuaDeColumnas(eje, columnas, w, 0.5, "D");
             int newId = nivel.Vigas.Count > 0 ? nivel.Vigas.Max(v => v.Id) + 1 : 1;
             viga.Id = newId;
             viga.Nombre = $"V-{newId} ({eje.Etiqueta})";

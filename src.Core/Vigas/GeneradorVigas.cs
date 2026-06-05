@@ -179,6 +179,36 @@ public static class GeneradorVigas
     }
 
     /// <summary>
+    /// <b>Carga lineal tributaria</b> (kN/m) sobre un eje, desde las losas que
+    /// cruza (<see cref="SeccionPorEje.Losas"/>): cada paño aporta la <b>mitad</b>
+    /// de su carga última total (<c>Wu·Lx·Ly</c>, en ton; la otra mitad va a la
+    /// viga paralela del borde opuesto), la suma se convierte a kN y se reparte
+    /// uniformemente sobre la longitud del eje.
+    ///
+    /// <para>Aproximación documentada — carga uniforme equivalente que conserva la
+    /// fuerza tributaria total (mismo criterio que <see cref="VigasDeLosa"/>); no
+    /// distingue dirección de armado del paño. <see cref="Losa.Carga"/> está en
+    /// ton/m² (Wu). Eje degenerado o sin losas → 0.</para>
+    /// </summary>
+    public static double CargaLinealTributariaDelEje(
+        EjeEstructural eje, IEnumerable<Losa> losas, double tolerancia)
+    {
+        if (eje is null || losas is null) return 0.0;
+        double dx = eje.PuntoFin.X - eje.PuntoInicio.X;
+        double dy = eje.PuntoFin.Y - eje.PuntoInicio.Y;
+        double largo = System.Math.Sqrt(dx * dx + dy * dy);
+        if (largo <= 0) return 0.0;
+
+        double fuerzaTon = 0.0;
+        foreach (var l in SeccionPorEje.Losas(eje, losas, tolerancia))
+        {
+            if (l.Carga <= 0 || l.Lx <= 0 || l.Ly <= 0) continue;
+            fuerzaTon += l.Carga * l.Lx * l.Ly * 0.5;   // mitad del paño a esta viga
+        }
+        return fuerzaTon * TonF_a_KN / largo;            // ton → kN, repartido sobre el largo → kN/m
+    }
+
+    /// <summary>
     /// Genera las cuatro vigas de apoyo de un paño de losa, cargadas con la carga
     /// tributaria que cada borde recibe por áreas tributarias
     /// (<see cref="RepartoCargaLosa"/>): dos vigas de la luz corta y dos de la luz
