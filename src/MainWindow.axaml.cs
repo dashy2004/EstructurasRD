@@ -307,6 +307,35 @@ public partial class MainWindow : Window
         if (path is not null) await Vm.GenerarDesdeDxfAsync(path);
     }
 
+    /// <summary>
+    /// Engine → «Calcular carga última (Wu) desde geometría»: aplica Wu a cada
+    /// losa del proyecto (lo escribe en Losa.Carga) y abre un modal con el
+    /// desglose Qmamp/Qmap/Qd/Ql/Qu por losa. Acción aditiva.
+    /// </summary>
+    private async void OnCalcularCargaUltimaClick(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var filas = Vm.AplicarCargaUltimaConDesglose();
+            if (filas.Count == 0)
+            {
+                await AppServices.MessageBox.InfoAsync("Carga última (Wu)",
+                    "No hay losas en el edificio activo para calcular la carga última.");
+                return;
+            }
+            // Fórmula real del proyecto (no hardcodeada): refleja los factores
+            // vigentes en CargasGlobales.Factores, que un proyecto puede cambiar.
+            var f = Vm.Proyecto.Cargas.Factores;
+            string combinacion = $"Qu = {f.FactorD:0.##}·Qd + {f.FactorL:0.##}·Ql ({f.Norma})";
+            await new Views.CargaUltimaWindow(filas, combinacion).ShowDialog(this);
+        }
+        catch (Exception ex)
+        {
+            await AppServices.MessageBox.InfoAsync("Carga última (Wu)",
+                "No se pudo calcular la carga última:\n" + ex.Message);
+        }
+    }
+
     private async void OnExportCsvClick(object? sender, RoutedEventArgs e)
     {
         var path = await AppServices.Dialogs.SaveFileAsync(

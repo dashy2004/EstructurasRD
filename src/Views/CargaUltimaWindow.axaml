@@ -1,0 +1,53 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="LosasPlus.Views.CargaUltimaWindow"
+        x:CompileBindings="False"
+        Title="Carga última (Wu) desde geometría"
+        Width="880" Height="560" MinWidth="660" MinHeight="430"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource BgPrimary}"
+        Foreground="{DynamicResource FgPrimary}">
+
+    <DockPanel Margin="20">
+        <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+            <TextBlock FontSize="16" FontWeight="Bold"
+                       Text="Carga última (Wu) aplicada a las losas"/>
+            <TextBlock x:Name="ResumenLabel" Margin="0,6,0,0" FontSize="13"/>
+            <TextBlock x:Name="NotaLabel" Margin="0,6,0,0" FontSize="11" TextWrapping="Wrap"
+                       Foreground="{DynamicResource FgMuted}"/>
+        </StackPanel>
+
+        <Border DockPanel.Dock="Bottom" Margin="0,12,0,0">
+            <DockPanel LastChildFill="False">
+                <Button DockPanel.Dock="Right" Padding="14,6" Margin="6,0,0,0"
+                        Content="Cerrar" IsCancel="True" Click="OnCerrarClick"/>
+                <Button DockPanel.Dock="Right" Padding="14,6"
+                        Content="Copiar desglose" Click="OnCopiarClick"/>
+            </DockPanel>
+        </Border>
+
+        <DataGrid x:Name="FilasGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                  GridLinesVisibility="Horizontal" RowHeight="30"
+                  Background="{DynamicResource BgSecondary}"
+                  BorderBrush="{DynamicResource Border}" BorderThickness="1">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Nivel" Width="Auto" Binding="{Binding Nivel}"/>
+                <DataGridTextColumn Header="Sistema" Width="*" Binding="{Binding Sistema}"/>
+                <DataGridTextColumn Header="Losa" Width="55" Binding="{Binding Losa}"/>
+                <DataGridTextColumn Header="h (m)" Width="75"
+                                    Binding="{Binding Espesor, StringFormat={}{0:0.000}}"/>
+                <DataGridTextColumn Header="Qmamp (ton, sist.)" Width="135"
+                                    Binding="{Binding Qmamp, StringFormat={}{0:0.00}}"/>
+                <DataGridTextColumn Header="Qmap (t/m², sist.)" Width="135"
+                                    Binding="{Binding Qmap, StringFormat={}{0:0.000}}"/>
+                <DataGridTextColumn Header="Qd (t/m²)" Width="105"
+                                    Binding="{Binding Qd, StringFormat={}{0:0.000}}"/>
+                <DataGridTextColumn Header="Ql (t/m²)" Width="105"
+                                    Binding="{Binding Ql, StringFormat={}{0:0.000}}"/>
+                <DataGridTextColumn Header="Qu (t/m²)" Width="105"
+                                    Binding="{Binding Qu, StringFormat={}{0:0.000}}"
+                                    FontWeight="SemiBold"/>
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</Window>

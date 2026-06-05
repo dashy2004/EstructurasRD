@@ -204,6 +204,36 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     public ICommand? CalcularCargaUltimaCommand { get; private set; }
     public ICommand? AutoBalanceoCommand { get; private set; }
 
+    /// <summary>
+    /// Aplica la carga última (Wu) a cada losa de TODOS los niveles del edificio
+    /// activo a partir de la geometría (espesor, acabados, muros dibujados y uso;
+    /// LRFD 1.2D+1.6L por defecto) y devuelve el desglose por losa para mostrarlo.
+    /// El alcance es el edificio activo (no solo el nivel visible) para que la
+    /// bajada de cargas vea el Wu de todos los niveles. Acción explícita y
+    /// aditiva: muta <c>Losa.Carga</c>, NO reemplaza el flujo de Losas.exe.
+    /// </summary>
+    public IReadOnlyList<CargaUltimaFila> AplicarCargaUltimaConDesglose()
+    {
+        var filas = new List<CargaUltimaFila>();
+        var edificio = EdificioActivo;
+        if (edificio == null) return filas;
+        foreach (var nivel in edificio.Niveles)
+        foreach (var s in nivel.Sistemas)
+        {
+            // AplicarCargaUltima devuelve exactamente una entrada por losa, en el
+            // orden de s.Losas (contrato verificado por CargaUltimaCalculatorTests),
+            // así que desglose[i] ↔ s.Losas[i] está alineado.
+            var desglose = LosasPlus.Transmision.CargaUltimaCalculator.AplicarCargaUltima(s, _proyecto.Cargas);
+            for (int i = 0; i < desglose.Count; i++)
+            {
+                var r = desglose[i];
+                filas.Add(new CargaUltimaFila(nivel.Nombre, s.Nombre, i + 1, s.Losas[i].Espesor,
+                                              r.Qmamp, r.Qmap, r.Qd, r.Ql, r.Qu));
+            }
+        }
+        return filas;
+    }
+
     private bool _modoConectarBordes;
     /// <summary>
     /// Toggle de "modo conexión por ID": cuando es true, click en una celda
@@ -805,14 +835,10 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         IrABusquedaCommand = new RelayCommand(_ => ModoActivo = ModoSidebar.Busqueda);
         GenerarMemoriaCommand = new RelayCommand(_ => GenerarMemoria());
         
-        CalcularCargaUltimaCommand = new RelayCommand(_ => 
-        {
-            if (_proyecto == null) return;
-            foreach (var s in _proyecto.Sistemas)
-            {
-                LosasPlus.Transmision.CargaUltimaCalculator.AplicarCargaUltima(s, _proyecto.Cargas);
-            }
-        });
+        // Back-compat: el comando sigue existiendo (aplica Wu) pero ahora delega
+        // en el método que también devuelve el desglose. El menú Engine usa un
+        // handler en el code-behind que abre el modal con ese desglose.
+        CalcularCargaUltimaCommand = new RelayCommand(_ => AplicarCargaUltimaConDesglose());
 
         AutoBalanceoCommand   = new RelayCommand(_ => AplicarAutoBalanceo());
         DisenarConMotorFeaCommand = new MemoriaPlus.Common.AsyncRelayCommand(DisenarConMotorFeaAsync);
