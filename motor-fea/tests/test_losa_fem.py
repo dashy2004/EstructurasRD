@@ -106,3 +106,14 @@ def test_empotrada_apoyo_converge():
     c10 = resolver_losa_rectangular(A, A, 10, 10, E, NU, T, Q, "empotrado").m_apoyo_max / qa2
     assert c6 < c10                                   # converge hacia ~0.05 (Timoshenko)
     assert 0.04 < c10 < 0.055
+
+
+def test_momentos_nodales_cubre_la_malla_y_es_simetrico_en_el_centro():
+    r = resolver_losa_rectangular(A, A, 4, 4, E, NU, T, Q, "simple")
+    # cubre los (nx+1)*(ny+1) = 25 nodos de la grilla
+    assert len(r.momentos_nodales) == 25
+    # nodo central (2,2): por simetría de la losa cuadrada, mx ≈ my
+    mx_c, my_c = r.momentos_nodales[(2, 2)]
+    assert abs(mx_c - my_c) < 1e-6 * (abs(mx_c) + abs(my_c))
+    # momento interior no nulo
+    assert abs(mx_c) > 0.0

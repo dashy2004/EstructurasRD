@@ -12,7 +12,7 @@ Unidades SI: a,b,t en m; E en Pa; q en N/m² → w en m.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from motor_fea.core.placa import GDL_POR_NODO_PLACA, momentos_elemento, rigidez_placa
 from motor_fea.core.solver import resolver_lineal
@@ -28,6 +28,7 @@ class ResultadoLosa:
     my_max: float = 0.0      # |My| máximo
     mxy_max: float = 0.0     # |Mxy| máximo
     m_apoyo_max: float = 0.0 # |M| máximo en el contorno (momento de apoyo, acero superior)
+    momentos_nodales: dict[tuple[int, int], tuple[float, float]] = field(default_factory=dict)
 
 
 def _idx(i: int, j: int, nx: int) -> int:
@@ -94,8 +95,10 @@ def resolver_losa_rectangular(a: float, b: float, nx: int, ny: int,
                        for i in range(nx + 1) for j in range(ny + 1)}
     w_central = desplazamientos.get((nx // 2, ny // 2), 0.0)
 
-    # Recuperar momentos en el centro de cada elemento y quedarse con los máximos.
+    # Recuperar momentos en el centro de cada elemento: máximos (vano) y, de paso,
+    # acumularlos en los nodos de cada celda para el campo nodal (heatmap, Fase 3).
     mx_max = my_max = mxy_max = 0.0
+    suma_m: dict[tuple[int, int], list[float]] = {}   # (i,j) → [Σmx, Σmy, n_adyacentes]
     for cj in range(ny):
         for ci in range(nx):
             nodos = [_idx(ci, cj, nx), _idx(ci + 1, cj, nx),
@@ -105,6 +108,12 @@ def resolver_losa_rectangular(a: float, b: float, nx: int, ny: int,
             mx_max = max(mx_max, abs(mx))
             my_max = max(my_max, abs(my))
             mxy_max = max(mxy_max, abs(mxy))
+            for ij in ((ci, cj), (ci + 1, cj), (ci + 1, cj + 1), (ci, cj + 1)):
+                acc = suma_m.setdefault(ij, [0.0, 0.0, 0])
+                acc[0] += mx
+                acc[1] += my
+                acc[2] += 1
+    momentos_nodales = {ij: (s[0] / s[2], s[1] / s[2]) for ij, s in suma_m.items()}
 
     # Momento de apoyo (acero superior): muestrear el punto medio de la arista que
     # cae sobre el contorno, en los elementos de borde. En apoyo simple ~0; en
@@ -126,7 +135,8 @@ def resolver_losa_rectangular(a: float, b: float, nx: int, ny: int,
                 mx, my, _ = momentos_elemento(lx, ly, E, nu, t, d_elem, fx, fy)
                 m_apoyo_max = max(m_apoyo_max, abs(mx), abs(my))
 
-    return ResultadoLosa(nx, ny, desplazamientos, w_central, mx_max, my_max, mxy_max, m_apoyo_max)
+    return ResultadoLosa(nx, ny, desplazamientos, w_central, mx_max, my_max, mxy_max,
+                         m_apoyo_max, momentos_nodales)
 
 
 def rigidez_flexional_placa(E: float, nu: float, t: float) -> float:
