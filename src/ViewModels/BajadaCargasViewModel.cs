@@ -71,6 +71,37 @@ public sealed class BajadaCargasViewModel : INotifyPropertyChanged
         private set { _ladoZapata = value; OnPropertyChanged(); }
     }
 
+    // ---- Parámetros editables del diseño estructural de la zapata (item H) ----
+    private double _peralteZapataM = 0.40;
+    /// <summary>Peralte (espesor) h de la zapata para el diseño, en m (editable). Gobierna punzonamiento/cortante.</summary>
+    public double PeralteZapataM
+    {
+        get => _peralteZapataM;
+        set { if (value == _peralteZapataM) return; _peralteZapataM = value; OnPropertyChanged(); RedisenarSiHay(); }
+    }
+
+    private double _fcMPa = 21.0;
+    /// <summary>f'c del hormigón de las zapatas, en MPa (editable; típico de cimientos).</summary>
+    public double FcMPa
+    {
+        get => _fcMPa;
+        set { if (value == _fcMPa) return; _fcMPa = value; OnPropertyChanged(); RedisenarSiHay(); }
+    }
+
+    private double _fyMPa = 420.0;
+    /// <summary>fy del acero de las zapatas, en MPa (editable).</summary>
+    public double FyMPa
+    {
+        get => _fyMPa;
+        set { if (value == _fyMPa) return; _fyMPa = value; OnPropertyChanged(); RedisenarSiHay(); }
+    }
+
+    /// <summary>Re-diseña las zapatas si la tabla ya está poblada, para reflejar en vivo los cambios de h/f'c/fy.</summary>
+    private void RedisenarSiHay()
+    {
+        if (ZapatasDiseno.Count > 0) PredimensionarZapatas();
+    }
+
     /// <summary>Recarga la bajada de cargas desde el edificio activo y recalcula la zapata.</summary>
     public void Recalcular()
     {
@@ -131,17 +162,18 @@ public sealed class BajadaCargasViewModel : INotifyPropertyChanged
         foreach (var r in res)
         {
             double puN = r.CargaAxial * 9806.65; // ton -> N
-            double bMm = r.Columna.Zapata!.Ancho * 1000.0;    // m -> mm
-            double lMm = r.Columna.Zapata!.Largo * 1000.0;    // m -> mm
+            // Persiste el peralte elegido en la zapata y úsalo para el diseño.
+            r.Columna.Zapata!.Peralte = _peralteZapataM;
+            double bMm = r.Columna.Zapata.Ancho * 1000.0;    // m -> mm
+            double lMm = r.Columna.Zapata.Largo * 1000.0;    // m -> mm
             double c1Mm = r.Columna.Base * 1000.0;
             double c2Mm = r.Columna.Peralte * 1000.0;
-            
-            // d ≈ h - recubrimiento (h de Zapata.Peralte)
-            double hMm = r.Columna.Zapata.Peralte * 1000.0; 
-            double dMm = hMm - 75.0; // Recubrimiento típico de zapatas (75 mm)
-            
+
+            double hMm = _peralteZapataM * 1000.0;
+            double dMm = hMm - 75.0; // d ≈ h − recubrimiento (75 mm, cimiento contra el terreno, ACI §20.5.1.3)
+
             var diseno = LosasPlus.Calculo.ZapataDisenador.DisenarZapata(
-                puN, bMm, lMm, c1Mm, c2Mm, dMm, hMm, fcMPa: 21.0, fyMPa: 420.0);
+                puN, bMm, lMm, c1Mm, c2Mm, dMm, hMm, fcMPa: _fcMPa, fyMPa: _fyMPa);
                 
             ZapatasDiseno.Add(new ZapataDisenoRow 
             { 

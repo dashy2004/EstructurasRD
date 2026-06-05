@@ -19,6 +19,18 @@
             <TextBlock Text="{Binding ResumenZapatas}" VerticalAlignment="Center" Opacity="0.8"/>
         </StackPanel>
 
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,12">
+            <TextBlock Text="Diseño zapata —" VerticalAlignment="Center" Opacity="0.7" FontWeight="SemiBold"/>
+            <TextBlock Text="h (m):" VerticalAlignment="Center"/>
+            <TextBox Text="{Binding PeralteZapataM}" Width="70"
+                     ToolTip.Tip="Peralte (espesor) de la zapata. Gobierna punzonamiento y cortante: súbelo si el diseño falla."/>
+            <TextBlock Text="f'c (MPa):" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            <TextBox Text="{Binding FcMPa}" Width="70"/>
+            <TextBlock Text="fy (MPa):" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            <TextBox Text="{Binding FyMPa}" Width="70"/>
+            <TextBlock Text="(la tabla se actualiza al editar)" VerticalAlignment="Center" Opacity="0.5" FontSize="11"/>
+        </StackPanel>
+
         <Border DockPanel.Dock="Bottom" Margin="0,12,0,0" Padding="12"
                 CornerRadius="6" Background="#1A2230">
             <StackPanel Spacing="4">
