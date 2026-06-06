@@ -64,6 +64,12 @@ con el hormigón semi-transparente. La cantidad de acero sale de reglas ACI mín
 no calcula esfuerzos por elemento, así que es un armado representativo, no un diseño
 por carga.
 
+Y `GET /diseno`: el estado **diseño: armado** muestra el armado **diseñado por las fuerzas
+reales** del análisis (reusa `esfuerzos_elementos` + el diseño ACI por elemento), coloreado
+por si cumple (gris) o no (rojo) la demanda. Tocar un elemento muestra su designación y su
+demanda (columna: Pu/Mu; viga: Mu/Vu). A diferencia de `refuerzo` (armado de ejemplo), acá el
+acero sale del cálculo por carga.
+
 ## Desarrollo
 
 ```bash
