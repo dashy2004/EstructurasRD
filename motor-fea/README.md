@@ -57,6 +57,13 @@ calor) y abombada según su deformada. Tocar un punto de la losa muestra el valo
 interpolado del campo activo (deflexión en mm, momentos en kN·m/m). El FEM de la
 losa corre en el servidor (reusa `losa_fem`); el visor solo colorea y anima.
 
+Y `GET /armado`: el estado **refuerzo: armado** muestra, dentro de cada sección,
+el armado de ejemplo en 3D — barras longitudinales (cilindros) y estribos (aros)
+con el hormigón semi-transparente. La cantidad de acero sale de reglas ACI mínimas
+(ρ≈1% en columnas, As mínimo a flexión en vigas) reusando `aci318`; el motor Python
+no calcula esfuerzos por elemento, así que es un armado representativo, no un diseño
+por carga.
+
 ## Desarrollo
 
 ```bash
