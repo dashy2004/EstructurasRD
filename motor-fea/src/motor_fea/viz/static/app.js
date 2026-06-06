@@ -20,7 +20,6 @@ renderer.setPixelRatio(devicePixelRatio);
 renderer.xr.enabled = true;
 document.body.appendChild(renderer.domElement);
 
-// Rig: movemos este grupo para teletransportarnos en VR.
 const rig = new THREE.Group();
 rig.add(camera);
 scene.add(rig);
@@ -31,23 +30,29 @@ const MAT = {
   columna: new THREE.MeshStandardMaterial({ color: 0x4a90d9 }),
   viga:    new THREE.MeshStandardMaterial({ color: 0xd98a4a }),
 };
-const MAT_LONG = new THREE.MeshStandardMaterial({ color: 0xc0392b });   // acero longitudinal
+const MAT_LONG = new THREE.MeshStandardMaterial({ color: 0xc0392b });   // armado de ejemplo
 const MAT_EST = new THREE.LineBasicMaterial({ color: 0x2ecc71 });       // estribo
+const MAT_OK = new THREE.MeshStandardMaterial({ color: 0x9aa0a6 });     // diseño: cumple (acero gris)
+const MAT_FALLA = new THREE.MeshStandardMaterial({ color: 0xff3b30 });  // diseño: NO cumple (rojo)
 
-// --- Estado del modelo y de la animación ---
-const basePos = {};          // id -> THREE.Vector3 (posición sin deformar)
-const barras = [];           // { mesh, i, j } con caja unitaria en Z (escalable)
-let resultados = null;       // DTO de /resultados (deformada + modos)
-let frameBbox = null;        // bbox del pórtico (de /escena) para reencuadrar
+// --- Estado ---
+const basePos = {};
+const barras = [];           // { mesh, i, j, id }
+let resultados = null;
+let frameBbox = null;
 
-let losa = null;             // DTO de /losa
+let losa = null;
 let losaMesh = null;
 let losaActiva = false;
 let campoLosa = 'deflexion';
 
-let armado = null;           // DTO de /armado
-let armadoGroup = null;      // jaula de acero (Group de Groups por elemento)
+let armado = null;
+let armadoGroup = null;
 let refuerzoActivo = false;
+
+let diseno = null;
+let disenoGroup = null;
+let disenoActivo = false;
 
 let estado = 'sin-deformar';
 let exag = 0;
@@ -61,11 +66,11 @@ const exagInput = document.getElementById('exag');
 const btnPlay = document.getElementById('play');
 const info = document.getElementById('info');
 
-// --- Barras como cajas unitarias reposicionables cada frame ---
+// --- Barras ---
 function addBarra(b) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(b.b, b.h, 1), MAT[b.tipo] || MAT.viga);
   scene.add(mesh);
-  barras.push({ mesh, i: b.i, j: b.j });
+  barras.push({ mesh, i: b.i, j: b.j, id: b.id });
 }
 
 function despNodo(id, fase) {
@@ -101,7 +106,6 @@ function actualizarBarras(fase) {
   }
 }
 
-// --- Encuadre de cámara reutilizable ---
 function encuadrar(min, max) {
   const mn = new THREE.Vector3(min[0], min[1], min[2]);
   const mx = new THREE.Vector3(max[0], max[1], max[2]);
@@ -112,7 +116,7 @@ function encuadrar(min, max) {
   controls.update();
 }
 
-// --- Losa: malla, color por campo y relieve ---
+// --- Losa ---
 function valorLosa(campoNombre, i, j) {
   return losa.campos[campoNombre].valores[`${i},${j}`];
 }
@@ -186,41 +190,44 @@ function actualizarLosa() {
   pos.needsUpdate = true;
 }
 
-// --- Armado (refuerzo) ---
-// La jaula se construye UNA vez (vida = página); se muestra/oculta, nunca se reconstruye.
-function construirArmado() {
-  armadoGroup = new THREE.Group();
-  armadoGroup.visible = false;
-  for (const el of armado.elementos) {
+// --- Jaula de armado (ejemplo o diseñada) ---
+// Group de Groups por elemento, sin scale.z (los cilindros llevan su largo L).
+// matLongFn(el) elige el material de las barras (ej.: por cumple en el diseño).
+function construirJaula(dto, matLongFn) {
+  const grupo = new THREE.Group();
+  grupo.visible = false;
+  for (const el of dto.elementos) {
     const vi = basePos[el.i], vj = basePos[el.j];
     if (!vi || !vj) continue;
     const L = vi.distanceTo(vj);
     if (L === 0) continue;
     const g = new THREE.Group();
     g.position.copy(vi).lerp(vj, 0.5);
-    g.lookAt(vj);                                   // +Z hacia j (como la caja)
-    for (const bar of el.long) {                    // barras longitudinales
+    g.lookAt(vj);
+    const matLong = matLongFn(el);
+    for (const bar of el.long) {
       const geo = new THREE.CylinderGeometry(bar.d / 2, bar.d / 2, L, 8);
-      geo.rotateX(Math.PI / 2);                     // eje Y → Z local
-      const cil = new THREE.Mesh(geo, MAT_LONG);
+      geo.rotateX(Math.PI / 2);
+      const cil = new THREE.Mesh(geo, matLong);
       cil.position.set(bar.x, bar.y, 0);
       g.add(cil);
     }
-    const { w, h, s } = el.estribo;                 // estribos como aros
+    const { w, h, s } = el.estribo;
     const pts = [
       new THREE.Vector3(-w / 2, -h / 2, 0), new THREE.Vector3(w / 2, -h / 2, 0),
       new THREE.Vector3(w / 2, h / 2, 0), new THREE.Vector3(-w / 2, h / 2, 0),
     ];
     const loopGeo = new THREE.BufferGeometry().setFromPoints(pts);
-    const nTramos = Math.max(2, Math.floor(L / s));   // nTramos+1 aros, separación ≤ s
+    const nTramos = Math.max(2, Math.floor(L / s));
     for (let k = 0; k <= nTramos; k++) {
       const loop = new THREE.LineLoop(loopGeo, MAT_EST);
       loop.position.z = -L / 2 + k * (L / nTramos);
       g.add(loop);
     }
-    armadoGroup.add(g);
+    grupo.add(g);
   }
-  scene.add(armadoGroup);
+  scene.add(grupo);
+  return grupo;
 }
 
 function fantasma(on) {
@@ -231,7 +238,7 @@ function fantasma(on) {
   }
 }
 
-// --- Panel de control ---
+// --- Panel ---
 function fsDe(est) {
   if (!resultados) return 1;
   if (est === 'deformada') return resultados.deformada.factor_sugerido;
@@ -245,8 +252,10 @@ function fsDe(est) {
 function resetOverlays() {
   losaActiva = false;
   refuerzoActivo = false;
+  disenoActivo = false;
   if (losaMesh) losaMesh.visible = false;
   if (armadoGroup) armadoGroup.visible = false;
+  if (disenoGroup) disenoGroup.visible = false;
   fantasma(false);
   for (const bar of barras) bar.mesh.visible = true;
 }
@@ -268,22 +277,35 @@ function entrarLosa(est) {
 
 function entrarRefuerzo() {
   refuerzoActivo = true;
-  fantasma(true);                                   // hormigón translúcido
+  fantasma(true);
   if (armadoGroup) armadoGroup.visible = true;
   exagInput.min = 0; exagInput.max = 1; exagInput.step = 1;
-  exagInput.value = 0; exag = 0;                    // armado estático (sin deformar)
+  exagInput.value = 0; exag = 0;
   info.textContent = armado
     ? `armado de ejemplo (ρ≈1% col · As_mín viga) — ${armado.elementos.length} elementos`
     : '';
   if (frameBbox) encuadrar(frameBbox.min, frameBbox.max);
 }
 
+function entrarDiseno() {
+  disenoActivo = true;
+  fantasma(true);
+  if (disenoGroup) disenoGroup.visible = true;
+  exagInput.min = 0; exagInput.max = 1; exagInput.step = 1;
+  exagInput.value = 0; exag = 0;
+  const n = diseno.elementos.length;
+  const ok = diseno.elementos.filter((el) => el.cumple).length;
+  info.textContent = `diseño por fuerzas — ${ok}/${n} cumplen`;
+  if (frameBbox) encuadrar(frameBbox.min, frameBbox.max);
+}
+
 function setEstado(nuevo) {
-  const veniaEspecial = losaActiva || refuerzoActivo;
+  const veniaEspecial = losaActiva || refuerzoActivo || disenoActivo;
   estado = nuevo;
   resetOverlays();
   if (nuevo.startsWith('losa-')) { entrarLosa(nuevo); return; }
   if (nuevo === 'refuerzo') { entrarRefuerzo(); return; }
+  if (nuevo === 'diseno') { entrarDiseno(); return; }
   if (veniaEspecial && frameBbox) encuadrar(frameBbox.min, frameBbox.max);
   const fs = fsDe(estado);
   exagInput.min = 0; exagInput.max = fs * 5; exagInput.step = fs / 100;
@@ -307,17 +329,24 @@ btnPlay.addEventListener('click', () => {
   btnPlay.setAttribute('aria-label', playing ? 'pausar' : 'reanudar');
 });
 
-// --- Tocar la losa → valor interpolado ---
+// --- Picking: tocar la losa (valor) o un elemento en diseño (etiqueta) ---
 const punteroRay = new THREE.Raycaster();
 const ndc = new THREE.Vector2();
 renderer.domElement.addEventListener('pointerdown', (ev) => {
-  if (!losaActiva || !losaMesh || renderer.xr.isPresenting) return;
+  if (renderer.xr.isPresenting) return;
   ndc.x = (ev.clientX / innerWidth) * 2 - 1;
   ndc.y = -(ev.clientY / innerHeight) * 2 + 1;
   punteroRay.setFromCamera(ndc, camera);
-  const hits = punteroRay.intersectObject(losaMesh);
-  if (!hits.length) return;
-  mostrarValorEnPunto(hits[0].point.x, hits[0].point.y);
+  if (losaActiva && losaMesh) {
+    const hits = punteroRay.intersectObject(losaMesh);
+    if (hits.length) mostrarValorEnPunto(hits[0].point.x, hits[0].point.y);
+  } else if (disenoActivo && diseno) {
+    const hits = punteroRay.intersectObjects(barras.map((b) => b.mesh));
+    if (!hits.length) return;
+    const bar = barras.find((b) => b.mesh === hits[0].object);
+    const el = bar && diseno.elementos.find((e) => e.id === bar.id);
+    if (el) mostrarDiseno(el);
+  }
 });
 
 function mostrarValorEnPunto(x, y) {
@@ -334,7 +363,15 @@ function mostrarValorEnPunto(x, y) {
   info.textContent = `${et} = ${v.toFixed(2)} ${losa.campos[campoLosa].unidad} @ (${x.toFixed(1)}, ${y.toFixed(1)}) m`;
 }
 
-// --- Carga de geometría (/escena) ---
+function mostrarDiseno(el) {
+  const kN = (n) => (n / 1000).toFixed(0);
+  const dem = el.tipo === 'columna'
+    ? `Pu=${kN(el.demanda.pu)} kN, Mu=${kN(el.demanda.mu)} kN·m`
+    : `Mu=${kN(el.demanda.mu)} kN·m, Vu=${kN(el.demanda.vu)} kN`;
+  info.textContent = `${el.designacion} · ${dem} · ${el.cumple ? 'cumple' : 'NO cumple'}`;
+}
+
+// --- Carga ---
 async function cargar() {
   let data;
   try {
@@ -356,6 +393,7 @@ async function cargar() {
   await cargarResultados();
   await cargarLosa();
   await cargarArmado();
+  await cargarDiseno();
 }
 
 async function cargarResultados() {
@@ -393,20 +431,31 @@ async function cargarArmado() {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     armado = await r.json();
   } catch (e) {
-    return;   // sin armado: no se agrega el estado de refuerzo
+    return;
   }
-  construirArmado();
+  armadoGroup = construirJaula(armado, () => MAT_LONG);
   selEstado.add(new Option('refuerzo: armado', 'refuerzo'));
 }
 
-// --- WebXR: botón solo si hay soporte ---
+async function cargarDiseno() {
+  try {
+    const r = await fetch('./diseno');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    diseno = await r.json();
+  } catch (e) {
+    return;   // sin diseño: no se agrega el estado
+  }
+  disenoGroup = construirJaula(diseno, (el) => (el.cumple ? MAT_OK : MAT_FALLA));
+  selEstado.add(new Option('diseño: armado', 'diseno'));
+}
+
+// --- WebXR ---
 if (navigator.xr && navigator.xr.isSessionSupported) {
   navigator.xr.isSessionSupported('immersive-vr').then((ok) => {
     if (ok) document.body.appendChild(VRButton.createButton(renderer));
   });
 }
 
-// --- Teletransporte en VR (idéntico a Fase 1) ---
 const piso = new THREE.Mesh(
   new THREE.PlaneGeometry(500, 500).rotateX(-Math.PI / 2),
   new THREE.MeshBasicMaterial({ visible: false }));
