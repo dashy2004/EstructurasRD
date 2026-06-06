@@ -240,3 +240,56 @@ def resolver(modelo: ModeloEstructural) -> ResultadoAnalisis:
         reacciones[ap.nodo_id] = tuple(reac_full[base + d] for d in range(6))
 
     return ResultadoAnalisis(desplazamientos=desplazamientos, reacciones=reacciones, n_gdl=n)
+
+
+@dataclass
+class EsfuerzosElemento:
+    """Fuerzas de extremo y esfuerzos internos de un elemento frame, en coordenadas locales."""
+    elemento_id: int
+    longitud: float
+    extremo_i: tuple[float, float, float, float, float, float]   # (N, Vy, Vz, T, My, Mz) nodal en i
+    extremo_j: tuple[float, float, float, float, float, float]   # idem en j
+
+    @property
+    def axial(self) -> float:
+        """Fuerza axial de la barra (tracción +). N = −N_i = N_j."""
+        return -self.extremo_i[0]
+
+    def internos(self, t: float) -> tuple[float, float, float, float, float, float]:
+        """Esfuerzos internos (N, Vy, Vz, T, My, Mz) en la estación local s = t·L (t ∈ [0,1]).
+
+        Por equilibrio del segmento [0, s] (solo la fuerza nodal del extremo i actúa sobre él):
+        N/Vy/Vz/T constantes; My, Mz lineales. N tracción +.
+        """
+        ni, vy, vz, ti, my, mz = self.extremo_i
+        s = t * self.longitud
+        return (-ni, -vy, -vz, -ti, -my - s * vz, -mz + s * vy)
+
+    def diagrama(self, n: int = 11) -> list[tuple[float, ...]]:
+        """n estaciones equiespaciadas: cada una (s, N, Vy, Vz, T, My, Mz), s de 0 a L."""
+        if n < 2:
+            raise ValueError("n debe ser ≥ 2.")
+        return [(t * self.longitud, *self.internos(t)) for t in (k / (n - 1) for k in range(n))]
+
+
+def esfuerzos_elementos(modelo: ModeloEstructural,
+                        resultado: ResultadoAnalisis) -> dict[int, EsfuerzosElemento]:
+    """Fuerzas de extremo y diagramas por elemento (coordenadas locales) del resultado del análisis.
+
+    Post-procesamiento puro: por elemento, ``f_local = kl·(T·u)`` con los desplazamientos globales de
+    sus dos nodos. Reusa la geometría/rigidez del ensamblaje; ``resolver`` ya validó el modelo.
+    """
+    nodos = {n.id: n for n in modelo.nodos}
+    mats = {m.id: m for m in modelo.materiales}
+    secs = {s.id: s for s in modelo.secciones}
+    salida: dict[int, EsfuerzosElemento] = {}
+    for e in modelo.elementos:
+        ni, nj = nodos[e.nodo_i], nodos[e.nodo_j]
+        mat, sec = mats[e.material_id], secs[e.seccion_id]
+        ex, ey, ez, L = triada_local(ni, nj, e.vector_referencia)
+        kl = rigidez_local(mat.E, mat.G, sec.area, sec.inercia_y, sec.inercia_z, sec.constante_torsion, L)
+        T = _transformacion_12(ex, ey, ez)
+        u_g = list(resultado.desplazamientos[e.nodo_i]) + list(resultado.desplazamientos[e.nodo_j])
+        f_local = _matvec(kl, _matvec(T, u_g))
+        salida[e.id] = EsfuerzosElemento(e.id, L, tuple(f_local[0:6]), tuple(f_local[6:12]))
+    return salida
