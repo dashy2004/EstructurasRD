@@ -4,6 +4,11 @@ import math
 import pytest
 
 from motor_fea.normativa import aci318
+from motor_fea.core.modelo import (
+    Apoyo, CargaNodal, ElementoFrame, Material, ModeloEstructural, Nodo, Seccion,
+)
+from motor_fea.core.solver import esfuerzos_elementos, resolver
+from motor_fea import diseno_elemento
 
 
 def test_estribo_no_requerido_cuando_vu_bajo():
@@ -119,3 +124,56 @@ def test_columna_pura_axial_cumple():
     d = aci318.disenar_columna_pm(200000.0, 0.0, 400, 400, 28, 420, 50)
     assert d.cumple
     assert d.mu == 0.0
+
+
+_E, _NU, _L, _P = 2.0e10, 0.2, 3.0, 1000.0
+
+
+def _voladizo(carga, lado=0.30):
+    m = ModeloEstructural()
+    m.nodos += [Nodo(1, 0, 0, 0), Nodo(2, _L, 0, 0)]
+    m.materiales.append(Material(1, E=_E, nu=_NU))
+    m.secciones.append(Seccion(1, area=lado * lado, inercia_y=lado ** 4 / 12,
+                               inercia_z=lado ** 4 / 12, constante_torsion=0.1406 * lado ** 4))
+    m.elementos.append(ElementoFrame(1, 1, 2, 1, 1))
+    m.apoyos.append(Apoyo.empotrado(1))
+    m.cargas.append(carga)
+    return m
+
+
+def test_disenar_viga_voladizo_cumple():
+    m = _voladizo(CargaNodal(2, fz=_P))
+    esf = esfuerzos_elementos(m, resolver(m))[1]
+    d = diseno_elemento.disenar_viga(esf, b=0.30, h=0.30)
+    assert d.mu == pytest.approx(_P * _L, rel=1e-3)     # Mu ≈ P·L
+    assert d.vu == pytest.approx(_P, rel=1e-3)          # Vu ≈ P
+    assert d.flexion is not None and d.flexion.cumple
+    assert d.estribo.cumple
+    assert d.cumple
+
+
+def test_disenar_columna_extrae_axial():
+    # columna 0.40×0.40 por Z, axial de compresión modesto + lateral pequeño.
+    m = ModeloEstructural()
+    m.nodos += [Nodo(1, 0, 0, 0), Nodo(2, 0, 0, _L)]
+    m.materiales.append(Material(1, E=_E, nu=_NU))
+    bc = 0.40
+    m.secciones.append(Seccion(1, area=bc * bc, inercia_y=bc ** 4 / 12,
+                               inercia_z=bc ** 4 / 12, constante_torsion=0.1406 * bc ** 4))
+    m.elementos.append(ElementoFrame(1, 1, 2, 1, 1))
+    m.apoyos.append(Apoyo.empotrado(1))
+    m.cargas += [CargaNodal(2, fz=-150000.0), CargaNodal(2, fx=5000.0)]
+    esf = esfuerzos_elementos(m, resolver(m))[1]
+    d = diseno_elemento.disenar_columna(esf, b=0.40, h=0.40, fc=28.0, fy=420.0, recubrimiento=0.05)
+    assert d.pu == pytest.approx(150000.0, rel=1e-3)    # axial extraído
+    assert d.cumple
+
+
+def test_disenar_viga_seccion_insuficiente():
+    # sección chica (0.20×0.20) bajo un Mu enorme → insuficiente a flexión (flexion=None).
+    m = _voladizo(CargaNodal(2, fz=50000.0), lado=0.20)
+    esf = esfuerzos_elementos(m, resolver(m))[1]
+    d = diseno_elemento.disenar_viga(esf, b=0.20, h=0.20)
+    assert d.flexion is None
+    assert not d.cumple
+    assert "INSUFICIENTE" in d.disponer
