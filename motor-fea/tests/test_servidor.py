@@ -68,3 +68,14 @@ def test_losa_ok():
     data = r.json()
     assert set(data) >= {"a", "b", "nx", "ny", "factor_sugerido", "campos"}
     assert set(data["campos"]) == {"deflexion", "momento_mx", "momento_my"}
+
+
+def test_armado_ok():
+    cli = TestClient(crear_app(modelo_ejemplo()))
+    r = cli.get("/armado")
+    assert r.status_code == 200
+    data = r.json()
+    assert set(data) >= {"recubrimiento", "elementos"}
+    assert len(data["elementos"]) == 8          # 4 columnas + 4 vigas
+    e0 = data["elementos"][0]
+    assert "long" in e0 and "estribo" in e0
