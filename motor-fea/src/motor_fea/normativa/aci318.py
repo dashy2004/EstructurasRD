@@ -343,3 +343,68 @@ def diseno_losa_franja(mu: float, b: float, h: float, d: float, fc: float, fy: f
     as_dis = max(as_req, as_min)
     arm = seleccionar_armadura_losa(as_dis, espaciamiento_maximo_losa(h))
     return DisenoLosaFranja(as_req, as_min, as_dis, False, as_min >= as_req, arm)
+
+
+# ===================== Diseño de pórtico (Fase 4b.1) =====================
+def _diametro_barra(num: int) -> float:
+    """Diámetro nominal de una barra #num (octavos de pulgada) en mm."""
+    return num * 25.4 / 8.0
+
+
+@dataclass(frozen=True)
+class SeleccionBarras:
+    numero_barra: int
+    n_barras: int
+    as_provista: float     # mm²
+    cumple: bool
+
+
+def seleccionar_barras(as_req: float, ancho_disponible: float, num: int = 5) -> SeleccionBarras:
+    """Elige n barras #num (≥2) que cubran As y verifica que entren en el ancho disponible."""
+    area = AREAS_BARRA_MM2[num]
+    if math.isnan(as_req):                              # sección insuficiente a flexión
+        return SeleccionBarras(num, 0, 0.0, False)
+    n = max(2, math.ceil(as_req / area))
+    as_provista = n * area
+    d = _diametro_barra(num)
+    entra = n * d + (n - 1) * 25.0 <= ancho_disponible  # separación libre mínima 25 mm
+    return SeleccionBarras(num, n, as_provista, as_provista >= as_req and entra)
+
+
+@dataclass(frozen=True)
+class DisenoEstribo:
+    numero_barra: int
+    n_ramas: int
+    espaciamiento: float   # mm
+    av: float              # mm²
+    vs_requerido: float    # N
+    cumple: bool
+    disponer: str
+
+
+def disenar_estribo_viga(vu: float, bw: float, d: float, fc: float, fyt: float = 420.0,
+                         num_estribo: int = 3, n_ramas: int = 2, lam: float = 1.0) -> DisenoEstribo:
+    """Diseña los estribos de una viga para Vu (ACI 318-19 §22.5 / §9.6.3)."""
+    if bw <= 0 or d <= 0 or fc <= 0 or fyt <= 0:
+        raise ValueError("bw, d, fc y fyt deben ser positivos.")
+    vu = abs(vu)
+    vc = cortante_concreto(bw, d, fc, lam)
+    av = n_ramas * AREAS_BARRA_MM2[num_estribo]
+    s_max = min(d / 2.0, 600.0)
+    vs_max = cortante_acero_maximo(bw, d, fc)
+    if vu <= 0.5 * PHI_CORTANTE * vc:
+        vs_req, s = 0.0, s_max                          # no requeridos por resistencia; s_max sin redondear
+    else:
+        vs_req = vu / PHI_CORTANTE - vc
+        if vs_req <= 0:
+            vs_req, s = 0.0, s_max                       # mínimos (el concreto basta)
+        elif vs_req > vs_max:
+            return DisenoEstribo(num_estribo, n_ramas, s_max, av, vs_req, False,
+                                 "SECCIÓN INSUFICIENTE A CORTANTE")
+        else:
+            s_calc = min(av * fyt * d / vs_req, s_max)
+            s = max(50.0, math.floor(s_calc / 25.0) * 25.0)  # múltiplo de 25 mm, ≥ 50
+    vs_provisto = cortante_acero(av, fyt, d, s)
+    cumple = vu <= PHI_CORTANTE * (vc + min(vs_provisto, vs_max)) + 1e-9
+    return DisenoEstribo(num_estribo, n_ramas, s, av, vs_req, cumple,
+                         f"E#{num_estribo} {n_ramas}R @ {s:.0f} mm")
