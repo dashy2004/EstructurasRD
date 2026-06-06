@@ -408,3 +408,68 @@ def disenar_estribo_viga(vu: float, bw: float, d: float, fc: float, fyt: float =
     cumple = vu <= PHI_CORTANTE * (vc + min(vs_provisto, vs_max)) + 1e-9
     return DisenoEstribo(num_estribo, n_ramas, s, av, vs_req, cumple,
                          f"E#{num_estribo} {n_ramas}R @ {s:.0f} mm")
+
+
+@dataclass(frozen=True)
+class DisenoColumna:
+    pu: float              # N
+    mu: float              # N·mm
+    numero_barra: int
+    n_barras: int
+    rho: float
+    cumple: bool
+    disponer: str
+
+
+def diagrama_interaccion(b: float, h: float, fc: float, fy: float,
+                         capas: list[tuple[float, float]], n: int = 40) -> list[PuntoInteraccion]:
+    """Envolvente P-M: barre el eje neutro c de 0.05·h a 2·h en n puntos."""
+    return [punto_interaccion(0.05 * h + (2.0 - 0.05) * h * k / (n - 1), b, h, fc, fy, capas)
+            for k in range(n)]
+
+
+def momento_capacidad(phi_pn_demanda: float, diagrama: list[PuntoInteraccion]) -> float:
+    """φMn (N·mm) de la envolvente φ interpolado al nivel axial φPn demandado; 0 si está fuera del rango.
+
+    Interpola la envolvente CRUDA: NO aplica el tope φPn,max (§22.4.2.1, que necesita Ag/As), así que por
+    encima del tope da un momento no conservador — úsese junto con ``axial_maxima_diseno`` (como hace
+    ``disenar_columna_pm``). Asume φPn monótona en c (válido para el modelo simétrico de 2 capas).
+    """
+    pares = sorted((p.phi_pn, abs(p.phi_mn)) for p in diagrama)
+    if phi_pn_demanda < pares[0][0] or phi_pn_demanda > pares[-1][0]:
+        return 0.0
+    for (p0, m0), (p1, m1) in zip(pares, pares[1:]):
+        if p0 <= phi_pn_demanda <= p1:
+            return m0 if p1 == p0 else m0 + (m1 - m0) * (phi_pn_demanda - p0) / (p1 - p0)
+    return 0.0
+
+
+def disenar_columna_pm(pu: float, mu: float, b: float, h: float, fc: float, fy: float,
+                       recubrimiento: float, num: int = 8) -> DisenoColumna:
+    """Diseña el refuerzo longitudinal de una columna para (Pu, Mu) por diagrama de interacción.
+
+    Itera el nº de barras desde max(4 barras, ρ≈1% — ACI 10.6.1.1) hasta ρ_max=8%. Modela el acero como
+    **2 capas extremas** (sup e inf, As/2 c/u): flexión uniaxial sobre el eje perpendicular a h; ignora
+    barras intermedias/laterales y el caso biaxial. Verifica que (Pu, Mu) caiga dentro de la envolvente φ
+    con el tope φPn,max.
+    """
+    if b <= 0 or h <= 0 or fc <= 0 or fy <= 0 or recubrimiento <= 0:
+        raise ValueError("b, h, fc, fy y recubrimiento deben ser positivos.")
+    if h - 2 * recubrimiento <= 0:
+        raise ValueError("Recubrimiento incompatible con la sección.")
+    pu, mu = abs(pu), abs(mu)
+    ag = b * h
+    area = AREAS_BARRA_MM2[num]
+    d_barra = _diametro_barra(num)
+    n = max(4, math.ceil(0.01 * ag / area))
+    ultimo_n = n
+    while n * area / ag <= 0.08:
+        as_total = n * area
+        capas = [(recubrimiento + d_barra / 2.0, as_total / 2.0),
+                 (h - recubrimiento - d_barra / 2.0, as_total / 2.0)]
+        diagrama = diagrama_interaccion(b, h, fc, fy, capas)
+        if pu <= axial_maxima_diseno(ag, as_total, fc, fy) and mu <= momento_capacidad(pu, diagrama):
+            return DisenoColumna(pu, mu, num, n, as_total / ag, True, f"{n}#{num}")
+        ultimo_n = n
+        n += 1
+    return DisenoColumna(pu, mu, num, ultimo_n, ultimo_n * area / ag, False, "SECCIÓN INSUFICIENTE")
