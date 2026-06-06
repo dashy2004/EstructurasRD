@@ -90,3 +90,16 @@ def test_diseno_ok():
     assert len(data["elementos"]) == 8
     e0 = data["elementos"][0]
     assert "demanda" in e0 and "cumple" in e0 and "long" in e0
+
+
+def test_diseno_tiene_combo_y_casos():
+    cli = TestClient(crear_app(modelo_ejemplo()))
+    r = cli.get("/diseno")
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["elementos"]) == 8
+    for e in data["elementos"]:
+        assert e["combo"]                                 # combo gobernante presente
+    # con D+W, no todos los elementos los gobierna 1.4D
+    combos = {e["combo"] for e in data["elementos"]}
+    assert combos - {"1"}

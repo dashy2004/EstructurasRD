@@ -43,8 +43,9 @@ def modelo_ejemplo() -> ModeloEstructural:
         eid += 1
     for n in (1, 2, 3, 4):
         m.apoyos.append(Apoyo.empotrado(n))
-    for n in (5, 6, 7, 8):                      # carga lateral en +X (deformada visible)
-        m.cargas.append(CargaNodal(n, fx=10000.0))
+    for n in (5, 6, 7, 8):
+        m.cargas.append(CargaNodal(n, fz=-40000.0, caso="D"))   # gravedad
+        m.cargas.append(CargaNodal(n, fx=10000.0, caso="W"))    # viento
     return m
 
 
