@@ -368,7 +368,8 @@ function mostrarDiseno(el) {
   const dem = el.tipo === 'columna'
     ? `Pu=${kN(el.demanda.pu)} kN, Mu=${kN(el.demanda.mu)} kN·m`
     : `Mu=${kN(el.demanda.mu)} kN·m, Vu=${kN(el.demanda.vu)} kN`;
-  info.textContent = `${el.designacion} · combo ${el.combo} · ${dem} · ${el.cumple ? 'cumple' : 'NO cumple'}`;
+  const est = el.estribo_txt ? ` · ${el.estribo_txt}` : '';
+  info.textContent = `${el.designacion} · combo ${el.combo} · ${dem}${est} · ${el.cumple ? 'cumple' : 'NO cumple'}`;
 }
 
 // --- Carga ---

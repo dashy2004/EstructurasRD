@@ -70,6 +70,10 @@ por si cumple (gris) o no (rojo) la demanda. Tocar un elemento muestra su design
 demanda (columna: Pu/Mu; viga: Mu/Vu). A diferencia de `refuerzo` (armado de ejemplo), acá el
 acero sale del cálculo por carga.
 
+Las columnas traen además su **estribo diseñado** (cortante con axial ACI §22.5.6.1 + confinamiento
+sísmico §18.7.5.4, escalando la barra del estribo hasta confinar); la jaula del visor dibuja la
+separación real y la etiqueta la muestra (`E#4 2R @ 50`).
+
 ## Desarrollo
 
 ```bash
