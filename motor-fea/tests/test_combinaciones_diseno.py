@@ -113,3 +113,12 @@ def test_columna_solo_D_gobierna_combo_1():
                                                fc=28.0, fy=420.0, recubrimiento=0.05)
     assert d.combo_gobernante == "1"
     assert d.cumple
+
+
+def test_columna_combos_trae_estribo():
+    m = _columna([CargaNodal(2, fz=-200000.0, caso="D"), CargaNodal(2, fx=20000.0, caso="W")])
+    d = diseno_elemento.disenar_columna_combos(_por_caso(esfuerzos_por_caso(m), 1), b=0.40, h=0.40,
+                                               fc=28.0, fy=420.0, recubrimiento=0.05)
+    assert d.estribo.espaciamiento > 0
+    assert d.estribo.gobierna in ("cortante", "confinamiento", "detallado")
+    assert d.combo_cortante

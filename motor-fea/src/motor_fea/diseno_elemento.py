@@ -71,6 +71,8 @@ class DisenoColumnaCombos:
     cumple: bool
     disponer: str
     combo_gobernante: str
+    estribo: aci318.DisenoEstriboColumna
+    combo_cortante: str
 
 
 @dataclass(frozen=True)
@@ -125,38 +127,41 @@ def _gobernante_columna(dem_mm: dict[str, tuple[float, float]], diagrama, pmax: 
 def disenar_columna_combos(esf_por_caso: dict[str, EsfuerzosElemento], b: float, h: float,
                            fc: float = 21.0, fy: float = 420.0, recubrimiento: float = 0.04,
                            num: int = 8) -> DisenoColumnaCombos:
-    """Diseña una columna (P-M) cubriendo todos los combos LRFD; reporta el gobernante. b,h,rec en m."""
+    """Diseña una columna (P-M + estribo) cubriendo todos los combos LRFD; reporta gobernantes. b,h,rec en m."""
     if b <= 0 or h <= 0 or fc <= 0 or fy <= 0 or recubrimiento <= 0:
         raise ValueError("b, h, fc, fy y recubrimiento deben ser positivos.")
     b_mm, h_mm, rec_mm = b * 1000.0, h * 1000.0, recubrimiento * 1000.0
     if h_mm - 2 * rec_mm <= 0:
         raise ValueError("Recubrimiento incompatible con la sección.")
-    dem_mm = {k: (abs(P), abs(M) * 1000.0) for k, (P, M, _V) in _demanda_por_combo(esf_por_caso).items()}
+    demandas = _demanda_por_combo(esf_por_caso)
+    # Estribo (cortante con axial + confinamiento) para el combo de mayor |Vu|; pu compresión+ = -axial.
+    combo_v = max(demandas, key=lambda k: abs(demandas[k][2]))
+    estribo = aci318.disenar_estribo_columna(abs(demandas[combo_v][2]), -demandas[combo_v][0],
+                                             b_mm, h_mm, fc, aci318._diametro_barra(num), rec_mm, fy)
+    dem_mm = {k: (abs(P), abs(M) * 1000.0) for k, (P, M, _V) in demandas.items()}
     ag = b_mm * h_mm
     area = aci318.AREAS_BARRA_MM2[num]
     d_barra = aci318._diametro_barra(num)
-
-    def seccion(n: int):
-        """(diagrama P-M, φPn,max) de la columna con n barras #num en 2 capas extremas."""
-        as_total = n * area
-        capas = [(rec_mm + d_barra / 2.0, as_total / 2.0), (h_mm - rec_mm - d_barra / 2.0, as_total / 2.0)]
-        return (aci318.diagrama_interaccion(b_mm, h_mm, fc, fy, capas),
-                aci318.axial_maxima_diseno(ag, as_total, fc, fy))
-
     n = max(4, math.ceil(0.01 * ag / area))
     ultimo_n = n
     while n * area / ag <= 0.08:
-        diagrama, pmax = seccion(n)
+        as_total = n * area
+        capas = [(rec_mm + d_barra / 2.0, as_total / 2.0), (h_mm - rec_mm - d_barra / 2.0, as_total / 2.0)]
+        diagrama = aci318.diagrama_interaccion(b_mm, h_mm, fc, fy, capas)
+        pmax = aci318.axial_maxima_diseno(ag, as_total, fc, fy)
         if all(pu <= pmax and mu <= aci318.momento_capacidad(pu, diagrama) for pu, mu in dem_mm.values()):
             gob = _gobernante_columna(dem_mm, diagrama, pmax)
-            return DisenoColumnaCombos(dem_mm[gob][0], dem_mm[gob][1], num, n, n * area / ag,
-                                       True, f"{n}#{num}", gob)
+            return DisenoColumnaCombos(dem_mm[gob][0], dem_mm[gob][1], num, n, as_total / ag,
+                                       estribo.cumple, f"{n}#{num}", gob, estribo, combo_v)
         ultimo_n = n
         n += 1
-    diagrama, pmax = seccion(ultimo_n)
+    as_total = ultimo_n * area
+    capas = [(rec_mm + d_barra / 2.0, as_total / 2.0), (h_mm - rec_mm - d_barra / 2.0, as_total / 2.0)]
+    diagrama = aci318.diagrama_interaccion(b_mm, h_mm, fc, fy, capas)
+    pmax = aci318.axial_maxima_diseno(ag, as_total, fc, fy)
     gob = _gobernante_columna(dem_mm, diagrama, pmax)
     return DisenoColumnaCombos(dem_mm[gob][0], dem_mm[gob][1], num, ultimo_n, ultimo_n * area / ag,
-                               False, "SECCIÓN INSUFICIENTE", gob)
+                               False, "SECCIÓN INSUFICIENTE", gob, estribo, combo_v)
 
 
 def disenar_viga_combos(esf_por_caso: dict[str, EsfuerzosElemento], b: float, h: float,
