@@ -91,3 +91,36 @@ def test_viga_barras_inferiores_llegan_a_los_extremos():
     # las barras inferiores extremas son simétricas respecto al centro de la sección
     assert inf[0] == pytest.approx(-inf[-1])
     assert inf[0] < 0 < inf[-1]
+
+
+def test_recubrimiento_incompatible_lanza_valueerror():
+    # sección 0.05×0.05 con recubrimiento por defecto 0.04 → b−2·rec < 0.
+    m = ModeloEstructural()
+    m.nodos += [Nodo(1, 0, 0, 0), Nodo(2, 0, 0, 3)]
+    m.materiales.append(Material(1, E=2.0e10))
+    m.secciones.append(Seccion(1, area=0.0025, inercia_y=0.05 ** 4 / 12,
+                               inercia_z=0.05 ** 4 / 12, constante_torsion=1e-6))
+    m.elementos.append(ElementoFrame(1, 1, 2, 1, 1))
+    m.apoyos.append(Apoyo.empotrado(1))
+    with pytest.raises(ValueError):
+        armado.calcular_armado(m)
+
+
+def _viga_de(area: float, iz: float) -> dict:
+    """Armado del único elemento de una viga horizontal con la sección dada."""
+    m = ModeloEstructural()
+    m.nodos += [Nodo(1, 0, 0, 3), Nodo(2, 4, 0, 3)]   # horizontal → viga
+    m.materiales.append(Material(1, E=2.0e10))
+    m.secciones.append(Seccion(1, area=area, inercia_y=iz, inercia_z=iz,
+                               constante_torsion=1e-3))
+    m.elementos.append(ElementoFrame(1, 1, 2, 1, 1))
+    m.apoyos.append(Apoyo.empotrado(1))
+    return armado.calcular_armado(m)["elementos"][0]
+
+
+def test_viga_mayor_tiene_mas_o_igual_barras_inferiores():
+    chica = _viga_de(0.09, 6.75e-4)                       # 0.30×0.30
+    grande = _viga_de(0.28, 0.40 * 0.70 ** 3 / 12)        # 0.40×0.70
+    inf_chica = [b for b in chica["long"] if b["y"] < 0]
+    inf_grande = [b for b in grande["long"] if b["y"] < 0]
+    assert len(inf_grande) >= len(inf_chica)
