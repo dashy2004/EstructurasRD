@@ -79,3 +79,14 @@ def test_armado_ok():
     assert len(data["elementos"]) == 8          # 4 columnas + 4 vigas
     e0 = data["elementos"][0]
     assert "long" in e0 and "estribo" in e0
+
+
+def test_diseno_ok():
+    cli = TestClient(crear_app(modelo_ejemplo()))
+    r = cli.get("/diseno")
+    assert r.status_code == 200
+    data = r.json()
+    assert set(data) >= {"recubrimiento", "elementos"}
+    assert len(data["elementos"]) == 8
+    e0 = data["elementos"][0]
+    assert "demanda" in e0 and "cumple" in e0 and "long" in e0

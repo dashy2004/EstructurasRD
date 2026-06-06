@@ -1,7 +1,7 @@
 """Servidor FastAPI del visor WebXR (capa frontera). Requiere el extra `api`.
 
 Expone GET /escena (SceneDTO), GET /resultados (deformada + modos), GET /losa
-(heatmap de losa) y GET /armado (refuerzo 3D), y sirve los estáticos del visor. El análisis y la
+(heatmap de losa), GET /armado (refuerzo 3D de ejemplo) y GET /diseno (armado diseñado por fuerzas), y sirve los estáticos del visor. El análisis y la
 exportación viven en otras capas; este módulo es I/O delgado.
 """
 from __future__ import annotations
@@ -20,6 +20,7 @@ from motor_fea.viz.escena import exportar_escena
 from motor_fea.viz.resultados import calcular_resultados
 from motor_fea.viz.resultados_losa import calcular_resultados_losa
 from motor_fea.viz.armado import calcular_armado
+from motor_fea.viz.diseno import calcular_diseno
 
 _STATIC = Path(__file__).resolve().parent.parent / "viz" / "static"
 
@@ -88,6 +89,13 @@ def crear_app(modelo: ModeloEstructural) -> FastAPI:
     def armado():
         try:
             return calcular_armado(modelo)
+        except ValueError as ex:
+            raise HTTPException(status_code=400, detail=str(ex))
+
+    @app.get("/diseno")
+    def diseno():
+        try:
+            return calcular_diseno(modelo)
         except ValueError as ex:
             raise HTTPException(status_code=400, detail=str(ex))
 
