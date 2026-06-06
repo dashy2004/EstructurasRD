@@ -31,6 +31,8 @@ const MAT = {
   columna: new THREE.MeshStandardMaterial({ color: 0x4a90d9 }),
   viga:    new THREE.MeshStandardMaterial({ color: 0xd98a4a }),
 };
+const MAT_LONG = new THREE.MeshStandardMaterial({ color: 0xc0392b });   // acero longitudinal
+const MAT_EST = new THREE.LineBasicMaterial({ color: 0x2ecc71 });       // estribo
 
 // --- Estado del modelo y de la animación ---
 const basePos = {};          // id -> THREE.Vector3 (posición sin deformar)
@@ -39,16 +41,20 @@ let resultados = null;       // DTO de /resultados (deformada + modos)
 let frameBbox = null;        // bbox del pórtico (de /escena) para reencuadrar
 
 let losa = null;             // DTO de /losa
-let losaMesh = null;         // superficie de la losa (BufferGeometry coloreada)
-let losaActiva = false;      // ¿hay un estado de losa seleccionado?
-let campoLosa = 'deflexion'; // campo activo: deflexion | momento_mx | momento_my
+let losaMesh = null;
+let losaActiva = false;
+let campoLosa = 'deflexion';
+
+let armado = null;           // DTO de /armado
+let armadoGroup = null;      // jaula de acero (Group de Groups por elemento)
+let refuerzoActivo = false;
 
 let estado = 'sin-deformar';
 let exag = 0;
 let playing = true;
 let tAcum = 0;
 let lastT = null;
-const T_DISPLAY = 2.0;       // periodo de display (s) — NO el ω real (se muestra como texto)
+const T_DISPLAY = 2.0;
 
 const selEstado = document.getElementById('estado');
 const exagInput = document.getElementById('exag');
@@ -106,17 +112,17 @@ function encuadrar(min, max) {
   controls.update();
 }
 
-// --- Losa: construcción de la malla, color por campo y relieve ---
+// --- Losa: malla, color por campo y relieve ---
 function valorLosa(campoNombre, i, j) {
   return losa.campos[campoNombre].valores[`${i},${j}`];
 }
 
 function colorDeCampo(nombre, v, min, max) {
-  if (nombre === 'deflexion') {                       // secuencial azul→rojo
+  if (nombre === 'deflexion') {
     const t = max > min ? (v - min) / (max - min) : 0;
     return new THREE.Color().setHSL((1 - t) * 240 / 360, 1, 0.5);
   }
-  const M = Math.max(Math.abs(min), Math.abs(max)) || 1;   // divergente centrado en 0
+  const M = Math.max(Math.abs(min), Math.abs(max)) || 1;
   const s = v / M;
   const destino = s < 0 ? new THREE.Color(0x2222ff) : new THREE.Color(0xff2222);
   return new THREE.Color(1, 1, 1).lerp(destino, Math.min(1, Math.abs(s)));
@@ -147,7 +153,6 @@ function construirLosa() {
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   geo.setIndex(idx);
-  // Heatmap sin iluminación (MeshBasic): el color leído es el dato, no la sombra.
   const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
   losaMesh = new THREE.Mesh(geo, mat);
   losaMesh.visible = false;
@@ -168,17 +173,62 @@ function colorearLosa(nombre) {
   col.needsUpdate = true;
 }
 
-function actualizarLosa() {                            // relieve z = −w·exag (cada frame)
+function actualizarLosa() {
   const pos = losaMesh.geometry.getAttribute('position');
   const { nx, ny } = losa;
   for (let j = 0; j <= ny; j++) {
     for (let i = 0; i <= nx; i++) {
       const n = j * (nx + 1) + i;
-      const w_m = valorLosa('deflexion', i, j) / 1000;   // mm → m
+      const w_m = valorLosa('deflexion', i, j) / 1000;
       pos.setZ(n, -w_m * exag);
     }
   }
   pos.needsUpdate = true;
+}
+
+// --- Armado (refuerzo) ---
+// La jaula se construye UNA vez (vida = página); se muestra/oculta, nunca se reconstruye.
+function construirArmado() {
+  armadoGroup = new THREE.Group();
+  armadoGroup.visible = false;
+  for (const el of armado.elementos) {
+    const vi = basePos[el.i], vj = basePos[el.j];
+    if (!vi || !vj) continue;
+    const L = vi.distanceTo(vj);
+    if (L === 0) continue;
+    const g = new THREE.Group();
+    g.position.copy(vi).lerp(vj, 0.5);
+    g.lookAt(vj);                                   // +Z hacia j (como la caja)
+    for (const bar of el.long) {                    // barras longitudinales
+      const geo = new THREE.CylinderGeometry(bar.d / 2, bar.d / 2, L, 8);
+      geo.rotateX(Math.PI / 2);                     // eje Y → Z local
+      const cil = new THREE.Mesh(geo, MAT_LONG);
+      cil.position.set(bar.x, bar.y, 0);
+      g.add(cil);
+    }
+    const { w, h, s } = el.estribo;                 // estribos como aros
+    const pts = [
+      new THREE.Vector3(-w / 2, -h / 2, 0), new THREE.Vector3(w / 2, -h / 2, 0),
+      new THREE.Vector3(w / 2, h / 2, 0), new THREE.Vector3(-w / 2, h / 2, 0),
+    ];
+    const loopGeo = new THREE.BufferGeometry().setFromPoints(pts);
+    const nTramos = Math.max(2, Math.floor(L / s));   // nTramos+1 aros, separación ≤ s
+    for (let k = 0; k <= nTramos; k++) {
+      const loop = new THREE.LineLoop(loopGeo, MAT_EST);
+      loop.position.z = -L / 2 + k * (L / nTramos);
+      g.add(loop);
+    }
+    armadoGroup.add(g);
+  }
+  scene.add(armadoGroup);
+}
+
+function fantasma(on) {
+  for (const m of [MAT.columna, MAT.viga]) {
+    m.transparent = on;
+    m.opacity = on ? 0.25 : 1.0;
+    m.depthWrite = !on;
+  }
 }
 
 // --- Panel de control ---
@@ -192,8 +242,17 @@ function fsDe(est) {
   return 1;
 }
 
+function resetOverlays() {
+  losaActiva = false;
+  refuerzoActivo = false;
+  if (losaMesh) losaMesh.visible = false;
+  if (armadoGroup) armadoGroup.visible = false;
+  fantasma(false);
+  for (const bar of barras) bar.mesh.visible = true;
+}
+
 function entrarLosa(est) {
-  campoLosa = est.slice(5);                            // 'deflexion' | 'momento_mx' | 'momento_my'
+  campoLosa = est.slice(5);
   losaActiva = true;
   for (const bar of barras) bar.mesh.visible = false;
   losaMesh.visible = true;
@@ -207,14 +266,25 @@ function entrarLosa(est) {
   encuadrar([0, 0, 0], [losa.a, losa.b, 0]);
 }
 
+function entrarRefuerzo() {
+  refuerzoActivo = true;
+  fantasma(true);                                   // hormigón translúcido
+  if (armadoGroup) armadoGroup.visible = true;
+  exagInput.min = 0; exagInput.max = 1; exagInput.step = 1;
+  exagInput.value = 0; exag = 0;                    // armado estático (sin deformar)
+  info.textContent = armado
+    ? `armado de ejemplo (ρ≈1% col · As_mín viga) — ${armado.elementos.length} elementos`
+    : '';
+  if (frameBbox) encuadrar(frameBbox.min, frameBbox.max);
+}
+
 function setEstado(nuevo) {
-  if (nuevo.startsWith('losa-')) { estado = nuevo; entrarLosa(nuevo); return; }
-  const veniaDeLosa = losaActiva;
+  const veniaEspecial = losaActiva || refuerzoActivo;
   estado = nuevo;
-  losaActiva = false;
-  if (losaMesh) losaMesh.visible = false;
-  for (const bar of barras) bar.mesh.visible = true;
-  if (veniaDeLosa && frameBbox) encuadrar(frameBbox.min, frameBbox.max);
+  resetOverlays();
+  if (nuevo.startsWith('losa-')) { entrarLosa(nuevo); return; }
+  if (nuevo === 'refuerzo') { entrarRefuerzo(); return; }
+  if (veniaEspecial && frameBbox) encuadrar(frameBbox.min, frameBbox.max);
   const fs = fsDe(estado);
   exagInput.min = 0; exagInput.max = fs * 5; exagInput.step = fs / 100;
   exagInput.value = estado === 'sin-deformar' ? 0 : fs;
@@ -237,7 +307,7 @@ btnPlay.addEventListener('click', () => {
   btnPlay.setAttribute('aria-label', playing ? 'pausar' : 'reanudar');
 });
 
-// --- Tocar la losa → valor interpolado del campo activo ---
+// --- Tocar la losa → valor interpolado ---
 const punteroRay = new THREE.Raycaster();
 const ndc = new THREE.Vector2();
 renderer.domElement.addEventListener('pointerdown', (ev) => {
@@ -285,9 +355,9 @@ async function cargar() {
 
   await cargarResultados();
   await cargarLosa();
+  await cargarArmado();
 }
 
-// --- Carga de resultados de pórtico (/resultados) ---
 async function cargarResultados() {
   try {
     const r = await fetch('./resultados');
@@ -303,19 +373,30 @@ async function cargarResultados() {
   }
 }
 
-// --- Carga de la losa (/losa) ---
 async function cargarLosa() {
   try {
     const r = await fetch('./losa');
     if (!r.ok) throw new Error('HTTP ' + r.status);
     losa = await r.json();
   } catch (e) {
-    return;   // sin losa: simplemente no se agregan los estados de losa
+    return;
   }
   construirLosa();
   selEstado.add(new Option('losa: deflexión', 'losa-deflexion'));
   selEstado.add(new Option('losa: momento Mx', 'losa-momento_mx'));
   selEstado.add(new Option('losa: momento My', 'losa-momento_my'));
+}
+
+async function cargarArmado() {
+  try {
+    const r = await fetch('./armado');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    armado = await r.json();
+  } catch (e) {
+    return;   // sin armado: no se agrega el estado de refuerzo
+  }
+  construirArmado();
+  selEstado.add(new Option('refuerzo: armado', 'refuerzo'));
 }
 
 // --- WebXR: botón solo si hay soporte ---
