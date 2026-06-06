@@ -31,6 +31,8 @@ class GDL(IntEnum):
 
 GDL_POR_NODO = 6
 
+CASOS_CARGA = frozenset({"D", "L", "Lr", "S", "R", "W", "E"})   # tipos LRFD (ACI 318-19 §5.3.1)
+
 
 @dataclass(frozen=True)
 class Nodo:
@@ -105,7 +107,10 @@ class Apoyo:
 
 @dataclass(frozen=True)
 class CargaNodal:
-    """Carga puntual en un nodo. Fuerzas en N, momentos en N·m, ejes globales."""
+    """Carga puntual en un nodo. Fuerzas en N, momentos en N·m, ejes globales.
+
+    ``caso`` es el tipo de carga LRFD (ACI 318-19 §5.3.1): D, L, Lr, S, R, W, E.
+    """
     nodo_id: int
     fx: float = 0.0
     fy: float = 0.0
@@ -113,6 +118,7 @@ class CargaNodal:
     mx: float = 0.0
     my: float = 0.0
     mz: float = 0.0
+    caso: str = "D"
 
     def componentes(self) -> tuple[float, ...]:
         return (self.fx, self.fy, self.fz, self.mx, self.my, self.mz)
@@ -165,6 +171,8 @@ class ModeloEstructural:
         for c in self.cargas:
             if c.nodo_id not in ids_nodo:
                 errores.append(f"Carga en nodo {c.nodo_id} inexistente.")
+            if c.caso not in CASOS_CARGA:
+                errores.append(f"Carga en nodo {c.nodo_id}: caso '{c.caso}' inválido.")
         return errores
 
     def es_valido(self) -> bool:
