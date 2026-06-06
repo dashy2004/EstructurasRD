@@ -103,3 +103,5 @@ def test_diseno_tiene_combo_y_casos():
     # con D+W, no todos los elementos los gobierna 1.4D
     combos = {e["combo"] for e in data["elementos"]}
     assert combos - {"1"}
+    cols = [e for e in data["elementos"] if e["tipo"] == "columna"]
+    assert cols and all(e["estribo_txt"].startswith("E#") for e in cols)

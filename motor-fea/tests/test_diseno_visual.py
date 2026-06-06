@@ -113,3 +113,19 @@ def test_diseno_combo_con_W_gobierna():
     assert el["combo"] and el["combo"] != "1"             # gobierna un combo con W, no 1.4D
     assert set(el["demanda"]) == {"pu", "mu", "vu"}
     assert all(v >= 0 for v in el["demanda"].values())
+
+
+def test_columna_estribo_disenado_y_txt():
+    m = ModeloEstructural()
+    m.nodos += [Nodo(1, 0, 0, 0), Nodo(2, 0, 0, 3.0)]
+    m.materiales.append(Material(1, E=2.0e10))
+    bc = 0.40
+    m.secciones.append(Seccion(1, area=bc * bc, inercia_y=bc ** 4 / 12,
+                               inercia_z=bc ** 4 / 12, constante_torsion=0.1406 * bc ** 4))
+    m.elementos.append(ElementoFrame(1, 1, 2, 1, 1))
+    m.apoyos.append(Apoyo.empotrado(1))
+    m.cargas += [CargaNodal(2, fz=-200000.0, caso="D"), CargaNodal(2, fx=20000.0, caso="W")]
+    el = diseno.calcular_diseno(m, fc=28.0, fy=420.0, recubrimiento=0.05)["elementos"][0]
+    assert el["tipo"] == "columna"
+    assert el["estribo_txt"].startswith("E#")
+    assert el["estribo"]["s"] > 0 and el["estribo"]["d"] > 0
