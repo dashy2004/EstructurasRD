@@ -295,7 +295,7 @@ function entrarDiseno() {
   exagInput.value = 0; exag = 0;
   const n = diseno.elementos.length;
   const ok = diseno.elementos.filter((el) => el.cumple).length;
-  info.textContent = `diseño por fuerzas — ${ok}/${n} cumplen`;
+  info.textContent = `diseño LRFD — ${ok}/${n} cumplen`;
   if (frameBbox) encuadrar(frameBbox.min, frameBbox.max);
 }
 
@@ -368,7 +368,7 @@ function mostrarDiseno(el) {
   const dem = el.tipo === 'columna'
     ? `Pu=${kN(el.demanda.pu)} kN, Mu=${kN(el.demanda.mu)} kN·m`
     : `Mu=${kN(el.demanda.mu)} kN·m, Vu=${kN(el.demanda.vu)} kN`;
-  info.textContent = `${el.designacion} · ${dem} · ${el.cumple ? 'cumple' : 'NO cumple'}`;
+  info.textContent = `${el.designacion} · combo ${el.combo} · ${dem} · ${el.cumple ? 'cumple' : 'NO cumple'}`;
 }
 
 // --- Carga ---

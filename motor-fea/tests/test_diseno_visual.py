@@ -9,7 +9,7 @@ from motor_fea.viz import diseno
 
 
 def _portico():
-    """Pórtico 4×4×3 con carga lateral (igual al modelo de ejemplo del servidor)."""
+    """Pórtico 4×4×3 con carga lateral (todas en el caso D por defecto)."""
     m = ModeloEstructural()
     m.nodos += [
         Nodo(1, 0, 0, 0), Nodo(2, 4, 0, 0), Nodo(3, 4, 4, 0), Nodo(4, 0, 4, 0),
