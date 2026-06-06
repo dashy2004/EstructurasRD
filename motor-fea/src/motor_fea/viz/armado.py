@@ -56,29 +56,37 @@ def _barra_columna(as_req: float) -> tuple[int, int]:
     return 8, 12
 
 
+def _posiciones_columna(b: float, h: float, rec: float, num: int, n: int) -> list[dict]:
+    """Posiciones (x,y,d) de n barras #num distribuidas en el perímetro de la sección."""
+    d = _diametro_m(num)
+    ox, oy = max(0.0, b / 2 - rec - d / 2), max(0.0, h / 2 - rec - d / 2)
+    return [{"x": x, "y": y, "d": d} for x, y in _perimetro(n, ox, oy)]
+
+
 def _armado_columna(b: float, h: float, rec: float) -> tuple[list[dict], int, int, float]:
     as_req = 0.01 * (b * 1000.0) * (h * 1000.0)      # ρ_min = 1% (ACI 10.6.1.1), mm²
     num, n = _barra_columna(as_req)
+    return _posiciones_columna(b, h, rec, num, n), num, n, _diametro_m(num)
+
+
+def _posiciones_viga(b: float, h: float, rec: float, num: int, n_inf: int) -> list[dict]:
+    """Posiciones de n_inf barras #num inferiores + 2 superiores en la sección."""
     d = _diametro_m(num)
-    # Acotar a ≥0: en una sección muy delgada (d/2 > b/2−rec) evita posiciones invertidas.
-    ox, oy = max(0.0, b / 2 - rec - d / 2), max(0.0, h / 2 - rec - d / 2)
-    long = [{"x": x, "y": y, "d": d} for x, y in _perimetro(n, ox, oy)]
-    return long, num, n, d
-
-
-def _armado_viga(b: float, h: float, rec: float, fc: float, fy: float) -> tuple[list[dict], int, float]:
-    d_util = h - rec
-    as_min = as_minimo_flexion(b * 1000.0, d_util * 1000.0, fc, fy)    # mm²
-    d = _diametro_m(5)
-    n_inf = max(2, math.ceil(as_min / AREAS_BARRA_MM2[5]))
-    ox = max(0.0, b / 2 - rec - d / 2)               # ≥0 (ver _armado_columna)
+    ox = max(0.0, b / 2 - rec - d / 2)
     y_inf, y_sup = -(h / 2 - rec - d / 2), (h / 2 - rec - d / 2)
     long: list[dict] = []
     for k in range(n_inf):                            # fila inferior
         f = k / (n_inf - 1) if n_inf > 1 else 0.5    # n_inf siempre ≥2; el 0.5 es defensivo
         long.append({"x": -ox + 2 * ox * f, "y": y_inf, "d": d})
     long += [{"x": -ox, "y": y_sup, "d": d}, {"x": ox, "y": y_sup, "d": d}]   # 2 sup
-    return long, n_inf, d
+    return long
+
+
+def _armado_viga(b: float, h: float, rec: float, fc: float, fy: float) -> tuple[list[dict], int, float]:
+    d_util = h - rec
+    as_min = as_minimo_flexion(b * 1000.0, d_util * 1000.0, fc, fy)    # mm²
+    n_inf = max(2, math.ceil(as_min / AREAS_BARRA_MM2[5]))
+    return _posiciones_viga(b, h, rec, 5, n_inf), n_inf, _diametro_m(5)
 
 
 def calcular_armado(modelo: ModeloEstructural, fc: float = 21.0, fy: float = 420.0,
