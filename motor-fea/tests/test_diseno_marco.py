@@ -177,3 +177,36 @@ def test_disenar_viga_seccion_insuficiente():
     assert d.flexion is None
     assert not d.cumple
     assert "INSUFICIENTE" in d.disponer
+
+
+def test_cortante_concreto_columna_axial():
+    vc0 = aci318.cortante_concreto_columna(400, 360, 28, 0.0, 160000)
+    vc_comp = aci318.cortante_concreto_columna(400, 360, 28, 500000.0, 160000)
+    vc_trac = aci318.cortante_concreto_columna(400, 360, 28, -500000.0, 160000)
+    assert vc_comp > vc0 > vc_trac >= 0
+
+
+def test_confinamiento_ash_proporcional_a_s():
+    a1 = aci318.confinamiento_ash(100, 300, 28, 420, 160000, 90000)
+    a2 = aci318.confinamiento_ash(200, 300, 28, 420, 160000, 90000)
+    assert a1 > 0 and a2 == pytest.approx(2 * a1)
+
+
+def test_estribo_columna_confinamiento_cumple():
+    e = aci318.disenar_estribo_columna(10000.0, 200000.0, 400, 400, 28,
+                                       aci318._diametro_barra(8), 40)
+    assert e.cumple
+    assert e.espaciamiento >= 50
+    assert e.gobierna == "confinamiento"
+
+
+def test_estribo_columna_vs_requerido_crece_con_vu():
+    e_lo = aci318.disenar_estribo_columna(10000.0, 200000.0, 400, 400, 28, aci318._diametro_barra(8), 40)
+    e_hi = aci318.disenar_estribo_columna(300000.0, 200000.0, 400, 400, 28, aci318._diametro_barra(8), 40)
+    assert e_hi.vs_requerido > e_lo.vs_requerido
+
+
+def test_estribo_columna_insuficiente():
+    e = aci318.disenar_estribo_columna(2.0e6, 200000.0, 400, 400, 28, aci318._diametro_barra(8), 40)
+    assert not e.cumple
+    assert "INSUFICIENTE" in e.disponer

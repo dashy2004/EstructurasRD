@@ -473,3 +473,84 @@ def disenar_columna_pm(pu: float, mu: float, b: float, h: float, fc: float, fy: 
         ultimo_n = n
         n += 1
     return DisenoColumna(pu, mu, num, ultimo_n, ultimo_n * area / ag, False, "SECCIÓN INSUFICIENTE")
+
+
+# ===================== Estribo de columna (Fase 5C) =====================
+def cortante_concreto_columna(bw: float, d: float, fc: float, nu: float, ag: float,
+                              lam: float = 1.0) -> float:
+    """Vc (N) de columna con axial — ACI 318-19 §22.5.6.1 (compresión) / §22.5.7.1 (tracción).
+
+    nu: axial en N, COMPRESIÓN POSITIVA. Compresión aumenta Vc; tracción lo reduce (cap a 0).
+    """
+    if bw <= 0 or d <= 0 or fc <= 0 or ag <= 0:
+        raise ValueError("bw, d, fc y ag deben ser positivos.")
+    if nu >= 0:
+        factor = 1.0 + nu / (14.0 * ag)
+    else:
+        factor = max(0.0, 1.0 + nu / (3.5 * ag))
+    return 0.17 * factor * lam * math.sqrt(fc) * bw * d
+
+
+def confinamiento_ash(s: float, bc: float, fc: float, fyt: float, ag: float, ach: float) -> float:
+    """Ash requerido (mm²) de confinamiento — ACI 318-19 §18.7.5.4 (estribos rectangulares)."""
+    if s <= 0 or bc <= 0 or fc <= 0 or fyt <= 0 or ag <= 0 or ach <= 0:
+        raise ValueError("s, bc, fc, fyt, ag y ach deben ser positivos.")
+    ratio = max(0.3 * (ag / ach - 1.0) * (fc / fyt), 0.09 * (fc / fyt))
+    return s * bc * ratio
+
+
+@dataclass(frozen=True)
+class DisenoEstriboColumna:
+    numero_barra: int
+    n_ramas: int
+    espaciamiento: float   # mm
+    av: float              # mm²
+    ash_provista: float    # mm²
+    vs_requerido: float    # N
+    cumple: bool
+    disponer: str
+    gobierna: str          # "cortante" | "confinamiento" | "detallado"
+
+
+def disenar_estribo_columna(vu: float, pu: float, b: float, h: float, fc: float, db_long: float,
+                            recubrimiento: float, fyt: float = 420.0, n_ramas: int = 2,
+                            lam: float = 1.0) -> DisenoEstriboColumna:
+    """Diseña el estribo de columna: cortante (Vc con axial) + confinamiento (ACI 18.7.5.4).
+
+    vu, pu en N (pu COMPRESIÓN +); b, h, db_long, recubrimiento en mm. Escala la barra (#3→#4→#5)
+    hasta que el Ash provisto confine a la separación; la separación final es la más exigente de
+    cortante, confinamiento y detallado (§25.7.2.1). 'gobierna' indica cuál rigió.
+    """
+    if b <= 0 or h <= 0 or fc <= 0 or fyt <= 0 or recubrimiento <= 0:
+        raise ValueError("b, h, fc, fyt y recubrimiento deben ser positivos.")
+    d = h - recubrimiento
+    bc = b - 2.0 * recubrimiento
+    if d <= 0 or bc <= 0:
+        raise ValueError("Recubrimiento incompatible con la sección.")
+    vu = abs(vu)
+    ag = b * h
+    ach = (b - 2.0 * recubrimiento) * (h - 2.0 * recubrimiento)
+    vc = cortante_concreto_columna(b, d, fc, pu, ag, lam)
+    vs_max = cortante_acero_maximo(b, d, fc)
+    vs_req = vu / PHI_CORTANTE - vc
+    if vs_req > vs_max:                                   # sección insuficiente a cortante
+        av0 = n_ramas * AREAS_BARRA_MM2[3]
+        return DisenoEstriboColumna(3, n_ramas, min(d / 2.0, 600.0), av0, av0, vs_req, False,
+                                    "SECCIÓN INSUFICIENTE A CORTANTE", "cortante")
+    ratio = max(0.3 * (ag / ach - 1.0) * (fc / fyt), 0.09 * (fc / fyt))
+    s_so = min(0.25 * min(b, h), 6.0 * db_long, 150.0)   # §18.7.5.3 (so por hx = 150, simplificado)
+    ultimo: DisenoEstriboColumna | None = None
+    for num in (3, 4, 5):                                # escala la barra hasta confinar
+        av = n_ramas * AREAS_BARRA_MM2[num]
+        s_cortante = math.inf if vs_req <= 0 else av * fyt * d / vs_req
+        s_conf = av / (ratio * bc) if ratio > 0 else math.inf
+        s_det = min(16.0 * db_long, 48.0 * _diametro_barra(num), min(b, h))
+        candidatos = {"cortante": s_cortante, "confinamiento": min(s_conf, s_so), "detallado": s_det}
+        gobierna = min(candidatos, key=lambda k: candidatos[k])
+        s = max(50.0, math.floor(min(candidatos.values()) / 25.0) * 25.0)
+        cumple = av >= ratio * bc * s                    # Ash provista cubre la requerida a s
+        ultimo = DisenoEstriboColumna(num, n_ramas, s, av, av, vs_req, cumple,
+                                      f"E#{num} {n_ramas}R @ {s:.0f}", gobierna)
+        if cumple:
+            return ultimo
+    return ultimo                                        # ni #5 confina → cumple=False
