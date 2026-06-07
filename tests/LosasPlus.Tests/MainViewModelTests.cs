@@ -152,4 +152,39 @@ public class MainViewModelTests
 
         Assert.Equal(antes + 1, vm.Sistema.Losas.Count);
     }
+
+    // ---- Fase D: router CurrentView -----------------------------------
+
+    [Theory]
+    [InlineData(ModoSidebar.Explorador)]
+    [InlineData(ModoSidebar.Editor)]
+    [InlineData(ModoSidebar.PlanoCad)]
+    [InlineData(ModoSidebar.DLEditor)]
+    [InlineData(ModoSidebar.Salida)]
+    [InlineData(ModoSidebar.Plugins)]
+    [InlineData(ModoSidebar.Acerca)]
+    public void CurrentView_es_null_para_modos_inline(ModoSidebar modo)
+    {
+        // Estos modos siguen renderizándose inline (IsVisible) en MainWindow;
+        // el router los deja fuera y CurrentView debe ser null para que el
+        // ContentControl quede vacío. Rama pura: no instancia controles Avalonia.
+        var vm = new MainViewModel { ModoActivo = modo };
+        Assert.Null(vm.CurrentView);
+    }
+
+    [Fact]
+    public void Cambiar_ModoActivo_notifica_CurrentView()
+    {
+        var vm = new MainViewModel();
+        var notificadas = new System.Collections.Generic.List<string?>();
+        vm.PropertyChanged += (_, e) => notificadas.Add(e.PropertyName);
+
+        // Editor (inline) → DLEditor (inline): el router debe notificar el
+        // cambio de CurrentView aunque ambos sean null, para que el
+        // ContentControl re-evalúe el binding.
+        vm.ModoActivo = ModoSidebar.Editor;
+        vm.ModoActivo = ModoSidebar.DLEditor;
+
+        Assert.Contains(nameof(MainViewModel.CurrentView), notificadas);
+    }
 }
