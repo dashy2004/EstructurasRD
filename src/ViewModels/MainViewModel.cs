@@ -506,6 +506,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             VigaEditor.NotificarRestauracion();
 
             SistemaActivo = NivelActivo?.Sistemas.FirstOrDefault() ?? NuevoSistemaDemo();
+            ColumnasEditor?.Recargar();
             OnPropertyChanged(nameof(Proyecto));
             OnPropertyChanged(nameof(TituloVentana));
             RefreshDLContent();
@@ -643,6 +644,8 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
                     _nivelActivo.Sistemas.Add(NuevoSistemaDemo());
                 SistemaActivo = _nivelActivo.Sistemas[0];
             }
+            // Refrescar el editor de columnas con las columnas del nivel recién activado.
+            ColumnasEditor?.Recargar();
         }
     }
 
@@ -937,6 +940,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             
             NivelActivo = niv;
             SistemaActivo = sistemas[0];
+            ColumnasEditor?.Recargar();
             DLPath = path;
             Log($"Cargado .DL: {path} ({sistemas.Count} sistema{(sistemas.Count == 1 ? "" : "s")})");
             OnPropertyChanged(nameof(LosasFiltradas));
@@ -1613,6 +1617,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             _proyecto.Ubicacion   = p.Ubicacion;
             _proyecto.Descripcion = p.Descripcion;
             SistemaActivo = _proyecto.Sistemas.FirstOrDefault() ?? NuevoSistemaDemo();
+            ColumnasEditor?.Recargar();
 
             ActualizarRecents();
             StatusPersistencia = $"Cargado: {Path.GetFileName(path)}";
