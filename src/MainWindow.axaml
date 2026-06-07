@@ -259,8 +259,8 @@
                             <MenuItem Header="Abrir .DL legacy..." Click="OnOpenClick"/>
                             <MenuItem Header="🩺 Diagnosticar .DL..." Click="OnDiagnosticarDLClick"/>
                             <MenuItem Header="Guardar .DL agregado..." Click="OnSaveClick"/>
-                            <Separator/>
-                            <MenuItem Header="Pegar de Excel..." Click="OnPasteFromExcelClick"/>
+                            <!-- "Pegar de Excel" se ofrece desde el botón de la barra de edición
+                                 (DockPanel de la grilla de losas); se elimina el duplicado del menú. -->
                         </MenuItem>
                         <MenuItem Header="Engine">
                             <MenuItem Header="Importar .TXT..." Click="OnImportTxtClick"/>
