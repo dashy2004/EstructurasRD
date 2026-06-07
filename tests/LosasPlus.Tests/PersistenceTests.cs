@@ -315,7 +315,7 @@ public class PersistenceTests : IDisposable
 
         Assert.Equal("Torre Test",         meta.NombreProyecto);
         Assert.Equal("Ing. Demo",          meta.Ingeniero);
-        Assert.Equal(2,                    meta.CantidadNiveles);   // 2 sistemas
+        Assert.Equal(1,                    meta.CantidadNiveles);   // 2 sistemas, pero 1 NIVEL (B3)
         Assert.Equal(ProyectoSerializer.FormatVersion, meta.Version);
         Assert.Equal(path,                 meta.Path);
     }

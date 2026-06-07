@@ -13,6 +13,8 @@
     <Authors>Wrapper basado en el motor de F. Perdomo (Losas v5.00). Port a Avalonia/Linux.</Authors>
     <Product>LosasPlus</Product>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!-- CS0618: API legacy [Obsolete] (B3) conservada funcionando; ver src.Core. -->
+    <NoWarn>$(NoWarn);CS0618</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

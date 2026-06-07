@@ -25,6 +25,8 @@
     <Version>0.1.0</Version>
     <Authors>Port a Linux/Avalonia del trabajo de Emil Guillen De la Cruz</Authors>
     <Product>LosasPlus (Linux)</Product>
+    <!-- CS0618: API legacy [Obsolete] (B3) conservada funcionando; ver src.Core. -->
+    <NoWarn>$(NoWarn);CS0618</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

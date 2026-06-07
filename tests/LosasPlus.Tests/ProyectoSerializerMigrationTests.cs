@@ -87,6 +87,29 @@ public class ProyectoSerializerMigrationTests : IDisposable
         return root.ToJsonString();
     }
 
+    /// <summary>
+    /// Construye un JSON con el formato v3: jerarquía Edificio→Nivel y
+    /// combinaciones presentes, pero con <c>Uso</c>/<c>Cota</c> SÓLO en el sistema
+    /// (los niveles aún no los traen — estado real de un archivo pre-B3). Borra
+    /// cualquier <c>uso</c>/<c>cota</c> de los niveles para simular el formato
+    /// antiguo, dejando un primer sistema con <c>cotaMetros</c>/<c>uso</c>.
+    /// </summary>
+    private static string BuildV3Json(Proyecto p)
+    {
+        var root = JsonNode.Parse(ProyectoSerializer.ToJson(p))!.AsObject();
+        root["version"] = 3;
+
+        var edificios = root["proyecto"]!["edificios"]!.AsArray();
+        foreach (var ed in edificios)
+        foreach (var niv in ed!["niveles"]!.AsArray())
+        {
+            var n = niv!.AsObject();
+            n.Remove("uso");          // un v3 no tenía uso/cota en el nivel…
+            n["cota"] = 0;            // …la cota del nivel quedaba en 0 (sin reconciliar)
+        }
+        return root.ToJsonString();
+    }
+
     // =====================================================================
     // Migración v1 → v2 (jerarquía Edificio → Nivel)
     // =====================================================================
@@ -163,7 +186,8 @@ public class ProyectoSerializerMigrationTests : IDisposable
     public void Load_de_version_futura_lanza_excepcion()
     {
         var path = TempFile();
-        File.WriteAllText(path, "{ \"version\": 4, \"proyecto\": { \"nombre\": \"X\" } }");
+        // Una versión por encima de la soportada (FormatVersion = 4 → usar 5).
+        File.WriteAllText(path, "{ \"version\": 5, \"proyecto\": { \"nombre\": \"X\" } }");
 
         Assert.Throws<InvalidProyectoFileException>(() => ProyectoSerializer.Load(path));
     }
@@ -180,8 +204,11 @@ public class ProyectoSerializerMigrationTests : IDisposable
     }
 
     [Fact]
-    public void ReadMetadata_cuenta_sistemas_igual_en_v1_y_formato_actual()
+    public void ReadMetadata_cuenta_niveles_no_sistemas_en_v1_y_formato_actual()
     {
+        // El fixture tiene 2 SISTEMAS bajo un único NIVEL: CantidadNiveles debe
+        // ser 1, no 2 (B3 — el metadato cuenta plantas, no sistemas). Un archivo
+        // v1 plano representa también una única planta implícita.
         var v1Path = TempFile();
         File.WriteAllText(v1Path, BuildV1Json(BuildProyecto()));
 
@@ -191,8 +218,8 @@ public class ProyectoSerializerMigrationTests : IDisposable
         var metaV1 = ProyectoSerializer.ReadMetadata(v1Path);
         var metaActual = ProyectoSerializer.ReadMetadata(actualPath);
 
-        Assert.Equal(2, metaV1.CantidadNiveles);
-        Assert.Equal(2, metaActual.CantidadNiveles);
+        Assert.Equal(1, metaV1.CantidadNiveles);
+        Assert.Equal(1, metaActual.CantidadNiveles);
     }
 
     // =====================================================================
@@ -255,5 +282,85 @@ public class ProyectoSerializerMigrationTests : IDisposable
         Assert.Equal("1.2D + 1.6L + 0.5Lr", combo.Nombre);
         Assert.Equal(3, combo.Terminos.Count);
         Assert.Equal(1.6, combo.Terminos[1].Factor);
+    }
+
+    // =====================================================================
+    // Migración v3 → v4 (B3): Uso/Cota pasan del Sistema al Nivel
+    // =====================================================================
+
+    [Fact]
+    public void Load_de_v3_copia_Uso_y_Cota_del_primer_sistema_al_Nivel()
+    {
+        // El fixture tiene un sistema E1 con Uso=Entrepiso, CotaMetros=2.80.
+        // Tras migrar v3→v4, esos valores deben aparecer en el propio Nivel.
+        var path = TempFile();
+        File.WriteAllText(path, BuildV3Json(BuildProyecto()));
+
+        var p = ProyectoSerializer.Load(path);
+
+        var nivel = p.Edificios[0].Niveles[0];
+        Assert.Equal(SistemaUso.Entrepiso, nivel.Uso);
+        Assert.Equal(2.80, nivel.CotaMetros, precision: 2);
+        Assert.Equal(2.80, nivel.Cota,       precision: 2);
+
+        // El sistema conserva su copia (obsoleta) para no romper lectores previos.
+        Assert.Equal(2.80, p.Sistemas[0].CotaMetros, precision: 2);
+    }
+
+    [Fact]
+    public void Migracion_v3_a_v4_roundtrip_estable_con_Uso_y_Cota_en_el_Nivel()
+    {
+        // v3 en disco → Load (migra a v4, escribe Uso/Cota en el Nivel) → Save (v4)
+        // → recargar: el Nivel sigue trayendo Uso/Cota directamente (sin re-migrar).
+        var v3Path = TempFile();
+        File.WriteAllText(v3Path, BuildV3Json(BuildProyecto()));
+        var migrado = ProyectoSerializer.Load(v3Path);
+
+        var v4Path = TempFile();
+        ProyectoSerializer.Save(migrado, v4Path);
+
+        var root = JsonNode.Parse(File.ReadAllText(v4Path))!.AsObject();
+        Assert.Equal(4, (int)root["version"]!);   // FormatVersion actual = 4
+
+        var recargado = ProyectoSerializer.Load(v4Path);
+        var nivel = recargado.Edificios[0].Niveles[0];
+        Assert.Equal(SistemaUso.Entrepiso, nivel.Uso);
+        Assert.Equal(2.80, nivel.CotaMetros, precision: 2);
+    }
+
+    /// <summary>
+    /// Construye un proyecto con DOS niveles, cada uno con DOS sistemas, para
+    /// verificar que <c>CantidadNiveles</c> cuenta NIVELES (=2), no sistemas (=4).
+    /// </summary>
+    private static Proyecto BuildProyectoDosNivelesDosSistemas()
+    {
+        var p = ProyectoFactory.NuevoProyectoSeedeado();
+        p.Nombre = "Torre 2x2";
+        p.AsegurarEstructura();
+        var ed = p.Edificios[0];
+
+        var nivel1 = ed.Niveles[0];
+        nivel1.Nombre = "Planta Baja";
+        nivel1.Sistemas.Add(new Sistema { Nombre = "PB-A" });
+        nivel1.Sistemas.Add(new Sistema { Nombre = "PB-B" });
+
+        var nivel2 = new Nivel { Nombre = "Nivel 2", Cota = 3.0 };
+        nivel2.Sistemas.Add(new Sistema { Nombre = "N2-A" });
+        nivel2.Sistemas.Add(new Sistema { Nombre = "N2-B" });
+        ed.Niveles.Add(nivel2);
+
+        return p;
+    }
+
+    [Fact]
+    public void ReadMetadata_CantidadNiveles_cuenta_niveles_no_sistemas()
+    {
+        // 2 niveles × 2 sistemas = 4 sistemas, pero CantidadNiveles debe ser 2.
+        var path = TempFile();
+        ProyectoSerializer.Save(BuildProyectoDosNivelesDosSistemas(), path);
+
+        var meta = ProyectoSerializer.ReadMetadata(path);
+
+        Assert.Equal(2, meta.CantidadNiveles);
     }
 }

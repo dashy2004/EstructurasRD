@@ -251,7 +251,17 @@ public partial class Sistema
         set { _uso = value; OnPropertyChanged(); }
     }
 
-    /// <summary>Cota del nivel desde el nivel +0.00 (m). Ej. +2.80 m, +5.60 m.</summary>
+    /// <summary>
+    /// Cota del nivel desde el nivel +0.00 (m). Ej. +2.80 m, +5.60 m.
+    /// <para>
+    /// <b>Obsoleto (B3):</b> la cota es una propiedad de la <see cref="Nivel">planta</see>,
+    /// no del sistema. El hogar canónico es <see cref="Nivel.CotaMetros"/> /
+    /// <see cref="Nivel.Cota"/>. Se conserva como campo almacenado para cargar
+    /// proyectos previos a v4 (la migración v3→v4 lo copia al nivel) y por
+    /// compatibilidad con lectores existentes; no usar en código nuevo.
+    /// </para>
+    /// </summary>
+    [Obsolete("Usar Nivel.CotaMetros / Nivel.Cota. Se conserva para back-compat y la migracion v3->v4.")]
     public double CotaMetros
     {
         get => _cotaMetros;
@@ -260,9 +270,14 @@ public partial class Sistema
 
     /// <summary>
     /// Elevación del sistema (m) — «cada sistema es un nivel de elevación» (WS3).
-    /// Es un <b>alias</b> de <see cref="CotaMetros"/> (comparten almacenamiento):
-    /// expone el vocabulario de elevación sin duplicar estado. Aditivo.
+    /// Es un <b>alias</b> de <see cref="CotaMetros"/> (comparten almacenamiento).
+    /// <para>
+    /// <b>Obsoleto (B3):</b> ver <see cref="CotaMetros"/>. El hogar canónico de la
+    /// cota/elevación de planta es <see cref="Nivel"/>; este alias sólo persiste
+    /// para back-compat y la migración v3→v4.
+    /// </para>
     /// </summary>
+    [Obsolete("Usar Nivel.CotaMetros / Nivel.Cota. Se conserva para back-compat y la migracion v3->v4.")]
     public double Elevacion
     {
         get => _cotaMetros;

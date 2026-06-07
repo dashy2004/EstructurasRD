@@ -96,6 +96,7 @@ public partial class Proyecto : INotifyPropertyChanged
     /// vive en <see cref="Edificios"/>.
     /// </summary>
     [JsonIgnore]
+    [Obsolete("Fachada legacy: usar Edificios/Niveles/Sistemas (o NivelActivo.Sistemas). Sigue funcionando — apunta a Edificios[0].Niveles[0].Sistemas.")]
     public ObservableCollection<Sistema> Sistemas
     {
         get

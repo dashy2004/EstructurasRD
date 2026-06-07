@@ -7,6 +7,10 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <LangVersion>latest</LangVersion>
+    <!-- CS0618: los tests ejercitan deliberadamente el API legacy [Obsolete] (B3)
+         (Proyecto.Sistemas, Sistema.CotaMetros/Elevacion) para verificar la
+         back-compat y la migración v3→v4. -->
+    <NoWarn>$(NoWarn);CS0618</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
