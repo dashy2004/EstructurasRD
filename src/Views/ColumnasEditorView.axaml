@@ -2,8 +2,10 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:oxy="clr-namespace:OxyPlot.Avalonia;assembly=OxyPlot.Avalonia"
              xmlns:v="clr-namespace:LosasPlus.Views"
+             xmlns:vm="clr-namespace:LosasPlus.ViewModels"
              x:Class="LosasPlus.Views.ColumnasEditorView"
-             x:CompileBindings="False">
+             x:DataType="vm:ColumnasEditorViewModel"
+             x:CompileBindings="True">
     <UserControl.Resources>
         <ControlTheme x:Key="EtiquetaSeccion" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="Bold"/>
@@ -47,8 +49,8 @@
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>
-                <Button Content="Agregar columna" Click="OnAgregar"/>
-                <Button Content="Eliminar seleccionada" Click="OnEliminar"/>
+                <Button Content="Agregar columna" Command="{Binding AgregarCommand}"/>
+                <Button Content="Eliminar seleccionada" Command="{Binding EliminarCommand}"/>
             </StackPanel>
 
             <DataGrid ItemsSource="{Binding Columnas}" SelectedItem="{Binding Seleccionada}"

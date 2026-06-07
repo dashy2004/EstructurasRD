@@ -1,5 +1,7 @@
+using System.Linq;
 using LosasPlus.Models;
 using LosasPlus.ViewModels;
+using OxyPlot.Series;
 using Xunit;
 
 namespace LosasPlus.Tests;
@@ -99,6 +101,106 @@ public class ColumnasEditorViewModelTests
 
         // CargaEnBase=150 ton / 2 columnas = 75 ton → 75 × 9.80665 = 735.49875 kN.
         Assert.Equal(735.49875, vm.PuKN, 4);
+    }
+
+    // ---- D2: editor autónomo (Niveles/NivelSeleccionado reales + recalc al editar) ----
+
+    [Fact]
+    public void Niveles_expone_los_niveles_del_edificio_y_NivelSeleccionado_arranca_en_el_activo()
+    {
+        var ed = new Edificio();
+        var n0 = new Nivel { Nombre = "PB", Cota = 0 };
+        var n1 = new Nivel { Nombre = "N1", Cota = 3 };
+        ed.Niveles.Add(n0);
+        ed.Niveles.Add(n1);
+
+        var vm = new ColumnasEditorViewModel(() => ed, () => n0);
+
+        Assert.NotNull(vm.Niveles);
+        Assert.Equal(2, vm.Niveles!.Count);            // los niveles reales del edificio
+        Assert.Same(n0, vm.NivelSeleccionado);          // arranca en el nivel activo
+    }
+
+    [Fact]
+    public void Seleccionar_un_nivel_con_columnas_llena_Columnas()
+    {
+        var ed = new Edificio();
+        var n0 = new Nivel { Nombre = "PB", Cota = 0 };   // vacío
+        var n1 = new Nivel { Nombre = "N1", Cota = 3 };
+        n1.Columnas.Add(new Columna { Id = 1, Nombre = "C-1", Base = 0.4, Peralte = 0.4 });
+        ed.Niveles.Add(n0);
+        ed.Niveles.Add(n1);
+
+        var vm = new ColumnasEditorViewModel(() => ed, () => n0);
+        Assert.Empty(vm.Columnas!);                       // PB no tiene columnas
+
+        // El usuario elige N1 en el ComboBox del editor → Columnas se llena.
+        vm.NivelSeleccionado = n1;
+        Assert.Same(n1.Columnas, vm.Columnas);
+        Assert.NotEmpty(vm.Columnas!);
+        Assert.Null(vm.Seleccionada);                     // la selección se limpia al cambiar de nivel
+    }
+
+    [Fact]
+    public void Sync_con_NivelActivo_via_Recargar_mueve_el_NivelSeleccionado()
+    {
+        var ed = new Edificio();
+        var n0 = new Nivel { Nombre = "PB", Cota = 0 };
+        var n1 = new Nivel { Nombre = "N1", Cota = 3 };
+        n1.Columnas.Add(new Columna { Id = 1, Nombre = "C-1" });
+        ed.Niveles.Add(n0);
+        ed.Niveles.Add(n1);
+
+        Nivel nivelActivo = n0;
+        var vm = new ColumnasEditorViewModel(() => ed, () => nivelActivo);
+        Assert.Same(n0, vm.NivelSeleccionado);
+
+        // MainViewModel.NivelActivo cambió → invoca Recargar() (D2 sync).
+        nivelActivo = n1;
+        vm.Recargar();
+        Assert.Same(n1, vm.NivelSeleccionado);
+        Assert.Same(n1.Columnas, vm.Columnas);
+    }
+
+    [Fact]
+    public void Seleccionar_columna_produce_seccion_y_diagrama_PM()
+    {
+        var ed = new Edificio();
+        var niv = new Nivel { Cota = 0 };
+        var col = new Columna { Id = 1, Nombre = "C-1", Base = 0.40, Peralte = 0.40, Altura = 3.0 };
+        niv.Columnas.Add(col);
+        ed.Niveles.Add(niv);
+        var vm = new ColumnasEditorViewModel(() => ed, () => niv);
+
+        vm.Seleccionada = col;
+
+        Assert.NotNull(vm.ModeloSeccionColumna);          // sección transversal
+        Assert.NotNull(vm.ModeloInteraccion);             // diagrama P-M
+        // El P-M tiene la curva con puntos.
+        var curva = vm.ModeloInteraccion!.Series.OfType<LineSeries>().First();
+        Assert.NotEmpty(curva.Points);
+    }
+
+    [Fact]
+    public void Editar_Base_de_la_columna_seleccionada_recalcula_el_diagrama_PM()
+    {
+        var ed = new Edificio();
+        var niv = new Nivel { Cota = 0 };
+        var col = new Columna { Id = 1, Nombre = "C-1", Base = 0.30, Peralte = 0.40, Altura = 3.0 };
+        niv.Columnas.Add(col);
+        ed.Niveles.Add(niv);
+        var vm = new ColumnasEditorViewModel(() => ed, () => niv);
+        vm.PuKN = 800;   // demanda fija para comparar la capacidad del diagrama
+        vm.Seleccionada = col;
+
+        double poAntes = vm.DisenoActual!.PoN;
+        var plotAntes = vm.ModeloInteraccion;
+
+        // Editar la sección (más base → más concreto → más Po) debe recalcular.
+        col.Base = 0.60;
+
+        Assert.True(vm.DisenoActual!.PoN > poAntes);       // RecalcularDiseno corrió
+        Assert.NotSame(plotAntes, vm.ModeloInteraccion);   // el modelo P-M se reconstruyó
     }
 
     // ---- Tests del gate CanExecute (fix frozen-buttons) ----

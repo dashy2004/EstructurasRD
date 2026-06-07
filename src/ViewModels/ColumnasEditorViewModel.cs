@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -36,12 +37,22 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
         _getEdificio = getEdificio ?? throw new ArgumentNullException(nameof(getEdificio));
         _getNivel = getNivel ?? throw new ArgumentNullException(nameof(getNivel));
         TomarPuDelDescensoCommand = new RelayCommand(_ => TomarPuDelDescenso());
+        AgregarCommand = new RelayCommand(_ => Agregar(), _ => _nivelSeleccionado is not null);
         EliminarCommand = new RelayCommand(_ => Eliminar(), _ => _seleccionada is not null);
-        Recargar();
+        // Sincroniza NivelSeleccionado desde NivelActivo y engancha la colección.
+        _nivelSeleccionado = _getNivel();
+        EngancharColumnas(_nivelSeleccionado);
     }
 
     /// <summary>Toma el Pu de demanda desde el descenso de cargas del edificio (botón).</summary>
     public ICommand TomarPuDelDescensoCommand { get; }
+
+    /// <summary>
+    /// Comando que agrega una columna al <see cref="NivelSeleccionado"/> (D2: reemplaza
+    /// el handler de code-behind <c>OnAgregar</c>). Habilitado solo cuando hay un nivel
+    /// seleccionado.
+    /// </summary>
+    public RelayCommand AgregarCommand { get; }
 
     /// <summary>
     /// Comando que elimina la <see cref="Seleccionada"/> actual.
@@ -49,6 +60,62 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
     /// reactivamente desde el setter de <see cref="Seleccionada"/>.
     /// </summary>
     public RelayCommand EliminarCommand { get; }
+
+    // ---- Selección de nivel (D2: editor autónomo) ----
+
+    /// <summary>
+    /// Niveles del edificio activo para el ComboBox del editor (D2). Antes este
+    /// binding apuntaba a una propiedad inexistente (solo vivía en los comentarios
+    /// XML) y fallaba en silencio con <c>x:CompileBindings=False</c>.
+    /// </summary>
+    public ObservableCollection<Nivel>? Niveles => _getEdificio()?.Niveles;
+
+    private Nivel? _nivelSeleccionado;
+    /// <summary>
+    /// Nivel cuyas columnas edita el editor (D2). Es la fuente real del ComboBox y de
+    /// <see cref="Columnas"/>. Al cambiarlo se re-evalúa la colección, se limpia la
+    /// selección y se reengancha el <c>CollectionChanged</c> del nuevo nivel.
+    /// </summary>
+    public Nivel? NivelSeleccionado
+    {
+        get => _nivelSeleccionado;
+        set
+        {
+            if (ReferenceEquals(_nivelSeleccionado, value)) return;
+            EngancharColumnas(value);
+            OnPropertyChanged();
+            Seleccionada = null;                 // la selección anterior pertenece a otro nivel
+            OnPropertyChanged(nameof(Columnas)); // el pass-through ahora apunta al nuevo nivel
+            AgregarCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    /// <summary>
+    /// Reengancha el <c>CollectionChanged</c> de las columnas: si se agregan/eliminan
+    /// columnas fuera del editor (p. ej. al sincronizar vigas→columnas) la tabla lo
+    /// refleja. Desuscribe el nivel anterior.
+    /// </summary>
+    private void EngancharColumnas(Nivel? nivel)
+    {
+        if (ReferenceEquals(_nivelSeleccionado, nivel) && _columnasEnganchadas is not null) return;
+        if (_columnasEnganchadas is not null)
+            _columnasEnganchadas.CollectionChanged -= OnColumnasCambiaron;
+        _nivelSeleccionado = nivel;
+        _columnasEnganchadas = nivel?.Columnas;
+        if (_columnasEnganchadas is not null)
+            _columnasEnganchadas.CollectionChanged += OnColumnasCambiaron;
+    }
+
+    private ObservableCollection<Columna>? _columnasEnganchadas;
+
+    private void OnColumnasCambiaron(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(Columnas));
+        // Si se quitó la columna seleccionada desde fuera, limpiar la selección.
+        if (_seleccionada is not null && _columnasEnganchadas is not null
+            && !_columnasEnganchadas.Contains(_seleccionada))
+            Seleccionada = null;
+    }
 
     /// <summary>
     /// Cierra el lazo losa → bajada → columna: calcula la carga última que llega a
@@ -60,7 +127,7 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
     public void TomarPuDelDescenso()
     {
         var edificio = _getEdificio();
-        var nivel = _getNivel();
+        var nivel = _nivelSeleccionado;
         if (edificio is null || nivel is null) return;
 
         int numColumnas = nivel.Columnas.Count;
@@ -70,8 +137,8 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
         PuKN = DescensoColumnas.PuDemandaKN(cargaEnBase, numColumnas);
     }
 
-    /// <summary>Columnas del nivel seleccionado (la colección real — editable).</summary>
-    public ObservableCollection<Columna>? Columnas => _getNivel()?.Columnas;
+    /// <summary>Columnas del <see cref="NivelSeleccionado"/> (la colección real — editable).</summary>
+    public ObservableCollection<Columna>? Columnas => _nivelSeleccionado?.Columnas;
 
     private Columna? _seleccionada;
     /// <summary>Columna seleccionada en la tabla (objetivo de «Eliminar»).</summary>
@@ -80,13 +147,27 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
         get => _seleccionada;
         set
         {
+            if (ReferenceEquals(_seleccionada, value)) return;
+            // Editar Base/Peralte/coordenada de la columna seleccionada debe recalcular
+            // el diseño + el diagrama P-M (D2). Reenganchar la suscripción a la nueva.
+            if (_seleccionada is not null)
+                _seleccionada.PropertyChanged -= OnColumnaSeleccionadaCambiada;
             _seleccionada = value;
+            if (_seleccionada is not null)
+                _seleccionada.PropertyChanged += OnColumnaSeleccionadaCambiada;
             OnPropertyChanged();
             // Revaluar predicado que lee _seleccionada.
             EliminarCommand.RaiseCanExecuteChanged();
             RecalcularDiseno();
         }
     }
+
+    /// <summary>
+    /// Recalcula el diseño cuando cambia una propiedad de la columna seleccionada
+    /// (Base/Peralte/coordenada) — la sección y el diagrama P-M siguen a la geometría (D2).
+    /// </summary>
+    private void OnColumnaSeleccionadaCambiada(object? sender, PropertyChangedEventArgs e)
+        => RecalcularDiseno();
 
     // ---- Diseño a flexo-compresión de la columna seleccionada (ACI 318-19) ----
 
@@ -315,10 +396,10 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
         ModeloInteraccion = plot;
     }
 
-    /// <summary>Agrega una nueva columna al nivel seleccionado, con Id/Nombre correlativos.</summary>
+    /// <summary>Agrega una nueva columna al <see cref="NivelSeleccionado"/>, con Id/Nombre correlativos.</summary>
     public Columna? Agregar()
     {
-        var nivel = _getNivel();
+        var nivel = _nivelSeleccionado;
         if (nivel is null) return null;
 
         int id = nivel.Columnas.Count > 0 ? nivel.Columnas.Max(c => c.Id) + 1 : 1;
@@ -328,21 +409,34 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
         return columna;
     }
 
-    /// <summary>Elimina la <see cref="Seleccionada"/> (o la indicada) del nivel seleccionado.</summary>
+    /// <summary>Elimina la <see cref="Seleccionada"/> (o la indicada) del <see cref="NivelSeleccionado"/>.</summary>
     public void Eliminar(Columna? columna = null)
     {
-        var nivel = _getNivel();
+        var nivel = _nivelSeleccionado;
         var objetivo = columna ?? _seleccionada;
         if (nivel is null || objetivo is null) return;
         nivel.Columnas.Remove(objetivo);
         if (ReferenceEquals(objetivo, _seleccionada)) Seleccionada = null;
     }
 
-    /// <summary>Notifica que el nivel activo cambió y refresca la colección.</summary>
+    /// <summary>
+    /// Lo invoca <c>MainViewModel</c> cuando cambia el <c>NivelActivo</c>: sincroniza
+    /// el <see cref="NivelSeleccionado"/> del editor con el nivel activo de la app
+    /// (D2: el editor sigue al nivel global) y refresca la colección/selección.
+    /// </summary>
     public void Recargar()
     {
-        Seleccionada = null;
-        OnPropertyChanged(nameof(Columnas));
+        var activo = _getNivel();
+        if (ReferenceEquals(_nivelSeleccionado, activo))
+        {
+            // Mismo nivel (o ambos null): igual revalidar la colección y limpiar selección.
+            Seleccionada = null;
+            OnPropertyChanged(nameof(Columnas));
+            OnPropertyChanged(nameof(Niveles));
+            return;
+        }
+        NivelSeleccionado = activo;          // recorre el setter completo (rehook + limpiar)
+        OnPropertyChanged(nameof(Niveles));  // el edificio/niveles pudieron cambiar también
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
