@@ -244,6 +244,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             _proyectoActivo = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(TituloVentana));
+            RefrescarChecklist();
         }
     }
 
@@ -422,6 +423,46 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private bool _generacionExito;
     public bool GeneracionExitosa  => _generacionExito  && !string.IsNullOrEmpty(_statusGeneracion);
     public bool GeneracionConError => !_generacionExito && !string.IsNullOrEmpty(_statusGeneracion);
+
+    // ---- Fase C: checklist real de "Verificaciones previas" ------------
+    // Estas propiedades reflejan el estado REAL del proyecto para que los
+    // checkmarks de GenerarView dejen de ser decorativos. Se refrescan vía
+    // RefrescarChecklist() cuando cambia el proyecto/cargas/niveles.
+
+    /// <summary>True si los datos generales mínimos del proyecto están presentes.</summary>
+    public bool TieneDatosGenerales =>
+        ProyectoActivo is not null &&
+        (!string.IsNullOrWhiteSpace(ProyectoActivo.Nombre) ||
+         !string.IsNullOrWhiteSpace(ProyectoActivo.Ciudad) ||
+         !string.IsNullOrWhiteSpace(ProyectoActivo.Uso) ||
+         !string.IsNullOrWhiteSpace(ProyectoActivo.UbicacionCompleta));
+
+    /// <summary>True si hay cargas globales configuradas (tabla h↔qd o pesos propios).</summary>
+    public bool TieneCargasConfiguradas =>
+        ProyectoActivo?.Cargas is { } c &&
+        (c.CargaMuertaPorEspesor.Filas.Count > 0 ||
+         c.PesosPropiosEntrepiso.Items.Count > 0 ||
+         c.PesosPropiosTecho.Items.Count > 0);
+
+    /// <summary>True si hay al menos un nivel/sistema en el proyecto.</summary>
+    public bool TieneNiveles => (ProyectoActivo?.Sistemas.Count ?? 0) > 0;
+
+    /// <summary>
+    /// True si AL MENOS un sistema tiene la salida .txt de F. Perdomo importada.
+    /// Cuando es false, las tablas de momentos/armaduras de la memoria salen
+    /// vacías — la generación NO debe reportarse como "exitosa" sin avisar.
+    /// </summary>
+    public bool HayDatosPerdomo =>
+        ProyectoActivo is not null && ProyectoActivo.Sistemas.Any(s => s.TieneSalidaPerdomo);
+
+    /// <summary>Re-notifica las propiedades del checklist (estado derivado).</summary>
+    private void RefrescarChecklist()
+    {
+        OnPropertyChanged(nameof(TieneDatosGenerales));
+        OnPropertyChanged(nameof(TieneCargasConfiguradas));
+        OnPropertyChanged(nameof(TieneNiveles));
+        OnPropertyChanged(nameof(HayDatosPerdomo));
+    }
 
     private int _ultimasSustituciones;
     public int UltimasSustituciones
@@ -1016,6 +1057,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
             QuitarTxtPerdomoCommand.RaiseCanExecuteChanged();
             OnPropertyChanged(nameof(SistemaActivo));  // refresca bindings dependientes
+            RefrescarChecklist();
         }
         catch (Exception ex)
         {
@@ -1032,6 +1074,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         StatusImportarTxt = "";
         QuitarTxtPerdomoCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(SistemaActivo));
+        RefrescarChecklist();
     }
 
     private string _statusImportarTxt = "";
@@ -1075,17 +1118,31 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
             UltimoArchivoGenerado = reporte.OutputPath;
             UltimasSustituciones  = reporte.SustitucionesAplicadas;
-            _generacionExito = reporte.Exito;
-            if (reporte.Exito)
-            {
-                StatusGeneracion = $"Memoria generada con {reporte.SustitucionesAplicadas} sustituciones. " +
-                                   $"Archivo: {Path.GetFileName(reporte.OutputPath)}";
-            }
-            else
+
+            // Fase C: si NO hay datos F. Perdomo importados, las tablas de
+            // momentos/armaduras salen vacías. No reportar "éxito" sin avisar:
+            // degradar a advertencia para que el usuario sepa que falta el .txt.
+            var faltaPerdomo = !HayDatosPerdomo;
+
+            _generacionExito = reporte.Exito && !faltaPerdomo;
+            if (!reporte.Exito)
             {
                 StatusGeneracion = "Generada con advertencias: " +
                                    $"{reporte.PlaceholdersNoSustituidos.Count} placeholder(s) sin sustituir " +
                                    $"({string.Join(", ", reporte.PlaceholdersNoSustituidos)}).";
+            }
+            else if (faltaPerdomo)
+            {
+                StatusGeneracion = $"Memoria generada con {reporte.SustitucionesAplicadas} sustituciones, " +
+                                   "PERO sin datos de F. Perdomo importados: las tablas de momentos y " +
+                                   "armaduras quedaron vacías. Importá la salida .txt de Losas.exe en la " +
+                                   "pestaña Niveles y volvé a generar. " +
+                                   $"Archivo: {Path.GetFileName(reporte.OutputPath)}";
+            }
+            else
+            {
+                StatusGeneracion = $"Memoria generada con {reporte.SustitucionesAplicadas} sustituciones. " +
+                                   $"Archivo: {Path.GetFileName(reporte.OutputPath)}";
             }
         }
         catch (Exception ex)

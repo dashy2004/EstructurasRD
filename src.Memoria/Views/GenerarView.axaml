@@ -21,21 +21,30 @@
                     <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="VERIFICACIONES PREVIAS" Margin="0,0,0,8"/>
 
                     <Grid Margin="0,0,0,6" ColumnDefinitions="20,*">
-                        <TextBlock Grid.Column="0" Text="✓" Foreground="{StaticResource SuccessBrush}" FontSize="14" FontWeight="Bold"/>
+                        <TextBlock Grid.Column="0" FontSize="14" FontWeight="Bold"
+                                   Text="{Binding TieneDatosGenerales, Converter={x:Static cmn:ChecklistConverters.CheckGlyph}}"
+                                   Foreground="{Binding TieneDatosGenerales, Converter={x:Static cmn:ChecklistConverters.CheckBrush}}"/>
                         <TextBlock Grid.Column="1" Text="Datos generales del proyecto" Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"/>
                     </Grid>
                     <Grid Margin="0,0,0,6" ColumnDefinitions="20,*">
-                        <TextBlock Grid.Column="0" Text="✓" Foreground="{StaticResource SuccessBrush}" FontSize="14" FontWeight="Bold"/>
+                        <TextBlock Grid.Column="0" FontSize="14" FontWeight="Bold"
+                                   Text="{Binding TieneCargasConfiguradas, Converter={x:Static cmn:ChecklistConverters.CheckGlyph}}"
+                                   Foreground="{Binding TieneCargasConfiguradas, Converter={x:Static cmn:ChecklistConverters.CheckBrush}}"/>
                         <TextBlock Grid.Column="1" Text="Cargas globales configuradas" Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"/>
                     </Grid>
                     <Grid Margin="0,0,0,6" ColumnDefinitions="20,*">
-                        <TextBlock Grid.Column="0" Text="✓" Foreground="{StaticResource SuccessBrush}" FontSize="14" FontWeight="Bold"/>
+                        <TextBlock Grid.Column="0" FontSize="14" FontWeight="Bold"
+                                   Text="{Binding TieneNiveles, Converter={x:Static cmn:ChecklistConverters.CheckGlyph}}"
+                                   Foreground="{Binding TieneNiveles, Converter={x:Static cmn:ChecklistConverters.CheckBrush}}"/>
                         <TextBlock Grid.Column="1" FontSize="13" Foreground="{StaticResource OnSurfaceBrush}"
                                    Text="{Binding ProyectoActivo.Sistemas.Count, Mode=OneWay, StringFormat='Niveles cargados ({0})'}"/>
                     </Grid>
                     <Grid Margin="0,0,0,6" ColumnDefinitions="20,*">
-                        <TextBlock Grid.Column="0" Text="●" Foreground="{StaticResource WarningBrush}" FontSize="14" FontWeight="Bold"/>
-                        <TextBlock Grid.Column="1" Text=".txt F. Perdomo (opcional, manual por ahora)" Foreground="{StaticResource OnSurfaceVariantBrush}" FontSize="13"/>
+                        <TextBlock Grid.Column="0" FontSize="14" FontWeight="Bold"
+                                   Text="{Binding HayDatosPerdomo, Converter={x:Static cmn:ChecklistConverters.CheckGlyph}}"
+                                   Foreground="{Binding HayDatosPerdomo, Converter={x:Static cmn:ChecklistConverters.CheckBrush}}"/>
+                        <TextBlock Grid.Column="1" FontSize="13" Foreground="{StaticResource OnSurfaceBrush}"
+                                   Text="Importar salida de Losas.exe (F. Perdomo) — sin esto las tablas salen vacías"/>
                     </Grid>
                     <Grid Margin="0,0,0,6" ColumnDefinitions="20,*">
                         <TextBlock Grid.Column="0" Text="✓" Foreground="{StaticResource SuccessBrush}" FontSize="14" FontWeight="Bold"/>
