@@ -23,6 +23,18 @@ public static class ProyectoService
 {
     public const string ManifestFileName = "proyecto.lpx.json";
 
+    /// <summary>
+    /// Versión actual del manifest multi-archivo.
+    /// <list type="bullet">
+    /// <item>v1: lista plana <c>sistemas</c> de <see cref="SistemaRef"/> — pierde
+    /// todo nivel salvo el primero (bug pre-B2). Se sigue leyendo por
+    /// compatibilidad hacia atrás.</item>
+    /// <item>v2: árbol completo <c>edificios → niveles → sistemas</c> (B2). Cada
+    /// sistema sigue persistiéndose en su propio <c>.DL</c>.</item>
+    /// </list>
+    /// </summary>
+    public const int ManifestVersion = 2;
+
     public sealed class ProyectoManifest
     {
         [JsonPropertyName("nombre")]        public string Nombre        { get; set; } = "";
@@ -31,8 +43,35 @@ public static class ProyectoService
         [JsonPropertyName("ubicacion")]     public string Ubicacion     { get; set; } = "";
         [JsonPropertyName("descripcion")]   public string Descripcion   { get; set; } = "";
         [JsonPropertyName("fecha_creacion")] public string FechaCreacion { get; set; } = "";
-        [JsonPropertyName("version")]       public int Version          { get; set; } = 1;
+        [JsonPropertyName("version")]       public int Version          { get; set; } = ManifestVersion;
+
+        /// <summary>
+        /// Lista PLANA de sistemas — formato legado v1. Sólo se escribe vacía en
+        /// v2 (el árbol vive en <see cref="Edificios"/>); al leer un manifest v1
+        /// se interpreta como un único nivel. Es el discriminador de formato
+        /// junto a <see cref="Version"/>.
+        /// </summary>
         [JsonPropertyName("sistemas")]      public List<SistemaRef> Sistemas { get; set; } = new();
+
+        /// <summary>
+        /// Árbol completo del proyecto — formato v2 (B2). Cuando está presente,
+        /// el loader lo prefiere sobre <see cref="Sistemas"/> y reconstruye TODOS
+        /// los niveles. <c>null</c> en manifests v1.
+        /// </summary>
+        [JsonPropertyName("edificios")]     public List<EdificioRef>? Edificios { get; set; }
+    }
+
+    public sealed class EdificioRef
+    {
+        [JsonPropertyName("nombre")]  public string Nombre { get; set; } = "";
+        [JsonPropertyName("niveles")] public List<NivelRef> Niveles { get; set; } = new();
+    }
+
+    public sealed class NivelRef
+    {
+        [JsonPropertyName("nombre")]   public string Nombre { get; set; } = "";
+        [JsonPropertyName("cota")]     public double Cota   { get; set; }
+        [JsonPropertyName("sistemas")] public List<SistemaRef> Sistemas { get; set; } = new();
     }
 
     public sealed class SistemaRef
@@ -42,16 +81,41 @@ public static class ProyectoService
         [JsonPropertyName("notas")] public string Notas { get; set; } = "";
     }
 
+    /// <summary>
+    /// Enumera TODOS los sistemas del proyecto recorriendo el árbol completo
+    /// <c>Edificios → Niveles → Sistemas</c> — no sólo la fachada
+    /// <c>Proyecto.Sistemas</c> (= <c>Edificios[0].Niveles[0].Sistemas</c>).
+    /// Punto único de verdad para guardado, exportación, validación y búsqueda
+    /// multinivel.
+    /// </summary>
+    public static IEnumerable<Sistema> EnumerarSistemas(Proyecto p)
+    {
+        if (p is null) throw new ArgumentNullException(nameof(p));
+        return p.Edificios
+                .SelectMany(e => e.Niveles)
+                .SelectMany(n => n.Sistemas);
+    }
+
     private static readonly JsonSerializerOptions _json = new()
     {
         WriteIndented = true,
         PropertyNameCaseInsensitive = true,
     };
 
-    /// <summary>Guarda el proyecto: manifest JSON + un archivo .DL por cada sistema.</summary>
+    /// <summary>
+    /// Guarda el proyecto: manifest JSON v2 con el árbol completo
+    /// <c>edificios → niveles → sistemas</c> + un archivo <c>.DL</c> por cada
+    /// sistema de CADA nivel. Antes de B2 sólo persistía <c>p.Sistemas</c>
+    /// (= <c>Niveles[0]</c>), perdiendo el resto de los niveles.
+    /// </summary>
     public static void GuardarProyecto(Proyecto p, string carpetaDestino)
     {
+        if (p is null) throw new ArgumentNullException(nameof(p));
         Directory.CreateDirectory(carpetaDestino);
+
+        // Garantizar la estructura mínima para no escribir un manifest sin árbol.
+        p.AsegurarEstructura();
+
         var manifest = new ProyectoManifest
         {
             Nombre = p.Nombre,
@@ -60,29 +124,36 @@ public static class ProyectoService
             Ubicacion = p.Ubicacion,
             Descripcion = p.Descripcion,
             FechaCreacion = p.FechaCreacion.ToString("yyyy-MM-ddTHH:mm:ss"),
-            Version = 1,
+            Version = ManifestVersion,
+            Edificios = new List<EdificioRef>(),
         };
 
-        // Persistir cada sistema en su propio .DL con nombre derivado del nombre del sistema
+        // Slugs únicos a nivel de PROYECTO (no por nivel) para que dos sistemas
+        // homónimos en niveles distintos no se pisen el mismo .DL.
         var slugUsados = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var s in p.Sistemas)
+
+        foreach (var ed in p.Edificios)
         {
-            var slug = MakeSlug(s.Nombre);
-            // Evitar colisiones
-            var orig = slug;
-            int suffix = 2;
-            while (slugUsados.Contains(slug)) slug = $"{orig}_{suffix++}";
-            slugUsados.Add(slug);
-
-            var dlFile = $"sistema_{slug}.dl";
-            var dlPath = Path.Combine(carpetaDestino, dlFile);
-            DLFileService.Save(s, dlPath);
-
-            manifest.Sistemas.Add(new SistemaRef
+            var edRef = new EdificioRef { Nombre = ed.Nombre };
+            foreach (var nivel in ed.Niveles)
             {
-                Nombre = s.Nombre,
-                ArchivoDL = dlFile,
-            });
+                var nivRef = new NivelRef { Nombre = nivel.Nombre, Cota = nivel.Cota };
+                foreach (var s in nivel.Sistemas)
+                {
+                    var slug = MakeSlug(s.Nombre);
+                    var orig = slug;
+                    int suffix = 2;
+                    while (slugUsados.Contains(slug)) slug = $"{orig}_{suffix++}";
+                    slugUsados.Add(slug);
+
+                    var dlFile = $"sistema_{slug}.dl";
+                    DLFileService.Save(s, Path.Combine(carpetaDestino, dlFile));
+
+                    nivRef.Sistemas.Add(new SistemaRef { Nombre = s.Nombre, ArchivoDL = dlFile });
+                }
+                edRef.Niveles.Add(nivRef);
+            }
+            manifest.Edificios.Add(edRef);
         }
 
         // Manifest JSON
@@ -92,7 +163,12 @@ public static class ProyectoService
         p.Archivo = manifestPath;
     }
 
-    /// <summary>Abre un proyecto a partir del manifest. Carga cada Sistema desde su .DL.</summary>
+    /// <summary>
+    /// Abre un proyecto a partir del manifest. Reconstruye el árbol completo
+    /// <c>edificios → niveles → sistemas</c> (formato v2) o, para manifests v1
+    /// (lista plana <c>sistemas</c>), los carga en un único nivel — la
+    /// compatibilidad hacia atrás. Carga cada Sistema desde su <c>.DL</c>.
+    /// </summary>
     public static Proyecto AbrirProyecto(string manifestPath)
     {
         if (!File.Exists(manifestPath))
@@ -114,7 +190,7 @@ public static class ProyectoService
             FechaCreacion = DateTime.TryParse(manifest.FechaCreacion, out var dt) ? dt : DateTime.Now,
         };
 
-        foreach (var sref in manifest.Sistemas)
+        Sistema LeerSistema(SistemaRef sref)
         {
             var dlPath = Path.Combine(carpeta, sref.ArchivoDL);
             if (!File.Exists(dlPath))
@@ -122,16 +198,42 @@ public static class ProyectoService
                     $"El proyecto declara el sistema '{sref.Nombre}' en '{sref.ArchivoDL}' pero el archivo no existe.",
                     dlPath);
             var s = DLFileService.Read(dlPath);
-            // Si el manifest tiene un nombre distinto al del .DL, prevalece el del manifest
+            // Si el manifest tiene un nombre distinto al del .DL, prevalece el del manifest.
             if (!string.IsNullOrWhiteSpace(sref.Nombre)) s.Nombre = sref.Nombre;
-            p.Sistemas.Add(s);
+            return s;
         }
 
-        if (p.Sistemas.Count == 0 && manifest.Sistemas.Count == 0)
+        // Discriminar el formato: v2 trae el árbol `edificios`; v1 sólo la lista
+        // plana `sistemas`. Disparar al lector correcto evita corromper el
+        // proyecto silenciosamente.
+        if (manifest.Edificios is { Count: > 0 })
         {
-            // Manifest vacío válido: crear un sistema demo para que el proyecto sea editable
-            p.Sistemas.Add(new Sistema { Nombre = "Sistema 1" });
+            // Formato v2 — reconstruir TODOS los niveles.
+            p.Edificios.Clear();
+            foreach (var edRef in manifest.Edificios)
+            {
+                var ed = new Edificio { Nombre = edRef.Nombre };
+                foreach (var nivRef in edRef.Niveles)
+                {
+                    var nivel = new Nivel { Nombre = nivRef.Nombre, Cota = nivRef.Cota };
+                    foreach (var sref in nivRef.Sistemas)
+                        nivel.Sistemas.Add(LeerSistema(sref));
+                    ed.Niveles.Add(nivel);
+                }
+                p.Edificios.Add(ed);
+            }
         }
+        else
+        {
+            // Formato v1 (legado) — lista plana de sistemas en un único nivel.
+            foreach (var sref in manifest.Sistemas)
+                p.Sistemas.Add(LeerSistema(sref));
+        }
+
+        // Proyecto genuinamente vacío (manifest sin árbol y sin sistemas): dejarlo
+        // con la estructura mínima editable, SIN fabricar un sistema demo que
+        // enmascararía un parseo fallido.
+        p.AsegurarEstructura();
 
         return p;
     }
