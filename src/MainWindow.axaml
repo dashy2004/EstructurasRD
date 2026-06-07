@@ -34,6 +34,7 @@
 
     <Window.KeyBindings>
         <KeyBinding Gesture="Ctrl+E" Command="{Binding IrAExploradorCommand}"/>
+        <KeyBinding Gesture="Ctrl+L" Command="{Binding AgregarLosaCommand}"/>
         <KeyBinding Gesture="Ctrl+Z" Command="{Binding UndoCommand}"/>
         <KeyBinding Gesture="Ctrl+Y" Command="{Binding RedoCommand}"/>
         <KeyBinding Gesture="Ctrl+OemQuestion" Command="{Binding AbrirShortcutsCommand}"/>
@@ -72,6 +73,51 @@
             <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
         </Style>
 
+        <!-- Sidebar vertical (Fase D): RadioButton de navegación de modo con
+             indicador izquierdo, agrupado por categoría. Reemplaza la banda de
+             menús horizontal de modos. -->
+        <Style Selector="RadioButton.navside">
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="Margin" Value="0,1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Foreground" Value="{DynamicResource FgSecondary}"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Name="bd" Background="Transparent" BorderBrush="Transparent"
+                            BorderThickness="3,0,0,0" CornerRadius="4"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="RadioButton.navside:checked /template/ Border#bd">
+            <Setter Property="Background" Value="{DynamicResource BgTertiary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ActiveBar}"/>
+        </Style>
+        <Style Selector="RadioButton.navside:checked">
+            <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="RadioButton.navside:pointerover:unchecked /template/ Border#bd">
+            <Setter Property="Background" Value="{DynamicResource BgInput}"/>
+        </Style>
+        <Style Selector="RadioButton.navside:pointerover:unchecked">
+            <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+        </Style>
+
+        <!-- Caption de grupo de la sidebar. -->
+        <Style Selector="TextBlock.sidecat">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}"/>
+            <Setter Property="Margin" Value="14,12,0,4"/>
+        </Style>
+
         <!-- H1 — Caption de categoría del nav (7 bloques) y separador vertical. -->
         <Style Selector="TextBlock.navcat">
             <Setter Property="FontSize" Value="9"/>
@@ -100,18 +146,22 @@
         </Style>
     </Window.Styles>
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid ColumnDefinitions="240,*">
 
         <!-- =============================================================
-             BARRA SUPERIOR (Top Tabs): branding + nav modos + sistema + tema.
+             SIDEBAR (Fase D): branding + navegación de modo agrupada.
+             Reemplaza la doble banda de menús (modos en CAPS + acciones en
+             inglés) por un único sidebar de RadioButtons agrupados, al estilo
+             del blueprint MemoriaPlus. Las acciones (Archivo / Calcular /
+             Generar geometría / Exportar) viven ahora en la barra superior del
+             área de contenido.
              ============================================================= -->
-        <Border Grid.Row="0" Background="{DynamicResource BgSecondary}"
-                BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1"
-                Padding="0,4,0,0">
-            <Grid ColumnDefinitions="Auto,*,Auto">
+        <Border Grid.Column="0" Background="{DynamicResource BgSecondary}"
+                BorderBrush="{DynamicResource Border}" BorderThickness="0,0,1,0">
+            <Grid RowDefinitions="Auto,*">
 
-                <!-- Branding -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="16,0,12,4" VerticalAlignment="Center">
+                <!-- Branding (Fase C) -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="16,16,12,12" VerticalAlignment="Center">
                     <Image Source="avares://LosasPlus/Resources/branding/EstructurasRD.png"
                            Width="36" Height="36" Stretch="Uniform"
                            VerticalAlignment="Center" Margin="0,0,10,0"/>
@@ -128,130 +178,77 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Nav modos: Menu con dropdowns (Tarea B) -->
-                <Menu Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0">
-                    <MenuItem Header="PROYECTO">
-                        <MenuItem Header="📂 Explorador" Command="{Binding IrAModoCommand}" CommandParameter="Explorador"/>
-                        <MenuItem Header="🔍 Búsqueda" Command="{Binding IrAModoCommand}" CommandParameter="Busqueda"/>
-                        <MenuItem Header="✎ Editor de Losas" Command="{Binding IrAModoCommand}" CommandParameter="Editor"/>
-                        <MenuItem Header="🛡 Validación" Command="{Binding IrAModoCommand}" CommandParameter="Validacion"/>
-                    </MenuItem>
-                    
-                    <MenuItem Header="GEOMETRÍA">
-                        <MenuItem Header="📐 Planta 2D" Command="{Binding IrAModoCommand}" CommandParameter="Planta2D"/>
-                        <MenuItem Header="🗺 Plano CAD" Command="{Binding IrAModoCommand}" CommandParameter="PlanoCad"/>
-                        <MenuItem Header="🧊 Vista 3D" Command="{Binding IrAModoCommand}" CommandParameter="Vista3D"/>
-                        <MenuItem Header="📄 Visor PDF" Command="{Binding IrAModoCommand}" CommandParameter="VisorPdf"/>
-                    </MenuItem>
+                <!-- Navegación de modo agrupada. RadioButton.IsChecked ↔ ModoActivo
+                     vía EnumToBoolConverter (two-way: marcar setea el modo). -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="8,0,8,8">
+                    <StackPanel>
+                        <TextBlock Classes="sidecat" Text="PROYECTO"/>
+                        <RadioButton Classes="navside" GroupName="ModoNav" Content="📂  Explorador"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Explorador}"/>
+                        <RadioButton Classes="navside" GroupName="ModoNav" Content="🔍  Búsqueda"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Busqueda}"/>
+                        <RadioButton Classes="navside" GroupName="ModoNav" Content="✎  Editor de Losas"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Editor}"/>
+                        <RadioButton Classes="navside" GroupName="ModoNav" Content="🛡  Validación"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}"/>
 
-                    <MenuItem Header="ANÁLISIS">
-                        <MenuItem Header="📊 Cargas y Combinaciones" Command="{Binding IrAModoCommand}" CommandParameter="CargasCombinaciones"/>
-                        <MenuItem Header="⬇ Bajada de Cargas" Command="{Binding IrAModoCommand}" CommandParameter="BajadaCargas"/>
-                        <MenuItem Header="📐 Vigas Continuas" Command="{Binding IrAModoCommand}" CommandParameter="Vigas"/>
-                        <MenuItem Header="🏛 Columnas" Command="{Binding IrAModoCommand}" CommandParameter="Columnas"/>
-                    </MenuItem>
+                        <TextBlock Classes="sidecat" Text="GEOMETRÍA"/>
+                        <RadioButton Classes="navside" GroupName="ModoNav" Content="📐  Planta 2D"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Planta2D}"/>
+                        <RadioButton Classes="navside" GroupName="ModoNav" Content="🗺  Plano CAD"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}"/>
+                        <RadioButton Classes="navside" GroupName="ModoNav" Content="🧊  Vista 3D"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vista3D}"/>
+                        <RadioButton Classes="navside" GroupName="ModoNav" Content="📄  Visor PDF"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=VisorPdf}"/>
 
-                    <MenuItem Header="SALIDA">
-                        <MenuItem Header="▤ DL Editor" Command="{Binding IrAModoCommand}" CommandParameter="DLEditor"/>
-                        <MenuItem Header="⇲ Salida .TXT" Command="{Binding IrAModoCommand}" CommandParameter="Salida"/>
-                        <MenuItem Header="🔩 Aceros" Command="{Binding IrAModoCommand}" CommandParameter="Aceros"/>
-                    </MenuItem>
+                        <TextBlock Classes="sidecat" Text="ANÁLISIS"/>
+                        <RadioButton Classes="navside" GroupName="ModoNav" Content="📊  Cargas y Combinaciones"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=CargasCombinaciones}"/>
+                        <RadioButton Classes="navside" GroupName="ModoNav" Content="⬇  Bajada de Cargas"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=BajadaCargas}"/>
+                        <RadioButton Classes="navside" GroupName="ModoNav" Content="📐  Vigas Continuas"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vigas}"/>
+                        <RadioButton Classes="navside" GroupName="ModoNav" Content="🏛  Columnas"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Columnas}"/>
 
-                    <MenuItem Header="SISTEMA">
-                        <MenuItem Header="⚖ Reglamento" Command="{Binding IrAModoCommand}" CommandParameter="Reglamento"/>
-                        <MenuItem Header="⚙ Configuración" Command="{Binding IrAModoCommand}" CommandParameter="Configuracion"/>
-                        <MenuItem Header="◆ Plugins" Command="{Binding IrAModoCommand}" CommandParameter="Plugins"/>
-                        <MenuItem Header="ℹ Acerca de" Command="{Binding IrAModoCommand}" CommandParameter="Acerca"/>
-                    </MenuItem>
-                </Menu>
+                        <TextBlock Classes="sidecat" Text="SALIDA"/>
+                        <RadioButton Classes="navside" GroupName="ModoNav" Content="▤  DL Editor"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DLEditor}"/>
+                        <RadioButton Classes="navside" GroupName="ModoNav" Content="⇲  Salida .TXT"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Salida}"/>
+                        <RadioButton Classes="navside" GroupName="ModoNav" Content="🔩  Aceros"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Aceros}"/>
 
-                <!-- Selector de NIVEL y SISTEMA activo + tema. -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal"
-                            VerticalAlignment="Center" Margin="12,0,16,0">
-                    <TextBlock Text="NIVEL" VerticalAlignment="Center"
-                               FontWeight="Bold" FontSize="10" Margin="0,0,8,0"
-                               Foreground="{DynamicResource FgMuted}"/>
-                    <ComboBox x:Name="NivelesList" VerticalAlignment="Center" MinWidth="120"
-                              ItemsSource="{Binding NivelesDelEdificio}"
-                              SelectedIndex="{Binding IndiceNivelActivo, Mode=TwoWay}">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Nombre}" FontWeight="SemiBold"/>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                    
-                    <Button Content="+" Width="24" Height="24" Padding="0" Margin="4,0,0,0"
-                            Click="OnAddNivel" VerticalAlignment="Center"
-                            Background="Transparent" BorderThickness="0"
-                            Foreground="{DynamicResource FgPrimary}"
-                            ToolTip.Tip="Agregar nuevo nivel"/>
-                    <Button Content="−" Width="24" Height="24" Padding="0" Margin="0,0,12,0"
-                            Click="OnDeleteNivel" VerticalAlignment="Center"
-                            Background="Transparent" BorderThickness="0"
-                            Foreground="{DynamicResource FgMuted}"
-                            ToolTip.Tip="Eliminar nivel activo"/>
-
-                    <Border Width="1" Background="{DynamicResource Border}" Margin="0,4"/>
-
-                    <TextBlock Text="SISTEMA" VerticalAlignment="Center"
-                               FontWeight="Bold" FontSize="10" Margin="12,0,8,0"
-                               Foreground="{DynamicResource FgMuted}"/>
-                    <ComboBox x:Name="SistemasList" VerticalAlignment="Center" MinWidth="160"
-                              ItemsSource="{Binding NivelActivo.Sistemas}"
-                              SelectedItem="{Binding SistemaActivo, Mode=TwoWay}">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Nombre}" FontWeight="SemiBold"/>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                    <TextBox x:Name="SistemaNombreInline" VerticalAlignment="Center"
-                             Width="120" Margin="6,0,0,0"
-                             Text="{Binding SistemaActivo.Nombre, UpdateSourceTrigger=PropertyChanged}"
-                             ToolTip.Tip="Renombrar el sistema activo. El selector se actualiza en caliente."/>
-                    
-                    <TextBlock Text="Elev. Z:" VerticalAlignment="Center" Margin="12,0,4,0" FontSize="11" Foreground="{DynamicResource FgMuted}" ToolTip.Tip="Elevación del sistema (m)"/>
-                    <TextBox Text="{Binding SistemaActivo.Elevacion}" VerticalAlignment="Center" Width="45" FontSize="11" Padding="4,2"/>
-                    
-                    <Button Content="+" Width="24" Height="24" Padding="0" Margin="12,0,0,0"
-                            Click="OnAddSistema" VerticalAlignment="Center"
-                            Background="Transparent" BorderThickness="0"
-                            Foreground="{DynamicResource FgPrimary}"
-                            ToolTip.Tip="Agregar nuevo sistema"/>
-                    <Button Content="−" Width="24" Height="24" Padding="0"
-                            Click="OnDeleteSistema" VerticalAlignment="Center"
-                            Background="Transparent" BorderThickness="0"
-                            Foreground="{DynamicResource FgMuted}"
-                            ToolTip.Tip="Eliminar sistema seleccionado"/>
-                    <Border Width="1" Margin="10,6" Background="{DynamicResource Border}"/>
-                    <Button Content="Tema" Padding="8,3" Click="OnToggleTheme"
-                            VerticalAlignment="Center" Background="Transparent"
-                            Foreground="{DynamicResource FgSecondary}"
-                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
-                            ToolTip.Tip="Ciclar Precision/Light/Dark"/>
-                    <Button Content="Apariencia" Padding="8,3" Margin="6,0,0,0"
-                            Click="OnAppearanceClick" VerticalAlignment="Center"
-                            Background="Transparent"
-                            Foreground="{DynamicResource FgSecondary}"
-                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
-                            ToolTip.Tip="Personalizar colores"/>
-                </StackPanel>
+                        <TextBlock Classes="sidecat" Text="SISTEMA"/>
+                        <RadioButton Classes="navside" GroupName="ModoNav" Content="⚖  Reglamento"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Reglamento}"/>
+                        <RadioButton Classes="navside" GroupName="ModoNav" Content="⚙  Configuración"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Configuracion}"/>
+                        <RadioButton Classes="navside" GroupName="ModoNav" Content="◆  Plugins"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Plugins}"/>
+                        <RadioButton Classes="navside" GroupName="ModoNav" Content="ℹ  Acerca de"
+                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Acerca}"/>
+                    </StackPanel>
+                </ScrollViewer>
             </Grid>
         </Border>
 
         <!-- =============================================================
-             ÁREA PRINCIPAL: top bar + content switch + log + statusbar
+             ÁREA PRINCIPAL: barra de acciones + content switch + log + statusbar
              ============================================================= -->
-        <Grid Grid.Row="1" RowDefinitions="Auto,*,Auto,Auto">
+        <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto,Auto">
 
             <!-- TOP ACTION BAR: menús + path Losas.exe + lanzar motor + chip validación. -->
             <Border Grid.Row="0" Padding="16,8"
                     Background="{DynamicResource BgInput}"
                     BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
                 <DockPanel LastChildFill="True">
+                    <!-- Menús de ACCIÓN (Fase D): 100% en español. El antiguo "Engine"
+                         (que mezclaba cálculo + geometría + import) se parte en
+                         "Calcular" y "Generar geometría". Los handlers no cambian. -->
                     <Menu DockPanel.Dock="Left" Background="Transparent" VerticalAlignment="Center">
-                        <MenuItem Header="File">
+                        <MenuItem Header="Archivo">
                             <MenuItem Header="Nuevo proyecto..." Click="OnNewProjectClick"/>
                             <MenuItem Header="Abrir proyecto..." Click="OnOpenProjectClick"/>
                             <MenuItem Header="Guardar proyecto..." Click="OnSaveProjectClick"/>
@@ -262,9 +259,7 @@
                             <!-- "Pegar de Excel" se ofrece desde el botón de la barra de edición
                                  (DockPanel de la grilla de losas); se elimina el duplicado del menú. -->
                         </MenuItem>
-                        <MenuItem Header="Engine">
-                            <MenuItem Header="Importar .TXT..." Click="OnImportTxtClick"/>
-                            <Separator/>
+                        <MenuItem Header="Calcular">
                             <MenuItem Header="Calcular carga última (Wu) desde geometría"
                                       Click="OnCalcularCargaUltimaClick"
                                       ToolTip.Tip="Calcula la carga última de cada losa (espesor, acabados, muros y uso; LRFD 1.2D + 1.6L), la escribe en cada losa y muestra el desglose Qmamp/Qmap/Qd/Ql/Qu por losa."/>
@@ -274,6 +269,11 @@
                             <MenuItem Header="Calcular losas (Pieper-Martens nativo, sin Losas.exe)"
                                       Click="OnCalcularNativoClick"
                                       ToolTip.Tip="Calcula momentos, balanceo y armaduras con el método de Pieper-Martens (tablas de Perdomo) dentro de la app, sin Losas.exe ni .TXT. El resultado aparece en la pestaña Aceros y queda listo para la Memoria."/>
+                            <Separator/>
+                            <MenuItem Header="Importar .TXT..." Click="OnImportTxtClick"
+                                      ToolTip.Tip="Importa la salida .TXT de Losas.exe para visualizar momentos y exportar."/>
+                        </MenuItem>
+                        <MenuItem Header="Generar geometría">
                             <MenuItem Header="Generar ejes del nivel (desde columnas)"
                                       Click="OnGenerarEjesClick"
                                       ToolTip.Tip="Crea la rejilla de ejes A,B,C / 1,2,3 a partir de las columnas del nivel activo. Los ejes se dibujan en Planta 2D."/>
@@ -285,7 +285,7 @@
                                       Click="OnGenerarDesdeDxfClick"
                                       ToolTip.Tip="Importá un DXF (limpio, solo elementos estructurales) con capas tipo VIGAS/COLUMNAS/LOSAS. Pipeline determinista: usa la geometría EXACTA del DXF para crear losas, vigas y columnas en el nivel activo. Qwen (texto) solo clasifica capas con nombres poco claros; no requiere GPU si las capas están bien nombradas."/>
                         </MenuItem>
-                        <MenuItem Header="Export">
+                        <MenuItem Header="Exportar">
                             <MenuItem Header="Generar memoria → abrir MemoriaPlus (Ctrl+G)"
                                       Command="{Binding GenerarMemoriaCommand}"/>
                             <Separator/>
@@ -307,13 +307,94 @@
                                    Foreground="{DynamicResource FgPrimary}"
                                    Text="{Binding Validacion.ResumenIndicador}"/>
                     </Button>
+
+                    <!-- Contexto NIVEL / SISTEMA activo + tema (relocado desde la
+                         antigua banda superior al perder ésta su rol de nav). -->
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
+                                VerticalAlignment="Center" Margin="12,0,8,0">
+                        <TextBlock Text="NIVEL" VerticalAlignment="Center"
+                                   FontWeight="Bold" FontSize="10" Margin="0,0,8,0"
+                                   Foreground="{DynamicResource FgMuted}"/>
+                        <ComboBox x:Name="NivelesList" VerticalAlignment="Center" MinWidth="110"
+                                  ItemsSource="{Binding NivelesDelEdificio}"
+                                  SelectedIndex="{Binding IndiceNivelActivo, Mode=TwoWay}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Nombre}" FontWeight="SemiBold"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Button Content="+" Width="24" Height="24" Padding="0" Margin="4,0,0,0"
+                                Click="OnAddNivel" VerticalAlignment="Center"
+                                Background="Transparent" BorderThickness="0"
+                                Foreground="{DynamicResource FgPrimary}"
+                                ToolTip.Tip="Agregar nuevo nivel"/>
+                        <Button Content="−" Width="24" Height="24" Padding="0" Margin="0,0,12,0"
+                                Click="OnDeleteNivel" VerticalAlignment="Center"
+                                Background="Transparent" BorderThickness="0"
+                                Foreground="{DynamicResource FgMuted}"
+                                ToolTip.Tip="Eliminar nivel activo"/>
+
+                        <Border Width="1" Background="{DynamicResource Border}" Margin="0,4"/>
+
+                        <TextBlock Text="SISTEMA" VerticalAlignment="Center"
+                                   FontWeight="Bold" FontSize="10" Margin="12,0,8,0"
+                                   Foreground="{DynamicResource FgMuted}"/>
+                        <ComboBox x:Name="SistemasList" VerticalAlignment="Center" MinWidth="140"
+                                  ItemsSource="{Binding NivelActivo.Sistemas}"
+                                  SelectedItem="{Binding SistemaActivo, Mode=TwoWay}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Nombre}" FontWeight="SemiBold"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <TextBox x:Name="SistemaNombreInline" VerticalAlignment="Center"
+                                 Width="110" Margin="6,0,0,0"
+                                 Text="{Binding SistemaActivo.Nombre, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip.Tip="Renombrar el sistema activo. El selector se actualiza en caliente."/>
+                        <TextBlock Text="Elev. Z:" VerticalAlignment="Center" Margin="12,0,4,0" FontSize="11" Foreground="{DynamicResource FgMuted}" ToolTip.Tip="Elevación del sistema (m)"/>
+                        <TextBox Text="{Binding SistemaActivo.Elevacion}" VerticalAlignment="Center" Width="45" FontSize="11" Padding="4,2"/>
+                        <Button Content="+" Width="24" Height="24" Padding="0" Margin="12,0,0,0"
+                                Click="OnAddSistema" VerticalAlignment="Center"
+                                Background="Transparent" BorderThickness="0"
+                                Foreground="{DynamicResource FgPrimary}"
+                                ToolTip.Tip="Agregar nuevo sistema"/>
+                        <Button Content="−" Width="24" Height="24" Padding="0"
+                                Click="OnDeleteSistema" VerticalAlignment="Center"
+                                Background="Transparent" BorderThickness="0"
+                                Foreground="{DynamicResource FgMuted}"
+                                ToolTip.Tip="Eliminar sistema seleccionado"/>
+                        <Border Width="1" Margin="10,6" Background="{DynamicResource Border}"/>
+                        <Button Content="Tema" Padding="8,3" Click="OnToggleTheme"
+                                VerticalAlignment="Center" Background="Transparent"
+                                Foreground="{DynamicResource FgSecondary}"
+                                BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                ToolTip.Tip="Ciclar Precision/Light/Dark"/>
+                        <Button Content="Apariencia" Padding="8,3" Margin="6,0,0,0"
+                                Click="OnAppearanceClick" VerticalAlignment="Center"
+                                Background="Transparent"
+                                Foreground="{DynamicResource FgSecondary}"
+                                BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                ToolTip.Tip="Personalizar colores"/>
+                    </StackPanel>
                 </DockPanel>
             </Border>
 
             <!-- =========================================================
-                 CONTENT SWITCH por ModoActivo (IsVisible + EnumToBool).
+                 CONTENT SWITCH por ModoActivo.
+                 · Router (Fase D): los 12 modos respaldados por un UserControl
+                   autónomo se hostean en este único ContentControl vía
+                   CurrentView. Para los modos inline CurrentView devuelve null
+                   y este control queda vacío.
+                 · Inline (IsVisible + EnumToBool): Explorador, Editor, PlanoCad,
+                   DLEditor, Salida, Plugins, Acerca — conservan su XAML inline
+                   y sus controles x:Name usados por el code-behind.
                  ========================================================= -->
             <Grid Grid.Row="1">
+
+                <!-- Router: sub-vista del modo activo (o vacío si es inline). -->
+                <ContentControl Content="{Binding CurrentView}"/>
 
                 <!-- MODO Explorador: hub de proyectos recientes (.lpx.json). -->
                 <Grid Margin="32,24"
@@ -796,38 +877,10 @@
                     <cad:CadView x:Name="CadEditorView" DataContext="{Binding}"/>
                 </ContentControl>
 
-                <!-- MODO Planta 2D -->
-                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Planta2D}">
-                    <!-- Paso 5 (unificación): el modo "Planta 2D" abre el editor unificado
-                         (sub-pestañas Estructura + CAD). La vista Planta2DEditorView sigue
-                         existiendo, ahora embebida dentro de EditorUnificadoView. -->
-                    <v:EditorUnificadoView DataContext="{Binding}"/>
-                </ContentControl>
-
-                <!-- MODO Visor PDF (H3) — control autónomo, sin DataContext del VM. -->
-                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=VisorPdf}">
-                    <v:PdfViewerControl/>
-                </ContentControl>
-
-                <!-- MODO Vista 3D (Fase I) — viewport alámbrico por software (sin SharpDX/GL). -->
-                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vista3D}">
-                    <v:Vista3DControl Edificio="{Binding EdificioActivo}"/>
-                </ContentControl>
-
-                <!-- MODO Cargas y Combinaciones. -->
-                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=CargasCombinaciones}">
-                    <v:CargasCombinacionesView DataContext="{Binding}"/>
-                </ContentControl>
-
-                <!-- MODO Vigas. -->
-                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vigas}">
-                    <vigas:VigaEditorView DataContext="{Binding}"/>
-                </ContentControl>
-
-                <!-- MODO Columnas (Fase J) — editor de columnas del edificio. -->
-                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Columnas}">
-                    <v:ColumnasEditorView DataContext="{Binding ColumnasEditor}"/>
-                </ContentControl>
+                <!-- Modos enrutados al ContentControl de arriba (Fase D):
+                     Planta2D, VisorPdf, Vista3D, CargasCombinaciones, Vigas,
+                     Columnas. Sus bloques IsVisible se reemplazaron por el
+                     router CurrentView; las sub-vistas no cambian. -->
 
                 <!-- MODO DLEditor (texto crudo). -->
                 <Grid Margin="16" RowDefinitions="Auto,*"
@@ -858,15 +911,8 @@
                     </TabControl>
                 </Grid>
 
-                <!-- MODO Aceros: diseño de acero a flexión por losa/franja (ACI 318-19). -->
-                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Aceros}">
-                    <v:AcerosView DataContext="{Binding}"/>
-                </ContentControl>
-
-                <!-- MODO Reglamento. -->
-                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Reglamento}">
-                    <v:ReglamentoView DataContext="{Binding}"/>
-                </ContentControl>
+                <!-- Modos Aceros y Reglamento: enrutados al ContentControl
+                     (router CurrentView). -->
 
                 <!-- MODO Plugins. -->
                 <Grid Margin="16" RowDefinitions="Auto,*"
@@ -925,26 +971,10 @@
                     </ScrollViewer>
                 </Grid>
 
-                <!-- MODO Validación normativa. -->
-                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}">
-                    <vws:ValidacionView DataContext="{Binding Validacion}" HorizontalAlignment="Stretch"/>
-                </ContentControl>
-
-                <!-- MODO Bajada de Cargas (Fase J) — transmisión vertical + predim de zapata. -->
-                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=BajadaCargas}">
-                    <v:BajadaCargasView DataContext="{Binding BajadaCargas}"/>
-                </ContentControl>
-
-                <!-- MODO Búsqueda global. -->
-                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Busqueda}">
-                    <vws:BusquedaView/>
-                </ContentControl>
-
-                <!-- MODO Configuración. -->
-                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Configuracion}">
-                    <vws:ConfiguracionView x:Name="ConfigView" EsCalculadora="True"
-                                           AparienciaCambiada="OnAparienciaCambiada"/>
-                </ContentControl>
+                <!-- Modos Validación, Bajada de Cargas, Búsqueda y Configuración:
+                     enrutados al ContentControl (router CurrentView). La
+                     ConfiguracionView ahora se crea en el VM, que reenvía el
+                     evento AparienciaCambiada vía OnAplicarApariencia. -->
 
                 <!-- MODO Acerca de. -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto"

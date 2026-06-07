@@ -118,7 +118,13 @@ public partial class MainWindow : Window
     private void OnLoaded(object? sender, RoutedEventArgs e)
     {
         if (DataContext is MainViewModel vm)
+        {
             vm.OnAbrirShortcuts = AbrirShortcutsPanel;
+            // La ConfiguracionView del router (Fase D) emite AparienciaCambiada;
+            // el VM lo reenvía por este callback (antes era el handler XAML
+            // OnAparienciaCambiada). App.AplicarApariencia es estático.
+            vm.OnAplicarApariencia = App.AplicarApariencia;
+        }
 
         AplicarAtajos(AtajosService.Load());
         AtajosService.AtajosCambiados += OnAtajosCambiados;
@@ -270,9 +276,6 @@ public partial class MainWindow : Window
         if (diag.PuedeAbrir && diag.EstaLimpio) { Vm.AbrirDL(path); return; }
         await AbrirDoctorModal(diag);
     }
-
-    private void OnAparienciaCambiada(object? sender, MemoriaPlus.Views.AparienciaCambiadaEventArgs e)
-        => App.AplicarApariencia(e.Apariencia);
 
     private async void OnDiagnosticarDLClick(object? sender, RoutedEventArgs e)
     {
