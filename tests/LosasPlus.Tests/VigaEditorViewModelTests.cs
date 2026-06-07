@@ -109,6 +109,87 @@ public class VigaEditorViewModelTests
     }
 
     [Fact]
+    public void TramoViga_recalcula_Inercia_al_editar_Base_o_Peralte()
+    {
+        var t = new TramoViga();   // 0.30 × 0.50 → I = 0.003125 m⁴ por defecto
+        Assert.Equal(0.30 * Math.Pow(0.50, 3) / 12.0, t.Inercia, precision: 9);
+
+        t.Base = 0.40;
+        Assert.Equal(0.40 * Math.Pow(0.50, 3) / 12.0, t.Inercia, precision: 9);
+
+        t.Peralte = 0.70;
+        Assert.Equal(0.40 * Math.Pow(0.70, 3) / 12.0, t.Inercia, precision: 9);
+    }
+
+    [Fact]
+    public async Task Editar_Peralte_acopla_Inercia_y_cambia_la_deflexion_del_motor()
+    {
+        // D1 (bug de ingeniería): editar la sección debe propagarse a I = b·h³/12 y,
+        // como el motor lee tramo.Inercia, regenerar los diagramas. Con MÁS peralte
+        // la viga es más rígida → MENOS deflexión.
+        var proyecto = ProyectoFactory.NuevoProyectoSeedeado();
+        proyecto.AsegurarEstructura();
+        var viga = VigaResoluble();
+        proyecto.Edificios[0].Niveles[0].Vigas.Add(viga);
+        var vm = Crear(proyecto, out _);
+        await vm.RecalcularAsync();
+
+        double iAntes = viga.Tramos[0].Inercia;
+        double deflexionAntes = MaxAbsDeflexion(vm.ModeloDeflexion);
+
+        viga.Tramos[0].Peralte = viga.Tramos[0].Peralte * 2.0;   // sección más peraltada
+        await vm.RecalcularAsync();
+
+        double iDespues = viga.Tramos[0].Inercia;
+        double deflexionDespues = MaxAbsDeflexion(vm.ModeloDeflexion);
+
+        Assert.True(iDespues > iAntes);                  // la inercia siguió a la geometría
+        Assert.True(deflexionAntes > 0.0);
+        Assert.True(deflexionDespues < deflexionAntes);  // más I → menos δ (nuevo diagrama)
+    }
+
+    [Fact]
+    public async Task RefrescarPorCambioDeNivel_muestra_las_vigas_del_nuevo_nivel()
+    {
+        // D1 (goal 2): el editor debe seguir al NivelActivo y no quedarse con las
+        // vigas del nivel anterior.
+        var proyecto = ProyectoFactory.NuevoProyectoSeedeado();
+        proyecto.AsegurarEstructura();
+        var ed = proyecto.Edificios[0];
+        var n0 = ed.Niveles[0];
+        var n1 = new Nivel { Nombre = "Nivel 1", Cota = 3 };
+        ed.Niveles.Add(n1);
+
+        n0.Vigas.Add(VigaResoluble());                 // n0 tiene 1 viga
+        n1.Vigas.Add(new Viga { Id = 9, Nombre = "V-N1" });   // n1 tiene otra distinta
+
+        Nivel nivelActivo = n0;
+        int snaps = 0;
+        var vm = new VigaEditorViewModel(proyecto, () => snaps++, () => nivelActivo);
+        await vm.RecalcularAsync();
+
+        Assert.Same(n0.Vigas, vm.Vigas);
+        Assert.Same(n0.Vigas[0], vm.VigaActiva);
+
+        // Cambiar de nivel y refrescar (lo que hace MainViewModel.NivelActivo setter).
+        nivelActivo = n1;
+        vm.RefrescarPorCambioDeNivel();
+
+        Assert.Same(n1.Vigas, vm.Vigas);
+        Assert.Same(n1.Vigas[0], vm.VigaActiva);
+    }
+
+    /// <summary>Máximo |δ| entre las series de la gráfica de deflexión.</summary>
+    private static double MaxAbsDeflexion(PlotModel modelo)
+    {
+        double max = 0.0;
+        foreach (var serie in modelo.Series.OfType<LineSeries>())
+            foreach (var p in serie.Points)
+                max = Math.Max(max, Math.Abs(p.Y));
+        return max;
+    }
+
+    [Fact]
     public async Task Cambiar_la_combinacion_regenera_las_series_sin_re_ejecutar_el_motor()
     {
         var proyecto = ProyectoFactory.NuevoProyectoSeedeado();

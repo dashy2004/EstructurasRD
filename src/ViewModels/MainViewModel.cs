@@ -714,8 +714,10 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
                     _nivelActivo.Sistemas.Add(NuevoSistemaDemo());
                 SistemaActivo = _nivelActivo.Sistemas[0];
             }
-            // Refrescar el editor de columnas con las columnas del nivel recién activado.
+            // Refrescar los editores anclados a nivel con los elementos del nivel
+            // recién activado (D1/D2): columnas y vigas del nuevo nivel.
             ColumnasEditor?.Recargar();
+            VigaEditor?.RefrescarPorCambioDeNivel();
         }
     }
 
@@ -1242,7 +1244,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         {
             MotorFeaOcupado = true;
             MotorFeaResultado = "Calculando con el motor FEA…";
-            var r = await MotorFeaService.DisenarLosaAsync(losa, SistemaActivo, MotorFeaComando);
+            var r = await MotorFeaService.DisenarLosaAsync(
+                losa, SistemaActivo, MotorFeaComando,
+                borde: MotorFeaService.BordeDesdeTipo(losa.Tipo));   // continuidad por Tipo (D5)
             string apoyo = r.FranjaApoyo is { } fa
                 ? $"\nApoyo (acero superior): {fa.Disponer}  (As {fa.AsDiseno:0} mm²/m)"
                 : "";

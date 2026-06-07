@@ -86,4 +86,77 @@ public class MotorFeaServiceTests
         var (_, s) = Caso();
         Assert.Throws<ArgumentNullException>(() => MotorFeaService.ConstruirParametros(null!, s));
     }
+
+    // ───────────────────────────── D5 ─────────────────────────────
+    // Bordes por Tipo, MSx/MSy por dirección, fy/fc desde el Sistema.
+
+    [Theory]
+    [InlineData(10, "simple")]      // 4 bordes apoyados (pura simple)
+    [InlineData(13, "simple")]      // apoyo simple + un vuelo
+    [InlineData(14, "simple")]      // apoyo simple + dos vuelos
+    [InlineData(21, "empotrado")]   // un borde continuo
+    [InlineData(33, "empotrado")]   // dos bordes continuos adyacentes
+    [InlineData(60, "empotrado")]   // perimetral empotrada
+    [InlineData(72, "empotrado")]   // voladizo con un borde empotrado
+    public void BordeDesdeTipo_mapea_continuidad_del_tipo(int tipo, string esperado)
+    {
+        Assert.Equal(esperado, MotorFeaService.BordeDesdeTipo(tipo));
+    }
+
+    [Fact]
+    public void BordeDesdeTipo_codigo_desconocido_degrada_a_simple()
+    {
+        Assert.Equal("simple", MotorFeaService.BordeDesdeTipo(999));
+    }
+
+    [Fact]
+    public void ConstruirParametros_propaga_el_borde_al_JSON_del_motor()
+    {
+        var (l, s) = Caso();
+        // Una losa de tipo continuo debe viajar al motor con borde "empotrado"
+        // (antes toda losa se modelaba como simplemente apoyada).
+        string borde = MotorFeaService.BordeDesdeTipo(60);
+        var p = MotorFeaService.ConstruirParametros(l, s, borde: borde);
+        Assert.Equal("empotrado", (string)p["borde"]);
+
+        string json = MotorFeaService.ParametrosAJson(p);
+        Assert.Contains("\"borde\":\"empotrado\"", json);
+    }
+
+    [Fact]
+    public void AplicarMomentos_MSx_distinto_de_MSy_para_tipo_direccionalmente_asimetrico()
+    {
+        // Tipo 21: continuo en el borde Norte (⟂ Ly) ⇒ continuidad en Y, no en X.
+        // ⇒ MSy recibe el momento de apoyo y MSx = 0 (esa dirección queda apoyada).
+        var losa = new Losa { Id = 1, Tipo = 21 };
+        var r = new ResultadoMotorLosa { MxMax = 9806.65, MyMax = 9806.65, MApoyoMax = 9806.65 };
+
+        MotorFeaService.AplicarMomentos(losa, r);
+
+        Assert.NotEqual(losa.MSx!.Value, losa.MSy!.Value);
+        Assert.Equal(0.0, losa.MSx!.Value, 4);   // sin continuidad en X
+        Assert.Equal(1.0, losa.MSy!.Value, 4);   // continuidad en Y → 1.0 ton·m/m
+
+        // Tipo 22: continuo en el Este (⟂ Lx) ⇒ el reparto se invierte.
+        var losa2 = new Losa { Id = 2, Tipo = 22 };
+        MotorFeaService.AplicarMomentos(losa2, r);
+        Assert.Equal(1.0, losa2.MSx!.Value, 4);
+        Assert.Equal(0.0, losa2.MSy!.Value, 4);
+    }
+
+    [Fact]
+    public void ConstruirParametros_usa_fy_del_sistema_no_un_valor_fijo()
+    {
+        // Sistema con fy = 2.80 ton/cm² (≈ 274.6 MPa, grado 40), NO el 4.20/420 por defecto.
+        var s = new Sistema { Fc = 0.210, Fy = 2.80 };
+        var l = new Losa { Id = 1, Lx = 5.0, Ly = 5.0, Espesor = 0.20, Carga = 2.0, Rec = 0.025 };
+
+        var p = MotorFeaService.ConstruirParametros(l, s);
+
+        // El motor recibe fy del sistema (2.80 ton/cm² → MPa), no 420.
+        Assert.Equal(2.80 * MotorFeaService.TonCm2_a_MPa, (double)p["fy"], 3);
+        Assert.NotEqual(420.0, (double)p["fy"], 0);
+        // …y f'c también desde el sistema.
+        Assert.Equal(0.210 * MotorFeaService.TonCm2_a_MPa, (double)p["fc"], 3);
+    }
 }

@@ -33,31 +33,50 @@ public partial class TramoViga : INotifyPropertyChanged
         set { _longitud = value; OnPropertyChanged(); }
     }
 
-    /// <summary>Ancho de la sección rectangular, en metros.</summary>
+    /// <summary>
+    /// Ancho de la sección rectangular, en metros. Al cambiarlo se recalcula la
+    /// <see cref="Inercia"/> bruta <c>Base·Peralte³/12</c> (D1: acoplar la rigidez
+    /// a la geometría — el motor lee <see cref="Inercia"/>, así que editar la
+    /// sección debe regenerar los diagramas M/V/δ).
+    /// </summary>
     public double Base
     {
         get => _base;
-        set { _base = value; OnPropertyChanged(); }
+        set { _base = value; OnPropertyChanged(); RecalcularInercia(); }
     }
 
-    /// <summary>Peralte (altura) de la sección rectangular, en metros.</summary>
+    /// <summary>
+    /// Peralte (altura) de la sección rectangular, en metros. Al cambiarlo se
+    /// recalcula la <see cref="Inercia"/> bruta <c>Base·Peralte³/12</c> (D1).
+    /// </summary>
     public double Peralte
     {
         get => _peralte;
-        set { _peralte = value; OnPropertyChanged(); }
+        set { _peralte = value; OnPropertyChanged(); RecalcularInercia(); }
     }
 
     /// <summary>
     /// Momento de inercia de la sección respecto al eje de flexión, en m⁴.
-    /// Se almacena de forma independiente para admitir secciones no
-    /// rectangulares o agrietadas; para una sección rectangular bruta es
-    /// <c>Base·Peralte³/12</c>.
+    /// Para una sección rectangular bruta es <c>Base·Peralte³/12</c>; cualquier
+    /// edición de <see cref="Base"/> o <see cref="Peralte"/> lo recalcula a ese
+    /// valor (D1: la rigidez a flexión <c>E·I</c> sigue a la geometría). El setter
+    /// admite además fijar un valor explícito (p. ej. sección no rectangular o
+    /// agrietada), pero volverá a sincronizarse en la próxima edición de la sección.
+    /// En la UI la columna «I» es de sólo lectura: es un valor derivado.
     /// </summary>
     public double Inercia
     {
         get => _inercia;
         set { _inercia = value; OnPropertyChanged(); }
     }
+
+    /// <summary>
+    /// Recalcula <see cref="Inercia"/> = <c>Base·Peralte³/12</c> (m⁴) a partir de
+    /// la geometría rectangular bruta. Lo invocan los setters de <see cref="Base"/>
+    /// y <see cref="Peralte"/> para mantener la rigidez acoplada a la sección.
+    /// </summary>
+    private void RecalcularInercia()
+        => Inercia = _base * _peralte * _peralte * _peralte / 12.0;
 
     /// <summary>Módulo de elasticidad del material E, en kN/m².</summary>
     public double ModuloElasticidad

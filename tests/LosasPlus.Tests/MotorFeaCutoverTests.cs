@@ -16,7 +16,9 @@ public class MotorFeaCutoverTests
     [Fact]
     public void AplicarMomentos_puebla_la_losa_convirtiendo_a_ton_m()
     {
-        var losa = new Losa { Id = 1 };
+        // Tipo 60 = 4 bordes empotrados ⇒ continuidad en ambas direcciones,
+        // así MSx y MSy reciben el momento de apoyo (validamos la conversión a ton·m).
+        var losa = new Losa { Id = 1, Tipo = 60 };
         var r = new ResultadoMotorLosa
         {
             MxMax = 9806.65,      // N·m/m → 1.0 ton·m/m

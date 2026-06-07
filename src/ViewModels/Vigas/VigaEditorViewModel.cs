@@ -244,6 +244,37 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
     public void SnapshotAntesDeEditar() => _pushUndoSnapshot();
 
     /// <summary>
+    /// Lo invoca <c>MainViewModel</c> cuando cambia el <c>NivelActivo</c> (D1):
+    /// el editor debe mostrar las vigas del nuevo nivel y no las del anterior.
+    /// Refresca la colección <see cref="Vigas"/> (cambió el nivel detrás del
+    /// pass-through) y reengancha la viga activa al primer elemento del nuevo
+    /// nivel, lo que dispara el recálculo de diagramas. Se fuerza incluso si la
+    /// primera viga del nuevo nivel coincide por referencia (caso ambos null) para
+    /// no dejar la colección antigua visible.
+    /// </summary>
+    public void RefrescarPorCambioDeNivel()
+    {
+        OnPropertyChanged(nameof(Vigas));
+        var primera = Nivel.Vigas.FirstOrDefault();
+        if (ReferenceEquals(_vigaActiva, primera))
+        {
+            // El setter de VigaActiva haría short-circuit; re-enganchar y recalcular a mano.
+            RehookViga(primera);
+            TramoSeleccionado = primera?.Tramos.FirstOrDefault();
+            ApoyoSeleccionado = primera?.Apoyos.FirstOrDefault();
+            OnPropertyChanged(nameof(HayVigaActiva));
+            EliminarVigaCommand.RaiseCanExecuteChanged();
+            AgregarTramoCommand.RaiseCanExecuteChanged();
+            AgregarApoyoCommand.RaiseCanExecuteChanged();
+            SolicitarRecalculo();
+        }
+        else
+        {
+            VigaActiva = primera;   // recorre el setter completo (rehook + recalc)
+        }
+    }
+
+    /// <summary>
     /// Lo invoca <c>MainViewModel</c> tras un Undo/Redo: las colecciones del
     /// nivel se reemplazaron en bloque, así que se reengancha la viga, se
     /// revalida la selección y se recalcula.
@@ -744,10 +775,12 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         // y gobierna el As mínimo.
         var (mPos, mNeg) = MomentosDeDisenoDelTramo(tramo);
 
-        // f'c desde el módulo del tramo (Ec = 4700·√f'c, ACI 318 §19.2.2.1); fy grado 60.
+        // f'c desde el módulo del tramo (Ec = 4700·√f'c, ACI 318 §19.2.2.1).
         double eMPa = tramo.ModuloElasticidad / 1000.0;            // kN/m² → MPa
         double fcMPa = eMPa > 0 ? Math.Pow(eMPa / 4700.0, 2) : 28.0;
-        const double fyMPa = 420.0;
+        // fy desde el proyecto (no hard-codeado): FyKgCm2 (kg/cm²) → MPa.
+        // 1 kgf/cm² = 0.0980665 MPa ⇒ 4200 kg/cm² ≈ 411.9 MPa (grado 60).
+        double fyMPa = _proyecto.FyKgCm2 > 0 ? _proyecto.FyKgCm2 * 0.0980665 : 420.0;
 
         var dis = VigaFlexionDesigner.DisenarTramo(mPos, mNeg, b, h, fcMPa, fyMPa);
         AgregarBarrasSeccion(m, dis.Inferior.NumeroDeBarras, rec, b - rec, rec);        // inferior (+M)
