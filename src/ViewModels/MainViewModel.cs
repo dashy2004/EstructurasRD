@@ -1244,7 +1244,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         {
             MotorFeaOcupado = true;
             MotorFeaResultado = "Calculando con el motor FEA…";
-            var r = await MotorFeaService.DisenarLosaAsync(losa, SistemaActivo, MotorFeaComando);
+            var r = await MotorFeaService.DisenarLosaAsync(
+                losa, SistemaActivo, MotorFeaComando,
+                borde: MotorFeaService.BordeDesdeTipo(losa.Tipo));   // continuidad por Tipo (D5)
             string apoyo = r.FranjaApoyo is { } fa
                 ? $"\nApoyo (acero superior): {fa.Disponer}  (As {fa.AsDiseno:0} mm²/m)"
                 : "";

@@ -72,6 +72,32 @@ public static class MotorFeaService
     public static string ParametrosAJson(Dictionary<string, object> parametros)
         => JsonSerializer.Serialize(parametros, new JsonSerializerOptions { WriteIndented = false });
 
+    /// <summary>
+    /// Mapea el <paramref name="tipo"/> de losa (caso Pieper-Martens, ver
+    /// <see cref="TipoLosa"/>) al parámetro <c>borde</c> que entiende el motor FEM.
+    /// El motor sólo soporta dos condiciones de contorno
+    /// (<c>"simple"</c> = simplemente apoyada, <c>"empotrado"</c> = contorno
+    /// empotrado), por lo que el mapeo es necesariamente grueso:
+    /// <list type="bullet">
+    ///   <item>Si el tipo tiene <b>al menos un</b> borde continuo
+    ///   (<see cref="BorderKind.Empotrado"/>) ⇒ <c>"empotrado"</c> — el motor
+    ///   modela el contorno empotrado y recupera el momento negativo de apoyo,
+    ///   capturando (aproximadamente) la continuidad que el tipo codifica.</item>
+    ///   <item>Si <b>ningún</b> borde es continuo (tipos puramente apoyados / con
+    ///   vuelos, p. ej. 10/13/14) ⇒ <c>"simple"</c>.</item>
+    /// </list>
+    /// Antes de este cambio toda losa se modelaba como simplemente apoyada,
+    /// ignorando la continuidad del tipo. Si el código no está en el catálogo se
+    /// asume <c>"simple"</c> (degradación segura).
+    /// </summary>
+    public static string BordeDesdeTipo(int tipo)
+    {
+        if (TipoLosa.Catalogo.TryGetValue(TipoLosa.NormalizarCodigo(tipo), out var t)
+            && t.BordesContinuos > 0)
+            return "empotrado";
+        return "simple";
+    }
+
     // Regex para normalizar tokens NaN/Infinity/-Infinity del motor Python a null
     // antes de parsear. Solo reemplaza ocurrencias fuera de strings JSON (tras :,[, ).
     private static readonly Regex _reNaN =
@@ -216,8 +242,41 @@ public static class MotorFeaService
         if (r is null) throw new ArgumentNullException(nameof(r));
         losa.Mfx = r.MxMax * NM_a_TonM;          // vano X
         losa.Mfy = r.MyMax * NM_a_TonM;          // vano Y
-        losa.MSx = r.MApoyoMax * NM_a_TonM;      // apoyo (el motor da un único m_apoyo_max)
-        losa.MSy = r.MApoyoMax * NM_a_TonM;
+
+        // MSx/MSy por dirección. El contrato del motor expone un único escalar
+        // m_apoyo_max (el FEM toma el máximo de |M| sobre TODO el contorno; ver
+        // motor-fea/core/losa_fem.py — no hay momento de apoyo por dirección).
+        // En vez de copiar el mismo valor en ambas direcciones (lo previo), se
+        // reparte según la continuidad que el Tipo codifica:
+        //   • MSx (acero de la franja X) ⇐ continuidad de los bordes E/W (perpendiculares a Lx).
+        //   • MSy (acero de la franja Y) ⇐ continuidad de los bordes N/S (perpendiculares a Ly).
+        // Una dirección sin borde continuo queda simplemente apoyada ⇒ MS = 0.
+        double mApoyo = r.MApoyoMax * NM_a_TonM;
+        var (contX, contY) = ContinuidadPorDireccion(losa.Tipo);
+        losa.MSx = contX ? mApoyo : 0.0;
+        losa.MSy = contY ? mApoyo : 0.0;
+    }
+
+    /// <summary>
+    /// Determina, a partir del <paramref name="tipo"/> de losa, qué direcciones
+    /// tienen continuidad (borde empotrado) y por tanto momento de apoyo:
+    /// <list type="bullet">
+    ///   <item><c>contX</c> — hay continuidad en algún borde Este/Oeste
+    ///   (índices 1/3, perpendiculares a Lx): gobierna <c>MSx</c>.</item>
+    ///   <item><c>contY</c> — hay continuidad en algún borde Norte/Sur
+    ///   (índices 0/2, perpendiculares a Ly): gobierna <c>MSy</c>.</item>
+    /// </list>
+    /// Si el tipo no está en el catálogo, no se asume continuidad en ninguna
+    /// dirección (ambos <see langword="false"/>; degradación segura).
+    /// </summary>
+    public static (bool contX, bool contY) ContinuidadPorDireccion(int tipo)
+    {
+        if (!TipoLosa.Catalogo.TryGetValue(TipoLosa.NormalizarCodigo(tipo), out var t))
+            return (false, false);
+        var b = t.Bordes;   // [N, E, S, W]
+        bool contX = b[1] == BorderKind.Empotrado || b[3] == BorderKind.Empotrado;  // E/W ⟂ Lx
+        bool contY = b[0] == BorderKind.Empotrado || b[2] == BorderKind.Empotrado;  // N/S ⟂ Ly
+        return (contX, contY);
     }
 
     /// <summary>
@@ -238,7 +297,9 @@ public static class MotorFeaService
             ResultadoMotorLosa r;
             try
             {
-                r = await DisenarLosaAsync(losa, sistema, comando, nx, ny);
+                // Borde por Tipo: la continuidad que el caso Pieper-Martens codifica
+                // (≥1 borde empotrado ⇒ "empotrado") en vez de asumir todo simple.
+                r = await DisenarLosaAsync(losa, sistema, comando, nx, ny, BordeDesdeTipo(losa.Tipo));
             }
             catch (Exception ex)
             {

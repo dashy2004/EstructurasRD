@@ -775,10 +775,12 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         // y gobierna el As mínimo.
         var (mPos, mNeg) = MomentosDeDisenoDelTramo(tramo);
 
-        // f'c desde el módulo del tramo (Ec = 4700·√f'c, ACI 318 §19.2.2.1); fy grado 60.
+        // f'c desde el módulo del tramo (Ec = 4700·√f'c, ACI 318 §19.2.2.1).
         double eMPa = tramo.ModuloElasticidad / 1000.0;            // kN/m² → MPa
         double fcMPa = eMPa > 0 ? Math.Pow(eMPa / 4700.0, 2) : 28.0;
-        const double fyMPa = 420.0;
+        // fy desde el proyecto (no hard-codeado): FyKgCm2 (kg/cm²) → MPa.
+        // 1 kgf/cm² = 0.0980665 MPa ⇒ 4200 kg/cm² ≈ 411.9 MPa (grado 60).
+        double fyMPa = _proyecto.FyKgCm2 > 0 ? _proyecto.FyKgCm2 * 0.0980665 : 420.0;
 
         var dis = VigaFlexionDesigner.DisenarTramo(mPos, mNeg, b, h, fcMPa, fyMPa);
         AgregarBarrasSeccion(m, dis.Inferior.NumeroDeBarras, rec, b - rec, rec);        // inferior (+M)
