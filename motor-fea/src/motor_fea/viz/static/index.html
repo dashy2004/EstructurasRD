@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Visor estructural — motor-fea</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #101418;
+                 font-family: system-ui, sans-serif; }
+    #msg { position: fixed; top: 8px; left: 8px; padding: 6px 10px;
+           background: rgba(0,0,0,.6); color: #fff; border-radius: 6px; font-size: 14px; }
+    #panel { position: fixed; top: 8px; right: 8px; padding: 8px 10px;
+             background: rgba(0,0,0,.6); color: #fff; border-radius: 6px;
+             font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
+    #panel .fila { display: flex; align-items: center; gap: 6px; }
+    #panel select, #panel button { font-size: 13px; }
+    #info { min-height: 16px; opacity: .85; }
+  </style>
+  <!-- three.js vendorizado (sin CDN): el visor funciona 100% offline y se elimina
+       el riesgo de cadena de suministro. Mapeos explícitos por-archivo: solo se
+       exponen los dos addons realmente usados. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three.module.js",
+      "three/addons/controls/OrbitControls.js": "./vendor/addons/controls/OrbitControls.js",
+      "three/addons/webxr/VRButton.js": "./vendor/addons/webxr/VRButton.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="msg">Cargando…</div>
+  <div id="panel">
+    <div class="fila">
+      <select id="estado" aria-label="estado de visualización">
+        <option value="sin-deformar">sin deformar</option>
+      </select>
+      <button id="play" type="button" aria-label="pausar">⏸</button>
+    </div>
+    <div class="fila">
+      <label for="exag">exag</label>
+      <input type="range" id="exag" min="0" max="100" step="1" value="0">
+    </div>
+    <div class="fila">
+      <label for="fc">f'c</label><input type="number" id="fc" value="21" min="1" step="1" style="width:3.2em">
+      <label for="fy">fy</label><input type="number" id="fy" value="420" min="1" step="10" style="width:3.8em">
+      <label for="rec">rec</label><input type="number" id="rec" value="0.04" min="0.01" step="0.005" style="width:3.8em">
+      <button id="redisenar" type="button">rediseñar</button>
+    </div>
+    <span id="info"></span>
+  </div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

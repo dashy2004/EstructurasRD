@@ -115,4 +115,130 @@ public class IfcExporterTests
         try { Assert.Contains(".ELEMENT.,$,$,$,$,$)", ifc); }  // IfcSite con RefLat/RefLon = $
         finally { if (File.Exists(path)) File.Delete(path); }
     }
+
+    /// <summary>
+    /// K.6: una columna se exporta con geometría real — un IfcExtrudedAreaSolid
+    /// (perfil rectangular Base×Peralte extruido por la Altura) enlazado vía
+    /// IfcShapeRepresentation → IfcProductDefinitionShape como su Representation.
+    /// </summary>
+    [Fact]
+    public void La_columna_exporta_geometria_IfcExtrudedAreaSolid()
+    {
+        var ed = new Edificio { Nombre = "Torre" };
+        var nivel = new Nivel { Nombre = "N1", Cota = 0 };
+        nivel.Columnas.Add(new Columna
+        {
+            Nombre = "C-1", CoordenadaX = 2, CoordenadaY = 3,
+            Base = 0.40, Peralte = 0.30, Altura = 3.0,
+        });
+        ed.Niveles.Add(nivel);
+
+        var path = Path.Combine(Path.GetTempPath(), $"ifc_{Guid.NewGuid():N}.ifc");
+        try
+        {
+            IfcExporter.Export(ed, path, "Torre");
+            var ifc = File.ReadAllText(path);
+
+            Assert.Contains("IFCEXTRUDEDAREASOLID(", ifc);
+            Assert.Contains("IFCRECTANGLEPROFILEDEF(.AREA.,$,", ifc);
+            Assert.Contains(",0.4,0.3)", ifc);                 // perfil Base×Peralte
+            Assert.Contains("'SweptSolid'", ifc);
+            Assert.Contains("IFCSHAPEREPRESENTATION(", ifc);
+            Assert.Contains("IFCPRODUCTDEFINITIONSHAPE(", ifc);
+            // El IfcColumn referencia su representación geométrica (ya no es $ en ese slot).
+            Assert.Matches(@"IFCCOLUMN\('[^']*',\$,'C-1',\$,\$,\$,#\d+,\$,\$\)", ifc);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    /// <summary>
+    /// K.6: una losa se exporta con geometría real — un IfcExtrudedAreaSolid
+    /// (perfil rectangular Lx×Ly extruido hacia −Z por su espesor) enlazado como
+    /// Representation del IfcSlab.
+    /// </summary>
+    [Fact]
+    public void La_losa_exporta_geometria_IfcExtrudedAreaSolid()
+    {
+        var ed = new Edificio { Nombre = "Torre" };
+        var nivel = new Nivel { Nombre = "N1", Cota = 0 };
+        var sis = new Sistema();
+        sis.Losas.Add(new Losa { Id = 1, Lx = 4, Ly = 3, CoordenadaX = 1, CoordenadaY = 2, Espesor = 0.20 });
+        nivel.Sistemas.Add(sis);
+        ed.Niveles.Add(nivel);
+
+        var path = Path.Combine(Path.GetTempPath(), $"ifc_{Guid.NewGuid():N}.ifc");
+        try
+        {
+            IfcExporter.Export(ed, path, "Torre");
+            var ifc = File.ReadAllText(path);
+
+            Assert.Contains("IFCEXTRUDEDAREASOLID(", ifc);
+            Assert.Contains(",4.0,3.0)", ifc);                 // perfil Lx×Ly
+            Assert.Contains("IFCDIRECTION((0.,0.,-1.0))", ifc); // extrusión hacia abajo
+            // El IfcSlab referencia su representación geométrica (ya no es $ en ese slot).
+            Assert.Matches(@"IFCSLAB\('[^']*',\$,'Losa 1',\$,\$,\$,#\d+,\$,\.FLOOR\.\)", ifc);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    /// <summary>
+    /// K.6: una zapata se exporta con geometría real — un IfcExtrudedAreaSolid
+    /// (perfil Ancho×Largo centrado en la columna, extruido hacia −Z por su
+    /// Peralte) enlazado como Representation del IfcFooting.
+    /// </summary>
+    [Fact]
+    public void La_zapata_exporta_geometria_IfcExtrudedAreaSolid()
+    {
+        var ed = new Edificio { Nombre = "Torre" };
+        var nivel = new Nivel { Nombre = "N1", Cota = 0 };
+        nivel.Columnas.Add(new Columna
+        {
+            Nombre = "C-1", CoordenadaX = 2, CoordenadaY = 3,
+            Zapata = new Zapata { Nombre = "Z-1", Ancho = 1.5, Largo = 2.0, Peralte = 0.40 },
+        });
+        ed.Niveles.Add(nivel);
+
+        var path = Path.Combine(Path.GetTempPath(), $"ifc_{Guid.NewGuid():N}.ifc");
+        try
+        {
+            IfcExporter.Export(ed, path, "Torre");
+            var ifc = File.ReadAllText(path);
+
+            Assert.Contains("IFCEXTRUDEDAREASOLID(", ifc);
+            Assert.Contains(",1.5,2.0)", ifc);                 // perfil Ancho×Largo
+            // El IfcFooting referencia su representación geométrica (ya no es $ en ese slot).
+            Assert.Matches(@"IFCFOOTING\('[^']*',\$,'Z-1',\$,\$,\$,#\d+,\$,\$\)", ifc);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    /// <summary>
+    /// K.6: una viga se exporta con geometría real — un IfcExtrudedAreaSolid
+    /// orientado a lo largo de su eje en planta (perfil Base×Peralte del primer
+    /// tramo, extruido por la longitud total) enlazado como Representation del
+    /// IfcBeam.
+    /// </summary>
+    [Fact]
+    public void La_viga_exporta_geometria_IfcExtrudedAreaSolid_orientada()
+    {
+        var ed = new Edificio { Nombre = "Torre" };
+        var nivel = new Nivel { Nombre = "N1", Cota = 0 };
+        var viga = new Viga { Nombre = "V-1", OrigenX = 1, OrigenY = 2, AnguloGrados = 0 };
+        viga.Tramos.Add(new TramoViga { Longitud = 4, Base = 0.30, Peralte = 0.50 });
+        nivel.Vigas.Add(viga);
+        ed.Niveles.Add(nivel);
+
+        var path = Path.Combine(Path.GetTempPath(), $"ifc_{Guid.NewGuid():N}.ifc");
+        try
+        {
+            IfcExporter.Export(ed, path, "Torre");
+            var ifc = File.ReadAllText(path);
+
+            Assert.Contains("IFCEXTRUDEDAREASOLID(", ifc);
+            Assert.Contains(",0.3,0.5)", ifc);                 // perfil Base×Peralte
+            // El IfcBeam referencia su representación geométrica (ya no es $ en ese slot).
+            Assert.Matches(@"IFCBEAM\('[^']*',\$,'V-1',\$,\$,\$,#\d+,\$,\$\)", ifc);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
 }

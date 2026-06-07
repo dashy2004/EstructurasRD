@@ -8,6 +8,9 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using LosasPlus.Models;
+using A = DocumentFormat.OpenXml.Drawing;
+using DW = DocumentFormat.OpenXml.Drawing.Wordprocessing;
+using PIC = DocumentFormat.OpenXml.Drawing.Pictures;
 
 namespace LosasPlus.Generation;
 
@@ -103,6 +106,10 @@ public sealed class MemoriaGenerator
             foreach (var fp in main.FooterParts)
                 if (fp.Footer is { } footer)
                     totalSust += AplicarReemplazos(footer, reemplazos);
+
+            // 3c. Logo de la app en el encabezado (crea el header si la plantilla
+            //     no lo trae). No-op si el recurso del logo no está embebido.
+            InsertarLogoEnEncabezado(main);
 
             main.Document.Save();
             reporte.SustitucionesAplicadas = totalSust;
@@ -705,6 +712,93 @@ public sealed class MemoriaGenerator
 
         return huerfanos.OrderBy(p => p, StringComparer.Ordinal).ToList();
     }
+
+    // =====================================================================
+    // LOGO EN EL ENCABEZADO
+    // =====================================================================
+
+    /// <summary>Recurso embebido (PNG) del logo de la aplicación, en LosasPlus.Core.</summary>
+    private const string RecursoLogo = "LosasPlus.Resources.EstructurasRD.png";
+
+    /// <summary>Lado del logo en el encabezado (cuadrado): 1.8 cm en EMUs (1 cm = 360000).</summary>
+    private const long LogoLadoEmu = 648000L;
+
+    private static byte[]? CargarLogo()
+    {
+        using var s = typeof(MemoriaGenerator).Assembly.GetManifestResourceStream(RecursoLogo);
+        if (s is null) return null;
+        using var ms = new MemoryStream();
+        s.CopyTo(ms);
+        return ms.ToArray();
+    }
+
+    /// <summary>
+    /// Inserta el logo de la aplicación en el encabezado del documento. Si la
+    /// plantilla no trae encabezado (caso de la plantilla actual), crea uno y lo
+    /// referencia en las propiedades de sección del cuerpo. Es no-op si el
+    /// recurso del logo no está embebido.
+    /// </summary>
+    private static void InsertarLogoEnEncabezado(MainDocumentPart main)
+    {
+        var logo = CargarLogo();
+        if (logo is null || main.Document.Body is not { } body) return;
+
+        // 1. Header part + imagen embebida.
+        var headerPart = main.AddNewPart<HeaderPart>();
+        string headerRelId = main.GetIdOfPart(headerPart);
+
+        var imagePart = headerPart.AddImagePart(ImagePartType.Png);
+        using (var ms = new MemoryStream(logo)) imagePart.FeedData(ms);
+        string imageRelId = headerPart.GetIdOfPart(imagePart);
+
+        // 2. Encabezado con el logo alineado a la derecha.
+        headerPart.Header = new Header(
+            new Paragraph(
+                new ParagraphProperties(new Justification { Val = JustificationValues.Right }),
+                new Run(CrearDrawingLogo(imageRelId))));
+        headerPart.Header.Save();
+
+        // 3. Referenciar el header en el sectPr del cuerpo (crearlo si falta).
+        var sectPr = body.Elements<SectionProperties>().LastOrDefault();
+        if (sectPr is null)
+        {
+            sectPr = new SectionProperties();
+            body.Append(sectPr);
+        }
+        sectPr.RemoveAllChildren<HeaderReference>();
+        sectPr.PrependChild(new HeaderReference { Type = HeaderFooterValues.Default, Id = headerRelId });
+    }
+
+    /// <summary>Construye el <see cref="Drawing"/> inline del logo referenciando la imagen embebida.</summary>
+    private static Drawing CrearDrawingLogo(string imageRelId) => new(
+        new DW.Inline(
+            new DW.Extent { Cx = LogoLadoEmu, Cy = LogoLadoEmu },
+            new DW.EffectExtent { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
+            new DW.DocProperties { Id = 1U, Name = "Logo EstructurasRD" },
+            new DW.NonVisualGraphicFrameDrawingProperties(
+                new A.GraphicFrameLocks { NoChangeAspect = true }),
+            new A.Graphic(
+                new A.GraphicData(
+                    new PIC.Picture(
+                        new PIC.NonVisualPictureProperties(
+                            new PIC.NonVisualDrawingProperties { Id = 0U, Name = "EstructurasRD.png" },
+                            new PIC.NonVisualPictureDrawingProperties()),
+                        new PIC.BlipFill(
+                            new A.Blip { Embed = imageRelId },
+                            new A.Stretch(new A.FillRectangle())),
+                        new PIC.ShapeProperties(
+                            new A.Transform2D(
+                                new A.Offset { X = 0L, Y = 0L },
+                                new A.Extents { Cx = LogoLadoEmu, Cy = LogoLadoEmu }),
+                            new A.PresetGeometry(new A.AdjustValueList())
+                            { Preset = A.ShapeTypeValues.Rectangle }))
+                ) { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }))
+        {
+            DistanceFromTop = 0U,
+            DistanceFromBottom = 0U,
+            DistanceFromLeft = 0U,
+            DistanceFromRight = 0U,
+        });
 }
 
 /// <summary>

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using LosasPlus.Models;
+using LosasPlus.Models.Cad;
 using Xunit;
 
 namespace LosasPlus.Tests;
@@ -87,5 +88,16 @@ public class EdificioNivelTests
         Assert.Same(p.Sistemas, p.Edificios[0].Niveles[0].Sistemas);
         Assert.Single(p.Edificios[0].Niveles[0].Sistemas);
         Assert.Same(s, p.Edificios[0].Niveles[0].Sistemas[0]);
+    }
+
+    [Fact]
+    public void Edificio_tiene_coleccion_de_ejes_vacia_por_defecto_y_aditiva()
+    {
+        var ed = new Edificio();
+        Assert.Empty(ed.Ejes);
+
+        ed.Ejes.Add(new EjeEstructural { Etiqueta = "A" });
+        Assert.Single(ed.Ejes);
+        Assert.Equal("A", ed.Ejes[0].Etiqueta);
     }
 }

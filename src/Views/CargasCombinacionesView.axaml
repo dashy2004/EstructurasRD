@@ -13,7 +13,8 @@
             <Setter Property="Foreground" Value="{DynamicResource FgMuted}"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
         </ControlTheme>
-        <ControlTheme x:Key="BotonCompacto" TargetType="Button">
+        <ControlTheme x:Key="BotonCompacto" TargetType="Button"
+                      BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Padding" Value="10,5"/>
             <Setter Property="Margin" Value="6,0,0,0"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -29,7 +30,8 @@
         <ControlTheme x:Key="FilaResumen" TargetType="DockPanel">
             <Setter Property="Margin" Value="0,3"/>
         </ControlTheme>
-        <ControlTheme x:Key="TabSecundario" TargetType="TabItem">
+        <ControlTheme x:Key="TabSecundario" TargetType="TabItem"
+                      BasedOn="{StaticResource {x:Type TabItem}}">
             <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
             <Setter Property="Padding" Value="16,6"/>
             <Setter Property="FontSize" Value="12"/>

@@ -52,37 +52,21 @@ public static class EscenaEdificio
             return Escena3D.Vacia;
 
         var segs = new List<Segmento3D>();
-        var esquinasPorNivel = new List<Vector3[]>(edificio.Niveles.Count);
 
         foreach (var nivel in edificio.Niveles)
         {
-            float area = 0f;
-            foreach (var sistema in nivel.Sistemas)
-                foreach (var losa in sistema.Losas)
-                {
-                    float a = (float)(losa.Lx * losa.Ly);
-                    if (a > 0f) area += a;
-                }
-
-            float lado = area > 0f ? MathF.Sqrt(area) : LadoPorDefecto;
-            if (lado < LadoMinimo) lado = LadoMinimo;
-
-            float h = lado * 0.5f;
+            // Cota del nivel (referencia vertical para sus elementos reales). Ya no se
+            // dibuja el rectángulo esquemático de piso ni el tronco entre niveles: sólo
+            // se dibujan los elementos reales (losas/vigas/columnas), para no confundir
+            // con las losas.
             float y = (float)nivel.Cota;
-            var esquinas = new[]
-            {
-                new Vector3(-h, y, -h), new Vector3(h, y, -h),
-                new Vector3(h, y, h),   new Vector3(-h, y, h),
-            };
-            esquinasPorNivel.Add(esquinas);
-
-            // Rectángulo del piso (4 aristas).
-            for (int i = 0; i < 4; i++)
-                segs.Add(new Segmento3D(esquinas[i], esquinas[(i + 1) % 4]));
 
             // Paños reales de losas (Fase J / Planta 2D)
             foreach (var sistema in nivel.Sistemas)
             {
+                // Cada sistema se dibuja a su elevación = cota del nivel + Sistema.Elevacion,
+                // para que sistemas a distinta cota no se solapen en el 3D.
+                float ySis = y + (float)sistema.Elevacion;
                 foreach (var losa in sistema.Losas)
                 {
                     float lx = (float)losa.Lx;
@@ -91,28 +75,80 @@ public static class EscenaEdificio
                     float z0 = (float)losa.CoordenadaY;
                     float x1 = x0 + lx;
                     float z1 = z0 + ly;
+                    float esp = (float)losa.Espesor;
 
-                    var p00 = new Vector3(x0, y, z0);
-                    var p10 = new Vector3(x1, y, z0);
-                    var p11 = new Vector3(x1, y, z1);
-                    var p01 = new Vector3(x0, y, z1);
+                    // Vértices del paño en el tope (cota del nivel + elevación del sistema).
+                    var t00 = new Vector3(x0, ySis, z0);
+                    var t10 = new Vector3(x1, ySis, z0);
+                    var t11 = new Vector3(x1, ySis, z1);
+                    var t01 = new Vector3(x0, ySis, z1);
 
-                    segs.Add(new Segmento3D(p00, p10));
-                    segs.Add(new Segmento3D(p10, p11));
-                    segs.Add(new Segmento3D(p11, p01));
-                    segs.Add(new Segmento3D(p01, p00));
+                    // Tope (rectángulo del paño).
+                    segs.Add(new Segmento3D(t00, t10));
+                    segs.Add(new Segmento3D(t10, t11));
+                    segs.Add(new Segmento3D(t11, t01));
+                    segs.Add(new Segmento3D(t01, t00));
+
+                    if (esp > 0f)
+                    {
+                        // K.6: losa como caja delgada extruida por su espesor (fondo a
+                        // cota - espesor) → +4 aristas de fondo y +4 verticales = 12.
+                        float yb = ySis - esp;
+                        var b00 = new Vector3(x0, yb, z0);
+                        var b10 = new Vector3(x1, yb, z0);
+                        var b11 = new Vector3(x1, yb, z1);
+                        var b01 = new Vector3(x0, yb, z1);
+
+                        segs.Add(new Segmento3D(b00, b10));
+                        segs.Add(new Segmento3D(b10, b11));
+                        segs.Add(new Segmento3D(b11, b01));
+                        segs.Add(new Segmento3D(b01, b00));
+
+                        segs.Add(new Segmento3D(t00, b00));
+                        segs.Add(new Segmento3D(t10, b10));
+                        segs.Add(new Segmento3D(t11, b11));
+                        segs.Add(new Segmento3D(t01, b01));
+                    }
                 }
             }
 
             // Vigas reales de la planta (Fase J / Planta 2D)
             foreach (var viga in nivel.Vigas)
             {
-                float x0 = (float)viga.OrigenX;
-                float z0 = (float)viga.OrigenY;
-                float x1 = (float)viga.ExtremoX;
-                float z1 = (float)viga.ExtremoY;
+                var a = new Vector3((float)viga.OrigenX, y, (float)viga.OrigenY);
+                var b = new Vector3((float)viga.ExtremoX, y, (float)viga.ExtremoY);
 
-                segs.Add(new Segmento3D(new Vector3(x0, y, z0), new Vector3(x1, y, z1)));
+                var tramo = viga.Tramos.Count > 0 ? viga.Tramos[0] : null;
+                float bw = tramo is not null ? (float)tramo.Base : 0f;     // ancho (perpendicular al eje)
+                float pe = tramo is not null ? (float)tramo.Peralte : 0f;  // peralte (vertical)
+                float lon = Vector3.Distance(a, b);
+
+                if (bw > 0f && pe > 0f && lon > 1e-6f)
+                {
+                    // K.6: prisma recto extruido a lo largo del eje de la viga = 12 aristas.
+                    var dir = (b - a) / lon;                                // dirección en XZ (y=0)
+                    var perp = new Vector3(-dir.Z, 0f, dir.X) * (bw * 0.5f); // ancho horizontal
+                    var vert = new Vector3(0f, pe * 0.5f, 0f);              // peralte vertical
+                    var pa = new[]
+                    {
+                        a - perp - vert, a + perp - vert, a + perp + vert, a - perp + vert,
+                    };
+                    var pb = new[]
+                    {
+                        b - perp - vert, b + perp - vert, b + perp + vert, b - perp + vert,
+                    };
+                    for (int i = 0; i < 4; i++)
+                    {
+                        segs.Add(new Segmento3D(pa[i], pa[(i + 1) % 4])); // sección en origen
+                        segs.Add(new Segmento3D(pb[i], pb[(i + 1) % 4])); // sección en extremo
+                        segs.Add(new Segmento3D(pa[i], pb[i]));           // arista longitudinal
+                    }
+                }
+                else
+                {
+                    // Viga sin sección/longitud → solo el eje (comportamiento previo).
+                    segs.Add(new Segmento3D(a, b));
+                }
             }
 
             // Columnas reales del modelo (Fase J): segmento vertical en su posición
@@ -123,7 +159,35 @@ public static class EscenaEdificio
                 float cx = (float)columna.CoordenadaX;
                 float cz = (float)columna.CoordenadaY;
                 float yTope = y + (float)columna.Altura;
-                segs.Add(new Segmento3D(new Vector3(cx, y, cz), new Vector3(cx, yTope, cz)));
+                float hb = (float)(columna.Base * 0.5);     // media base (eje X)
+                float hp = (float)(columna.Peralte * 0.5);  // medio peralte (eje Z)
+
+                if (hb > 0f && hp > 0f)
+                {
+                    // K.6: caja extruida (prisma rectangular Base×Peralte×Altura) =
+                    // 12 aristas — sección real en vez de un hilo vertical.
+                    var cb = new[]
+                    {
+                        new Vector3(cx - hb, y, cz - hp), new Vector3(cx + hb, y, cz - hp),
+                        new Vector3(cx + hb, y, cz + hp), new Vector3(cx - hb, y, cz + hp),
+                    };
+                    var ct = new[]
+                    {
+                        new Vector3(cx - hb, yTope, cz - hp), new Vector3(cx + hb, yTope, cz - hp),
+                        new Vector3(cx + hb, yTope, cz + hp), new Vector3(cx - hb, yTope, cz + hp),
+                    };
+                    for (int i = 0; i < 4; i++)
+                    {
+                        segs.Add(new Segmento3D(cb[i], cb[(i + 1) % 4])); // arista base
+                        segs.Add(new Segmento3D(ct[i], ct[(i + 1) % 4])); // arista tope
+                        segs.Add(new Segmento3D(cb[i], ct[i]));           // arista vertical
+                    }
+                }
+                else
+                {
+                    // Columna sin sección definida → segmento vertical (previo).
+                    segs.Add(new Segmento3D(new Vector3(cx, y, cz), new Vector3(cx, yTope, cz)));
+                }
 
                 // Zapata (Fase J): recuadro horizontal de su huella en la base de
                 // la columna, centrado en (cx, cz) y dimensionado por Ancho × Largo.
@@ -141,11 +205,6 @@ public static class EscenaEdificio
                 }
             }
         }
-
-        // Columnas: aristas entre esquinas homólogas de niveles consecutivos.
-        for (int n = 0; n + 1 < esquinasPorNivel.Count; n++)
-            for (int i = 0; i < 4; i++)
-                segs.Add(new Segmento3D(esquinasPorNivel[n][i], esquinasPorNivel[n + 1][i]));
 
         var min = new Vector3(float.MaxValue);
         var max = new Vector3(float.MinValue);

@@ -1,39 +1,215 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:oxy="clr-namespace:OxyPlot.Avalonia;assembly=OxyPlot.Avalonia"
+             xmlns:v="clr-namespace:LosasPlus.Views"
              x:Class="LosasPlus.Views.ColumnasEditorView"
              x:CompileBindings="False">
-    <DockPanel Margin="16" LastChildFill="True">
+    <UserControl.Resources>
+        <ControlTheme x:Key="EtiquetaSeccion" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource FgMuted}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </ControlTheme>
+        <ControlTheme x:Key="TarjetaSeccion" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource BgSecondary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10"/>
+        </ControlTheme>
 
-        <TextBlock DockPanel.Dock="Top" Text="Columnas (primer nivel)"
-                   FontSize="20" FontWeight="SemiBold" Margin="0,0,0,4"/>
-        <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,0,0,12" Opacity="0.7"
-                   Text="Define las columnas del edificio: posición en planta (X, Y), sección y altura. Alimentan la vista 3D y el descenso de cargas."/>
+        <v:NToKNConverter x:Key="NToKN"/>
+        <v:BoolToStringConverter x:Key="BoolToOkChk" TrueText="OK" FalseText="CHK"/>
+        <v:BoolToStringConverter x:Key="BoolToCumpleTexto" TrueText="CUMPLE" FalseText="NO CUMPLE"/>
+        <v:BoolToStringConverter x:Key="BoolToEsbeltaTexto" TrueText="ESBELTA" FalseText="corta"/>
+        
+        <v:BoolToBrushConverter x:Key="BoolToGreenRedBg" TrueBrush="#1A10B981" FalseBrush="#1AEF4444"/>
+        <v:BoolToBrushConverter x:Key="BoolToGreenRedBorder" TrueBrush="#4010B981" FalseBrush="#40EF4444"/>
+        <v:BoolToBrushConverter x:Key="BoolToGreenRedFg" TrueBrush="#10B981" FalseBrush="#EF4444"/>
+    </UserControl.Resources>
 
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,12">
-            <TextBlock Text="Nivel:" VerticalAlignment="Center"/>
-            <ComboBox ItemsSource="{Binding Niveles}" SelectedItem="{Binding NivelSeleccionado}"
-                      MinWidth="160">
-                <ComboBox.ItemTemplate>
-                    <DataTemplate>
-                        <TextBlock Text="{Binding Nombre}"/>
-                    </DataTemplate>
-                </ComboBox.ItemTemplate>
-            </ComboBox>
-            <Button Content="Agregar columna" Click="OnAgregar"/>
-            <Button Content="Eliminar seleccionada" Click="OnEliminar"/>
-        </StackPanel>
+    <Grid Margin="16" ColumnDefinitions="*,16,420">
+        <!-- Izquierda: Lista de Columnas -->
+        <DockPanel Grid.Column="0" LastChildFill="True">
+            <TextBlock DockPanel.Dock="Top" Text="Columnas (primer nivel)"
+                       FontSize="20" FontWeight="SemiBold" Margin="0,0,0,4"/>
+            <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Margin="0,0,0,12" Opacity="0.7"
+                       Text="Define las columnas del edificio: posición en planta, sección y altura. Selecciona una columna para diseñar su armado y visualizar su diagrama P-M."/>
 
-        <DataGrid ItemsSource="{Binding Columnas}" SelectedItem="{Binding Seleccionada}"
-                  AutoGenerateColumns="False" GridLinesVisibility="All" HeadersVisibility="Column"
-                  CanUserResizeColumns="True">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Nombre"   Binding="{Binding Nombre}" Width="*"/>
-                <DataGridTextColumn Header="X [m]"    Binding="{Binding CoordenadaX}" Width="*"/>
-                <DataGridTextColumn Header="Y [m]"    Binding="{Binding CoordenadaY}" Width="*"/>
-                <DataGridTextColumn Header="Base [m]" Binding="{Binding Base}" Width="*"/>
-                <DataGridTextColumn Header="Peralte [m]" Binding="{Binding Peralte}" Width="*"/>
-                <DataGridTextColumn Header="Altura [m]"  Binding="{Binding Altura}" Width="*"/>
-            </DataGrid.Columns>
-        </DataGrid>
-    </DockPanel>
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,12">
+                <TextBlock Text="Nivel:" VerticalAlignment="Center"/>
+                <ComboBox ItemsSource="{Binding Niveles}" SelectedItem="{Binding NivelSeleccionado}"
+                          MinWidth="160">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Nombre}"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button Content="Agregar columna" Click="OnAgregar"/>
+                <Button Content="Eliminar seleccionada" Click="OnEliminar"/>
+            </StackPanel>
+
+            <DataGrid ItemsSource="{Binding Columnas}" SelectedItem="{Binding Seleccionada}"
+                      AutoGenerateColumns="False" GridLinesVisibility="All" HeadersVisibility="Column"
+                      CanUserResizeColumns="True">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Nombre"   Binding="{Binding Nombre}" Width="*"/>
+                    <DataGridTextColumn Header="X [m]"    Binding="{Binding CoordenadaX}" Width="*"/>
+                    <DataGridTextColumn Header="Y [m]"    Binding="{Binding CoordenadaY}" Width="*"/>
+                    <DataGridTextColumn Header="Base [m]" Binding="{Binding Base}" Width="*"/>
+                    <DataGridTextColumn Header="Peralte [m]" Binding="{Binding Peralte}" Width="*"/>
+                    <DataGridTextColumn Header="Altura [m]"  Binding="{Binding Altura}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </DockPanel>
+
+        <!-- Derecha: Diseño y Diagrama P-M -->
+        <Border Grid.Column="2" Theme="{StaticResource TarjetaSeccion}">
+            <Grid>
+                <!-- Estado Vacío -->
+                <TextBlock Text="Selecciona una columna para ver su diseño" 
+                           IsVisible="{Binding Seleccionada, Converter={x:Static ObjectConverters.IsNull}}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Foreground="{DynamicResource FgMuted}" FontSize="14" FontWeight="SemiBold"/>
+
+                <!-- Contenido del Diseño -->
+                <ScrollViewer IsVisible="{Binding Seleccionada, Converter={x:Static ObjectConverters.IsNotNull}}" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="Parámetros de Diseño" Theme="{StaticResource EtiquetaSeccion}" FontSize="14"/>
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,0,0,12">
+                            <!-- Material -->
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="f'c (MPa)" VerticalAlignment="Center" Margin="0,4"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding FcMPa}" Margin="0,4"/>
+                            
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="fy (MPa)" VerticalAlignment="Center" Margin="0,4"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding FyMPa}" Margin="0,4"/>
+                            
+                            <!-- Armado -->
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Recubrimiento (mm)" VerticalAlignment="Center" Margin="0,4"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding RecubrimientoMm}" Margin="0,4"/>
+                            
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Barra Longitudinal (#)" VerticalAlignment="Center" Margin="0,4"/>
+                            <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding NumeroBarra}" Margin="0,4"/>
+                            
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Barras X / Y" VerticalAlignment="Center" Margin="0,4"/>
+                            <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Margin="0,4">
+                                <TextBox Text="{Binding BarrasX}" Width="50"/>
+                                <TextBlock Text=" / " VerticalAlignment="Center" Margin="4,0"/>
+                                <TextBox Text="{Binding BarrasY}" Width="50"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="Esbeltez" Theme="{StaticResource EtiquetaSeccion}" FontSize="14"/>
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" Margin="0,0,0,12">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Long. libre Lu (mm)" VerticalAlignment="Center" Margin="0,4"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding LuMm}" Margin="0,4"/>
+                            
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Factor k" VerticalAlignment="Center" Margin="0,4"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding FactorK}" Margin="0,4"/>
+                            
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Revisión (δ)" VerticalAlignment="Center" Margin="0,4"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" DataContext="{Binding EsbeltezActual}" Margin="0,4"
+                                       IsVisible="{Binding Converter={x:Static ObjectConverters.IsNotNull}}"
+                                       TextWrapping="Wrap">
+                                <Run Text="{Binding KLuSobreR, StringFormat='{}k·Lu/r = {0:0.00}'}"/>
+                                <Run Text="{Binding Limite, StringFormat='{} (límite {0:0.0}) → '}"/>
+                                <Run Text="{Binding EsEsbelta, Converter={StaticResource BoolToEsbeltaTexto}}" FontWeight="Bold"/>
+                                <Run Text="{Binding Delta, StringFormat='{}; δ = {0:0.000}'}"/>
+                            </TextBlock>
+                        </Grid>
+
+                        <TextBlock Text="Demanda" Theme="{StaticResource EtiquetaSeccion}" FontSize="14"/>
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Margin="0,0,0,12">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Pu (kN)" VerticalAlignment="Center" Margin="0,4"/>
+                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,4" Spacing="8">
+                                <TextBox Text="{Binding PuKN}" Width="80"/>
+                                <Button Content="Tomar Pu del descenso" 
+                                        Command="{Binding TomarPuDelDescensoCommand}"
+                                        Padding="8,4" FontSize="11" Cursor="Hand"/>
+                            </StackPanel>
+                            
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Mu (kN·m)" VerticalAlignment="Center" Margin="0,4"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding MuKNm}" Margin="0,4"/>
+                        </Grid>
+
+                        <Border Height="1" Background="{DynamicResource Border}" Margin="0,4"/>
+
+                        <TextBlock Text="Resultados del Diseño" Theme="{StaticResource EtiquetaSeccion}" FontSize="14"/>
+
+                        <!-- Armado longitudinal real (nº de barras + As), bound al VM -->
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                            <TextBlock Grid.Column="0" Text="Armado longitudinal" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="{Binding ArmadoLongitudinal}"
+                                       FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,0,0,12"
+                              DataContext="{Binding DisenoActual}">
+                            
+                            <!-- Cuantía -->
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Cuantía (ρg)" VerticalAlignment="Center" Margin="0,4"/>
+                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,4"
+                                        IsVisible="{Binding Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <TextBlock Text="{Binding RhoG, StringFormat='{}{0:P2}'}" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
+                                <Border Padding="6,2" CornerRadius="4" 
+                                        Background="{Binding CumpleCuantia, Converter={StaticResource BoolToGreenRedBg}}"
+                                        BorderBrush="{Binding CumpleCuantia, Converter={StaticResource BoolToGreenRedBorder}}"
+                                        BorderThickness="1">
+                                    <TextBlock Text="{Binding CumpleCuantia, Converter={StaticResource BoolToOkChk}}"
+                                               Foreground="{Binding CumpleCuantia, Converter={StaticResource BoolToGreenRedFg}}"
+                                               FontSize="11" FontWeight="Bold"/>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- Propiedades P-M -->
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Po (Squash, kN)" VerticalAlignment="Center" Margin="0,4"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PoN, Converter={StaticResource NToKN}, StringFormat='{}{0:0.00}'}" VerticalAlignment="Center" Margin="0,4" FontWeight="SemiBold"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="φPn,max (kN)" VerticalAlignment="Center" Margin="0,4"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding PhiPnMaxN, Converter={StaticResource NToKN}, StringFormat='{}{0:0.00}'}" VerticalAlignment="Center" Margin="0,4" FontWeight="SemiBold"/>
+
+                            <!-- Estribos -->
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Estribos" VerticalAlignment="Center" Margin="0,4"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" Margin="0,4" FontWeight="SemiBold"
+                                       IsVisible="{Binding Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <Run Text="#"/>
+                                <Run Text="{Binding Estribo.Numero}"/>
+                                <Run Text=" @ "/>
+                                <Run Text="{Binding Estribo.SeparacionMm}"/>
+                                <Run Text=" mm"/>
+                            </TextBlock>
+
+                            <!-- Chequeo Ratio -->
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Ratio Demanda/Capacidad" VerticalAlignment="Center" Margin="0,4"/>
+                            <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Margin="0,4"
+                                        IsVisible="{Binding Converter={x:Static ObjectConverters.IsNotNull}}">
+                                <TextBlock Text="{Binding Chequeo.Ratio, StringFormat='{}{0:0.000}'}" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
+                                <Border Padding="6,2" CornerRadius="4" 
+                                        Background="{Binding Chequeo.Cumple, Converter={StaticResource BoolToGreenRedBg}}"
+                                        BorderBrush="{Binding Chequeo.Cumple, Converter={StaticResource BoolToGreenRedBorder}}"
+                                        BorderThickness="1">
+                                    <TextBlock Text="{Binding Chequeo.Cumple, Converter={StaticResource BoolToCumpleTexto}}"
+                                               Foreground="{Binding Chequeo.Cumple, Converter={StaticResource BoolToGreenRedFg}}"
+                                               FontSize="11" FontWeight="Bold"/>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="Sección transversal" Theme="{StaticResource EtiquetaSeccion}" FontSize="14"/>
+                        <Border Height="220" BorderBrush="{DynamicResource Border}" BorderThickness="1" Background="{DynamicResource BgInput}">
+                            <oxy:PlotView Model="{Binding ModeloSeccionColumna}" Background="Transparent" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
+                        </Border>
+
+                        <TextBlock Text="Diagrama de Interacción P-M" Theme="{StaticResource EtiquetaSeccion}" FontSize="14"/>
+                        <Border Height="300" BorderBrush="{DynamicResource Border}" BorderThickness="1" Background="{DynamicResource BgInput}">
+                            <oxy:PlotView Model="{Binding ModeloInteraccion}" Background="Transparent" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+    </Grid>
 </UserControl>

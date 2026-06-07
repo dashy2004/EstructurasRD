@@ -11,15 +11,17 @@
                 Background="{DynamicResource BgSecondary}"
                 BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="Auto,*,Auto">
-                <!-- Selector de Nivel -->
+                <!-- Snapping controls -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="Nivel:" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="{DynamicResource FgSecondary}"/>
-                    <ComboBox x:Name="CbNivel" MinWidth="160" VerticalAlignment="Center">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Nombre}"/>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
+                    <CheckBox x:Name="ChkSnap" Content="Snap (S)" IsChecked="True" VerticalAlignment="Center" Margin="10,0,0,0" ToolTip.Tip="Activa o desactiva el auto-ajuste (snapping) a rejilla y objetos."/>
+                    
+                    <TextBlock Text="Paso:" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="{DynamicResource FgSecondary}"/>
+                    <ComboBox x:Name="CbGridStep" SelectedIndex="2" VerticalAlignment="Center" Width="85">
+                        <ComboBoxItem Content="0.1 m"/>
+                        <ComboBoxItem Content="0.2 m"/>
+                        <ComboBoxItem Content="0.5 m"/>
+                        <ComboBoxItem Content="1.0 m"/>
+                        <ComboBoxItem Content="Libre"/>
                     </ComboBox>
                 </StackPanel>
 
@@ -33,6 +35,10 @@
                                  Classes="tool-button" GroupName="FloorTool" ToolTip.Tip="Hacer click en el lienzo para colocar una nueva viga."/>
                     <RadioButton x:Name="BtnAddCol" Content="🏛 + Columna"
                                  Classes="tool-button" GroupName="FloorTool" ToolTip.Tip="Hacer click en el lienzo para colocar una nueva columna."/>
+                    <RadioButton x:Name="BtnAddEje" Content="📏 + Eje"
+                                 Classes="tool-button" GroupName="FloorTool" ToolTip.Tip="Hacer click en el lienzo para colocar un nuevo eje estructural."/>
+                    <RadioButton x:Name="BtnAddMuro" Content="🧱 + Muro"
+                                 Classes="tool-button" GroupName="FloorTool" ToolTip.Tip="Hacer click en el lienzo para colocar un nuevo muro."/>
                 </StackPanel>
 
                 <!-- Acciones globales -->
@@ -63,7 +69,11 @@
         <Grid ColumnDefinitions="*,300">
             <!-- Canvas Editor -->
             <Border Grid.Column="0" Background="{DynamicResource BgInput}" ClipToBounds="True" Focusable="True">
-                <v:PlantaCanvas x:Name="EditorCanvas" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                <v:PlantaCanvas x:Name="EditorCanvas" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                Nivel="{Binding NivelActivo}" Edificio="{Binding EdificioActivo}"
+                                PdfRef="{Binding CadEditor.Pdf}" FondoPdf="{Binding CadEditor.FondoPdf}"
+                                OpacidadPdf="{Binding CadEditor.OpacidadPdf}"
+                                PlanoDxf="{Binding CadEditor.Plano}"/>
             </Border>
 
             <!-- Panel de Propiedades Lateral -->
@@ -151,6 +161,57 @@
 
                                 <TextBlock Grid.Row="6" Grid.Column="0" Text="Altura (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
                                 <TextBox Grid.Row="6" Grid.Column="1" x:Name="TxtColAltura" Margin="0,0,0,8"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Panel Eje -->
+                        <StackPanel x:Name="PanelEje" Spacing="12" IsVisible="False">
+                            <TextBlock Text="📏 Eje Estructural" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource Accent}"/>
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,4">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Etiqueta:" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="TxtEjeEtiqueta" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Inicio X (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="TxtEjeStartX" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Inicio Y (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="TxtEjeStartY" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Fin X (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" x:Name="TxtEjeEndX" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Fin Y (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="4" Grid.Column="1" x:Name="TxtEjeEndY" Margin="0,0,0,8"/>
+                            </Grid>
+                            
+                            <Button x:Name="BtnVerElevacion" Content="Ver Elevación 3D" HorizontalAlignment="Stretch" Margin="0,8,0,0"/>
+                            <Button x:Name="BtnGenerarVigaContinua" Content="Generar Viga Continua" Classes="accent" HorizontalAlignment="Stretch" Margin="0,8,0,0"/>
+                        </StackPanel>
+
+                        <!-- Panel Muro -->
+                        <StackPanel x:Name="PanelMuro" Spacing="12" IsVisible="False">
+                            <TextBlock Text="🧱 Muro" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource Accent}"/>
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,4">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="ID:" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="TxtMuroId" IsReadOnly="True" Background="{DynamicResource BgTertiary}" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Inicio X (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="TxtMuroStartX" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Inicio Y (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="TxtMuroStartY" Margin="0,0,0,8"/>
+                                
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Fin X (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="3" Grid.Column="1" x:Name="TxtMuroEndX" Margin="0,0,0,8"/>
+                                
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Fin Y (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="4" Grid.Column="1" x:Name="TxtMuroEndY" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Espesor (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="5" Grid.Column="1" x:Name="TxtMuroEspesor" Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="Altura (m):" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="6" Grid.Column="1" x:Name="TxtMuroAltura" Margin="0,0,0,8"/>
                             </Grid>
                         </StackPanel>
                     </StackPanel>

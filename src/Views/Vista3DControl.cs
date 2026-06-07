@@ -64,6 +64,21 @@ public class Vista3DControl : Control
     {
         base.OnPropertyChanged(change);
         if (change.Property == EdificioProperty)
+        {
+            // Refresco en vivo: el binding XAML escribe la StyledProperty vía SetValue
+            // y NO pasa por el setter CLR, así que la suscripción a ModeloCambiado debe
+            // vivir acá (acá sí corre con binding). Sin esto el 3D no reflejaba los
+            // cambios del modelo hasta volver a entrar a la pestaña.
+            if (change.OldValue is LosasPlus.Models.IModeloObservable oldObs)
+                oldObs.ModeloCambiado -= OnEdificioCambiado;
+            if (change.NewValue is LosasPlus.Models.IModeloObservable newObs)
+                newObs.ModeloCambiado += OnEdificioCambiado;
+            ReconstruirEscena();
+        }
+        // Al volver visible (entrar a la pestaña Vista 3D), reconstruir la escena
+        // para reflejar la geometría recién sincronizada (CoordenadaX/Y de las
+        // losas, columnas, vigas y zapatas) sin depender de un cambio de instancia.
+        else if (change.Property == IsVisibleProperty && change.GetNewValue<bool>())
             ReconstruirEscena();
     }
 
@@ -74,6 +89,9 @@ public class Vista3DControl : Control
         _encuadrado = false;
         InvalidateVisual();
     }
+
+    private void OnEdificioCambiado(object? sender, System.EventArgs e)
+        => Avalonia.Threading.Dispatcher.UIThread.Post(ReconstruirEscena);
 
     public override void Render(DrawingContext context)
     {
@@ -97,6 +115,25 @@ public class Vista3DControl : Control
         DibujarSegmento(context, ejes[0], mvp, w, h, PenEjeX);
         DibujarSegmento(context, ejes[1], mvp, w, h, PenEjeY);
         DibujarSegmento(context, ejes[2], mvp, w, h, PenEjeZ);
+
+        if (Edificio != null)
+        {
+            var penEjeEstructural = new Pen(new SolidColorBrush(Color.FromRgb(0x9E, 0x9E, 0x9E)), 1.5)
+            {
+                DashStyle = DashStyle.DashDot
+            };
+            foreach (var eje in Edificio.Ejes)
+            {
+                var pA = new Vector3((float)eje.PuntoInicio.X, (float)eje.PuntoInicio.Y, 0f);
+                var pB = new Vector3((float)eje.PuntoFin.X, (float)eje.PuntoFin.Y, 0f);
+                if (Proyector3D.ProyectarSegmento(pA, pB, mvp, w, h, out var pa, out var pb))
+                {
+                    context.DrawLine(penEjeEstructural, new Point(pa.X, pa.Y), new Point(pb.X, pb.Y));
+                    var ftEje = new FormattedText(eje.Etiqueta, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Typeface.Default, 12, PincelTexto);
+                    context.DrawText(ftEje, new Point(pb.X, pb.Y));
+                }
+            }
+        }
 
         var hint = new FormattedText(
             "Vista 3D (esquemática) — arrastrar: orbitar · rueda: zoom · doble-clic: reencuadrar",

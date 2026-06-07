@@ -1,0 +1,45 @@
+name: ci-linux
+
+# Integración continua en Linux — la plataforma primaria de desarrollo desde
+# el port a Avalonia. Compila la solución Avalonia (LosasPlus.Linux.sln) y corre
+# la suite de tests, que es net8.0 puro (sin WPF) y por tanto multiplataforma.
+
+on:
+  push:
+    branches: [main, avalonia-linux]
+  pull_request:
+    branches: [main, avalonia-linux]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore LosasPlus.Linux.sln
+
+      # --no-incremental es OBLIGATORIO: el build incremental oculta los errores
+      # AVLN2000 del compilador XAML de Avalonia (ver BUILD-Linux.md).
+      - name: Build (Release, no-incremental)
+        run: dotnet build LosasPlus.Linux.sln -c Release --no-incremental
+
+      - name: Test
+        run: >-
+          dotnet test tests/LosasPlus.Tests/LosasPlus.Tests.csproj -c Release
+          --verbosity normal --logger "trx;LogFileName=test-results.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-linux
+          path: '**/test-results.trx'

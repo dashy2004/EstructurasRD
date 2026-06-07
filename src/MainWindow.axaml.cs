@@ -285,6 +285,57 @@ public partial class MainWindow : Window
         if (path is not null) await Vm.ImportarTxtAsync(path);
     }
 
+    private void OnCalcularNativoClick(object? sender, RoutedEventArgs e) => Vm.CalcularNativo();
+
+    private void OnGenerarEjesClick(object? sender, RoutedEventArgs e) => Vm.GenerarEjes();
+
+    private async void OnGenerarDesdeFotoClick(object? sender, RoutedEventArgs e)
+    {
+        var path = await AppServices.Dialogs.OpenFileAsync(
+            "Subir foto del esquema (losas / vigas)",
+            new FileFilter("Imágenes", new[] { "*.png", "*.jpg", "*.jpeg", "*.webp", "*.bmp" }),
+            new FileFilter("Todos los archivos", new[] { "*" }));
+        if (path is not null) await Vm.GenerarDesdeFotoAsync(path);
+    }
+
+    private async void OnGenerarDesdeDxfClick(object? sender, RoutedEventArgs e)
+    {
+        var path = await AppServices.Dialogs.OpenFileAsync(
+            "Importar DXF estructural (capas VIGAS / COLUMNAS / LOSAS)",
+            new FileFilter("DXF", new[] { "*.dxf" }),
+            new FileFilter("Todos los archivos", new[] { "*" }));
+        if (path is not null) await Vm.GenerarDesdeDxfAsync(path);
+    }
+
+    /// <summary>
+    /// Engine → «Calcular carga última (Wu) desde geometría»: aplica Wu a cada
+    /// losa del proyecto (lo escribe en Losa.Carga) y abre un modal con el
+    /// desglose Qmamp/Qmap/Qd/Ql/Qu por losa. Acción aditiva.
+    /// </summary>
+    private async void OnCalcularCargaUltimaClick(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var filas = Vm.AplicarCargaUltimaConDesglose();
+            if (filas.Count == 0)
+            {
+                await AppServices.MessageBox.InfoAsync("Carga última (Wu)",
+                    "No hay losas en el edificio activo para calcular la carga última.");
+                return;
+            }
+            // Fórmula real del proyecto (no hardcodeada): refleja los factores
+            // vigentes en CargasGlobales.Factores, que un proyecto puede cambiar.
+            var f = Vm.Proyecto.Cargas.Factores;
+            string combinacion = $"Qu = {f.FactorD:0.##}·Qd + {f.FactorL:0.##}·Ql ({f.Norma})";
+            await new Views.CargaUltimaWindow(filas, combinacion).ShowDialog(this);
+        }
+        catch (Exception ex)
+        {
+            await AppServices.MessageBox.InfoAsync("Carga última (Wu)",
+                "No se pudo calcular la carga última:\n" + ex.Message);
+        }
+    }
+
     private async void OnExportCsvClick(object? sender, RoutedEventArgs e)
     {
         var path = await AppServices.Dialogs.SaveFileAsync(
@@ -325,6 +376,22 @@ public partial class MainWindow : Window
         if (path is null) return;
 
         Vm.ExportarSaf(path);
+    }
+
+    private async void OnExportAcerosCsvClick(object? sender, RoutedEventArgs e)
+    {
+        var path = await AppServices.Dialogs.SaveFileAsync(
+            "Exportar aceros (CSV)", (Vm.Sistema.Nombre ?? "aceros") + "_aceros.csv", ".csv",
+            new FileFilter("CSV separado por ;", new[] { "*.csv" }));
+        if (path is not null) Vm.ExportarAcerosCsv(path);
+    }
+
+    private async void OnExportAcerosXlsxClick(object? sender, RoutedEventArgs e)
+    {
+        var path = await AppServices.Dialogs.SaveFileAsync(
+            "Exportar aceros (Excel)", (Vm.Sistema.Nombre ?? "aceros") + "_aceros.xlsx", ".xlsx",
+            new FileFilter("Excel Workbook", new[] { "*.xlsx" }));
+        if (path is not null) Vm.ExportarAcerosXlsx(path);
     }
 
     private void OnTrustPluginClick(object? sender, RoutedEventArgs e)
@@ -468,6 +535,17 @@ public partial class MainWindow : Window
         if (SistemasList?.SelectedItem is Sistema s) Vm.EliminarSistema(s);
     }
 
+    private void OnAddNivel(object? sender, RoutedEventArgs e)
+    {
+        Vm.AgregarNivel($"Nivel {(Vm.NivelesDelEdificio?.Count ?? 0) + 1}", (Vm.NivelesDelEdificio?.Count ?? 0) * 3.0);
+    }
+
+    private void OnDeleteNivel(object? sender, RoutedEventArgs e)
+    {
+        if (Vm.NivelActivo != null)
+            Vm.EliminarNivel(Vm.NivelActivo);
+    }
+
     private async void OnReloadPlugins(object? sender, RoutedEventArgs e)
     {
         await Vm.Plugins.LoadAllAsync(Vm.Log);
@@ -562,7 +640,7 @@ public partial class MainWindow : Window
             }
             if (Vm.ColumnasEditor != null && ed != null && ed.Niveles.Count > 0)
             {
-                Vm.ColumnasEditor.NivelSeleccionado = ed.Niveles[0];
+                Vm.NivelActivo = ed.Niveles[0];
             }
 
             // 5. Run loop to capture each view mode

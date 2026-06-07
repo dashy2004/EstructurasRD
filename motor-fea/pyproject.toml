@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "motor-fea"
+version = "0.0.1"
+description = "Motor de análisis y diseño estructural nativo (FEA) — backend de cálculo de LosasPlus / EstructurasRD."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "EstructurasRD" }]
+
+# El núcleo de análisis (B1+) usa NumPy/SciPy. Se declaran como dependencias
+# de runtime; el scaffolding (B0) y su smoke-test corren solo con stdlib para
+# poder validar el dominio antes de instalar las dependencias numéricas.
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+api = ["fastapi>=0.110", "uvicorn>=0.29"]
+
+[project.scripts]
+# Frontera de integración: el C# invoca este CLI igual que hoy lanza Losas.exe
+# (ver docs/ADR-0001-integracion.md). Implementación real en B1+.
+motor-fea = "motor_fea.api.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"motor_fea.viz" = [
+    "static/*.html",
+    "static/*.js",
+    "static/vendor/*.js",
+    "static/vendor/addons/controls/*.js",
+    "static/vendor/addons/webxr/*.js",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

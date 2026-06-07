@@ -49,6 +49,8 @@
     <AvaloniaResource Include="Resources\TiposLosa.json" />
     <AvaloniaResource Include="Resources\Reglamento.json" />
     <AvaloniaResource Include="Resources\icons\*.svg" />
+    <AvaloniaResource Include="Resources\branding\*.svg" />
+    <AvaloniaResource Include="Resources\branding\*.png" />
   </ItemGroup>
 
   <!-- Fase G: port a Avalonia COMPLETO. Todas las Views son .axaml/.axaml.cs y las

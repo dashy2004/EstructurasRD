@@ -54,6 +54,11 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         {
             if (_modoActivo == value) return;
             _modoActivo = value;
+            // Sincronización 2D↔3D: al entrar a una vista geométrica, asegurar que
+            // las losas sin posicionar reciban un layout por defecto (no apiladas
+            // en el origen). Conservador: sólo toca sistemas todos en (0,0).
+            if (value is ModoSidebar.Planta2D or ModoSidebar.Vista3D or ModoSidebar.PlanoCad)
+                SincronizadorPlanta.SincronizarEdificio(EdificioActivo);
             OnPropertyChanged();
             OnPropertyChanged(nameof(EsModoEditor));
         }
@@ -123,6 +128,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     public ICommand? UndoCommand               { get; private set; }
     public ICommand? RedoCommand               { get; private set; }
     public ICommand? AbrirShortcutsCommand     { get; private set; }
+    public ICommand? IrAModoCommand            { get; private set; }
     public ICommand? AplicarBulkCommand        { get; private set; }
 
     // ---- Validación normativa (commit 33) ----
@@ -161,9 +167,72 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// <summary>VM del editor de columnas (Fase J): CRUD de las columnas del edificio activo.</summary>
     public ColumnasEditorViewModel ColumnasEditor { get; private set; } = null!;
 
+    /// <summary>VM de la pestaña «Aceros» (A1): diseño de acero a flexión por losa desde los momentos del .TXT.</summary>
+    public AcerosViewModel Aceros { get; private set; } = null!;
+
+    // ---- Puente B6: diseño de losa con el motor FEA nativo (aditivo) ----
+    private string _motorFeaComando = "motor-fea";
+    /// <summary>Comando del motor FEA externo (config). Default "motor-fea"; p. ej. "python3 -m motor_fea.api.cli".</summary>
+    public string MotorFeaComando { get => _motorFeaComando; set { _motorFeaComando = value; OnPropertyChanged(); } }
+
+    private string _motorFeaResultado = "";
+    /// <summary>Texto del último resultado del motor FEA (o error). Bound al panel de la pestaña Aceros.</summary>
+    public string MotorFeaResultado
+    {
+        get => _motorFeaResultado;
+        private set { _motorFeaResultado = value; OnPropertyChanged(); OnPropertyChanged(nameof(HayResultadoMotorFea)); }
+    }
+
+    /// <summary>True si hay un resultado del motor FEA para mostrar.</summary>
+    public bool HayResultadoMotorFea => !string.IsNullOrEmpty(_motorFeaResultado);
+
+    private bool _motorFeaOcupado;
+    /// <summary>True mientras el motor FEA está calculando (deshabilita el botón).</summary>
+    public bool MotorFeaOcupado { get => _motorFeaOcupado; private set { _motorFeaOcupado = value; OnPropertyChanged(); } }
+
+    /// <summary>Diseña la <see cref="LosaSeleccionada"/> con el motor FEA nativo (B6, aditivo).</summary>
+    public ICommand DisenarConMotorFeaCommand { get; private set; } = null!;
+
+    /// <summary>Calcula TODAS las losas del sistema con el motor FEA (alternativa a Losas.exe).</summary>
+    public ICommand CalcularConMotorCommand { get; private set; } = null!;
+
     public ICommand? IrABusquedaCommand { get; private set; }
     public ICommand? GenerarMemoriaCommand { get; private set; }
+    public ICommand? SincronizarDesdePlantaCommand { get; private set; }
+    
+    // ---- Carga Última (Tarea D) ----
+    public ICommand? CalcularCargaUltimaCommand { get; private set; }
     public ICommand? AutoBalanceoCommand { get; private set; }
+
+    /// <summary>
+    /// Aplica la carga última (Wu) a cada losa de TODOS los niveles del edificio
+    /// activo a partir de la geometría (espesor, acabados, muros dibujados y uso;
+    /// LRFD 1.2D+1.6L por defecto) y devuelve el desglose por losa para mostrarlo.
+    /// El alcance es el edificio activo (no solo el nivel visible) para que la
+    /// bajada de cargas vea el Wu de todos los niveles. Acción explícita y
+    /// aditiva: muta <c>Losa.Carga</c>, NO reemplaza el flujo de Losas.exe.
+    /// </summary>
+    public IReadOnlyList<CargaUltimaFila> AplicarCargaUltimaConDesglose()
+    {
+        var filas = new List<CargaUltimaFila>();
+        var edificio = EdificioActivo;
+        if (edificio == null) return filas;
+        foreach (var nivel in edificio.Niveles)
+        foreach (var s in nivel.Sistemas)
+        {
+            // AplicarCargaUltima devuelve exactamente una entrada por losa, en el
+            // orden de s.Losas (contrato verificado por CargaUltimaCalculatorTests),
+            // así que desglose[i] ↔ s.Losas[i] está alineado.
+            var desglose = LosasPlus.Transmision.CargaUltimaCalculator.AplicarCargaUltima(s, _proyecto.Cargas);
+            for (int i = 0; i < desglose.Count; i++)
+            {
+                var r = desglose[i];
+                filas.Add(new CargaUltimaFila(nivel.Nombre, s.Nombre, i + 1, s.Losas[i].Espesor,
+                                              r.Qmamp, r.Qmap, r.Qd, r.Ql, r.Qu));
+            }
+        }
+        return filas;
+    }
 
     private bool _modoConectarBordes;
     /// <summary>
@@ -402,8 +471,8 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         {
             _restoringSnapshot = true;
             var restored = ProyectoSerializer.FromJson(json);
-            _proyecto.Sistemas.Clear();
-            foreach (var s in restored.Sistemas) _proyecto.Sistemas.Add(s);
+            _proyecto.Edificios.Clear();
+            foreach (var e in restored.Edificios) _proyecto.Edificios.Add(e);
             _proyecto.Archivo     = restored.Archivo;
             _proyecto.Nombre      = restored.Nombre;
             _proyecto.Autor       = restored.Autor;
@@ -426,13 +495,17 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             // Restaurar las vigas del nivel por defecto (Fase 3) — Clear/re-add
             // sobre la ObservableCollection estable, mismo patrón que Sistemas.
             _proyecto.AsegurarEstructura();
-            var nivelRestaurado = _proyecto.Edificios[0].Niveles[0];
+            NivelActivo = _proyecto.Edificios[0].Niveles[0];
+
+            // Restaurar las vigas del nivel por defecto (Fase 3) — Clear/re-add
+            // sobre la ObservableCollection estable, mismo patrón que Sistemas.
+            var nivelRestaurado = NivelActivo;
             nivelRestaurado.Vigas.Clear();
             foreach (var v in restored.Edificios[0].Niveles[0].Vigas)
                 nivelRestaurado.Vigas.Add(v);
             VigaEditor.NotificarRestauracion();
 
-            SistemaActivo = _proyecto.Sistemas.FirstOrDefault() ?? NuevoSistemaDemo();
+            SistemaActivo = NivelActivo?.Sistemas.FirstOrDefault() ?? NuevoSistemaDemo();
             OnPropertyChanged(nameof(Proyecto));
             OnPropertyChanged(nameof(TituloVentana));
             RefreshDLContent();
@@ -457,6 +530,17 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
 
     public bool MostrarBulkPanel => _bulkSeleccionadasCount >= 2;
 
+    private Losa? _losaSeleccionada;
+    /// <summary>Primera losa seleccionada en el grid — fuente del panel αfm del Editor (A3).</summary>
+    public Losa? LosaSeleccionada
+    {
+        get => _losaSeleccionada;
+        private set { _losaSeleccionada = value; OnPropertyChanged(); OnPropertyChanged(nameof(HayLosaSeleccionada)); }
+    }
+
+    /// <summary>True si hay al menos una losa seleccionada (controla la visibilidad del panel αfm).</summary>
+    public bool HayLosaSeleccionada => _losaSeleccionada is not null;
+
     // Valores del bulk-apply (strings para permitir "" = no aplicar este campo).
     private string _bulkLx = "", _bulkLy = "", _bulkEspesor = "", _bulkCarga = "", _bulkTipo = "";
     public string BulkLx      { get => _bulkLx;      set { _bulkLx = value; OnPropertyChanged(); } }
@@ -472,6 +556,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         foreach (var item in selectedItems)
             if (item is Losa l) LosasSeleccionadas.Add(l);
         BulkSeleccionadasCount = LosasSeleccionadas.Count;
+        LosaSeleccionada = LosasSeleccionadas.Count > 0 ? LosasSeleccionadas[0] : null;
     }
 
     // Nota: el panel de refuerzo comercial fue movido a la pestaña sidebar
@@ -533,7 +618,82 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             OnPropertyChanged(nameof(Sistema));
             OnPropertyChanged(nameof(LosasFiltradas));
             RefreshDLContent();
+            Aceros?.Recargar();
         }
+    }
+
+    private Nivel? _nivelActivo;
+    
+    /// <summary>
+    /// Nivel activo del edificio actual (Fase de anclaje a niveles).
+    /// </summary>
+    public Nivel? NivelActivo
+    {
+        get => _nivelActivo;
+        set
+        {
+            if (ReferenceEquals(_nivelActivo, value)) return;
+            _nivelActivo = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IndiceNivelActivo));
+            // Actualizar el sistema activo para que apunte al primer sistema del nuevo nivel
+            if (_nivelActivo != null)
+            {
+                if (_nivelActivo.Sistemas.Count == 0)
+                    _nivelActivo.Sistemas.Add(NuevoSistemaDemo());
+                SistemaActivo = _nivelActivo.Sistemas[0];
+            }
+        }
+    }
+
+    /// <summary>Colección de niveles del edificio activo para bindear la UI.</summary>
+    public ObservableCollection<Nivel>? NivelesDelEdificio => EdificioActivo?.Niveles;
+
+    /// <summary>Índice del nivel activo dentro del edificio activo (para el selector en la UI).</summary>
+    public int IndiceNivelActivo
+    {
+        get
+        {
+            if (EdificioActivo is null || NivelActivo is null) return -1;
+            return EdificioActivo.Niveles.IndexOf(NivelActivo);
+        }
+        set
+        {
+            if (EdificioActivo != null && value >= 0 && value < EdificioActivo.Niveles.Count)
+            {
+                SeleccionarNivel(EdificioActivo.Niveles[value]);
+            }
+        }
+    }
+
+    public void SeleccionarNivel(Nivel nivel)
+    {
+        NivelActivo = nivel;
+    }
+
+    public void AgregarNivel(string nombre, double cota)
+    {
+        if (EdificioActivo is null) return;
+        PushUndoSnapshot();
+        var nuevoNivel = new Nivel { Nombre = nombre, Cota = cota };
+        nuevoNivel.Sistemas.Add(NuevoSistemaDemo());
+        EdificioActivo.Niveles.Add(nuevoNivel);
+        NivelActivo = nuevoNivel;
+    }
+
+    public void EliminarNivel(Nivel nivel)
+    {
+        if (EdificioActivo is null) return;
+        if (EdificioActivo.Niveles.Count <= 1) return; // No se puede eliminar el único nivel
+        PushUndoSnapshot();
+        
+        int index = EdificioActivo.Niveles.IndexOf(nivel);
+        EdificioActivo.Niveles.Remove(nivel);
+        
+        // Seleccionar el nivel adyacente
+        if (index >= EdificioActivo.Niveles.Count)
+            index = EdificioActivo.Niveles.Count - 1;
+        NivelActivo = EdificioActivo.Niveles[index];
     }
 
     /// <summary>
@@ -549,11 +709,11 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         set
         {
             SistemaActivo = value;
-            // Si cambió la referencia, asegurar que esté en el proyecto.
-            if (!_proyecto.Sistemas.Contains(value))
+            // Si cambió la referencia, asegurar que esté en el nivel activo.
+            if (NivelActivo != null && !NivelActivo.Sistemas.Contains(value))
             {
-                _proyecto.Sistemas.Clear();
-                _proyecto.Sistemas.Add(value);
+                NivelActivo.Sistemas.Clear();
+                NivelActivo.Sistemas.Add(value);
             }
         }
     }
@@ -630,8 +790,12 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
 
     public MainViewModel()
     {
-        // El proyecto arranca con el sistema demo activo.
-        _proyecto.Sistemas.Add(_sistemaActivo);
+        _proyecto.AsegurarEstructura();
+        _nivelActivo = _proyecto.Edificios[0].Niveles[0];
+        if (_nivelActivo.Sistemas.Count == 0)
+            _nivelActivo.Sistemas.Add(_sistemaActivo);
+        else
+            _sistemaActivo = _nivelActivo.Sistemas[0];
 
         // ---- Commands de persistencia .lpx.json (commit 32) ----
         NuevoProyectoLpxCommand   = new RelayCommand(_ => NuevoProyectoLpx());
@@ -651,6 +815,11 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         }, _ => _proyectoRecienteSeleccionado is not null
                 && !string.IsNullOrEmpty(_proyectoRecienteSeleccionado.Path));
         IrAExploradorCommand = new RelayCommand(_ => ModoActivo = ModoSidebar.Explorador);
+        IrAModoCommand       = new RelayCommand(p => 
+        {
+            if (p is ModoSidebar m) ModoActivo = m;
+            else if (p is string s && Enum.TryParse<ModoSidebar>(s, out var mStr)) ModoActivo = mStr;
+        });
         UndoCommand          = new RelayCommand(_ => Undo(), _ => PuedeUndo);
         RedoCommand          = new RelayCommand(_ => Redo(), _ => PuedeRedo);
         AbrirShortcutsCommand = new RelayCommand(_ => AbrirShortcutsModal());
@@ -665,7 +834,15 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             irALosa:               (s, id) => BuscarYActivarSistema(s));
         IrABusquedaCommand = new RelayCommand(_ => ModoActivo = ModoSidebar.Busqueda);
         GenerarMemoriaCommand = new RelayCommand(_ => GenerarMemoria());
+        
+        // Back-compat: el comando sigue existiendo (aplica Wu) pero ahora delega
+        // en el método que también devuelve el desglose. El menú Engine usa un
+        // handler en el code-behind que abre el modal con ese desglose.
+        CalcularCargaUltimaCommand = new RelayCommand(_ => AplicarCargaUltimaConDesglose());
+
         AutoBalanceoCommand   = new RelayCommand(_ => AplicarAutoBalanceo());
+        DisenarConMotorFeaCommand = new MemoriaPlus.Common.AsyncRelayCommand(DisenarConMotorFeaAsync);
+        CalcularConMotorCommand = new MemoriaPlus.Common.AsyncRelayCommand(CalcularConMotorAsync);
 
         // ---- Plano CAD (Fase 1.B/2) — el sub-VM lee las losas del sistema
         // activo y, al mapear un polígono, toma snapshot de undo antes de mutar.
@@ -677,9 +854,10 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         CargasCombinaciones = new CargasCombinacionesViewModel(_proyecto, PushUndoSnapshot);
 
         // ---- Editor de vigas continuas (Fase 3) ----
-        VigaEditor = new VigaEditorViewModel(_proyecto, PushUndoSnapshot);
+        VigaEditor = new VigaEditorViewModel(_proyecto, PushUndoSnapshot, () => NivelActivo);
         BajadaCargas = new BajadaCargasViewModel(() => EdificioActivo);
-        ColumnasEditor = new ColumnasEditorViewModel(() => EdificioActivo);
+        ColumnasEditor = new ColumnasEditorViewModel(() => EdificioActivo, () => NivelActivo);
+        Aceros = new AcerosViewModel(() => _sistemaActivo);
 
         // Cambios al nombre del proyecto refrescan el título de la ventana.
         _proyecto.PropertyChanged += (_, e) =>
@@ -748,11 +926,16 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             var sistemas = DLFileService.ReadAll(path);
             if (sistemas.Count == 0) { Log("El .DL no contiene ningún sistema."); return; }
 
-            _proyecto.Sistemas.Clear();
-            foreach (var s in sistemas) _proyecto.Sistemas.Add(s);
+            _proyecto.Edificios.Clear();
+            var ed = new Edificio();
+            var niv = new Nivel();
+            foreach (var s in sistemas) niv.Sistemas.Add(s);
+            ed.Niveles.Add(niv);
+            _proyecto.Edificios.Add(ed);
             _proyecto.Archivo = path;
             _proyecto.Nombre = Path.GetFileNameWithoutExtension(path);
-
+            
+            NivelActivo = niv;
             SistemaActivo = sistemas[0];
             DLPath = path;
             Log($"Cargado .DL: {path} ({sistemas.Count} sistema{(sistemas.Count == 1 ? "" : "s")})");
@@ -773,8 +956,8 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         try
         {
             var p = ProyectoService.AbrirProyecto(manifestPath);
-            _proyecto.Sistemas.Clear();
-            foreach (var s in p.Sistemas) _proyecto.Sistemas.Add(s);
+            _proyecto.Edificios.Clear();
+            foreach (var e in p.Edificios) _proyecto.Edificios.Add(e);
             _proyecto.Archivo = p.Archivo;
             _proyecto.Nombre = p.Nombre;
             _proyecto.Autor = p.Autor;
@@ -909,6 +1092,65 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// Carga un .TXT producido manualmente por Losas.exe, lo parsea, lo asocia a las losas
     /// del sistema actual y dispara el hook 'post-txt'.
     /// </summary>
+    /// <summary>
+    /// Corre el motor FEA nativo (B6) sobre la <see cref="LosaSeleccionada"/> y
+    /// muestra el diseño (momentos + acero de vano y apoyo). Aditivo: no afecta
+    /// el flujo <c>Losas.exe</c>. Si el motor no está disponible, muestra el error.
+    /// </summary>
+    public async Task DisenarConMotorFeaAsync()
+    {
+        var losa = LosaSeleccionada;
+        if (losa is null) { MotorFeaResultado = "Seleccioná una losa en el Editor primero."; return; }
+        try
+        {
+            MotorFeaOcupado = true;
+            MotorFeaResultado = "Calculando con el motor FEA…";
+            var r = await MotorFeaService.DisenarLosaAsync(losa, SistemaActivo, MotorFeaComando);
+            string apoyo = r.FranjaApoyo is { } fa
+                ? $"\nApoyo (acero superior): {fa.Disponer}  (As {fa.AsDiseno:0} mm²/m)"
+                : "";
+            MotorFeaResultado =
+                $"Losa {losa.Id} — motor FEA (elementos finitos):\n" +
+                $"Deflexión central {r.WCentral * 1000:0.00} mm · Mx {r.MxMax:0} · My {r.MyMax:0} N·m/m\n" +
+                $"Vano X: {r.FranjaX.Disponer}  (As {r.FranjaX.AsDiseno:0} mm²/m, {(r.FranjaX.Cumple ? "cumple" : "REVISAR")})\n" +
+                $"Vano Y: {r.FranjaY.Disponer}  (As {r.FranjaY.AsDiseno:0} mm²/m)" + apoyo;
+        }
+        catch (Exception ex)
+        {
+            MotorFeaResultado = "✕ " + ex.Message;
+        }
+        finally { MotorFeaOcupado = false; }
+    }
+
+    /// <summary>
+    /// Cutover aditivo de <c>Losas.exe</c>: calcula los momentos de TODAS las losas
+    /// del sistema con el motor FEA nativo (FEM) y los aplica, alimentando el mismo
+    /// pipeline de Aceros que hoy usa los momentos del <c>.TXT</c>. No reemplaza el
+    /// flujo <c>Losas.exe</c> — es la alternativa nativa.
+    /// </summary>
+    public async Task CalcularConMotorAsync()
+    {
+        var sistema = Sistema;
+        if (sistema is null || sistema.Losas.Count == 0)
+        { MotorFeaResultado = "No hay losas en el sistema activo."; return; }
+        try
+        {
+            MotorFeaOcupado = true;
+            MotorFeaResultado = $"Calculando {sistema.Losas.Count} losa(s) con el motor FEA (FEM)…";
+            await MotorFeaService.CalcularSistemaConMotorAsync(sistema, MotorFeaComando);
+            await MotorFeaService.CalcularBordesConMotorAsync(sistema, MotorFeaComando);   // aceros adicionales (apoyos)
+            OnPropertyChanged(nameof(LosasFiltradas));
+            Aceros.Recargar();   // los momentos del motor alimentan el diseño de acero
+            int bordes = sistema.BordesX.Count + sistema.BordesY.Count;
+            MotorFeaResultado =
+                $"✓ {sistema.Losas.Count} losa(s)" + (bordes > 0 ? $" + {bordes} borde(s)" : "") +
+                " calculadas con el motor FEA (FEM). Momentos, aceros y aceros adicionales actualizados (sin Losas.exe).";
+            Log("Losas calculadas con el motor FEA nativo (alternativa a Losas.exe).");
+        }
+        catch (Exception ex) { MotorFeaResultado = "✕ " + ex.Message; }
+        finally { MotorFeaOcupado = false; }
+    }
+
     public async Task ImportarTxtAsync(string path)
     {
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
@@ -925,6 +1167,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             TxtParser.Apply(parsed, Sistema.Losas);
             TxtParser.ApplyApoyos(parsed, Sistema.BordesX, Sistema.BordesY);
             OnPropertyChanged(nameof(LosasFiltradas));
+            Aceros.Recargar();   // los momentos recién importados alimentan el diseño de acero
 
             await Plugins.LoadAllAsync(Log);
             var ctx = BuildPluginContext(outputTxt: content);
@@ -936,6 +1179,215 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             Log($"Importado .TXT: {path} ({parsed.PorLosa.Count} losas con resultados detectados)");
         }
         catch (Exception ex) { Log("Error importando .TXT: " + ex.Message); }
+        finally { Ocupado = false; }
+    }
+
+    /// <summary>
+    /// Calcula las losas con el motor nativo Pieper-Martens (sin Losas.exe ni
+    /// .TXT): produce la <see cref="SalidaPerdomo"/>, refleja los momentos en las
+    /// losas y recarga el diseño de acero — el resultado queda visible en la
+    /// pestaña Aceros y disponible para la Memoria, igual que al importar el .TXT.
+    /// </summary>
+    public void CalcularNativo()
+    {
+        try
+        {
+            Ocupado = true;
+            var salida = LosasPlus.Calculo.PieperMartens.SistemaPieperMartensCalculator
+                .Crear().CalcularYAplicar(Sistema);
+            OnPropertyChanged(nameof(LosasFiltradas));
+            Aceros.Recargar();
+            Log($"Cálculo nativo Pieper-Martens: {salida.Momentos.Count} losas (sin Losas.exe).");
+        }
+        catch (Exception ex) { Log("Error en cálculo nativo Pieper-Martens: " + ex.Message); }
+        finally { Ocupado = false; }
+    }
+
+    /// <summary>
+    /// Genera los ejes de rejilla (A,B,C / 1,2,3) del edificio activo a partir de
+    /// las columnas del nivel activo y los deja en <c>Edificio.Ejes</c>, que
+    /// <c>PlantaCanvas</c> ya dibuja. Reemplaza los ejes previos del edificio.
+    /// </summary>
+    public void GenerarEjes()
+    {
+        var ed = EdificioActivo;
+        var nivel = NivelActivo;
+        if (ed is null || nivel is null) { Log("No hay edificio/nivel activo para generar ejes."); return; }
+
+        var ejes = LosasPlus.Calculo.GeneradorEjes.DesdeColumnas(nivel.Columnas);
+        ed.Ejes.Clear();
+        foreach (var e in ejes) ed.Ejes.Add(e);
+        Log($"Ejes generados: {ejes.Count} desde {nivel.Columnas.Count} columnas del nivel '{nivel.Nombre}'.");
+    }
+
+    /// <summary>
+    /// Genera losas y vigas en el nivel activo a partir de una FOTO de un esquema,
+    /// usando la IA local (Qwen visión, vía Ollama). La IA solo PROPONE geometría;
+    /// acá se crean los elementos en el modelo (el ingeniero revisa/ajusta luego).
+    /// No modifica el código. Foco actual: losas y vigas.
+    /// </summary>
+    public async Task GenerarDesdeFotoAsync(string imagenPath)
+    {
+        var nivel = NivelActivo;
+        if (nivel is null) { Log("No hay nivel activo donde generar el sistema."); return; }
+
+        try
+        {
+            Ocupado = true;
+            Log($"Analizando '{Path.GetFileName(imagenPath)}' con Qwen (visión)… puede tardar.");
+            PushUndoSnapshot();
+
+            var cfg = new LosasPlus.IA.QwenConfig();   // 127.0.0.1:11434 · qwen2.5vl:7b
+            var prop = await new LosasPlus.IA.QwenAnalizador(cfg).AnalizarAsync(imagenPath);
+
+            if (nivel.Sistemas.Count == 0) nivel.Sistemas.Add(new Sistema { Nombre = "Sistema 1" });
+            var sys = nivel.Sistemas[0];
+
+            int losaId = sys.Losas.Count > 0 ? sys.Losas.Max(l => l.Id) : 0;
+            foreach (var l in prop.Losas)
+                sys.Losas.Add(new Losa
+                {
+                    Id = ++losaId,
+                    CoordenadaX = l.XMetros,
+                    CoordenadaY = l.YMetros,
+                    Lx = l.LxM > 0 ? l.LxM : 4.0,
+                    Ly = l.LyM > 0 ? l.LyM : 4.0,
+                    Espesor = 0.12,
+                    Carga = 2.0,
+                    Tipo = 10,
+                });
+
+            int vigaId = nivel.Vigas.Count > 0 ? nivel.Vigas.Max(v => v.Id) : 0;
+            foreach (var v in prop.Vigas)
+            {
+                double dx = v.X2Metros - v.X1Metros, dy = v.Y2Metros - v.Y1Metros;
+                double largo = Math.Sqrt(dx * dx + dy * dy);
+                if (largo <= 0) largo = 3.0;
+
+                var viga = new LosasPlus.Vigas.Viga
+                {
+                    Id = ++vigaId,
+                    Nombre = $"V-{vigaId}",
+                    OrigenX = v.X1Metros,
+                    OrigenY = v.Y1Metros,
+                    AnguloGrados = Math.Atan2(dy, dx) * 180.0 / Math.PI,
+                };
+                viga.Tramos.Add(new LosasPlus.Vigas.TramoViga { Longitud = largo });
+                viga.Apoyos.Add(new LosasPlus.Vigas.ApoyoViga { CoordenadaX = 0.0 });
+                viga.Apoyos.Add(new LosasPlus.Vigas.ApoyoViga { CoordenadaX = largo });
+                nivel.Vigas.Add(viga);
+            }
+
+            OnPropertyChanged(nameof(LosasFiltradas));
+            RefreshDLContent();
+            Log($"IA: {prop.Losas.Count} losas + {prop.Vigas.Count} vigas generadas en '{nivel.Nombre}'."
+                + (string.IsNullOrEmpty(prop.Advertencias) ? "" : " ⚠ " + prop.Advertencias));
+        }
+        catch (Exception ex) { Log("Error generando desde foto (IA): " + ex.Message); }
+        finally { Ocupado = false; }
+    }
+
+    /// <summary>
+    /// Genera losas, vigas y <b>columnas</b> en el nivel activo a partir de un
+    /// archivo <b>DXF estructural</b>. Pipeline DETERMINISTA: importa la geometría
+    /// exacta (<see cref="LosasPlus.Services.DxfImportService"/>), clasifica las
+    /// capas de forma híbrida (heurística <see cref="LosasPlus.Services.ClasificadorCapas"/>
+    /// + IA de texto Qwen solo para las capas ambiguas) y mapea por capa/forma con
+    /// <see cref="LosasPlus.Services.DxfEstructuraMapper"/>.
+    ///
+    /// <para>A diferencia de la foto, acá la geometría NO se estima: sale exacta del
+    /// DXF. La IA solo clasifica nombres de capa; nunca decide coordenadas ni el
+    /// cálculo. El ingeniero revisa lo generado.</para>
+    /// </summary>
+    public async Task GenerarDesdeDxfAsync(string dxfPath)
+    {
+        var nivel = NivelActivo;
+        if (nivel is null) { Log("No hay nivel activo donde generar el sistema."); return; }
+
+        try
+        {
+            Ocupado = true;
+            Log($"Importando '{Path.GetFileName(dxfPath)}' (DXF)…");
+            PushUndoSnapshot();
+
+            var plano = await Task.Run(() => new LosasPlus.Services.DxfImportService().Importar(dxfPath));
+            var entidades = plano.Entidades;
+
+            // --- Clasificación híbrida de capas: heurística + IA de texto (solo ambiguas) ---
+            var capas = entidades.Select(e => e.Capa)
+                .Where(c => !string.IsNullOrWhiteSpace(c)).Distinct().ToList();
+            var ambiguas = LosasPlus.Services.ClasificadorCapas.Ambiguas(capas);
+            Func<string, LosasPlus.Services.CategoriaEstructural> categoria =
+                LosasPlus.Services.ClasificadorCapas.Clasificar;
+            if (ambiguas.Count > 0)
+            {
+                Log($"Clasificando {ambiguas.Count} capa(s) ambigua(s) con Qwen (texto)…");
+                var cfg = new LosasPlus.IA.QwenConfig();   // 127.0.0.1:11434 · qwen2.5vl:7b
+                var ia = await new LosasPlus.IA.ClasificadorCapasIA(cfg).ClasificarAsync(ambiguas);
+                categoria = LosasPlus.IA.ClasificadorCapasIA.CombinarConHeuristica(ia);
+            }
+
+            var prop = LosasPlus.Services.DxfEstructuraMapper.Mapear(entidades, categoria);
+
+            if (nivel.Sistemas.Count == 0) nivel.Sistemas.Add(new Sistema { Nombre = "Sistema 1" });
+            var sys = nivel.Sistemas[0];
+
+            int losaId = sys.Losas.Count > 0 ? sys.Losas.Max(l => l.Id) : 0;
+            foreach (var l in prop.Losas)
+                sys.Losas.Add(new Losa
+                {
+                    Id = ++losaId,
+                    CoordenadaX = l.XMetros,
+                    CoordenadaY = l.YMetros,
+                    Lx = l.LxM > 0 ? l.LxM : 4.0,
+                    Ly = l.LyM > 0 ? l.LyM : 4.0,
+                    Espesor = 0.12,
+                    Carga = 2.0,
+                    Tipo = 10,
+                });
+
+            int vigaId = nivel.Vigas.Count > 0 ? nivel.Vigas.Max(v => v.Id) : 0;
+            foreach (var v in prop.Vigas)
+            {
+                double dx = v.X2Metros - v.X1Metros, dy = v.Y2Metros - v.Y1Metros;
+                double largo = Math.Sqrt(dx * dx + dy * dy);
+                if (largo <= 0) largo = 3.0;
+
+                var viga = new LosasPlus.Vigas.Viga
+                {
+                    Id = ++vigaId,
+                    Nombre = $"V-{vigaId}",
+                    OrigenX = v.X1Metros,
+                    OrigenY = v.Y1Metros,
+                    AnguloGrados = Math.Atan2(dy, dx) * 180.0 / Math.PI,
+                };
+                viga.Tramos.Add(new LosasPlus.Vigas.TramoViga { Longitud = largo });
+                viga.Apoyos.Add(new LosasPlus.Vigas.ApoyoViga { CoordenadaX = 0.0 });
+                viga.Apoyos.Add(new LosasPlus.Vigas.ApoyoViga { CoordenadaX = largo });
+                nivel.Vigas.Add(viga);
+            }
+
+            int colId = nivel.Columnas.Count > 0 ? nivel.Columnas.Max(c => c.Id) : 0;
+            foreach (var c in prop.Columnas)
+            {
+                colId++;
+                nivel.Columnas.Add(new LosasPlus.Models.Columna
+                {
+                    Id = colId,
+                    Nombre = $"C-{colId}",
+                    CoordenadaX = c.XMetros,
+                    CoordenadaY = c.YMetros,
+                    Base = c.BaseM > 0 ? c.BaseM : 0.30,
+                    Peralte = c.PeralteM > 0 ? c.PeralteM : 0.30,
+                });
+            }
+
+            OnPropertyChanged(nameof(LosasFiltradas));
+            RefreshDLContent();
+            Log($"DXF: {prop.Losas.Count} losas + {prop.Vigas.Count} vigas + {prop.Columnas.Count} columnas en '{nivel.Nombre}'."
+                + (string.IsNullOrEmpty(prop.Advertencias) ? "" : " ⚠ " + prop.Advertencias));
+        }
+        catch (Exception ex) { Log("Error generando desde DXF: " + ex.Message); }
         finally { Ocupado = false; }
     }
 
@@ -987,6 +1439,32 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             await Plugins.RunHookAsync("custom-export", BuildPluginContext(csv: path), Log);
         }
         catch (Exception ex) { Log("Error exportando CSV: " + ex.Message); }
+    }
+
+    /// <summary>
+    /// Exporta el diseño de acero <b>por franja</b> (pestaña Aceros, A1) a CSV,
+    /// usando el recubrimiento y la barra supuesta actuales del <see cref="Aceros"/>.
+    /// Complementa a <see cref="ExportarCsvAsync"/>, que exporta la tabla por losa.
+    /// </summary>
+    public void ExportarAcerosCsv(string path)
+    {
+        try
+        {
+            AcerosLosaExporter.ExportCsv(Sistema, path, Aceros.RecubrimientoCm, Aceros.BarraSupuesta);
+            Log("CSV de aceros exportado: " + path);
+        }
+        catch (Exception ex) { Log("Error exportando CSV de aceros: " + ex.Message); }
+    }
+
+    /// <summary>Exporta el diseño de acero por franja (pestaña Aceros) a XLSX.</summary>
+    public void ExportarAcerosXlsx(string path)
+    {
+        try
+        {
+            AcerosLosaExporter.ExportXlsx(Sistema, path, Aceros.RecubrimientoCm, Aceros.BarraSupuesta);
+            Log("XLSX de aceros exportado: " + path);
+        }
+        catch (Exception ex) { Log("Error exportando XLSX de aceros: " + ex.Message); }
     }
 
     /// <summary>
@@ -1074,11 +1552,17 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// </summary>
     public void NuevoProyectoLpx()
     {
-        _proyecto.Sistemas.Clear();
+        _proyecto.Edificios.Clear();
+        var ed = new Edificio();
+        var niv = new Nivel();
+        var demo = NuevoSistemaDemo();
+        niv.Sistemas.Add(demo);
+        ed.Niveles.Add(niv);
+        _proyecto.Edificios.Add(ed);
+        
         _proyecto.Archivo = "";
         _proyecto.Nombre = "Proyecto sin título";
-        var demo = NuevoSistemaDemo();
-        _proyecto.Sistemas.Add(demo);
+        NivelActivo = niv;
         SistemaActivo = demo;
         StatusPersistencia = "Nuevo proyecto creado.";
         Log("Nuevo proyecto .lpx en memoria.");
@@ -1119,8 +1603,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         try
         {
             var p = ProyectoSerializer.Load(path);
-            _proyecto.Sistemas.Clear();
-            foreach (var s in p.Sistemas) _proyecto.Sistemas.Add(s);
+            _proyecto.Edificios.Clear();
+            foreach (var e in p.Edificios) _proyecto.Edificios.Add(e);
+            NivelActivo = _proyecto.Edificios.FirstOrDefault()?.Niveles.FirstOrDefault();
             _proyecto.Archivo     = p.Archivo;
             _proyecto.Nombre      = p.Nombre;
             _proyecto.Autor       = p.Autor;

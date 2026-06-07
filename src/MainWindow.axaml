@@ -3,12 +3,14 @@
         xmlns:vm="clr-namespace:LosasPlus.ViewModels"
         xmlns:v="clr-namespace:LosasPlus.Views"
         xmlns:cad="clr-namespace:LosasPlus.Views.Cad"
+        xmlns:svg="clr-namespace:Avalonia.Svg.Skia;assembly=Avalonia.Svg.Skia"
         xmlns:vigas="clr-namespace:LosasPlus.Views.Vigas"
         xmlns:vws="clr-namespace:MemoriaPlus.Views;assembly=MemoriaPlus.UI.Shared"
         xmlns:sys="clr-namespace:System;assembly=System.Runtime"
         x:Class="LosasPlus.MainWindow"
         x:CompileBindings="False"
         Title="{Binding TituloVentana}"
+        Icon="/Resources/branding/EstructurasRD.png"
         Height="900" Width="1440" MinHeight="640" MinWidth="1100"
         Background="{DynamicResource BgPrimary}"
         WindowStartupLocation="CenterScreen">
@@ -24,7 +26,7 @@
            · MouseDoubleClick                  → DoubleTapped.
            · Window.InputBindings/KeyBinding   → Window.KeyBindings + KeyGesture
              (los 4 fijos acá; los 6 personalizables los aplica el code-behind).
-           · Lienzo CAD = stub Fase E (cad:CadView placeholder).
+           · Lienzo CAD = CadView completo (canvas + calibrar PDF + muros + DXF).
          ============================================================ -->
     <Window.DataContext>
         <vm:MainViewModel/>
@@ -109,110 +111,94 @@
             <Grid ColumnDefinitions="Auto,*,Auto">
 
                 <!-- Branding -->
-                <StackPanel Grid.Column="0" Margin="16,0,12,4" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="LosasPlus" FontSize="16" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource Accent}"/>
-                        <TextBlock Text="{Binding Version}" FontSize="10"
-                                   Foreground="{DynamicResource FgMuted}"
-                                   VerticalAlignment="Bottom" Margin="6,0,0,2"/>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="16,0,12,4" VerticalAlignment="Center">
+                    <svg:Svg Path="avares://LosasPlus/Resources/branding/EstructurasRD.svg"
+                             Width="36" Height="36" Stretch="Uniform"
+                             VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="LosasPlus" FontSize="16" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource Accent}"/>
+                            <TextBlock Text="{Binding Version}" FontSize="10"
+                                       Foreground="{DynamicResource FgMuted}"
+                                       VerticalAlignment="Bottom" Margin="6,0,0,2"/>
+                        </StackPanel>
+                        <TextBlock Text="motor: F. Perdomo" FontSize="9"
+                                   Foreground="{DynamicResource FgMuted}"/>
                     </StackPanel>
-                    <TextBlock Text="motor: F. Perdomo" FontSize="9"
-                               Foreground="{DynamicResource FgMuted}"/>
                 </StackPanel>
 
-                <!-- Nav modos: 14 RadioButtons → ModoActivo via EnumToBool. -->
-                <ScrollViewer Grid.Column="1" VerticalAlignment="Bottom"
-                              HorizontalScrollBarVisibility="Auto"
-                              VerticalScrollBarVisibility="Disabled">
-                    <!-- H1 — 7 categorías: Proyecto · Losas Legacy · Modelo · Visualización ·
-                         Análisis · Normativa · Sistema. Mismo binding ModoActivo; sólo se
-                         agrupan los tabs con captions (navcat) y separadores (navsep). -->
-                    <StackPanel Orientation="Horizontal">
-                        <!-- 1 · Proyecto -->
-                        <TextBlock Classes="navcat" Text="PROYECTO"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📂  Explorador"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Explorador}"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🔍  Búsqueda"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Busqueda}"/>
-                        <Border Classes="navsep"/>
+                <!-- Nav modos: Menu con dropdowns (Tarea B) -->
+                <Menu Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0">
+                    <MenuItem Header="PROYECTO">
+                        <MenuItem Header="📂 Explorador" Command="{Binding IrAModoCommand}" CommandParameter="Explorador"/>
+                        <MenuItem Header="🔍 Búsqueda" Command="{Binding IrAModoCommand}" CommandParameter="Busqueda"/>
+                        <MenuItem Header="✎ Editor de Losas" Command="{Binding IrAModoCommand}" CommandParameter="Editor"/>
+                        <MenuItem Header="🛡 Validación" Command="{Binding IrAModoCommand}" CommandParameter="Validacion"/>
+                    </MenuItem>
+                    
+                    <MenuItem Header="GEOMETRÍA">
+                        <MenuItem Header="📐 Planta 2D" Command="{Binding IrAModoCommand}" CommandParameter="Planta2D"/>
+                        <MenuItem Header="🗺 Plano CAD" Command="{Binding IrAModoCommand}" CommandParameter="PlanoCad"/>
+                        <MenuItem Header="🧊 Vista 3D" Command="{Binding IrAModoCommand}" CommandParameter="Vista3D"/>
+                        <MenuItem Header="📄 Visor PDF" Command="{Binding IrAModoCommand}" CommandParameter="VisorPdf"/>
+                    </MenuItem>
 
-                        <!-- 2 · Losas Legacy (flujo clásico de texto) -->
-                        <TextBlock Classes="navcat" Text="LOSAS LEGACY"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="✎  Editor"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Editor}"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="▤  Editor .DL"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DLEditor}"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="⇲  Salida .TXT"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Salida}"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🔩  Aceros"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Aceros}"
-                                     ToolTip.Tip="Diseño de aceros distribuidos por losa. Próximamente."/>
-                        <Border Classes="navsep"/>
+                    <MenuItem Header="ANÁLISIS">
+                        <MenuItem Header="📊 Cargas y Combinaciones" Command="{Binding IrAModoCommand}" CommandParameter="CargasCombinaciones"/>
+                        <MenuItem Header="⬇ Bajada de Cargas" Command="{Binding IrAModoCommand}" CommandParameter="BajadaCargas"/>
+                        <MenuItem Header="📐 Vigas Continuas" Command="{Binding IrAModoCommand}" CommandParameter="Vigas"/>
+                        <MenuItem Header="🏛 Columnas" Command="{Binding IrAModoCommand}" CommandParameter="Columnas"/>
+                    </MenuItem>
 
-                        <!-- 3 · Modelo Estructural -->
-                        <TextBlock Classes="navcat" Text="MODELO"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📊  Cargas y Combinaciones"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=CargasCombinaciones}"
-                                     ToolTip.Tip="Casos y combinaciones de carga del proyecto."/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📐  Vigas Continuas"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vigas}"
-                                     ToolTip.Tip="Editor de vigas continuas: análisis por rigidez directa y diagramas V(x), M(x), δ(x)."/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🏛  Columnas"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Columnas}"
-                                     ToolTip.Tip="Editor de columnas del edificio (posición en planta, sección, altura)."/>
-                        <Border Classes="navsep"/>
+                    <MenuItem Header="SALIDA">
+                        <MenuItem Header="▤ DL Editor" Command="{Binding IrAModoCommand}" CommandParameter="DLEditor"/>
+                        <MenuItem Header="⇲ Salida .TXT" Command="{Binding IrAModoCommand}" CommandParameter="Salida"/>
+                        <MenuItem Header="🔩 Aceros" Command="{Binding IrAModoCommand}" CommandParameter="Aceros"/>
+                    </MenuItem>
 
-                        <!-- 4 · Visualización -->
-                        <TextBlock Classes="navcat" Text="VISUALIZACIÓN"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🗺  Lienzo CAD"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}"
-                                     ToolTip.Tip="Editor visual CAD: importá un plano .DXF de referencia y visualizá las losas."/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📐  Planta 2D"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Planta2D}"
-                                     ToolTip.Tip="Editor 2D de planta: posiciona y arrastra losas, vigas y columnas."/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="📄  Visor PDF"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=VisorPdf}"
-                                     ToolTip.Tip="Visor de documentos PDF multipágina (prev/next página, zoom 50–200%)."/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🧊  Vista 3D"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vista3D}"
-                                     ToolTip.Tip="Vista 3D alámbrica del edificio (massing por niveles). Arrastrar: orbitar · rueda: zoom."/>
-                        <Border Classes="navsep"/>
+                    <MenuItem Header="SISTEMA">
+                        <MenuItem Header="⚖ Reglamento" Command="{Binding IrAModoCommand}" CommandParameter="Reglamento"/>
+                        <MenuItem Header="⚙ Configuración" Command="{Binding IrAModoCommand}" CommandParameter="Configuracion"/>
+                        <MenuItem Header="◆ Plugins" Command="{Binding IrAModoCommand}" CommandParameter="Plugins"/>
+                        <MenuItem Header="ℹ Acerca de" Command="{Binding IrAModoCommand}" CommandParameter="Acerca"/>
+                    </MenuItem>
+                </Menu>
 
-                        <!-- 5 · Análisis -->
-                        <TextBlock Classes="navcat" Text="ANÁLISIS"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="🛡  Validación"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="⬇  Bajada de Cargas"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=BajadaCargas}"
-                                     ToolTip.Tip="Transmisión vertical de cargas por niveles hasta la base + predimensionado de zapata."/>
-                        <Border Classes="navsep"/>
-
-                        <!-- 6 · Normativa -->
-                        <TextBlock Classes="navcat" Text="NORMATIVA"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="⚖  Reglamento"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Reglamento}"/>
-                        <Border Classes="navsep"/>
-
-                        <!-- 7 · Sistema -->
-                        <TextBlock Classes="navcat" Text="SISTEMA"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="⚙  Configuración"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Configuracion}"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="◆  Plugins"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Plugins}"/>
-                        <RadioButton Classes="navtab" GroupName="SidebarNav" Content="ℹ  Acerca de"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Acerca}"/>
-                    </StackPanel>
-                </ScrollViewer>
-
-                <!-- Selector de SISTEMA activo + tema. -->
+                <!-- Selector de NIVEL y SISTEMA activo + tema. -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal"
                             VerticalAlignment="Center" Margin="12,0,16,0">
-                    <TextBlock Text="SISTEMA" VerticalAlignment="Center"
+                    <TextBlock Text="NIVEL" VerticalAlignment="Center"
                                FontWeight="Bold" FontSize="10" Margin="0,0,8,0"
                                Foreground="{DynamicResource FgMuted}"/>
+                    <ComboBox x:Name="NivelesList" VerticalAlignment="Center" MinWidth="120"
+                              ItemsSource="{Binding NivelesDelEdificio}"
+                              SelectedIndex="{Binding IndiceNivelActivo, Mode=TwoWay}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Nombre}" FontWeight="SemiBold"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    
+                    <Button Content="+" Width="24" Height="24" Padding="0" Margin="4,0,0,0"
+                            Click="OnAddNivel" VerticalAlignment="Center"
+                            Background="Transparent" BorderThickness="0"
+                            Foreground="{DynamicResource FgPrimary}"
+                            ToolTip.Tip="Agregar nuevo nivel"/>
+                    <Button Content="−" Width="24" Height="24" Padding="0" Margin="0,0,12,0"
+                            Click="OnDeleteNivel" VerticalAlignment="Center"
+                            Background="Transparent" BorderThickness="0"
+                            Foreground="{DynamicResource FgMuted}"
+                            ToolTip.Tip="Eliminar nivel activo"/>
+
+                    <Border Width="1" Background="{DynamicResource Border}" Margin="0,4"/>
+
+                    <TextBlock Text="SISTEMA" VerticalAlignment="Center"
+                               FontWeight="Bold" FontSize="10" Margin="12,0,8,0"
+                               Foreground="{DynamicResource FgMuted}"/>
                     <ComboBox x:Name="SistemasList" VerticalAlignment="Center" MinWidth="160"
-                              ItemsSource="{Binding Proyecto.Sistemas}"
+                              ItemsSource="{Binding NivelActivo.Sistemas}"
                               SelectedItem="{Binding SistemaActivo, Mode=TwoWay}">
                         <ComboBox.ItemTemplate>
                             <DataTemplate>
@@ -224,7 +210,11 @@
                              Width="120" Margin="6,0,0,0"
                              Text="{Binding SistemaActivo.Nombre, UpdateSourceTrigger=PropertyChanged}"
                              ToolTip.Tip="Renombrar el sistema activo. El selector se actualiza en caliente."/>
-                    <Button Content="+" Width="24" Height="24" Padding="0" Margin="4,0,0,0"
+                    
+                    <TextBlock Text="Elev. Z:" VerticalAlignment="Center" Margin="12,0,4,0" FontSize="11" Foreground="{DynamicResource FgMuted}" ToolTip.Tip="Elevación del sistema (m)"/>
+                    <TextBox Text="{Binding SistemaActivo.Elevacion}" VerticalAlignment="Center" Width="45" FontSize="11" Padding="4,2"/>
+                    
+                    <Button Content="+" Width="24" Height="24" Padding="0" Margin="12,0,0,0"
                             Click="OnAddSistema" VerticalAlignment="Center"
                             Background="Transparent" BorderThickness="0"
                             Foreground="{DynamicResource FgPrimary}"
@@ -273,9 +263,27 @@
                             <MenuItem Header="Pegar de Excel..." Click="OnPasteFromExcelClick"/>
                         </MenuItem>
                         <MenuItem Header="Engine">
-                            <MenuItem Header="Examinar Losas.exe..." Click="OnBrowseLosasExe"/>
-                            <MenuItem Header="Lanzar Losas.exe" Click="OnLaunchLosasExeClick"/>
                             <MenuItem Header="Importar .TXT..." Click="OnImportTxtClick"/>
+                            <Separator/>
+                            <MenuItem Header="Calcular carga última (Wu) desde geometría"
+                                      Click="OnCalcularCargaUltimaClick"
+                                      ToolTip.Tip="Calcula la carga última de cada losa (espesor, acabados, muros y uso; LRFD 1.2D + 1.6L), la escribe en cada losa y muestra el desglose Qmamp/Qmap/Qd/Ql/Qu por losa."/>
+                            <MenuItem Header="Calcular losas con el motor (FEM, sin Losas.exe)"
+                                      Command="{Binding CalcularConMotorCommand}"
+                                      ToolTip.Tip="Calcula los momentos de todas las losas con el motor FEA nativo (FEM), alternativa a Losas.exe. Requiere el motor instalado (comando configurable en la pestaña Aceros)."/>
+                            <MenuItem Header="Calcular losas (Pieper-Martens nativo, sin Losas.exe)"
+                                      Click="OnCalcularNativoClick"
+                                      ToolTip.Tip="Calcula momentos, balanceo y armaduras con el método de Pieper-Martens (tablas de Perdomo) dentro de la app, sin Losas.exe ni .TXT. El resultado aparece en la pestaña Aceros y queda listo para la Memoria."/>
+                            <MenuItem Header="Generar ejes del nivel (desde columnas)"
+                                      Click="OnGenerarEjesClick"
+                                      ToolTip.Tip="Crea la rejilla de ejes A,B,C / 1,2,3 a partir de las columnas del nivel activo. Los ejes se dibujan en Planta 2D."/>
+                            <Separator/>
+                            <MenuItem Header="🖼 Generar sistema desde foto (IA local Qwen)…"
+                                      Click="OnGenerarDesdeFotoClick"
+                                      ToolTip.Tip="Subí una foto de un esquema de planta; la IA local (Qwen visión) detecta losas y vigas y las crea en el nivel activo. Requiere Ollama + qwen2.5vl corriendo."/>
+                            <MenuItem Header="📐 Generar sistema desde DXF estructural…"
+                                      Click="OnGenerarDesdeDxfClick"
+                                      ToolTip.Tip="Importá un DXF (limpio, solo elementos estructurales) con capas tipo VIGAS/COLUMNAS/LOSAS. Pipeline determinista: usa la geometría EXACTA del DXF para crear losas, vigas y columnas en el nivel activo. Qwen (texto) solo clasifica capas con nombres poco claros; no requiere GPU si las capas están bien nombradas."/>
                         </MenuItem>
                         <MenuItem Header="Export">
                             <MenuItem Header="Generar memoria → abrir MemoriaPlus (Ctrl+G)"
@@ -286,11 +294,6 @@
                             <MenuItem Header="Exportar SAF (vigas)..." Click="OnExportSafClick"/>
                         </MenuItem>
                     </Menu>
-
-                    <Button DockPanel.Dock="Right" Theme="{StaticResource PrimaryButton}"
-                            Content="▶ Lanzar motor" Padding="14,4" Margin="6,0,0,0"
-                            Click="OnLaunchLosasExeClick"
-                            ToolTip.Tip="Abre Losas.exe. Cargá el .DL, ejecutá el cálculo, luego volvé e Importá el .TXT."/>
 
                     <!-- Chip de validación normativa: click → modo Validación.
                          (Color por severidad diferido a un pase visual; texto en vivo.) -->
@@ -304,11 +307,6 @@
                                    Foreground="{DynamicResource FgPrimary}"
                                    Text="{Binding Validacion.ResumenIndicador}"/>
                     </Button>
-
-                    <TextBlock DockPanel.Dock="Left" Text="Losas.exe:" VerticalAlignment="Center"
-                               Margin="16,0,6,0" Foreground="{DynamicResource FgMuted}" FontSize="12"/>
-                    <TextBox Text="{Binding LosasExePath, UpdateSourceTrigger=PropertyChanged}"
-                             FontSize="11" VerticalAlignment="Center" MinHeight="26" Margin="0,0,6,0"/>
                 </DockPanel>
             </Border>
 
@@ -381,9 +379,9 @@
                                 </StackPanel>
                             </Grid>
 
-                            <TextBlock Text="Sistemas del proyecto" Margin="0,16,0,4" FontSize="11"
+                            <TextBlock Text="Sistemas del nivel" Margin="0,16,0,4" FontSize="11"
                                        Foreground="{DynamicResource FgMuted}"/>
-                            <ItemsControl ItemsSource="{Binding Proyecto.Sistemas}">
+                            <ItemsControl ItemsSource="{Binding NivelActivo.Sistemas}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Grid Margin="0,2" ColumnDefinitions="Auto,*,Auto">
@@ -650,6 +648,82 @@
                                 <TextBox Text="{Binding Sistema.Adicionales}"/>
 
                                 <Separator Margin="0,12"/>
+
+                                <!-- Editores globales VigaPrincipal + Bovedilla (A3). Alimentan αfm y cómputos. -->
+                                <TextBlock Text="Viga principal (para αfm)" FontWeight="Bold" FontSize="13"
+                                           Foreground="{DynamicResource Accent}"/>
+                                <Grid ColumnDefinitions="*,*" Margin="0,6,0,0">
+                                    <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                        <TextBlock Text="b [cm]" FontSize="10" Foreground="{DynamicResource FgMuted}"/>
+                                        <TextBox Text="{Binding Sistema.VigaPrincipal.BaseCm, StringFormat='{}{0:0.##}'}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                        <TextBlock Text="h [cm]" FontSize="10" Foreground="{DynamicResource FgMuted}"/>
+                                        <TextBox Text="{Binding Sistema.VigaPrincipal.AlturaCm, StringFormat='{}{0:0.##}'}"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <TextBlock Text="Bovedilla 1D  (S · B · L · H, en m)" FontWeight="Bold" FontSize="13" Margin="0,10,0,0"/>
+                                <Grid ColumnDefinitions="*,*,*,*" Margin="0,4,0,0">
+                                    <TextBox Grid.Column="0" Margin="0,0,2,0" Text="{Binding Sistema.Bovedilla1D.S, StringFormat='{}{0:0.###}'}" ToolTip.Tip="Separación / ancho nervio (m)"/>
+                                    <TextBox Grid.Column="1" Margin="2,0"   Text="{Binding Sistema.Bovedilla1D.B, StringFormat='{}{0:0.###}'}" ToolTip.Tip="Ancho bovedilla (m)"/>
+                                    <TextBox Grid.Column="2" Margin="2,0"   Text="{Binding Sistema.Bovedilla1D.L, StringFormat='{}{0:0.###}'}" ToolTip.Tip="Largo bovedilla (m)"/>
+                                    <TextBox Grid.Column="3" Margin="2,0,0,0" Text="{Binding Sistema.Bovedilla1D.H, StringFormat='{}{0:0.###}'}" ToolTip.Tip="Altura bovedilla (m)"/>
+                                </Grid>
+
+                                <TextBlock Text="Bovedilla 2D  (S · B · L · H, en m)" FontWeight="Bold" FontSize="13" Margin="0,8,0,0"/>
+                                <Grid ColumnDefinitions="*,*,*,*" Margin="0,4,0,0">
+                                    <TextBox Grid.Column="0" Margin="0,0,2,0" Text="{Binding Sistema.Bovedilla2D.S, StringFormat='{}{0:0.###}'}" ToolTip.Tip="Separación / ancho nervio (m)"/>
+                                    <TextBox Grid.Column="1" Margin="2,0"   Text="{Binding Sistema.Bovedilla2D.B, StringFormat='{}{0:0.###}'}" ToolTip.Tip="Ancho bovedilla (m)"/>
+                                    <TextBox Grid.Column="2" Margin="2,0"   Text="{Binding Sistema.Bovedilla2D.L, StringFormat='{}{0:0.###}'}" ToolTip.Tip="Largo bovedilla (m)"/>
+                                    <TextBox Grid.Column="3" Margin="2,0,0,0" Text="{Binding Sistema.Bovedilla2D.H, StringFormat='{}{0:0.###}'}" ToolTip.Tip="Altura bovedilla (m)"/>
+                                </Grid>
+
+                                <Separator Margin="0,12"/>
+
+                                <!-- Panel αfm (ACI 318 §9.5.3.3) de la losa seleccionada (A3). -->
+                                <TextBlock Text="αfm — rigidez de bordes (ACI 318 §9.5.3.3)"
+                                           FontWeight="Bold" FontSize="14" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource Accent}"/>
+                                <StackPanel IsVisible="{Binding HayLosaSeleccionada, Converter={StaticResource BoolToCollapsedIfFalse}}">
+                                    <TextBlock Margin="0,6,0,0" FontSize="11" Foreground="{DynamicResource FgMuted}"
+                                               Text="{Binding LosaSeleccionada.Id, StringFormat='Losa {0} seleccionada'}"/>
+                                    <Grid ColumnDefinitions="*,*,*" Margin="0,6,0,0">
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="αx" FontSize="10" Foreground="{DynamicResource FgMuted}"/>
+                                            <TextBlock FontWeight="SemiBold"
+                                                       Text="{Binding LosaSeleccionada.AlphaX, StringFormat='{}{0:0.000}', TargetNullValue='—', FallbackValue='—'}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="αy" FontSize="10" Foreground="{DynamicResource FgMuted}"/>
+                                            <TextBlock FontWeight="SemiBold"
+                                                       Text="{Binding LosaSeleccionada.AlphaY, StringFormat='{}{0:0.000}', TargetNullValue='—', FallbackValue='—'}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="αm" FontSize="10" Foreground="{DynamicResource FgMuted}"/>
+                                            <TextBlock FontWeight="SemiBold"
+                                                       Text="{Binding LosaSeleccionada.AlphaM, StringFormat='{}{0:0.000}', TargetNullValue='—', FallbackValue='—'}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                    <!-- Chip OK/CHK (sólo si αm está calculado). -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                                                IsVisible="{Binding LosaSeleccionada.AlphaM, Converter={StaticResource NullToCollapsed}}">
+                                        <Border CornerRadius="10" Padding="10,3" Background="#2E7D32"
+                                                IsVisible="{Binding LosaSeleccionada.AlphaFmCumple, Converter={StaticResource BoolToCollapsedIfFalse}}">
+                                            <TextBlock Text="✔ αm &gt; 2 — OK" Foreground="White" FontWeight="SemiBold" FontSize="11"/>
+                                        </Border>
+                                        <Border CornerRadius="10" Padding="10,3" Background="#C62828"
+                                                IsVisible="{Binding LosaSeleccionada.AlphaFmCumple, Converter={StaticResource BoolToCollapsedIfTrue}}">
+                                            <TextBlock Text="✖ αm ≤ 2 — revisar espesor" Foreground="White" FontWeight="SemiBold" FontSize="11"/>
+                                        </Border>
+                                    </StackPanel>
+                                </StackPanel>
+                                <TextBlock FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource FgMuted}"
+                                           IsVisible="{Binding HayLosaSeleccionada, Converter={StaticResource BoolToCollapsedIfTrue}}"
+                                           Text="Seleccioná una losa en el grid para ver su relación de rigideces αfm."/>
+
+                                <Separator Margin="0,12"/>
                                 <DockPanel LastChildFill="False" Margin="0,0,0,4">
                                     <TextBlock DockPanel.Dock="Left" Text="Bordes adic. SEGÚN X"
                                                FontWeight="Bold" VerticalAlignment="Center"/>
@@ -724,7 +798,10 @@
 
                 <!-- MODO Planta 2D -->
                 <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Planta2D}">
-                    <v:Planta2DEditorView DataContext="{Binding}"/>
+                    <!-- Paso 5 (unificación): el modo "Planta 2D" abre el editor unificado
+                         (sub-pestañas Estructura + CAD). La vista Planta2DEditorView sigue
+                         existiendo, ahora embebida dentro de EditorUnificadoView. -->
+                    <v:EditorUnificadoView DataContext="{Binding}"/>
                 </ContentControl>
 
                 <!-- MODO Visor PDF (H3) — control autónomo, sin DataContext del VM. -->
@@ -781,40 +858,10 @@
                     </TabControl>
                 </Grid>
 
-                <!-- MODO Aceros (placeholder "Próximamente"). -->
-                <Grid Margin="32,24"
-                      IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Aceros}">
-                    <Border MaxWidth="640" VerticalAlignment="Center" HorizontalAlignment="Center"
-                            Background="{DynamicResource BgSecondary}"
-                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
-                            CornerRadius="8" Padding="32,28">
-                        <StackPanel>
-                            <TextBlock Text="🔩  Diseño de aceros" FontSize="22" FontWeight="Bold"
-                                       Foreground="{DynamicResource FgPrimary}" HorizontalAlignment="Center"/>
-                            <Border Margin="0,12,0,0" Padding="10,4" HorizontalAlignment="Center"
-                                    Background="{DynamicResource AccentHi}" CornerRadius="12">
-                                <TextBlock Text="🔜  Próximamente" Foreground="{DynamicResource FgOnAccent}"
-                                           FontWeight="SemiBold" FontSize="12"/>
-                            </Border>
-                            <TextBlock Margin="0,18,0,0" TextAlignment="Center"
-                                       Foreground="{DynamicResource FgSecondary}" FontSize="13" TextWrapping="Wrap"
-                                       Text="Esta pestaña aparece después de Salida .TXT porque el diseño de aceros depende de los momentos calculados por el motor. Una vez importado el .TXT, podrás:"/>
-                            <StackPanel Margin="0,16,0,0">
-                                <TextBlock Foreground="{DynamicResource FgPrimary}" Margin="0,3"
-                                           Text="• Definir cantidad de barras por diámetro comercial (#3–#8) en cada franja X / Y."/>
-                                <TextBlock Foreground="{DynamicResource FgPrimary}" Margin="0,3"
-                                           Text="• Ver As requerido vs As provisto en vivo (cm²/m), con alertas si no cumple."/>
-                                <TextBlock Foreground="{DynamicResource FgPrimary}" Margin="0,3"
-                                           Text="• Calcular separación de barras adicionales según ACI 318 §25.5."/>
-                                <TextBlock Foreground="{DynamicResource FgPrimary}" Margin="0,3"
-                                           Text="• Exportar el reporte de acero por losa al CSV/XLSX y a MemoriaPlus."/>
-                            </StackPanel>
-                            <TextBlock Margin="0,16,0,0" TextAlignment="Center"
-                                       Foreground="{DynamicResource FgMuted}" FontSize="11" TextWrapping="Wrap"
-                                       Text="El modelo y las exportaciones ya están operativos en el Core. Solo falta la UI dedicada."/>
-                        </StackPanel>
-                    </Border>
-                </Grid>
+                <!-- MODO Aceros: diseño de acero a flexión por losa/franja (ACI 318-19). -->
+                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Aceros}">
+                    <v:AcerosView DataContext="{Binding}"/>
+                </ContentControl>
 
                 <!-- MODO Reglamento. -->
                 <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Reglamento}">

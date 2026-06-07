@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using LosasPlus.Models;
+using LosasPlus.Models.Cad;
 using LosasPlus.Vigas;
 using LosasPlus.Transmision;
 using LosasPlus.ViewModels;
@@ -30,44 +31,74 @@ public partial class Planta2DEditorView : UserControl
         // Register event handlers for input fields
         RegisterInputHandlers();
 
-        // Wire level selection
-        CbNivel.SelectionChanged += OnNivelSelectionChanged;
+        // Nivel y Edificio son bindeados en XAML.
+
+        // Wire snap controls
+        ChkSnap.IsCheckedChanged += OnSnapCheckedChanged;
+        CbGridStep.SelectionChanged += OnGridStepSelectionChanged;
+
+        // Sync initial snap states
+        SyncSnapSettings();
 
         // Wire toolbar tools
         BtnPuntero.IsCheckedChanged += (s, e) => { if (BtnPuntero.IsChecked == true) EditorCanvas.ActiveTool = "Puntero"; };
         BtnAddLosa.IsCheckedChanged += (s, e) => { if (BtnAddLosa.IsChecked == true) EditorCanvas.ActiveTool = "Losa"; };
         BtnAddViga.IsCheckedChanged += (s, e) => { if (BtnAddViga.IsChecked == true) EditorCanvas.ActiveTool = "Viga"; };
         BtnAddCol.IsCheckedChanged += (s, e) => { if (BtnAddCol.IsChecked == true) EditorCanvas.ActiveTool = "Columna"; };
+        BtnAddEje.IsCheckedChanged += (s, e) => { if (BtnAddEje.IsChecked == true) EditorCanvas.ActiveTool = "Eje"; };
+        BtnAddMuro.IsCheckedChanged += (s, e) => { if (BtnAddMuro.IsChecked == true) EditorCanvas.ActiveTool = "Muro"; };
 
         // Wire buttons
         BtnRecalcular.Click += OnRecalcularClick;
         BtnEliminar.Click += OnEliminarClick;
+        BtnGenerarVigaContinua.Click += OnGenerarVigaContinuaClick;
+        BtnVerElevacion.Click += OnVerElevacionClick;
     }
 
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        PopulateNiveles();
+        // El canvas se actualiza por binding en el XAML
     }
 
-    private void PopulateNiveles()
+    private void OnSnapCheckedChanged(object? sender, RoutedEventArgs e)
     {
-        if (Vm?.EdificioActivo != null)
-        {
-            CbNivel.ItemsSource = Vm.EdificioActivo.Niveles;
-            CbNivel.SelectedItem = Vm.EdificioActivo.Niveles.FirstOrDefault();
-        }
+        EditorCanvas.IsSnappingEnabled = ChkSnap.IsChecked == true;
+        EditorCanvas.InvalidateVisual();
     }
 
-    private void OnNivelSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private void OnGridStepSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (CbNivel.SelectedItem is Nivel nivel)
+        if (CbGridStep == null || EditorCanvas == null) return;
+
+        double step = 0.5;
+        switch (CbGridStep.SelectedIndex)
         {
-            EditorCanvas.Nivel = nivel;
+            case 0: step = 0.1; break;
+            case 1: step = 0.2; break;
+            case 2: step = 0.5; break;
+            case 3: step = 1.0; break;
+            case 4: step = 0.0; break; // Free
         }
-        else
+
+        EditorCanvas.StepGrid = step;
+        EditorCanvas.InvalidateVisual();
+    }
+
+    private void SyncSnapSettings()
+    {
+        EditorCanvas.IsSnappingEnabled = ChkSnap.IsChecked == true;
+        OnGridStepSelectionChanged(null, null!);
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        // Pressing S toggles snapping when focus is NOT inside a TextBox
+        if (e.Key == Key.S && e.Source is not TextBox)
         {
-            EditorCanvas.Nivel = null;
+            ChkSnap.IsChecked = ChkSnap.IsChecked != true;
+            e.Handled = true;
         }
     }
 
@@ -75,10 +106,15 @@ public partial class Planta2DEditorView : UserControl
     {
         _updatingProperties = true;
 
+        // Clear previous error backgrounds when selection changes
+        ClearErrorBackgrounds();
+
         TxtNoSelection.IsVisible = selected == null;
         PanelLosa.IsVisible = selected is Losa;
         PanelViga.IsVisible = selected is Viga;
         PanelColumna.IsVisible = selected is Columna;
+        PanelEje.IsVisible = selected is EjeEstructural;
+        PanelMuro.IsVisible = selected is Muro;
 
         if (selected is Losa l)
         {
@@ -109,8 +145,66 @@ public partial class Planta2DEditorView : UserControl
             TxtColPeralte.Text = c.Peralte.ToString("0.##", CultureInfo.InvariantCulture);
             TxtColAltura.Text = c.Altura.ToString("0.##", CultureInfo.InvariantCulture);
         }
+        else if (selected is EjeEstructural eje)
+        {
+            TxtEjeEtiqueta.Text = eje.Etiqueta;
+            TxtEjeStartX.Text = eje.PuntoInicio.X.ToString("0.##", CultureInfo.InvariantCulture);
+            TxtEjeStartY.Text = eje.PuntoInicio.Y.ToString("0.##", CultureInfo.InvariantCulture);
+            TxtEjeEndX.Text = eje.PuntoFin.X.ToString("0.##", CultureInfo.InvariantCulture);
+            TxtEjeEndY.Text = eje.PuntoFin.Y.ToString("0.##", CultureInfo.InvariantCulture);
+        }
+        else if (selected is Muro m)
+        {
+            TxtMuroId.Text = m.Id.ToString();
+            TxtMuroStartX.Text = m.PuntoInicio.X.ToString("0.##", CultureInfo.InvariantCulture);
+            TxtMuroStartY.Text = m.PuntoInicio.Y.ToString("0.##", CultureInfo.InvariantCulture);
+            TxtMuroEndX.Text = m.PuntoFin.X.ToString("0.##", CultureInfo.InvariantCulture);
+            TxtMuroEndY.Text = m.PuntoFin.Y.ToString("0.##", CultureInfo.InvariantCulture);
+            TxtMuroEspesor.Text = m.Espesor.ToString("0.##", CultureInfo.InvariantCulture);
+            TxtMuroAltura.Text = m.Altura.ToString("0.##", CultureInfo.InvariantCulture);
+        }
 
         _updatingProperties = false;
+    }
+
+    private void ClearErrorBackgrounds()
+    {
+        // Losa textboxes
+        TxtLosaX.ClearValue(TextBox.BackgroundProperty);
+        TxtLosaY.ClearValue(TextBox.BackgroundProperty);
+        TxtLosaLx.ClearValue(TextBox.BackgroundProperty);
+        TxtLosaLy.ClearValue(TextBox.BackgroundProperty);
+        TxtLosaCarga.ClearValue(TextBox.BackgroundProperty);
+        TxtLosaEspesor.ClearValue(TextBox.BackgroundProperty);
+
+        // Viga textboxes
+        TxtVigaNombre.ClearValue(TextBox.BackgroundProperty);
+        TxtVigaX.ClearValue(TextBox.BackgroundProperty);
+        TxtVigaY.ClearValue(TextBox.BackgroundProperty);
+        TxtVigaAngulo.ClearValue(TextBox.BackgroundProperty);
+
+        // Columna textboxes
+        TxtColNombre.ClearValue(TextBox.BackgroundProperty);
+        TxtColX.ClearValue(TextBox.BackgroundProperty);
+        TxtColY.ClearValue(TextBox.BackgroundProperty);
+        TxtColBase.ClearValue(TextBox.BackgroundProperty);
+        TxtColPeralte.ClearValue(TextBox.BackgroundProperty);
+        TxtColAltura.ClearValue(TextBox.BackgroundProperty);
+
+        // Eje textboxes
+        TxtEjeEtiqueta.ClearValue(TextBox.BackgroundProperty);
+        TxtEjeStartX.ClearValue(TextBox.BackgroundProperty);
+        TxtEjeStartY.ClearValue(TextBox.BackgroundProperty);
+        TxtEjeEndX.ClearValue(TextBox.BackgroundProperty);
+        TxtEjeEndY.ClearValue(TextBox.BackgroundProperty);
+
+        // Muro textboxes
+        TxtMuroStartX.ClearValue(TextBox.BackgroundProperty);
+        TxtMuroStartY.ClearValue(TextBox.BackgroundProperty);
+        TxtMuroEndX.ClearValue(TextBox.BackgroundProperty);
+        TxtMuroEndY.ClearValue(TextBox.BackgroundProperty);
+        TxtMuroEspesor.ClearValue(TextBox.BackgroundProperty);
+        TxtMuroAltura.ClearValue(TextBox.BackgroundProperty);
     }
 
     private void RegisterInputHandlers()
@@ -155,6 +249,34 @@ public partial class Planta2DEditorView : UserControl
         TxtColBase.KeyDown += OnInputKeyDown;
         TxtColPeralte.KeyDown += OnInputKeyDown;
         TxtColAltura.KeyDown += OnInputKeyDown;
+
+        // Eje inputs
+        TxtEjeEtiqueta.LostFocus += (s, e) => CommitEje();
+        TxtEjeStartX.LostFocus += (s, e) => CommitEje();
+        TxtEjeStartY.LostFocus += (s, e) => CommitEje();
+        TxtEjeEndX.LostFocus += (s, e) => CommitEje();
+        TxtEjeEndY.LostFocus += (s, e) => CommitEje();
+
+        TxtEjeEtiqueta.KeyDown += OnInputKeyDown;
+        TxtEjeStartX.KeyDown += OnInputKeyDown;
+        TxtEjeStartY.KeyDown += OnInputKeyDown;
+        TxtEjeEndX.KeyDown += OnInputKeyDown;
+        TxtEjeEndY.KeyDown += OnInputKeyDown;
+
+        // Muro inputs
+        TxtMuroStartX.LostFocus += (s, e) => CommitMuro();
+        TxtMuroStartY.LostFocus += (s, e) => CommitMuro();
+        TxtMuroEndX.LostFocus += (s, e) => CommitMuro();
+        TxtMuroEndY.LostFocus += (s, e) => CommitMuro();
+        TxtMuroEspesor.LostFocus += (s, e) => CommitMuro();
+        TxtMuroAltura.LostFocus += (s, e) => CommitMuro();
+
+        TxtMuroStartX.KeyDown += OnInputKeyDown;
+        TxtMuroStartY.KeyDown += OnInputKeyDown;
+        TxtMuroEndX.KeyDown += OnInputKeyDown;
+        TxtMuroEndY.KeyDown += OnInputKeyDown;
+        TxtMuroEspesor.KeyDown += OnInputKeyDown;
+        TxtMuroAltura.KeyDown += OnInputKeyDown;
     }
 
     private void OnInputKeyDown(object? sender, KeyEventArgs e)
@@ -164,28 +286,64 @@ public partial class Planta2DEditorView : UserControl
             if (EditorCanvas.SelectedElement is Losa) CommitLosa();
             else if (EditorCanvas.SelectedElement is Viga) CommitViga();
             else if (EditorCanvas.SelectedElement is Columna) CommitColumna();
+            else if (EditorCanvas.SelectedElement is EjeEstructural) CommitEje();
+            else if (EditorCanvas.SelectedElement is Muro) CommitMuro();
             e.Handled = true;
         }
+    }
+
+    private bool ValidateDouble(TextBox textBox, out double val, Func<double, bool> validator)
+    {
+        if (double.TryParse(textBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out val))
+        {
+            if (validator(val))
+            {
+                textBox.ClearValue(TextBox.BackgroundProperty);
+                return true;
+            }
+        }
+        textBox.Background = new SolidColorBrush(Color.Parse("#FFCDD2"));
+        return false;
+    }
+
+    private bool ValidateStringNotEmpty(TextBox textBox, out string val)
+    {
+        val = (textBox.Text ?? "").Trim();
+        if (PlantaValidationRules.IsValidName(val))
+        {
+            textBox.ClearValue(TextBox.BackgroundProperty);
+            return true;
+        }
+        textBox.Background = new SolidColorBrush(Color.Parse("#FFCDD2"));
+        return false;
     }
 
     private void CommitLosa()
     {
         if (_updatingProperties || EditorCanvas.SelectedElement is not Losa l) return;
 
-        double.TryParse(TxtLosaX.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double x);
-        double.TryParse(TxtLosaY.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double y);
-        double.TryParse(TxtLosaLx.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double lx);
-        double.TryParse(TxtLosaLy.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double ly);
-        double.TryParse(TxtLosaCarga.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double carga);
-        double.TryParse(TxtLosaEspesor.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double espesor);
+        bool isValid = true;
+        isValid &= ValidateDouble(TxtLosaX, out double x, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtLosaY, out double y, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtLosaLx, out double lx, PlantaValidationRules.IsValidDimension);
+        isValid &= ValidateDouble(TxtLosaLy, out double ly, PlantaValidationRules.IsValidDimension);
+        isValid &= ValidateDouble(TxtLosaCarga, out double carga, PlantaValidationRules.IsValidCarga);
+        isValid &= ValidateDouble(TxtLosaEspesor, out double espesor, PlantaValidationRules.IsValidEspesor);
+
+        if (!isValid)
+        {
+            TxtStatus.Text = "✕ Error: Las dimensiones y espesor de losa deben ser mayores que cero. Las coordenadas no pueden ser texto vacío.";
+            return;
+        }
 
         l.CoordenadaX = x;
         l.CoordenadaY = y;
-        l.Lx = lx > 0 ? lx : 1.0;
-        l.Ly = ly > 0 ? ly : 1.0;
+        l.Lx = lx;
+        l.Ly = ly;
         l.Carga = carga;
         l.Espesor = espesor;
 
+        TxtStatus.Text = $"Losa {l.Id} actualizada con éxito.";
         EditorCanvas.InvalidateVisual();
     }
 
@@ -193,15 +351,24 @@ public partial class Planta2DEditorView : UserControl
     {
         if (_updatingProperties || EditorCanvas.SelectedElement is not Viga v) return;
 
-        double.TryParse(TxtVigaX.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double x);
-        double.TryParse(TxtVigaY.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double y);
-        double.TryParse(TxtVigaAngulo.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double ang);
+        bool isValid = true;
+        isValid &= ValidateStringNotEmpty(TxtVigaNombre, out string nombre);
+        isValid &= ValidateDouble(TxtVigaX, out double x, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtVigaY, out double y, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtVigaAngulo, out double ang, PlantaValidationRules.IsValidCoordinate);
 
-        v.Nombre = TxtVigaNombre.Text ?? v.Nombre;
+        if (!isValid)
+        {
+            TxtStatus.Text = "✕ Error: El nombre de la viga no puede estar vacío. Coordenadas y ángulo deben ser válidos.";
+            return;
+        }
+
+        v.Nombre = nombre;
         v.OrigenX = x;
         v.OrigenY = y;
         v.AnguloGrados = ang;
 
+        TxtStatus.Text = $"Viga {v.Nombre} actualizada con éxito.";
         EditorCanvas.InvalidateVisual();
     }
 
@@ -209,20 +376,130 @@ public partial class Planta2DEditorView : UserControl
     {
         if (_updatingProperties || EditorCanvas.SelectedElement is not Columna c) return;
 
-        double.TryParse(TxtColX.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double x);
-        double.TryParse(TxtColY.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double y);
-        double.TryParse(TxtColBase.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double cb);
-        double.TryParse(TxtColPeralte.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double cp);
-        double.TryParse(TxtColAltura.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double alt);
+        bool isValid = true;
+        isValid &= ValidateStringNotEmpty(TxtColNombre, out string nombre);
+        isValid &= ValidateDouble(TxtColX, out double x, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtColY, out double y, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtColBase, out double cb, PlantaValidationRules.IsValidDimension);
+        isValid &= ValidateDouble(TxtColPeralte, out double cp, PlantaValidationRules.IsValidDimension);
+        isValid &= ValidateDouble(TxtColAltura, out double alt, PlantaValidationRules.IsValidDimension);
 
-        c.Nombre = TxtColNombre.Text ?? c.Nombre;
+        if (!isValid)
+        {
+            TxtStatus.Text = "✕ Error: Dimensiones de columna deben ser mayores que cero. El nombre no puede estar vacío.";
+            return;
+        }
+
+        c.Nombre = nombre;
         c.CoordenadaX = x;
         c.CoordenadaY = y;
-        c.Base = cb > 0 ? cb : 0.1;
-        c.Peralte = cp > 0 ? cp : 0.1;
-        c.Altura = alt > 0 ? alt : 1.0;
+        c.Base = cb;
+        c.Peralte = cp;
+        c.Altura = alt;
 
+        TxtStatus.Text = $"Columna {c.Nombre} actualizada con éxito.";
         EditorCanvas.InvalidateVisual();
+    }
+
+    private void CommitEje()
+    {
+        if (_updatingProperties || EditorCanvas.SelectedElement is not EjeEstructural eje) return;
+
+        bool isValid = true;
+        isValid &= ValidateStringNotEmpty(TxtEjeEtiqueta, out string etiqueta);
+        isValid &= ValidateDouble(TxtEjeStartX, out double sx, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtEjeStartY, out double sy, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtEjeEndX, out double ex, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtEjeEndY, out double ey, PlantaValidationRules.IsValidCoordinate);
+
+        if (!isValid)
+        {
+            TxtStatus.Text = "✕ Error: Coordenadas del eje deben ser válidas. La etiqueta no puede estar vacía.";
+            return;
+        }
+
+        eje.Etiqueta = etiqueta;
+        eje.PuntoInicio = new PuntoCad(sx, sy);
+        eje.PuntoFin = new PuntoCad(ex, ey);
+
+        TxtStatus.Text = $"Eje {eje.Etiqueta} actualizado con éxito.";
+        EditorCanvas.InvalidateVisual();
+    }
+
+    private void CommitMuro()
+    {
+        if (_updatingProperties || EditorCanvas.SelectedElement is not Muro m) return;
+
+        bool isValid = true;
+        isValid &= ValidateDouble(TxtMuroStartX, out double sx, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtMuroStartY, out double sy, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtMuroEndX, out double ex, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtMuroEndY, out double ey, PlantaValidationRules.IsValidCoordinate);
+        isValid &= ValidateDouble(TxtMuroEspesor, out double espesor, v => v > 0);
+        isValid &= ValidateDouble(TxtMuroAltura, out double altura, v => v > 0);
+
+        if (!isValid)
+        {
+            TxtStatus.Text = "✕ Error: Valores de muro inválidos.";
+            return;
+        }
+
+        m.PuntoInicio = new PuntoCad(sx, sy);
+        m.PuntoFin = new PuntoCad(ex, ey);
+        m.Espesor = espesor;
+        m.Altura = altura;
+
+        TxtStatus.Text = $"Muro {m.Id} actualizado con éxito.";
+        EditorCanvas.InvalidateVisual();
+    }
+
+    private void OnGenerarVigaContinuaClick(object? sender, RoutedEventArgs e)
+    {
+        var eje = EditorCanvas.SelectedElement as EjeEstructural;
+        var nivel = EditorCanvas.Nivel;
+        if (eje == null || nivel == null) return;
+
+        try
+        {
+            var columnas = nivel.Columnas;
+            // Carga lineal tributaria de las losas del nivel sobre el eje (kN/m),
+            // en vez de 0 → la viga continua queda realmente cargada.
+            var losas = nivel.Sistemas.SelectMany(s => s.Losas);
+            double w = GeneradorVigas.CargaLinealTributariaDelEje(eje, losas, 0.5);
+            var viga = GeneradorVigas.VigaContinuaDeColumnas(eje, columnas, w, 0.5, "D");
+            int newId = nivel.Vigas.Count > 0 ? nivel.Vigas.Max(v => v.Id) + 1 : 1;
+            viga.Id = newId;
+            viga.Nombre = $"V-{newId} ({eje.Etiqueta})";
+            nivel.Vigas.Add(viga);
+            
+            EditorCanvas.SelectedElement = viga;
+            TxtStatus.Text = $"Viga continua {viga.Nombre} generada con éxito (Apoyos: {viga.Apoyos.Count}).";
+            EditorCanvas.InvalidateVisual();
+        }
+        catch (Exception ex)
+        {
+            TxtStatus.Text = $"✕ Error al generar viga continua: {ex.Message}";
+        }
+    }
+
+    private void OnVerElevacionClick(object? sender, RoutedEventArgs e)
+    {
+        var eje = EditorCanvas.SelectedElement as EjeEstructural;
+        var edificio = EditorCanvas.Edificio;
+        if (eje == null || edificio == null) return;
+
+        var window = new SeccionElevacionWindow();
+        window.Setup(eje, edificio);
+        
+        // Use TopLevel to get the window
+        if (TopLevel.GetTopLevel(this) is Window parentWindow)
+        {
+            window.ShowDialog(parentWindow);
+        }
+        else
+        {
+            window.Show();
+        }
     }
 
     private void OnEliminarClick(object? sender, RoutedEventArgs e)
@@ -250,9 +527,25 @@ public partial class Planta2DEditorView : UserControl
         {
             nivel.Columnas.Remove(c);
         }
+        else if (selected is Muro m)
+        {
+            foreach (var sys in nivel.Sistemas)
+            {
+                if (sys.Muros.Contains(m))
+                {
+                    sys.Muros.Remove(m);
+                    break;
+                }
+            }
+        }
+        else if (selected is EjeEstructural eje && EditorCanvas.Edificio != null)
+        {
+            EditorCanvas.Edificio.Ejes.Remove(eje);
+        }
 
         EditorCanvas.SelectedElement = null;
         EditorCanvas.InvalidateVisual();
+        TxtStatus.Text = "Elemento eliminado.";
     }
 
     private void OnRecalcularClick(object? sender, RoutedEventArgs e)
@@ -260,8 +553,11 @@ public partial class Planta2DEditorView : UserControl
         var nivel = EditorCanvas.Nivel;
         if (nivel == null) return;
 
-        double.TryParse(TxtQAdm.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out double qAdm);
-        if (qAdm <= 0) qAdm = 15.0;
+        if (!ValidateDouble(TxtQAdm, out double qAdm, PlantaValidationRules.IsValidDimension))
+        {
+            TxtStatus.Text = "✕ Error: La presión admisible del suelo q_adm debe ser mayor que cero.";
+            return;
+        }
 
         try
         {
@@ -271,12 +567,12 @@ public partial class Planta2DEditorView : UserControl
             // 2. Descenso geométrico viga -> columna -> zapata
             var zapatasPredim = DescensoColumnas.PredimensionarGeometrico(nivel, qAdm);
 
-            TxtStatus.Text = $"Descenso recalculado: {vigasCargadas} vigas cargadas, {zapatasPredim.Count} zapatas predimensionadas.";
+            TxtStatus.Text = $"⚡ Descenso calculado con éxito: {vigasCargadas} vigas cargadas, {zapatasPredim.Count} zapatas predimensionadas.";
             EditorCanvas.InvalidateVisual();
         }
         catch (Exception ex)
         {
-            TxtStatus.Text = $"Error al recalcular: {ex.Message}";
+            TxtStatus.Text = $"✕ Error al recalcular: {ex.Message}";
         }
     }
 }

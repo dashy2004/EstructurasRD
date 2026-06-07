@@ -294,6 +294,7 @@
                                     <Run Text="{Binding Sistema.Losas.Count, FallbackValue=0, Mode=OneWay}"/><Run Text=" losas  ·  "/>
                                     <Run Text="{Binding Sistema.Muros.Count, FallbackValue=0, Mode=OneWay}"/><Run Text=" muros"/>
                                 </TextBlock>
+                                
                                 <Border Height="1" Margin="0,8" Background="{DynamicResource Border}"/>
                                 <TextBlock Text="MURO SELECCIONADO" FontSize="9" FontWeight="Bold"
                                            Foreground="{DynamicResource FgMuted}" Margin="0,0,0,4"/>

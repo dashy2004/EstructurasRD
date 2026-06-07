@@ -45,6 +45,46 @@ public static class IfcExporter
         int ejes = Emit($"IFCAXIS2PLACEMENT3D(#{pOrigen},#{dZ},#{dX})");
         int ctx = Emit($"IFCGEOMETRICREPRESENTATIONCONTEXT($,'Model',3,1.0E-05,#{ejes},$)");
 
+        // K.6: geometría de un elemento como prisma rectangular vertical —
+        // IfcRectangleProfileDef (b×h, centrado) extruido +Z por la altura, vía
+        // IfcExtrudedAreaSolid → IfcShapeRepresentation → IfcProductDefinitionShape.
+        // El perfil se posiciona en (cx,cy,cz) (IFC: X,Y en planta, Z arriba).
+        // Devuelve el id del IfcProductDefinitionShape para usarlo como Representation.
+        int PrismaVertical(double cx, double cy, double cz, double b, double h, double profundidad, double dirZComp = 1.0)
+        {
+            int p2d = Emit("IFCCARTESIANPOINT((0.,0.))");
+            int ax2 = Emit($"IFCAXIS2PLACEMENT2D(#{p2d},$)");
+            int prof = Emit($"IFCRECTANGLEPROFILEDEF(.AREA.,$,#{ax2},{Real(b)},{Real(h)})");
+            int pBase = Emit($"IFCCARTESIANPOINT(({Real(cx)},{Real(cy)},{Real(cz)}))");
+            int dirZ = Emit("IFCDIRECTION((0.,0.,1.))");
+            int dirX = Emit("IFCDIRECTION((1.,0.,0.))");
+            int pos = Emit($"IFCAXIS2PLACEMENT3D(#{pBase},#{dirZ},#{dirX})");
+            // Dirección de extrusión: +Z (columna, hacia arriba) o -Z (losa, hacia abajo).
+            int ext = Emit($"IFCDIRECTION((0.,0.,{Real(dirZComp)}))");
+            int solid = Emit($"IFCEXTRUDEDAREASOLID(#{prof},#{pos},#{ext},{Real(profundidad)})");
+            int rep = Emit($"IFCSHAPEREPRESENTATION(#{ctx},'Body','SweptSolid',(#{solid}))");
+            return Emit($"IFCPRODUCTDEFINITIONSHAPE($,$,(#{rep}))");
+        }
+
+        // K.6: geometría de un elemento horizontal (viga) como prisma extruido a lo
+        // largo de su eje en planta. Z local = dirección (dirX,dirY,0); el perfil
+        // b×h queda en el plano local (b horizontal perpendicular, h vertical).
+        // Profundidad de extrusión = longitud de la viga.
+        int PrismaOrientado(double ox, double oy, double oz, double dirX, double dirY, double b, double h, double longitud)
+        {
+            int p2d = Emit("IFCCARTESIANPOINT((0.,0.))");
+            int ax2 = Emit($"IFCAXIS2PLACEMENT2D(#{p2d},$)");
+            int prof = Emit($"IFCRECTANGLEPROFILEDEF(.AREA.,$,#{ax2},{Real(b)},{Real(h)})");
+            int loc = Emit($"IFCCARTESIANPOINT(({Real(ox)},{Real(oy)},{Real(oz)}))");
+            int axisZ = Emit($"IFCDIRECTION(({Real(dirX)},{Real(dirY)},0.))");   // eje de la viga (Z local)
+            int refX = Emit($"IFCDIRECTION(({Real(-dirY)},{Real(dirX)},0.))");   // horizontal perpendicular (X local)
+            int pos = Emit($"IFCAXIS2PLACEMENT3D(#{loc},#{axisZ},#{refX})");
+            int ext = Emit("IFCDIRECTION((0.,0.,1.))");                          // extruir a lo largo de Z local
+            int solid = Emit($"IFCEXTRUDEDAREASOLID(#{prof},#{pos},#{ext},{Real(longitud)})");
+            int rep2 = Emit($"IFCSHAPEREPRESENTATION(#{ctx},'Body','SweptSolid',(#{solid}))");
+            return Emit($"IFCPRODUCTDEFINITIONSHAPE($,$,(#{rep2}))");
+        }
+
         // Unidades SI (metro).
         int uLong = Emit("IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.)");
         int uAssign = Emit($"IFCUNITASSIGNMENT((#{uLong}))");
@@ -72,15 +112,53 @@ public static class IfcExporter
                 var elems = new System.Collections.Generic.List<int>();
                 foreach (var columna in nivel.Columnas)
                 {
-                    elems.Add(Emit($"IFCCOLUMN('{Guid22(id + 1)}',$,{Txt(columna.Nombre)},$,$,$,$,$,$)"));
+                    int formaCol = PrismaVertical(columna.CoordenadaX, columna.CoordenadaY, nivel.Cota,
+                                                  columna.Base, columna.Peralte, columna.Altura);
+                    elems.Add(Emit($"IFCCOLUMN('{Guid22(id + 1)}',$,{Txt(columna.Nombre)},$,$,$,#{formaCol},$,$)"));
                     if (columna.Zapata is { } zap)
-                        elems.Add(Emit($"IFCFOOTING('{Guid22(id + 1)}',$,{Txt(zap.Nombre)},$,$,$,$,$,$)"));
+                    {
+                        // Perfil Ancho×Largo centrado en la columna, extruido -Z por el peralte.
+                        string repZap = "$";
+                        if (zap.Peralte > 0)
+                        {
+                            int formaZap = PrismaVertical(columna.CoordenadaX, columna.CoordenadaY, nivel.Cota,
+                                                          zap.Ancho, zap.Largo, zap.Peralte, -1.0);
+                            repZap = "#" + formaZap;
+                        }
+                        elems.Add(Emit($"IFCFOOTING('{Guid22(id + 1)}',$,{Txt(zap.Nombre)},$,$,$,{repZap},$,$)"));
+                    }
                 }
                 foreach (var viga in nivel.Vigas)
-                    elems.Add(Emit($"IFCBEAM('{Guid22(id + 1)}',$,{Txt(viga.Nombre)},$,$,$,$,$,$)"));
+                {
+                    // Prisma orientado a lo largo del eje de la viga, sección del primer tramo.
+                    string repViga = "$";
+                    var tramo = viga.Tramos.Count > 0 ? viga.Tramos[0] : null;
+                    double lonViga = viga.LongitudTotal;
+                    if (tramo is not null && lonViga > 0)
+                    {
+                        double dvx = (viga.ExtremoX - viga.OrigenX) / lonViga;
+                        double dvy = (viga.ExtremoY - viga.OrigenY) / lonViga;
+                        int forma = PrismaOrientado(viga.OrigenX, viga.OrigenY, nivel.Cota,
+                                                    dvx, dvy, tramo.Base, tramo.Peralte, lonViga);
+                        repViga = "#" + forma;
+                    }
+                    elems.Add(Emit($"IFCBEAM('{Guid22(id + 1)}',$,{Txt(viga.Nombre)},$,$,$,{repViga},$,$)"));
+                }
                 foreach (var sistema in nivel.Sistemas)
                     foreach (var losa in sistema.Losas)
-                        elems.Add(Emit($"IFCSLAB('{Guid22(id + 1)}',$,{Txt("Losa " + losa.Id)},$,$,$,$,$,.FLOOR.)"));
+                    {
+                        // Perfil Lx×Ly centrado en el centro del paño (esquina + media luz),
+                        // extruido hacia abajo (-Z) por el espesor.
+                        string repLosa = "$";
+                        if (losa.Espesor > 0)
+                        {
+                            int forma = PrismaVertical(
+                                losa.CoordenadaX + losa.Lx / 2.0, losa.CoordenadaY + losa.Ly / 2.0, nivel.Cota,
+                                losa.Lx, losa.Ly, losa.Espesor, -1.0);
+                            repLosa = "#" + forma;
+                        }
+                        elems.Add(Emit($"IFCSLAB('{Guid22(id + 1)}',$,{Txt("Losa " + losa.Id)},$,$,$,{repLosa},$,.FLOOR.)"));
+                    }
 
                 // Contención de los elementos en el piso.
                 if (elems.Count > 0)

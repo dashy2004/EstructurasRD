@@ -1,0 +1,12 @@
+{
+  "$comment": "Config de la IA local (Qwen vía Ollama) para EstructurasRD. La IA es SOLO LECTURA del código: analiza PDF/DXF/imágenes y propone elementos estructurales; NUNCA modifica el código fuente. Ver docs/qwen-setup.md.",
+  "endpoint": "http://127.0.0.1:11434",
+  "modelo": "qwen2.5vl:7b",
+  "soloLectura": true,
+  "permitirModificarCodigo": false,
+  "temperatura": 0.1,
+  "timeoutSegundos": 120,
+  "entradasPermitidas": [".pdf", ".dxf", ".png", ".jpg", ".jpeg"],
+  "salida": "propuesta-elementos",
+  "$nota": "El motor de cálculo (Pieper-Martens) y las reglas estructurales NO los decide la IA: la IA solo extrae geometría/datos para proponer losas, columnas y ejes; el ingeniero confirma."
+}

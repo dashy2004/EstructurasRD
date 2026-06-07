@@ -19,6 +19,18 @@
             <TextBlock Text="{Binding ResumenZapatas}" VerticalAlignment="Center" Opacity="0.8"/>
         </StackPanel>
 
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="10" Margin="0,0,0,12">
+            <TextBlock Text="Diseño zapata —" VerticalAlignment="Center" Opacity="0.7" FontWeight="SemiBold"/>
+            <TextBlock Text="h (m):" VerticalAlignment="Center"/>
+            <TextBox Text="{Binding PeralteZapataM}" Width="70"
+                     ToolTip.Tip="Peralte (espesor) de la zapata. Gobierna punzonamiento y cortante: súbelo si el diseño falla."/>
+            <TextBlock Text="f'c (MPa):" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            <TextBox Text="{Binding FcMPa}" Width="70"/>
+            <TextBlock Text="fy (MPa):" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            <TextBox Text="{Binding FyMPa}" Width="70"/>
+            <TextBlock Text="(la tabla se actualiza al editar)" VerticalAlignment="Center" Opacity="0.5" FontSize="11"/>
+        </StackPanel>
+
         <Border DockPanel.Dock="Bottom" Margin="0,12,0,0" Padding="12"
                 CornerRadius="6" Background="#1A2230">
             <StackPanel Spacing="4">
@@ -31,14 +43,63 @@
             </StackPanel>
         </Border>
 
-        <DataGrid ItemsSource="{Binding Filas}" IsReadOnly="True" AutoGenerateColumns="False"
-                  GridLinesVisibility="Horizontal" HeadersVisibility="Column">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Nivel" Binding="{Binding Nombre}" Width="2*"/>
-                <DataGridTextColumn Header="Cota [m]" Binding="{Binding Cota, StringFormat={}{0:0.##}}" Width="*"/>
-                <DataGridTextColumn Header="Carga propia [t]" Binding="{Binding CargaPropia, StringFormat={}{0:0.##}}" Width="*"/>
-                <DataGridTextColumn Header="Carga acumulada [t]" Binding="{Binding CargaAcumulada, StringFormat={}{0:0.##}}" Width="*"/>
-            </DataGrid.Columns>
-        </DataGrid>
+        <Grid RowDefinitions="*, Auto, 1.5*">
+            <DataGrid Grid.Row="0" ItemsSource="{Binding Filas}" IsReadOnly="True" AutoGenerateColumns="False"
+                      GridLinesVisibility="Horizontal" HeadersVisibility="Column">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Nivel" Binding="{Binding Nombre}" Width="2*"/>
+                    <DataGridTextColumn Header="Cota [m]" Binding="{Binding Cota, StringFormat={}{0:0.##}}" Width="*"/>
+                    <DataGridTextColumn Header="Carga propia [t]" Binding="{Binding CargaPropia, StringFormat={}{0:0.##}}" Width="*"/>
+                    <DataGridTextColumn Header="Carga acumulada [t]" Binding="{Binding CargaAcumulada, StringFormat={}{0:0.##}}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <TextBlock Grid.Row="1" Text="Diseño de Zapatas (ACI 318-19)" FontSize="16" FontWeight="SemiBold" Margin="0,12,0,6"/>
+
+            <DataGrid Grid.Row="2" ItemsSource="{Binding ZapatasDiseno}" IsReadOnly="True" AutoGenerateColumns="False"
+                      GridLinesVisibility="Horizontal" HeadersVisibility="Column">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Columna" Binding="{Binding NombreColumna}" Width="*"/>
+                    <DataGridTextColumn Header="Pu [t]" Binding="{Binding PuTon, StringFormat={}{0:0.##}}" Width="*"/>
+                    <DataGridTextColumn Header="q_u" Binding="{Binding QuStr}" Width="*"/>
+                    <DataGridTemplateColumn Header="Punz." Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding PunzRatio, StringFormat={}{0:0.00}}" Foreground="{Binding PunzColor}" VerticalAlignment="Center" Margin="10,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Cort." Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding CortRatio, StringFormat={}{0:0.00}}" Foreground="{Binding CortColor}" VerticalAlignment="Center" Margin="10,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Mu" Binding="{Binding MuStr}" Width="*"/>
+                    <DataGridTemplateColumn Header="As req/min" Width="1.5*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding AsStr}" Foreground="{Binding AsColor}" VerticalAlignment="Center" Margin="10,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Estado" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding GlobalCumpleStr}" FontWeight="Bold" Foreground="{Binding GlobalColor}" VerticalAlignment="Center" Margin="10,0"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Exportar" Width="*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="⬇ CSV" Click="OnExportarCsvClick" Tag="{Binding}" Margin="4,2" Padding="8,4" HorizontalAlignment="Center"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
     </DockPanel>
 </UserControl>

@@ -33,4 +33,19 @@ public partial class BajadaCargasView : UserControl
 
     private void OnPredimensionarZapatas(object? sender, RoutedEventArgs e)
         => (DataContext as BajadaCargasViewModel)?.PredimensionarZapatas();
+
+    private async void OnExportarCsvClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is ZapataDisenoRow row)
+        {
+            var path = await AppServices.Dialogs.SaveFileAsync(
+                "Exportar diseño de zapata", $"zapata_{row.NombreColumna}.csv", ".csv",
+                new FileFilter("CSV (Delimitado por comas)", new[] { "*.csv" }));
+            
+            if (path is not null)
+            {
+                LosasPlus.Services.ZapataDisenoExporter.ExportCsv(row.Diseno, path);
+            }
+        }
+    }
 }

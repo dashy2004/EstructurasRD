@@ -22,6 +22,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Tablas de coeficientes Pieper-Martens (F. Perdomo) embebidas: las carga
+         TablaPieperMartens vía GetManifestResourceStream. Logical name =
+         LosasPlus.Calculo.PieperMartens.TablasPerdomo.json -->
+    <EmbeddedResource Include="Calculo\PieperMartens\TablasPerdomo.json" />
+    <!-- Logo de la aplicación (rasterizado del SVG de marca) para el encabezado
+         de la Memoria de cálculo. Logical name = LosasPlus.Resources.EstructurasRD.png -->
+    <EmbeddedResource Include="Resources\EstructurasRD.png" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.104.2" />
     <!-- DocumentFormat.OpenXml: usado por MemoriaGenerator para sustituir
          placeholders y rellenar tablas en la plantilla .docx. Version alineada
