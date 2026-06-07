@@ -122,3 +122,27 @@ def test_columna_combos_trae_estribo():
     assert d.estribo.espaciamiento > 0
     assert d.estribo.gobierna in ("cortante", "confinamiento", "detallado")
     assert d.combo_cortante
+
+
+def _columna_xy(cargas, bc=0.40):
+    m = ModeloEstructural()
+    m.nodos += [Nodo(1, 0, 0, 0), Nodo(2, 0, 0, _L)]
+    m.materiales.append(Material(1, E=_E, nu=_NU))
+    m.secciones.append(Seccion(1, area=bc * bc, inercia_y=bc ** 4 / 12,
+                               inercia_z=bc ** 4 / 12, constante_torsion=0.1406 * bc ** 4))
+    m.elementos.append(ElementoFrame(1, 1, 2, 1, 1))
+    m.apoyos.append(Apoyo.empotrado(1))
+    m.cargas += cargas
+    return m
+
+
+def test_columna_biaxial_no_menos_barras_que_uniaxial():
+    uni = _columna_xy([CargaNodal(2, fz=-100000.0, caso="D"), CargaNodal(2, fx=30000.0, caso="W")])
+    bia = _columna_xy([CargaNodal(2, fz=-100000.0, caso="D"), CargaNodal(2, fx=30000.0, caso="W"),
+                       CargaNodal(2, fy=30000.0, caso="W")])
+    d_uni = diseno_elemento.disenar_columna_combos(_por_caso(esfuerzos_por_caso(uni), 1), b=0.40, h=0.40,
+                                                   fc=28.0, fy=420.0, recubrimiento=0.05)
+    d_bia = diseno_elemento.disenar_columna_combos(_por_caso(esfuerzos_por_caso(bia), 1), b=0.40, h=0.40,
+                                                   fc=28.0, fy=420.0, recubrimiento=0.05)
+    assert d_bia.n_barras >= d_uni.n_barras          # biaxial nunca necesita menos acero
+    assert d_bia.combo_gobernante

@@ -110,58 +110,72 @@ def _demanda_por_combo(esf_por_caso: dict[str, EsfuerzosElemento]) -> dict[str, 
     return {k: (combos_p[k], combos_m[k], combos_v[k]) for k in combos_p}
 
 
-def _gobernante_columna(dem_mm: dict[str, tuple[float, float]], diagrama, pmax: float) -> str:
-    """Combo con mayor relación demanda/capacidad (pu/pmax, mu/φMn); desempata por demanda cruda.
+def _escalares_biaxial_por_caso(esf_por_caso: dict[str, EsfuerzosElemento]) -> dict[str, tuple[float, float, float, float]]:
+    """{caso: (P, My, Mz, V)} — P con signo (N); My=max|My|, Mz=max|Mz| (N·m); V=max|Vy|,|Vz| (N)."""
+    out: dict[str, tuple[float, float, float, float]] = {}
+    for caso, esf in esf_por_caso.items():
+        my = mz = vu = 0.0
+        for _s, _n, vy, vz, _t, m_y, m_z in esf.diagrama(21):
+            my = max(my, abs(m_y))
+            mz = max(mz, abs(m_z))
+            vu = max(vu, abs(vy), abs(vz))
+        out[caso] = (esf.axial, my, mz, vu)
+    return out
 
-    Cuando la sección es insuficiente todos los ratios pueden ser ∞; el desempate por (pu, mu)
-    hace que se reporte el combo MÁS sobrecargado en vez del primero por orden de inserción.
-    """
-    def clave(pu: float, mu: float) -> tuple[float, float, float]:
-        cap = aci318.momento_capacidad(pu, diagrama)
+
+def _demanda_biaxial_por_combo(esf_por_caso: dict[str, EsfuerzosElemento]) -> dict[str, tuple[float, float, float, float]]:
+    """{combo: (Pu, Muy, Muz, Vu)} (N, N·m, N·m, N) — LRFD; cada componente combinada por separado."""
+    esc = _escalares_biaxial_por_caso(esf_por_caso)
+    cp = combinaciones_resistencia(**{c: v[0] for c, v in esc.items()})
+    cmy = combinaciones_resistencia(**{c: v[1] for c, v in esc.items()})
+    cmz = combinaciones_resistencia(**{c: v[2] for c, v in esc.items()})
+    cv = combinaciones_resistencia(**{c: v[3] for c, v in esc.items()})
+    return {k: (cp[k], cmy[k], cmz[k], cv[k]) for k in cp}
+
+
+def _gobernante_columna_biaxial(dem, b_mm, h_mm, fc, fy, capas_y, capas_z, pmax) -> str:
+    """Combo con mayor utilización biaxial (factor_biaxial); desempate por pu."""
+    def clave(pu, muy, muz):
+        f = aci318.factor_biaxial(pu, muy, muz, b_mm, h_mm, fc, fy, capas_y, capas_z)
         r_p = pu / pmax if pmax > 0 else math.inf
-        r_m = mu / cap if cap > 0 else math.inf
-        return (max(r_p, r_m), pu, mu)
-    return max(dem_mm, key=lambda k: clave(*dem_mm[k]))
+        return (max(f, r_p), pu)
+    return max(dem, key=lambda k: clave(*dem[k]))
 
 
 def disenar_columna_combos(esf_por_caso: dict[str, EsfuerzosElemento], b: float, h: float,
                            fc: float = 21.0, fy: float = 420.0, recubrimiento: float = 0.04,
                            num: int = 8) -> DisenoColumnaCombos:
-    """Diseña una columna (P-M + estribo) cubriendo todos los combos LRFD; reporta gobernantes. b,h,rec en m."""
+    """Diseña una columna (P-M-M biaxial + estribo) cubriendo todos los combos LRFD. b,h,rec en m."""
     if b <= 0 or h <= 0 or fc <= 0 or fy <= 0 or recubrimiento <= 0:
         raise ValueError("b, h, fc, fy y recubrimiento deben ser positivos.")
     b_mm, h_mm, rec_mm = b * 1000.0, h * 1000.0, recubrimiento * 1000.0
-    if h_mm - 2 * rec_mm <= 0:
+    if h_mm - 2 * rec_mm <= 0 or b_mm - 2 * rec_mm <= 0:
         raise ValueError("Recubrimiento incompatible con la sección.")
-    demandas = _demanda_por_combo(esf_por_caso)
+    biax = _demanda_biaxial_por_combo(esf_por_caso)          # {combo: (Pu, Muy, Muz, Vu)} N/N·m
     # Estribo (cortante con axial + confinamiento) para el combo de mayor |Vu|; pu compresión+ = -axial.
-    combo_v = max(demandas, key=lambda k: abs(demandas[k][2]))
-    estribo = aci318.disenar_estribo_columna(abs(demandas[combo_v][2]), -demandas[combo_v][0],
+    combo_v = max(biax, key=lambda k: abs(biax[k][3]))
+    estribo = aci318.disenar_estribo_columna(abs(biax[combo_v][3]), -biax[combo_v][0],
                                              b_mm, h_mm, fc, aci318._diametro_barra(num), rec_mm, fy)
-    dem_mm = {k: (abs(P), abs(M) * 1000.0) for k, (P, M, _V) in demandas.items()}
+    dem = {k: (abs(P), abs(My) * 1000.0, abs(Mz) * 1000.0) for k, (P, My, Mz, _V) in biax.items()}
     ag = b_mm * h_mm
     area = aci318.AREAS_BARRA_MM2[num]
-    d_barra = aci318._diametro_barra(num)
     n = max(4, math.ceil(0.01 * ag / area))
     ultimo_n = n
     while n * area / ag <= 0.08:
-        as_total = n * area
-        capas = [(rec_mm + d_barra / 2.0, as_total / 2.0), (h_mm - rec_mm - d_barra / 2.0, as_total / 2.0)]
-        diagrama = aci318.diagrama_interaccion(b_mm, h_mm, fc, fy, capas)
-        pmax = aci318.axial_maxima_diseno(ag, as_total, fc, fy)
-        if all(pu <= pmax and mu <= aci318.momento_capacidad(pu, diagrama) for pu, mu in dem_mm.values()):
-            gob = _gobernante_columna(dem_mm, diagrama, pmax)
-            return DisenoColumnaCombos(dem_mm[gob][0], dem_mm[gob][1], num, n, as_total / ag,
-                                       estribo.cumple, f"{n}#{num}", gob, estribo, combo_v)
+        capas_y, capas_z = aci318._capas_biaxial(b_mm, h_mm, rec_mm, num, n)
+        pmax = aci318.axial_maxima_diseno(ag, n * area, fc, fy)
+        if all(pu <= pmax and aci318.factor_biaxial(pu, muy, muz, b_mm, h_mm, fc, fy, capas_y, capas_z) <= 1.0
+               for pu, muy, muz in dem.values()):
+            gob = _gobernante_columna_biaxial(dem, b_mm, h_mm, fc, fy, capas_y, capas_z, pmax)
+            return DisenoColumnaCombos(dem[gob][0], math.hypot(dem[gob][1], dem[gob][2]), num, n,
+                                       n * area / ag, estribo.cumple, f"{n}#{num}", gob, estribo, combo_v)
         ultimo_n = n
         n += 1
-    as_total = ultimo_n * area
-    capas = [(rec_mm + d_barra / 2.0, as_total / 2.0), (h_mm - rec_mm - d_barra / 2.0, as_total / 2.0)]
-    diagrama = aci318.diagrama_interaccion(b_mm, h_mm, fc, fy, capas)
-    pmax = aci318.axial_maxima_diseno(ag, as_total, fc, fy)
-    gob = _gobernante_columna(dem_mm, diagrama, pmax)
-    return DisenoColumnaCombos(dem_mm[gob][0], dem_mm[gob][1], num, ultimo_n, ultimo_n * area / ag,
-                               False, "SECCIÓN INSUFICIENTE", gob, estribo, combo_v)
+    capas_y, capas_z = aci318._capas_biaxial(b_mm, h_mm, rec_mm, num, ultimo_n)
+    pmax = aci318.axial_maxima_diseno(ag, ultimo_n * area, fc, fy)
+    gob = _gobernante_columna_biaxial(dem, b_mm, h_mm, fc, fy, capas_y, capas_z, pmax)
+    return DisenoColumnaCombos(dem[gob][0], math.hypot(dem[gob][1], dem[gob][2]), num, ultimo_n,
+                               ultimo_n * area / ag, False, "SECCIÓN INSUFICIENTE", gob, estribo, combo_v)
 
 
 def disenar_viga_combos(esf_por_caso: dict[str, EsfuerzosElemento], b: float, h: float,
