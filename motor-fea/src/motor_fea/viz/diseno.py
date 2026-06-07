@@ -43,6 +43,7 @@ def calcular_diseno(modelo: ModeloEstructural, fc: float = 21.0, fy: float = 420
             s = d.estribo.espaciamiento / 1000.0
             tipo, designacion, cumple, combo, estribo_txt = (
                 "columna", d.disponer, d.cumple, d.combo_gobernante, d.estribo.disponer)
+            muy_e, muz_e, util_e = d.muy, d.muz, d.utilizacion
         else:
             d = diseno_elemento.disenar_viga_combos(esf_por_caso, b, h, fc, fy, recubrimiento)
             num = d.flexion.numero_barra if d.flexion else 5
@@ -52,6 +53,7 @@ def calcular_diseno(modelo: ModeloEstructural, fc: float = 21.0, fy: float = 420
             s = d.estribo.espaciamiento / 1000.0
             tipo, designacion, cumple, combo, estribo_txt = (
                 "viga", d.disponer, d.cumple, d.combo_flexion, "")
+            muy_e, muz_e, util_e = 0.0, 0.0, 0.0
         pu, mu, vu = diseno_elemento._demanda_por_combo(esf_por_caso)[combo]
         elementos.append({
             "id": e.id, "i": e.nodo_i, "j": e.nodo_j, "tipo": tipo,
@@ -59,6 +61,7 @@ def calcular_diseno(modelo: ModeloEstructural, fc: float = 21.0, fy: float = 420
             "estribo": {"d": d_estribo_m, "s": s, "w": b - 2 * recubrimiento, "h": h - 2 * recubrimiento},
             "designacion": designacion,
             "demanda": {"pu": abs(pu), "mu": abs(mu), "vu": abs(vu)},
+            "muy": muy_e, "muz": muz_e, "utilizacion": util_e,
             "combo": combo, "estribo_txt": estribo_txt, "cumple": cumple,
         })
     return {"recubrimiento": recubrimiento, "elementos": elementos}

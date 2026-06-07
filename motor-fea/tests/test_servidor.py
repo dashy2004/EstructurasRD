@@ -105,3 +105,4 @@ def test_diseno_tiene_combo_y_casos():
     assert combos - {"1"}
     cols = [e for e in data["elementos"] if e["tipo"] == "columna"]
     assert cols and all(e["estribo_txt"].startswith("E#") for e in cols)
+    assert all("utilizacion" in e for e in data["elementos"])

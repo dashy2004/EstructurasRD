@@ -365,10 +365,10 @@ function mostrarValorEnPunto(x, y) {
 
 function mostrarDiseno(el) {
   const kN = (n) => (n / 1000).toFixed(0);
-  const dem = el.tipo === 'columna'
-    ? `Pu=${kN(el.demanda.pu)} kN, Mu=${kN(el.demanda.mu)} kN·m`
-    : `Mu=${kN(el.demanda.mu)} kN·m, Vu=${kN(el.demanda.vu)} kN`;
   const est = el.estribo_txt ? ` · ${el.estribo_txt}` : '';
+  const dem = el.tipo === 'columna'
+    ? `Pu=${kN(el.demanda.pu)} kN, My=${kN(el.muy)} Mz=${kN(el.muz)} kN·m (u=${el.utilizacion.toFixed(2)})`
+    : `Mu=${kN(el.demanda.mu)} kN·m, Vu=${kN(el.demanda.vu)} kN`;
   info.textContent = `${el.designacion} · combo ${el.combo} · ${dem}${est} · ${el.cumple ? 'cumple' : 'NO cumple'}`;
 }
 
