@@ -565,10 +565,16 @@ public static class CalculoEngine
             RecalcularLosa(losa, sistema, proyecto);
     }
 
-    /// <summary>Recalcula todos los sistemas y losas de un proyecto.</summary>
+    /// <summary>
+    /// Recalcula todos los sistemas y losas de un proyecto, recorriendo el árbol
+    /// completo <c>Edificios → Niveles → Sistemas</c> vía
+    /// <see cref="LosasPlus.Services.ProyectoService.EnumerarSistemas"/> — no sólo
+    /// la fachada legacy <c>proyecto.Sistemas</c> (= <c>Niveles[0]</c>), que omitía
+    /// los sistemas de las plantas 2+ (B2c).
+    /// </summary>
     public static void RecalcularProyecto(Proyecto proyecto)
     {
-        foreach (var sistema in proyecto.Sistemas)
+        foreach (var sistema in LosasPlus.Services.ProyectoService.EnumerarSistemas(proyecto))
             RecalcularSistema(sistema, proyecto);
     }
 }
