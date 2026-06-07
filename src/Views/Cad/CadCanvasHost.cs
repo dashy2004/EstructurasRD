@@ -66,6 +66,23 @@ public sealed class CadCanvasHost : Control
     private IReadOnlyList<LayoutSolver.Placement> _placements = Array.Empty<LayoutSolver.Placement>();
     private double _offsetXPx;
 
+    // ---- Cache del LayoutResult (perf) ----
+    // LayoutSolver.Solve es BFS+LINQ con allocs; antes corría en CADA Render
+    // (pan/zoom/drag/mouse-move → decenas de veces/seg) generando presión de GC y
+    // caída de FPS. El layout SÓLO depende de la topología del sistema (losas +
+    // sus dimensiones/posiciones + bordes); los cambios de pura vista (pan/zoom)
+    // no la alteran. Cacheamos por (instancia de Sistema + RevisionSistema + hash
+    // de topología) y reusamos el resultado mientras la topología no cambie.
+    //
+    // El hash de topología (no sólo RevisionSistema) cubre también las mutaciones
+    // in-canvas que reescriben el SSOT sin incrementar la revisión (crear/mover/
+    // redimensionar losa, crear borde) y se confían a RefrescarLosas() para
+    // repintar — así el cache nunca sirve un layout obsoleto.
+    private LayoutSolver.LayoutResult? _layoutCache;
+    private Sistema? _layoutCacheSistema;
+    private int _layoutCacheRevision = int.MinValue;
+    private int _layoutCacheTopologia;
+
     // ---- Estado de interacción (efímero, sólo de la vista — nunca toca el SSOT) ----
     private enum ModoArrastre { Ninguno, Pan, Mover, Redimensionar, DibujarLosa, DibujarMuro }
     private ModoArrastre _modo = ModoArrastre.Ninguno;
@@ -268,6 +285,12 @@ public sealed class CadCanvasHost : Control
         var m = Matrix.CreateScale(_scaleX, _scaleY) * Matrix.CreateTranslation(_tx, _ty);
         using (context.PushTransform(m))
         {
+            // El render dibuja BAJO el transform de zoom/pan (PushTransform), así
+            // que dentro del bloque las coordenadas son PRE-transform (px del
+            // lienzo, sin zoom/pan). Por eso TransformPlano() se construye con
+            // scaleX/scaleY=1 y tx/ty=0: el zoom/pan ya lo aplica la matriz «m».
+            // El hit-test, en cambio, parte de coordenadas de pantalla y debe
+            // deshacer también el zoom/pan → usa TransformPlano(incluirZoomPan: true).
             DibujarGrilla(context);
             DibujarPlano(context);
             DibujarLosas(context);
@@ -277,6 +300,34 @@ public sealed class CadCanvasHost : Control
             // dando tamaños constantes en pantalla.
             DibujarOverlay(context);
         }
+    }
+
+    /// <summary>
+    /// Construye la transformación mundo↔pantalla del plano DXF para el estado
+    /// actual. Único punto que conoce la matemática de coordenadas del plano;
+    /// el render y el hit-test la comparten para que un clic mapee al mismo
+    /// punto-mundo que se dibujó (correcto con Escala/Offset del ajuste espacial).
+    ///
+    /// <para>
+    /// <paramref name="incluirZoomPan"/> = <c>false</c> (render): las primitivas
+    /// se dibujan dentro de <c>PushTransform</c>, que ya aplica el zoom/pan, así
+    /// que la transformación sólo cubre esc/offset/flip-Y/Px (scale=1, tx=ty=0).
+    /// <c>true</c> (hit-test): partimos de coordenadas de pantalla crudas, así
+    /// que la transformación también deshace el zoom/pan.
+    /// </para>
+    /// </summary>
+    private CadTransform TransformPlano(bool incluirZoomPan)
+    {
+        var plano = Plano;
+        double esc = plano?.Escala ?? 1.0;
+        double offX = plano?.OffsetX ?? 0.0;
+        double offY = plano?.OffsetY ?? 0.0;
+        double maxY = plano?.MaxY ?? 0.0;
+        double sx = incluirZoomPan ? _scaleX : 1.0;
+        double sy = incluirZoomPan ? _scaleY : 1.0;
+        double tx = incluirZoomPan ? _tx : 0.0;
+        double ty = incluirZoomPan ? _ty : 0.0;
+        return new CadTransform(PxPorMetro, esc, offX, offY, maxY, sx, sy, tx, ty);
     }
 
     // =====================================================================
@@ -292,17 +343,20 @@ public sealed class CadCanvasHost : Control
         double w = Bounds.Width, h = Bounds.Height;
         if (w < 1 || h < 1) return;
 
-        double esc = plano.Escala;
-        double bx = (plano.MinX * esc + plano.OffsetX) * PxPorMetro;
-        double bw = plano.Ancho * esc * PxPorMetro;
-        double bh = plano.Alto  * esc * PxPorMetro;
+        // Bbox del plano en px PRE-zoom/pan, vía la MISMA transformación del
+        // render (esquinas mundo sup-izq=(MinX,MaxY) / inf-der=(MaxX,MinY)).
+        var tf = TransformPlano(incluirZoomPan: false);
+        var supIzq = tf.MundoAPantalla(new PuntoCad(plano.MinX, plano.MaxY));
+        var infDer = tf.MundoAPantalla(new PuntoCad(plano.MaxX, plano.MinY));
+        double bw = infDer.X - supIzq.X;
+        double bh = infDer.Y - supIzq.Y;
         if (bw < 1e-6 || bh < 1e-6) return;
 
         const double margen = 0.92;
         double fit = Math.Clamp(Math.Min(w / bw, h / bh) * margen, MinScale, MaxScale);
 
-        double cx = bx + bw / 2.0;
-        double cy = bh / 2.0;
+        double cx = supIzq.X + bw / 2.0;
+        double cy = supIzq.Y + bh / 2.0;
         _scaleX = _scaleY = fit;
         _tx = w / 2.0 - fit * cx;
         _ty = h / 2.0 - fit * cy;
@@ -372,7 +426,7 @@ public sealed class CadCanvasHost : Control
     /// confirmar la edición in-canvas. Port a Avalonia: recomputar chips +
     /// InvalidateVisual() (el render rehace el layout y dibuja el overlay).
     /// </summary>
-    public void RefrescarLosas() { RecomputarChips(); InvalidateVisual(); }
+    public void RefrescarLosas() { InvalidarLayout(); RecomputarChips(); InvalidateVisual(); }
 
     // =====================================================================
     // Capa 0 — Grilla métrica
@@ -382,28 +436,52 @@ public sealed class CadCanvasHost : Control
     {
         double w = Math.Max(Bounds.Width, 200);
         double h = Math.Max(Bounds.Height, 200);
-        double extra = 2000;
         var penFino   = new Pen(new SolidColorBrush(Color.FromArgb(40, 120, 120, 120)), 0.5);
         var penMetro5 = new Pen(new SolidColorBrush(Color.FromArgb(80, 120, 120, 120)), 0.8);
 
-        for (double xm = -40; xm <= 40; xm += 1)
+        // Grilla en función del viewport visible (antes era ±40 m fijos: se
+        // recortaba al panear lejos y dibujaba de más al acercar el zoom).
+        // El render corre dentro de PushTransform → trabajamos en px PRE-zoom/pan;
+        // invertimos el zoom/pan para conocer el rango visible y dibujamos sólo
+        // las líneas dentro de él (más un metro de margen para los bordes).
+        double sx = _scaleX > 1e-9 ? _scaleX : 1.0;
+        double sy = _scaleY > 1e-9 ? _scaleY : 1.0;
+        double preLeft   = (0 - _tx) / sx;
+        double preRight  = (w - _tx) / sx;
+        double preTop    = (0 - _ty) / sy;
+        double preBottom = (h - _ty) / sy;
+
+        int xmMin = (int)Math.Floor(preLeft   / PxPorMetro) - 1;
+        int xmMax = (int)Math.Ceiling(preRight  / PxPorMetro) + 1;
+        int ymMin = (int)Math.Floor(preTop    / PxPorMetro) - 1;
+        int ymMax = (int)Math.Ceiling(preBottom / PxPorMetro) + 1;
+
+        // Tope de seguridad: en un zoom-out extremo el rango podría ser enorme.
+        // Limitamos el conteo de líneas para no degradar el frame.
+        const int maxLineas = 600;
+        if (xmMax - xmMin > maxLineas) { int c = (xmMin + xmMax) / 2; xmMin = c - maxLineas / 2; xmMax = c + maxLineas / 2; }
+        if (ymMax - ymMin > maxLineas) { int c = (ymMin + ymMax) / 2; ymMin = c - maxLineas / 2; ymMax = c + maxLineas / 2; }
+
+        double yTop = ymMin * PxPorMetro, yBot = ymMax * PxPorMetro;
+        for (int xm = xmMin; xm <= xmMax; xm++)
         {
             double x = xm * PxPorMetro;
-            var pen = Math.Abs(xm % 5) < 1e-9 ? penMetro5 : penFino;
-            dc.DrawLine(pen, new Point(x, -extra), new Point(x, h + extra));
+            var pen = xm % 5 == 0 ? penMetro5 : penFino;
+            dc.DrawLine(pen, new Point(x, yTop), new Point(x, yBot));
         }
-        for (double ym = -40; ym <= 40; ym += 1)
+        double xLeft = xmMin * PxPorMetro, xRight = xmMax * PxPorMetro;
+        for (int ym = ymMin; ym <= ymMax; ym++)
         {
             double y = ym * PxPorMetro;
-            var pen = Math.Abs(ym % 5) < 1e-9 ? penMetro5 : penFino;
-            dc.DrawLine(pen, new Point(-extra, y), new Point(w + extra, y));
+            var pen = ym % 5 == 0 ? penMetro5 : penFino;
+            dc.DrawLine(pen, new Point(xLeft, y), new Point(xRight, y));
         }
 
-        // Ejes del origen (0,0).
+        // Ejes del origen (0,0) — se extienden por todo el viewport visible.
         var penEjeX = new Pen(new SolidColorBrush(Color.FromRgb(0xD3, 0x2F, 0x2F)), 1.6);
         var penEjeY = new Pen(new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32)), 1.6);
-        dc.DrawLine(penEjeX, new Point(-extra, 0), new Point(w + extra, 0));
-        dc.DrawLine(penEjeY, new Point(0, -extra), new Point(0, h + extra));
+        dc.DrawLine(penEjeX, new Point(xLeft, 0), new Point(xRight, 0));
+        dc.DrawLine(penEjeY, new Point(0, yTop), new Point(0, yBot));
 
         var pincelOrigen = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88));
         dc.DrawEllipse(pincelOrigen, null, new Point(0, 0), 3.0, 3.0);
@@ -415,9 +493,12 @@ public sealed class CadCanvasHost : Control
             {
                 DashStyle = new DashStyle(new double[] { 6, 4 }, 0),
             };
-            double esc = plano.Escala;
-            var bbox = new Rect((plano.MinX * esc + plano.OffsetX) * PxPorMetro, 0,
-                                plano.Ancho * esc * PxPorMetro, plano.Alto * esc * PxPorMetro);
+            // Misma transformación que el render del plano: las esquinas mundo
+            // (MinX,MaxY)→sup-izq y (MaxX,MinY)→inf-der tras el flip-Y.
+            var tf = TransformPlano(incluirZoomPan: false);
+            var supIzq = tf.MundoAPantalla(new PuntoCad(plano.MinX, plano.MaxY));
+            var infDer = tf.MundoAPantalla(new PuntoCad(plano.MaxX, plano.MinY));
+            var bbox = new Rect(supIzq, infDer);
             dc.DrawRectangle(null, penBBox, bbox);
         }
     }
@@ -448,10 +529,9 @@ public sealed class CadCanvasHost : Control
         if (plano is null || plano.EstaVacio) return;
 
         double esc = plano.Escala;
-        double maxYT = plano.MaxY * esc + plano.OffsetY;
-        Point ToPx(PuntoCad p) => new(
-            (p.X * esc + plano.OffsetX) * PxPorMetro,
-            (maxYT - (p.Y * esc + plano.OffsetY)) * PxPorMetro);
+        // Render bajo PushTransform → la transformación no incluye zoom/pan.
+        var tf = TransformPlano(incluirZoomPan: false);
+        Point ToPx(PuntoCad p) => tf.MundoAPantalla(p);
 
         var penPlano = new Pen(new SolidColorBrush(Color.FromRgb(0x33, 0x66, 0x99)), 1.2);
         var brushTexto = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55));
@@ -541,9 +621,8 @@ public sealed class CadCanvasHost : Control
         if (sistema is null) return;
         if (sistema.Losas.Count == 0) { DibujarMuros(dc, sistema); return; }
 
-        LayoutSolver.LayoutResult layout;
-        try { layout = LayoutSolver.Solve(sistema); }
-        catch { DibujarMuros(dc, sistema); return; }
+        var layout = ObtenerLayout(sistema);
+        if (layout is null) { DibujarMuros(dc, sistema); return; }
 
         var rellenoLosa  = new SolidColorBrush(Color.FromArgb(45, 0x2E, 0x7D, 0x32));
         var rellenoHuerf = new SolidColorBrush(Color.FromArgb(45, 0xC1, 0x8A, 0x2C));
@@ -580,6 +659,67 @@ public sealed class CadCanvasHost : Control
         _placements = layout.Placements;
 
         DibujarMuros(dc, sistema);
+    }
+
+    /// <summary>
+    /// Devuelve el <see cref="LayoutSolver.LayoutResult"/> del sistema, cacheado
+    /// mientras la topología no cambie. La clave es (instancia de
+    /// <see cref="Sistema"/> + <see cref="RevisionSistema"/> + hash de topología);
+    /// los cambios de pura vista (pan/zoom) la dejan intacta y reusan el resultado
+    /// sin reejecutar la BFS+LINQ del solver en cada frame. Devuelve <c>null</c>
+    /// si el solver lanza (mismo fallback que antes: dibujar sólo muros).
+    /// </summary>
+    private LayoutSolver.LayoutResult? ObtenerLayout(Sistema sistema)
+    {
+        int topo = HashTopologia(sistema);
+        if (_layoutCache is not null
+            && ReferenceEquals(_layoutCacheSistema, sistema)
+            && _layoutCacheRevision == RevisionSistema
+            && _layoutCacheTopologia == topo)
+            return _layoutCache;
+
+        try { _layoutCache = LayoutSolver.Solve(sistema); }
+        catch { _layoutCache = null; }
+
+        _layoutCacheSistema = sistema;
+        _layoutCacheRevision = RevisionSistema;
+        _layoutCacheTopologia = topo;
+        return _layoutCache;
+    }
+
+    /// <summary>
+    /// Hash estable de la topología que consume el <see cref="LayoutSolver"/>:
+    /// las losas (Id, Lx, Ly, PosX, PosY) y los bordes de adyacencia (BI, BJ) en
+    /// X e Y. Es O(losas+bordes) — mucho más barato que la BFS+LINQ del solver —,
+    /// así que recalcularlo cada frame para decidir el cache-hit no cuesta nada.
+    /// No incluye datos que no afecten la posición (carga, espesor, tipo…).
+    /// </summary>
+    private static int HashTopologia(Sistema sistema)
+    {
+        var h = new HashCode();
+        h.Add(sistema.Losas.Count);
+        foreach (var l in sistema.Losas)
+        {
+            h.Add(l.Id);
+            h.Add(l.Lx);
+            h.Add(l.Ly);
+            h.Add(l.PosX);
+            h.Add(l.PosY);
+        }
+        h.Add(sistema.BordesX.Count);
+        foreach (var b in sistema.BordesX) { h.Add(b.BI); h.Add(b.BJ); }
+        h.Add(sistema.BordesY.Count);
+        foreach (var b in sistema.BordesY) { h.Add(b.BI); h.Add(b.BJ); }
+        return h.ToHashCode();
+    }
+
+    /// <summary>Invalida el layout cacheado — fuerza un recálculo en el próximo render.</summary>
+    private void InvalidarLayout()
+    {
+        _layoutCache = null;
+        _layoutCacheSistema = null;
+        _layoutCacheRevision = int.MinValue;
+        _layoutCacheTopologia = 0;
     }
 
     private static void DibujarMuros(DrawingContext dc, Sistema sistema)
@@ -1546,11 +1686,11 @@ public sealed class CadCanvasHost : Control
         if (plano is null || plano.EstaVacio) return null;
         if (_scaleX <= 0) return null;
 
-        double preX = (pantalla.X - _tx) / _scaleX;
-        double preY = (pantalla.Y - _ty) / _scaleY;
-        double dxfX = preX / PxPorMetro;
-        double dxfY = plano.MaxY - preY / PxPorMetro;
-        var punto = new PuntoCad(dxfX, dxfY);
+        // Inverso EXACTO del render del plano (DibujarPlano): deshace zoom/pan,
+        // Px, el flip-Y de la capa y —lo crítico— la escala/offset del ajuste
+        // espacial. Antes sólo deshacía /Px y el flip-Y → con Escala≠1 u
+        // Offset≠0 el clic caía en el punto-mundo equivocado.
+        var punto = TransformPlano(incluirZoomPan: true).PantallaAMundo(pantalla);
 
         foreach (var ent in plano.Entidades)
             if (ent is PolilineaCad poli && poli.Cerrada && PoligonoLosaMapper.ContienePunto(poli, punto))
