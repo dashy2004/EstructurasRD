@@ -210,3 +210,29 @@ def test_estribo_columna_insuficiente():
     e = aci318.disenar_estribo_columna(2.0e6, 200000.0, 400, 400, 28, aci318._diametro_barra(8), 40)
     assert not e.cumple
     assert "INSUFICIENTE" in e.disponer
+
+
+def test_capas_biaxial_cuadrada_simetrica():
+    capas_y, capas_z = aci318._capas_biaxial(400, 400, 50, 8, 8)
+    assert sum(As for _, As in capas_y) == pytest.approx(sum(As for _, As in capas_z))
+    assert sorted(di for di, _ in capas_y) == pytest.approx(sorted(di for di, _ in capas_z))
+
+
+def test_factor_biaxial_uniaxial_y_biaxial():
+    b = h = 400.0
+    capas_y, capas_z = aci318._capas_biaxial(b, h, 50, 8, 8)
+    diag_y = aci318.diagrama_interaccion(b, h, 28, 420, capas_z)
+    p = diag_y[20]
+    pu = max(p.phi_pn, 1.0)
+    cmy = aci318.momento_capacidad(pu, diag_y)
+    assert cmy > 0
+    # uniaxial (muz=0, muy=cmy) → factor ≈ 1
+    assert aci318.factor_biaxial(pu, cmy, 0.0, b, h, 28, 420, capas_y, capas_z) == pytest.approx(1.0, rel=1e-6)
+    # biaxial (muy=muz=cmy) en sección cuadrada simétrica → ≈ 2
+    assert aci318.factor_biaxial(pu, cmy, cmy, b, h, 28, 420, capas_y, capas_z) == pytest.approx(2.0, rel=1e-3)
+
+
+def test_factor_biaxial_fuera_de_rango_inf():
+    import math as _m
+    capas_y, capas_z = aci318._capas_biaxial(400, 400, 50, 8, 8)
+    assert aci318.factor_biaxial(1.0e9, 10.0, 10.0, 400, 400, 28, 420, capas_y, capas_z) == _m.inf

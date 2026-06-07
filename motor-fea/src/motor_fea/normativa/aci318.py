@@ -554,3 +554,59 @@ def disenar_estribo_columna(vu: float, pu: float, b: float, h: float, fc: float,
         if cumple:
             return ultimo
     return ultimo                                        # ni #5 confina → cumple=False
+
+
+# ===================== Flexión biaxial de columnas (Fase 5B.1) =====================
+def _perimetro_columna(n: int, ox: float, oy: float) -> list[tuple[float, float]]:
+    """n posiciones (py, pz) equiespaciadas por arco en el perímetro de semi-ejes (ox, oy)."""
+    esquinas = [(-ox, -oy), (ox, -oy), (ox, oy), (-ox, oy)]
+    lados = [2 * ox, 2 * oy, 2 * ox, 2 * oy]
+    per = 2 * (2 * ox + 2 * oy)
+    if per <= 0:
+        return [(0.0, 0.0)] * n
+    puntos: list[tuple[float, float]] = []
+    for k in range(n):
+        s = k * per / n
+        for lado in range(4):
+            if s <= lados[lado] or lado == 3:
+                x0, y0 = esquinas[lado]
+                x1, y1 = esquinas[(lado + 1) % 4]
+                f = s / lados[lado] if lados[lado] > 0 else 0.0
+                puntos.append((x0 + (x1 - x0) * f, y0 + (y1 - y0) * f))
+                break
+            s -= lados[lado]
+    return puntos
+
+
+def _capas_biaxial(b: float, h: float, rec: float, num: int, n: int):
+    """(capas_y, capas_z) de n barras #num del perímetro, proyectadas a cada eje (mm).
+
+    capas_z: agrupadas por z, di = h/2 − pz (prof. en z) → capacidad de My (prof. h, ancho b).
+    capas_y: agrupadas por y, di = b/2 − py (prof. en y) → capacidad de Mz (prof. b, ancho h).
+    """
+    d = _diametro_barra(num)
+    area = AREAS_BARRA_MM2[num]
+    ox = max(0.0, b / 2.0 - rec - d / 2.0)
+    oy = max(0.0, h / 2.0 - rec - d / 2.0)
+    by_z: dict[float, float] = {}
+    by_y: dict[float, float] = {}
+    for py, pz in _perimetro_columna(n, ox, oy):
+        kz, ky = round(pz, 3), round(py, 3)
+        by_z[kz] = by_z.get(kz, 0.0) + area
+        by_y[ky] = by_y.get(ky, 0.0) + area
+    capas_z = [(h / 2.0 - pz, As) for pz, As in by_z.items()]
+    capas_y = [(b / 2.0 - py, As) for py, As in by_y.items()]
+    return capas_y, capas_z
+
+
+def factor_biaxial(pu: float, muy: float, muz: float, b: float, h: float, fc: float, fy: float,
+                   capas_y, capas_z, alfa: float = 1.0) -> float:
+    """Utilización biaxial — contorno de carga de Bresler (ACI R10.3): (Muy/φMny)^α + (Muz/φMnz)^α.
+
+    pu, muy, muz en N, N·mm; ∞ si alguna capacidad de momento ≤ 0 (pu fuera del diagrama).
+    """
+    phi_mny = momento_capacidad(pu, diagrama_interaccion(b, h, fc, fy, capas_z))
+    phi_mnz = momento_capacidad(pu, diagrama_interaccion(h, b, fc, fy, capas_y))
+    if phi_mny <= 0.0 or phi_mnz <= 0.0:
+        return math.inf
+    return (muy / phi_mny) ** alfa + (muz / phi_mnz) ** alfa
