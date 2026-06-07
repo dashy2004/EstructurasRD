@@ -65,6 +65,10 @@ const selEstado = document.getElementById('estado');
 const exagInput = document.getElementById('exag');
 const btnPlay = document.getElementById('play');
 const info = document.getElementById('info');
+const inpFc = document.getElementById('fc');
+const inpFy = document.getElementById('fy');
+const inpRec = document.getElementById('rec');
+const btnRedi = document.getElementById('redisenar');
 
 // --- Barras ---
 function addBarra(b) {
@@ -438,9 +442,23 @@ async function cargarArmado() {
   selEstado.add(new Option('refuerzo: armado', 'refuerzo'));
 }
 
+function fetchDisenoUrl() {
+  const fc = parseFloat(inpFc.value) || 21;
+  const fy = parseFloat(inpFy.value) || 420;
+  const rec = parseFloat(inpRec.value) || 0.04;
+  return `./diseno?fc=${fc}&fy=${fy}&rec=${rec}`;
+}
+
+function disposeDiseno() {
+  if (!disenoGroup) return;
+  scene.remove(disenoGroup);
+  disenoGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+  disenoGroup = null;
+}
+
 async function cargarDiseno() {
   try {
-    const r = await fetch('./diseno');
+    const r = await fetch(fetchDisenoUrl());
     if (!r.ok) throw new Error('HTTP ' + r.status);
     diseno = await r.json();
   } catch (e) {
@@ -449,6 +467,24 @@ async function cargarDiseno() {
   disenoGroup = construirJaula(diseno, (el) => (el.cumple ? MAT_OK : MAT_FALLA));
   selEstado.add(new Option('diseño: armado', 'diseno'));
 }
+
+async function redisenar() {
+  let nuevo;
+  try {
+    const r = await fetch(fetchDisenoUrl());
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    nuevo = await r.json();
+  } catch (e) {
+    info.textContent = 'rediseño: error (' + e.message + ')';
+    return;   // mantiene la jaula previa
+  }
+  diseno = nuevo;
+  disposeDiseno();
+  disenoGroup = construirJaula(diseno, (el) => (el.cumple ? MAT_OK : MAT_FALLA));
+  if (disenoActivo) entrarDiseno();
+}
+
+btnRedi.addEventListener('click', redisenar);
 
 // --- WebXR ---
 if (navigator.xr && navigator.xr.isSessionSupported) {
