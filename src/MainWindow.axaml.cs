@@ -155,6 +155,7 @@ public partial class MainWindow : Window
             { AtajoIds.Guardar,       vm.GuardarProyectoLpxCommand },
             { AtajoIds.GuardarComo,   vm.GuardarComoLpxCommand },
             { AtajoIds.Generar,       vm.GenerarMemoriaCommand },
+            { AtajoIds.AgregarLosa,   vm.AgregarLosaCommand },
             { AtajoIds.Busqueda,      vm.IrABusquedaCommand },
         };
 

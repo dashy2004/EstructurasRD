@@ -132,6 +132,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     public ICommand? AbrirShortcutsCommand     { get; private set; }
     public ICommand? IrAModoCommand            { get; private set; }
     public ICommand? AplicarBulkCommand        { get; private set; }
+    public ICommand? AgregarLosaCommand        { get; private set; }
 
     // ---- Validación normativa (commit 33) ----
     /// <summary>
@@ -914,6 +915,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             irALosa:               (s, id) => BuscarYActivarSistema(s));
         IrABusquedaCommand = new RelayCommand(_ => ModoActivo = ModoSidebar.Busqueda);
         GenerarMemoriaCommand = new RelayCommand(_ => GenerarMemoria());
+        // Atajo configurable Ctrl+L (AgregarLosa). El botón usa OnAddLosa; este
+        // command expone la misma acción a una KeyBinding (ver AplicarAtajos).
+        AgregarLosaCommand = new RelayCommand(_ => AgregarLosa());
         
         // Back-compat: el comando sigue existiendo (aplica Wu) pero ahora delega
         // en el método que también devuelve el desglose. El menú Engine usa un
