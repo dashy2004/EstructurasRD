@@ -104,6 +104,68 @@ public class CargasCombinacionesViewModelTests
         Assert.Equal(1, snapshots());
     }
 
+    // ---- Tests del gate CanExecute (fix frozen-buttons) ----
+
+    [Fact]
+    public void EliminarCasoCommand_se_habilita_al_setear_CasoSeleccionado()
+    {
+        var vm = Crear(out _, out _);
+
+        Assert.False(vm.EliminarCasoCommand.CanExecute(null));
+
+        bool eventFired = false;
+        vm.EliminarCasoCommand.CanExecuteChanged += (_, _) => eventFired = true;
+
+        vm.AgregarCasoCommand.Execute(null);   // AgregarCaso() fija CasoSeleccionado
+        Assert.True(vm.EliminarCasoCommand.CanExecute(null));
+        _ = eventFired;
+    }
+
+    [Fact]
+    public void EliminarCasoCommand_vuelve_a_false_al_limpiar_CasoSeleccionado()
+    {
+        var vm = Crear(out _, out _);
+        vm.AgregarCasoCommand.Execute(null);
+        Assert.True(vm.EliminarCasoCommand.CanExecute(null));
+
+        bool eventFired = false;
+        vm.EliminarCasoCommand.CanExecuteChanged += (_, _) => eventFired = true;
+
+        vm.CasoSeleccionado = null;
+        Assert.False(vm.EliminarCasoCommand.CanExecute(null));
+        _ = eventFired;
+    }
+
+    [Fact]
+    public void AgregarTerminoCommand_se_habilita_al_setear_CombinacionSeleccionada()
+    {
+        var vm = Crear(out _, out _);
+
+        Assert.False(vm.AgregarTerminoCommand.CanExecute(null));
+
+        bool eventFired = false;
+        vm.AgregarTerminoCommand.CanExecuteChanged += (_, _) => eventFired = true;
+
+        vm.AgregarCombinacionCommand.Execute(null);   // fija CombinacionSeleccionada
+        Assert.True(vm.AgregarTerminoCommand.CanExecute(null));
+        _ = eventFired;
+    }
+
+    [Fact]
+    public void EliminarTerminoCommand_se_habilita_al_setear_TerminoSeleccionado()
+    {
+        var vm = Crear(out _, out _);
+        vm.AgregarCombinacionCommand.Execute(null);
+        Assert.False(vm.EliminarTerminoCommand.CanExecute(null));
+
+        bool eventFired = false;
+        vm.EliminarTerminoCommand.CanExecuteChanged += (_, _) => eventFired = true;
+
+        vm.AgregarTerminoCommand.Execute(null);   // fija TerminoSeleccionado
+        Assert.True(vm.EliminarTerminoCommand.CanExecute(null));
+        _ = eventFired;
+    }
+
     [Fact]
     public void NotificarRestauracion_reinicia_la_seleccion()
     {

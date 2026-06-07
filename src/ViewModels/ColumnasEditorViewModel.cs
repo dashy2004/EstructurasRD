@@ -36,11 +36,19 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
         _getEdificio = getEdificio ?? throw new ArgumentNullException(nameof(getEdificio));
         _getNivel = getNivel ?? throw new ArgumentNullException(nameof(getNivel));
         TomarPuDelDescensoCommand = new RelayCommand(_ => TomarPuDelDescenso());
+        EliminarCommand = new RelayCommand(_ => Eliminar(), _ => _seleccionada is not null);
         Recargar();
     }
 
     /// <summary>Toma el Pu de demanda desde el descenso de cargas del edificio (botón).</summary>
     public ICommand TomarPuDelDescensoCommand { get; }
+
+    /// <summary>
+    /// Comando que elimina la <see cref="Seleccionada"/> actual.
+    /// Solo ejecutable cuando hay una columna seleccionada — se habilita/deshabilita
+    /// reactivamente desde el setter de <see cref="Seleccionada"/>.
+    /// </summary>
+    public RelayCommand EliminarCommand { get; }
 
     /// <summary>
     /// Cierra el lazo losa → bajada → columna: calcula la carga última que llega a
@@ -70,7 +78,14 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
     public Columna? Seleccionada
     {
         get => _seleccionada;
-        set { _seleccionada = value; OnPropertyChanged(); RecalcularDiseno(); }
+        set
+        {
+            _seleccionada = value;
+            OnPropertyChanged();
+            // Revaluar predicado que lee _seleccionada.
+            EliminarCommand.RaiseCanExecuteChanged();
+            RecalcularDiseno();
+        }
     }
 
     // ---- Diseño a flexo-compresión de la columna seleccionada (ACI 318-19) ----

@@ -62,7 +62,7 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         CrearLosaCommand = new RelayCommand(p => CrearLosa(p as CrearLosaArgs));
         MoverGrupoCommand = new RelayCommand(p => MoverGrupo(p as MovimientoGrupoArgs));
         CrearMuroCommand = new RelayCommand(p => CrearMuro(p as CrearMuroArgs));
-        EliminarMuroCommand = new RelayCommand(_ => EliminarMuro(), _ => _muroSeleccionado is not null);
+        _eliminarMuroCommand = new RelayCommand(_ => EliminarMuro(), _ => _muroSeleccionado is not null);
     }
 
     /// <summary>
@@ -506,6 +506,8 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
                 _muroSeleccionado.PropertyChanged += OnMuroSeleccionadoEditado;
             OnPropertyChanged();
             OnPropertyChanged(nameof(MuroSeleccionadoId));
+            // Revaluar predicado que lee _muroSeleccionado.
+            _eliminarMuroCommand.RaiseCanExecuteChanged();
         }
     }
 
@@ -558,8 +560,11 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         NotificarCambioLienzo();
     }
 
+    // Tipado como RelayCommand (no ICommand) para poder llamar RaiseCanExecuteChanged()
+    // desde el setter de MuroSeleccionado — Avalonia carece de CommandManager.RequerySuggested.
+    private readonly RelayCommand _eliminarMuroCommand;
     /// <summary>Elimina el <see cref="MuroSeleccionado"/> del sistema activo.</summary>
-    public ICommand EliminarMuroCommand { get; }
+    public RelayCommand EliminarMuroCommand => _eliminarMuroCommand;
 
     private void EliminarMuro()
     {

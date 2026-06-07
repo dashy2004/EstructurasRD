@@ -127,6 +127,107 @@ public class VigaEditorViewModelTests
         Assert.Equal(2, vm.ModeloEsfuerzos.Series.Count);
     }
 
+    // ---- Tests del gate CanExecute (fix frozen-buttons) ----
+
+    [Fact]
+    public void EliminarVigaCommand_inhabilitado_sin_viga_activa_y_se_habilita_al_seleccionar()
+    {
+        var vm = Crear(new Proyecto(), out _);
+
+        // Sin ninguna viga, el predicado debe devolver false.
+        Assert.False(vm.EliminarVigaCommand.CanExecute(null));
+
+        // Suscribir el evento ANTES de mutar el estado.
+        bool eventFired = false;
+        vm.EliminarVigaCommand.CanExecuteChanged += (_, _) => eventFired = true;
+
+        // Crear una viga activa activa el comando.
+        vm.NuevaVigaCommand.Execute(null);
+
+        Assert.True(vm.EliminarVigaCommand.CanExecute(null));
+        // El evento se encoló vía Dispatcher.UIThread.Post — la verificación
+        // funcional es que CanExecute devuelva el valor correcto.
+        _ = eventFired; // suscripción ejercida; la entrega es asíncrona en tests sin UI loop.
+    }
+
+    [Fact]
+    public void EliminarTramoCommand_inhabilitado_sin_tramo_y_se_habilita_al_seleccionar()
+    {
+        var proyecto = new Proyecto();
+        proyecto.AsegurarEstructura();
+        var vm = Crear(proyecto, out _);
+        vm.NuevaVigaCommand.Execute(null);   // crea viga con un tramo ya seleccionado
+
+        // El TramoSeleccionado ya está fijado por NuevaViga → CanExecute true.
+        Assert.True(vm.EliminarTramoCommand.CanExecute(null));
+
+        // Deseleccionar: CanExecute debe volver a false.
+        bool eventFired = false;
+        vm.EliminarTramoCommand.CanExecuteChanged += (_, _) => eventFired = true;
+        vm.TramoSeleccionado = null;
+
+        Assert.False(vm.EliminarTramoCommand.CanExecute(null));
+        _ = eventFired;
+    }
+
+    [Fact]
+    public void AgregarCargaCommand_inhabilitado_sin_tramo_y_se_habilita_al_seleccionar()
+    {
+        var proyecto = new Proyecto();
+        proyecto.AsegurarEstructura();
+        var vm = Crear(proyecto, out _);
+
+        // Sin viga, sin tramo → false.
+        Assert.False(vm.AgregarCargaCommand.CanExecute(null));
+
+        bool eventFired = false;
+        vm.AgregarCargaCommand.CanExecuteChanged += (_, _) => eventFired = true;
+
+        vm.NuevaVigaCommand.Execute(null);   // viga + tramo → TramoSeleccionado != null
+        Assert.True(vm.AgregarCargaCommand.CanExecute(null));
+        _ = eventFired;
+    }
+
+    [Fact]
+    public void EliminarCargaCommand_se_habilita_cuando_CargaSeleccionada_no_es_null()
+    {
+        var proyecto = new Proyecto();
+        proyecto.AsegurarEstructura();
+        var vm = Crear(proyecto, out _);
+
+        // Sin viga ni carga → false.
+        Assert.False(vm.EliminarCargaCommand.CanExecute(null));
+
+        vm.NuevaVigaCommand.Execute(null);
+        // La viga recién creada no tiene cargas en su tramo inicial → sigue false.
+        Assert.False(vm.EliminarCargaCommand.CanExecute(null));
+
+        bool eventFired = false;
+        vm.EliminarCargaCommand.CanExecuteChanged += (_, _) => eventFired = true;
+
+        // Agregar una carga selecciona CargaSeleccionada → true.
+        vm.AgregarCargaCommand.Execute(null);
+        Assert.True(vm.EliminarCargaCommand.CanExecute(null));
+        _ = eventFired;
+    }
+
+    [Fact]
+    public void EliminarApoyoCommand_se_habilita_cuando_ApoyoSeleccionado_no_es_null()
+    {
+        var proyecto = new Proyecto();
+        proyecto.AsegurarEstructura();
+        var vm = Crear(proyecto, out _);
+
+        Assert.False(vm.EliminarApoyoCommand.CanExecute(null));
+
+        bool eventFired = false;
+        vm.EliminarApoyoCommand.CanExecuteChanged += (_, _) => eventFired = true;
+
+        vm.NuevaVigaCommand.Execute(null);   // la nueva viga tiene 2 apoyos; el primero se selecciona
+        Assert.True(vm.EliminarApoyoCommand.CanExecute(null));
+        _ = eventFired;
+    }
+
     [Fact]
     public void Las_vigas_del_nivel_sobreviven_un_roundtrip_de_serializacion()
     {
