@@ -3,7 +3,6 @@
         xmlns:vm="clr-namespace:LosasPlus.ViewModels"
         xmlns:v="clr-namespace:LosasPlus.Views"
         xmlns:cad="clr-namespace:LosasPlus.Views.Cad"
-        xmlns:svg="clr-namespace:Avalonia.Svg.Skia;assembly=Avalonia.Svg.Skia"
         xmlns:vigas="clr-namespace:LosasPlus.Views.Vigas"
         xmlns:vws="clr-namespace:MemoriaPlus.Views;assembly=MemoriaPlus.UI.Shared"
         xmlns:cmn="clr-namespace:MemoriaPlus.Common;assembly=MemoriaPlus.UI.Shared"
@@ -113,9 +112,9 @@
 
                 <!-- Branding -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="16,0,12,4" VerticalAlignment="Center">
-                    <svg:Svg Path="avares://LosasPlus/Resources/branding/EstructurasRD.svg"
-                             Width="36" Height="36" Stretch="Uniform"
-                             VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <Image Source="avares://LosasPlus/Resources/branding/EstructurasRD.png"
+                           Width="36" Height="36" Stretch="Uniform"
+                           VerticalAlignment="Center" Margin="0,0,10,0"/>
                     <StackPanel VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="{x:Static cmn:Branding.Producto}" FontSize="16" FontWeight="SemiBold"

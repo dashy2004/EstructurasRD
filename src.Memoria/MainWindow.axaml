@@ -6,6 +6,7 @@
         x:Class="MemoriaPlus.MainWindow"
         x:CompileBindings="False"
         Title="{Binding TituloVentana}"
+        Icon="avares://MemoriaPlus.UI.Shared/Resources/branding/EstructurasRD.png"
         Height="900" Width="1440"
         MinHeight="640" MinWidth="1100"
         FontFamily="{StaticResource FontFamilyUI}"
