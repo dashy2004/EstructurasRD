@@ -14,6 +14,13 @@ namespace MemoriaPlus;
 
 public partial class MainWindow : Window
 {
+    /// <summary>
+    /// True una vez que <see cref="OnClosing"/> ya resolvió la confirmación de
+    /// cambios sin guardar y autorizó el cierre. Evita la re-entrada cuando
+    /// llamamos <see cref="Window.Close"/> programáticamente.
+    /// </summary>
+    private bool _allowClose;
+
     public MainWindow()
     {
         AvaloniaXamlLoader.Load(this);
@@ -22,6 +29,35 @@ public partial class MainWindow : Window
         AppServices.TopLevelAccessor = () => this;
         Loaded += OnLoaded;
         Closed += OnClosed;
+        Closing += OnClosing;
+    }
+
+    /// <summary>
+    /// Intercepta el cierre para no perder trabajo sin guardar (Fase A — pérdida
+    /// de datos). Si el proyecto está sucio, cancela el cierre, pregunta si
+    /// guardar / descartar y solo cierra cuando el usuario decidió.
+    /// </summary>
+    private async void OnClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (_allowClose) return;                       // ya autorizado: dejar cerrar
+        if (DataContext is not MainViewModel vm || !vm.IsDirty) return;
+
+        e.Cancel = true;                               // detener este cierre
+
+        // Sí = guardar antes de cerrar; No = descartar y cerrar. Si el guardado
+        // falla o se cancela el SaveAs, no cerramos (evita perder datos).
+        var guardar = await AppServices.MessageBox.ConfirmYesNoAsync(
+            "Cambios sin guardar",
+            "Hay cambios sin guardar.\n\n¿Querés guardarlos antes de cerrar?\n" +
+            "(Sí = guardar y cerrar · No = descartar y cerrar)");
+        if (guardar)
+        {
+            var ok = await vm.GuardarAsync();
+            if (!ok) return;                           // guardado falló/cancelado: no cerrar
+        }
+
+        _allowClose = true;
+        Close();
     }
 
     private void OnLoaded(object? sender, RoutedEventArgs e)

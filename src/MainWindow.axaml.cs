@@ -29,6 +29,13 @@ public partial class MainWindow : Window
     /// </summary>
     private readonly List<KeyBinding> _atajosConfigurables = new();
 
+    /// <summary>
+    /// True una vez que el handler <see cref="OnClosing"/> ya resolvió la
+    /// confirmación de cambios sin guardar y autorizó el cierre. Evita el bucle
+    /// de re-entrada cuando llamamos <see cref="Window.Close"/> programáticamente.
+    /// </summary>
+    private bool _allowClose;
+
     public MainWindow()
     {
         // InitializeComponent() (no AvaloniaXamlLoader.Load) porque el ctor
@@ -68,6 +75,35 @@ public partial class MainWindow : Window
 
         Loaded += OnLoaded;
         Closed += OnClosed;
+        Closing += OnClosing;
+    }
+
+    /// <summary>
+    /// Intercepta el cierre de la ventana para no perder trabajo sin guardar
+    /// (Fase A — pérdida de datos). Si el proyecto está sucio, cancela el cierre,
+    /// pregunta si guardar / descartar y solo cierra cuando el usuario decidió.
+    /// </summary>
+    private async void OnClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (_allowClose) return;                       // ya autorizado: dejar cerrar
+        if (DataContext is not MainViewModel vm || !vm.IsDirty) return;
+
+        e.Cancel = true;                               // detener este cierre
+
+        // Sí = guardar antes de cerrar; No = descartar y cerrar. Si el guardado
+        // falla o se cancela el SaveAs, no cerramos (evita perder datos).
+        var guardar = await MemoriaPlus.Services.AppServices.MessageBox.ConfirmYesNoAsync(
+            "Cambios sin guardar",
+            "Hay cambios sin guardar.\n\n¿Querés guardarlos antes de cerrar?\n" +
+            "(Sí = guardar y cerrar · No = descartar y cerrar)");
+        if (guardar)
+        {
+            var ok = await vm.GuardarAsync();
+            if (!ok) return;                           // guardado falló/cancelado: no cerrar
+        }
+
+        _allowClose = true;
+        Close();
     }
 
     /// <summary>Abre el modal de atajos. Cableado al delegado del VM (Ctrl+/).</summary>
@@ -530,9 +566,9 @@ public partial class MainWindow : Window
         return res.Count > 0 ? res[0].Path.LocalPath : null;
     }
 
-    private void OnDeleteSistema(object? sender, RoutedEventArgs e)
+    private async void OnDeleteSistema(object? sender, RoutedEventArgs e)
     {
-        if (SistemasList?.SelectedItem is Sistema s) Vm.EliminarSistema(s);
+        if (SistemasList?.SelectedItem is Sistema s) await Vm.EliminarSistema(s);
     }
 
     private void OnAddNivel(object? sender, RoutedEventArgs e)

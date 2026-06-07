@@ -48,7 +48,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         GuardarBorradorCommand    = new AsyncRelayCommand(GuardarBorrador);
         GuardarComoCommand        = new AsyncRelayCommand(GuardarComo);
         AbrirProyectoCommand      = new AsyncRelayCommand(AbrirProyecto);
-        NuevoProyectoCommand      = new RelayCommand(NuevoProyecto);
+        NuevoProyectoCommand      = new RelayCommand(() => _ = NuevoProyectoConfirmadoAsync());
         RestaurarCargasCommand    = new RelayCommand(RestaurarCargas);
         ImportarCargasXlsCommand  = new AsyncRelayCommand(ImportarCargasXls);
         ImportarTxtPerdomoCommand = new AsyncRelayCommand(ImportarTxtPerdomo, () => SistemaActivo != null);
@@ -181,6 +181,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             if (e.PropertyName != null && _propsRecalcLosa.Contains(e.PropertyName))
             {
+                // Edición en vivo de una losa: chokepoint para marcar sucio.
+                IsDirty = true;
                 CalculoEngine.RecalcularLosa(losa, sistema, proyecto);
                 Validacion?.Revalidar();
             }
@@ -244,6 +246,26 @@ public sealed class MainViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(TituloVentana));
         }
     }
+
+    private bool _isDirty;
+    /// <summary>
+    /// True cuando hay cambios sin guardar. Se marca en las mutaciones del
+    /// proyecto (agregar/eliminar losa o sistema, importar, editar losas en
+    /// vivo) y se limpia tras un Guardar/Abrir/Nuevo exitoso. Lo consume el
+    /// handler <c>Closing</c> de la ventana para evitar la pérdida silenciosa
+    /// de trabajo (Fase A — pérdida de datos).
+    /// </summary>
+    public bool IsDirty
+    {
+        get => _isDirty;
+        private set { if (_isDirty == value) return; _isDirty = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// Marca el proyecto como modificado. Método público para que las vistas y
+    /// el chokepoint de edición en vivo lo invoquen sin exponer el setter.
+    /// </summary>
+    public void MarcarSucio() => IsDirty = true;
 
     private Sistema? _sistemaActivo;
     /// <summary>
@@ -557,52 +579,71 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// Guarda el <see cref="ProyectoActivo"/> en <see cref="Proyecto.Archivo"/>
     /// si está set; si no, delega en <see cref="GuardarComo"/>.
     /// </summary>
-    private async Task GuardarBorrador()
+    private async Task GuardarBorrador() => await GuardarAsync();
+
+    /// <summary>
+    /// Guarda el proyecto activo y devuelve <c>true</c> si tuvo éxito. Si aún no
+    /// tiene archivo, delega en <see cref="GuardarComoAsync"/>. Lo consume el
+    /// handler <c>Closing</c> de la ventana (Fase A): solo cierra si guardó.
+    /// Limpia <see cref="IsDirty"/> al tener éxito.
+    /// </summary>
+    public async Task<bool> GuardarAsync()
     {
         if (string.IsNullOrEmpty(ProyectoActivo?.Archivo))
-        {
-            await GuardarComo();
-            return;
-        }
+            return await GuardarComoAsync();
         try
         {
             ProyectoSerializer.Save(ProyectoActivo, ProyectoActivo.Archivo);
             ActualizarRecents();
+            IsDirty = false;
             StatusPersistencia = $"Guardado: {Path.GetFileName(ProyectoActivo.Archivo)}";
+            return true;
         }
         catch (Exception ex)
         {
             StatusPersistencia = $"Error al guardar: {ex.Message}";
+            return false;
         }
     }
 
     /// <summary>Pregunta destino y guarda. Si el usuario cancela, no-op.</summary>
-    private async Task GuardarComo()
+    private async Task GuardarComo() => await GuardarComoAsync();
+
+    /// <summary>
+    /// Pregunta destino y guarda. Devuelve <c>true</c> si se eligió destino y el
+    /// guardado fue exitoso; <c>false</c> si canceló o falló. Limpia
+    /// <see cref="IsDirty"/> al tener éxito.
+    /// </summary>
+    public async Task<bool> GuardarComoAsync()
     {
-        if (ProyectoActivo is null) return;
+        if (ProyectoActivo is null) return false;
         var ruta = await AppServices.Dialogs.SaveFileAsync(
             "Guardar proyecto Memoria Plus", SugerirNombreProyecto(), ProyectoSerializer.Extension,
             new FileFilter("Proyecto Memoria Plus", new[] { "*.lpx.json" }),
             new FileFilter("JSON", new[] { "*.json" }));
-        if (ruta is null) return;
+        if (ruta is null) return false;
 
         try
         {
             ProyectoSerializer.Save(ProyectoActivo, ruta);
             ProyectoActivo.Archivo = ruta;
             ActualizarRecents();
+            IsDirty = false;
             StatusPersistencia = $"Guardado: {Path.GetFileName(ruta)}";
             OnPropertyChanged(nameof(TituloVentana));
+            return true;
         }
         catch (Exception ex)
         {
             StatusPersistencia = $"Error al guardar: {ex.Message}";
+            return false;
         }
     }
 
     /// <summary>Abre un file picker y carga el .lpx.json elegido.</summary>
     private async Task AbrirProyecto()
     {
+        if (!await ConfirmarDescartarSiSucioAsync()) return;
         var ruta = await AppServices.Dialogs.OpenFileAsync(
             "Abrir proyecto Memoria Plus",
             new FileFilter("Proyecto Memoria Plus", new[] { "*.lpx.json" }),
@@ -625,6 +666,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             SistemaActivo = p.Sistemas.FirstOrDefault();
             Validacion.RevalidarPara(p);
             ActualizarRecents();
+            IsDirty = false;
             StatusPersistencia = $"Cargado: {Path.GetFileName(path)}";
             OnPropertyChanged(nameof(TituloVentana));
         }
@@ -639,6 +681,27 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// con el <see cref="PerfilIngeniero"/> guardado por el usuario (si existe).
     /// Reemplaza el ProyectoActivo.
     /// </summary>
+    /// <summary>
+    /// Si hay cambios sin guardar, pide confirmación antes de descartarlos
+    /// (Fase A — pérdida de datos). Devuelve <c>true</c> si se puede continuar
+    /// con la operación destructiva (Nuevo/Abrir), <c>false</c> si el usuario
+    /// canceló. Sin cambios sucios ⇒ continúa sin preguntar.
+    /// </summary>
+    public async Task<bool> ConfirmarDescartarSiSucioAsync()
+    {
+        if (!IsDirty) return true;
+        return await AppServices.MessageBox.ConfirmYesNoAsync(
+            "Cambios sin guardar",
+            "Hay cambios sin guardar que se perderán.\n\n¿Descartar los cambios y continuar?");
+    }
+
+    /// <summary>Nuevo proyecto con guardia de cambios sin guardar (cableado al comando).</summary>
+    public async Task NuevoProyectoConfirmadoAsync()
+    {
+        if (!await ConfirmarDescartarSiSucioAsync()) return;
+        NuevoProyecto();
+    }
+
     private void NuevoProyecto()
     {
         var p = ProyectoFactory.NuevoProyectoSeedeado();
@@ -660,6 +723,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         AdjuntarRecalculoEnVivo(p);
         SistemaActivo = null;  // proyecto nuevo sin sistemas
         Validacion.RevalidarPara(p);
+        IsDirty = false;
         StatusPersistencia = "Nuevo proyecto creado.";
         OnPropertyChanged(nameof(TituloVentana));
     }
@@ -683,6 +747,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         AdjuntarRecalculoLosa(nueva, SistemaActivo, ProyectoActivo);
         CalculoEngine.RecalcularLosa(nueva, SistemaActivo, ProyectoActivo);
         Validacion.Revalidar();
+        IsDirty = true;
         StatusPersistencia = $"Losa L{siguienteId} agregada al nivel {SistemaActivo.Nombre}.";
     }
 
@@ -706,6 +771,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         };
         ProyectoActivo.Sistemas.Add(nuevo);
         SistemaActivo = nuevo;  // foco automático al nuevo nivel
+        IsDirty = true;
         StatusPersistencia = $"Nivel {nuevoNombre} agregado.";
     }
 
@@ -737,6 +803,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             ? null
             : ProyectoActivo.Sistemas[Math.Min(idx, ProyectoActivo.Sistemas.Count - 1)];
 
+        IsDirty = true;
         StatusPersistencia = $"Nivel {sistema.Nombre} eliminado.";
     }
 
@@ -751,6 +818,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
             StatusPersistencia = $"El archivo ya no existe: {Path.GetFileName(path)}";
             return;
         }
+        // Guardia de cambios sin guardar (Fase A) antes de reemplazar el activo.
+        _ = AbrirRecienteConfirmadoAsync(path);
+    }
+
+    private async Task AbrirRecienteConfirmadoAsync(string path)
+    {
+        if (!await ConfirmarDescartarSiSucioAsync()) return;
         CargarProyectoDesdeArchivo(path);
     }
 
@@ -875,6 +949,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             var importer = new CargasGlobalesXlsxImporter();
             var nuevas = importer.Importar(ruta);
             ProyectoActivo.Cargas = nuevas;
+            IsDirty = true;
             StatusImportarCargas = $"Cargas importadas desde {Path.GetFileName(ruta)}: " +
                                    $"{nuevas.PesosPropiosEntrepiso.Items.Count} pesos propios entrepiso, " +
                                    $"{nuevas.PesosPropiosTecho.Items.Count} pesos propios techo, " +
@@ -918,6 +993,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             var idsEsperados = SistemaActivo.Losas.Select(l => l.Id);
             var salida = SalidaPerdomoAdapter.FromFile(ruta, idsEsperados);
             SistemaActivo.SalidaPerdomo = salida;
+            IsDirty = true;
 
             var huerfanas = salida.LosasNoParseadas.Count;
             StatusImportarTxt = huerfanas == 0
@@ -941,6 +1017,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         if (SistemaActivo?.SalidaPerdomo is null) return;
         SistemaActivo.SalidaPerdomo = null;
+        IsDirty = true;
         StatusImportarTxt = "";
         QuitarTxtPerdomoCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(SistemaActivo));
