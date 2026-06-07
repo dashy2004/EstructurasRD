@@ -485,6 +485,68 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         Log("Redo aplicado.");
     }
 
+    /// <summary>
+    /// Copia al proyecto vivo <see cref="_proyecto"/> TODO lo que cuelga del
+    /// proyecto fuera del árbol <c>Edificios</c>: metadata básica, metadata
+    /// MemoriaPlus (CODIA, teléfonos, suelo, materiales, normas, espesor
+    /// equivalente) y la base de diseño (<see cref="Proyecto.Cargas"/> +
+    /// <see cref="Proyecto.Combinaciones"/>). Lo hace <b>in situ</b> —sin
+    /// reasignar <c>Cargas</c>/<c>Combinaciones</c>— para mantener vivas las
+    /// <see cref="System.Collections.ObjectModel.ObservableCollection{T}"/>
+    /// bindeadas por la pestaña «Cargas y Combinaciones», igual que el patrón de
+    /// Sistemas. Punto único de verdad para la carga (B4) y el undo total.
+    /// </summary>
+    private void CopiarMetadataYBaseDeCargas(Proyecto origen)
+    {
+        // --- Metadata básica de cabecera ---
+        _proyecto.Archivo       = origen.Archivo;
+        _proyecto.Nombre        = origen.Nombre;
+        _proyecto.Autor         = origen.Autor;
+        _proyecto.CodigoObra    = origen.CodigoObra;
+        _proyecto.Ubicacion     = origen.Ubicacion;
+        _proyecto.Descripcion   = origen.Descripcion;
+        _proyecto.FechaCreacion = origen.FechaCreacion;
+
+        // --- Metadata MemoriaPlus (placeholders de portada, suelo y materiales) ---
+        _proyecto.Codia                    = origen.Codia;
+        _proyecto.TelefonoFijo             = origen.TelefonoFijo;
+        _proyecto.TelefonoCelular          = origen.TelefonoCelular;
+        _proyecto.DisenadorArquitectonico  = origen.DisenadorArquitectonico;
+        _proyecto.Ciudad                   = origen.Ciudad;
+        _proyecto.MesAno                   = origen.MesAno;
+        _proyecto.UbicacionCompleta        = origen.UbicacionCompleta;
+        _proyecto.Uso                      = origen.Uso;
+        _proyecto.CantidadNiveles          = origen.CantidadNiveles;
+        _proyecto.SistemaEstructural       = origen.SistemaEstructural;
+        _proyecto.TipoFundaciones          = origen.TipoFundaciones;
+        _proyecto.EsfuerzoAdmisible        = origen.EsfuerzoAdmisible;
+        _proyecto.ProfundidadDesplante     = origen.ProfundidadDesplante;
+        _proyecto.OtrosParametros          = origen.OtrosParametros;
+        _proyecto.FcKgCm2                  = origen.FcKgCm2;
+        _proyecto.FyKgCm2                  = origen.FyKgCm2;
+        _proyecto.ToppingPorDefecto        = origen.ToppingPorDefecto;
+        _proyecto.VigaPrincipal            = origen.VigaPrincipal;
+        _proyecto.Bovedilla1D              = origen.Bovedilla1D;
+        _proyecto.Bovedilla2D              = origen.Bovedilla2D;
+
+        // Normas: colección get-only → Clear/re-add in situ.
+        _proyecto.Normas.Clear();
+        foreach (var n in origen.Normas) _proyecto.Normas.Add(n);
+
+        // --- Base de cargas (B4): copia in situ, sin reasignar la instancia. ---
+        _proyecto.Cargas.CopiarDesde(origen.Cargas);
+
+        // --- Combinaciones (Fase 2): Clear/re-add sobre las colecciones estables. ---
+        _proyecto.Combinaciones.Norma = origen.Combinaciones.Norma;
+        _proyecto.Combinaciones.Casos.Clear();
+        foreach (var c in origen.Combinaciones.Casos)
+            _proyecto.Combinaciones.Casos.Add(c);
+        _proyecto.Combinaciones.Combinaciones.Clear();
+        foreach (var c in origen.Combinaciones.Combinaciones)
+            _proyecto.Combinaciones.Combinaciones.Add(c);
+        CargasCombinaciones.NotificarRestauracion();
+    }
+
     private void RestoreSnapshot(string json)
     {
         try
@@ -493,24 +555,11 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             var restored = ProyectoSerializer.FromJson(json);
             _proyecto.Edificios.Clear();
             foreach (var e in restored.Edificios) _proyecto.Edificios.Add(e);
-            _proyecto.Archivo     = restored.Archivo;
-            _proyecto.Nombre      = restored.Nombre;
-            _proyecto.Autor       = restored.Autor;
-            _proyecto.CodigoObra  = restored.CodigoObra;
-            _proyecto.Ubicacion   = restored.Ubicacion;
-            _proyecto.Descripcion = restored.Descripcion;
 
-            // Restaurar la base de cargas (Fase 2) sin reasignar el objeto: se
-            // mantienen estables sus ObservableCollection bindeadas por la
-            // pestaña «Cargas y Combinaciones» — patrón idéntico al de Sistemas.
-            _proyecto.Combinaciones.Norma = restored.Combinaciones.Norma;
-            _proyecto.Combinaciones.Casos.Clear();
-            foreach (var c in restored.Combinaciones.Casos)
-                _proyecto.Combinaciones.Casos.Add(c);
-            _proyecto.Combinaciones.Combinaciones.Clear();
-            foreach (var c in restored.Combinaciones.Combinaciones)
-                _proyecto.Combinaciones.Combinaciones.Add(c);
-            CargasCombinaciones.NotificarRestauracion();
+            // Metadata + base de cargas/combinaciones (B4 — undo total): copia
+            // completa in situ, incluyendo Cargas y placeholders MemoriaPlus que
+            // antes el undo descartaba.
+            CopiarMetadataYBaseDeCargas(restored);
 
             // Restaurar las vigas del nivel por defecto (Fase 3) — Clear/re-add
             // sobre la ObservableCollection estable, mismo patrón que Sistemas.
@@ -1711,12 +1760,12 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             _proyecto.Edificios.Clear();
             foreach (var e in p.Edificios) _proyecto.Edificios.Add(e);
             NivelActivo = _proyecto.Edificios.FirstOrDefault()?.Niveles.FirstOrDefault();
-            _proyecto.Archivo     = p.Archivo;
-            _proyecto.Nombre      = p.Nombre;
-            _proyecto.Autor       = p.Autor;
-            _proyecto.CodigoObra  = p.CodigoObra;
-            _proyecto.Ubicacion   = p.Ubicacion;
-            _proyecto.Descripcion = p.Descripcion;
+
+            // Copia COMPLETA (B4): metadata + metadata MemoriaPlus + base de
+            // cargas/combinaciones. Antes sólo se copiaba el árbol + 5 campos de
+            // cabecera, así que las cargas/combos y los placeholders MemoriaPlus
+            // (que el serializador SÍ persiste) desaparecían al reabrir.
+            CopiarMetadataYBaseDeCargas(p);
             SistemaActivo = _proyecto.Sistemas.FirstOrDefault() ?? NuevoSistemaDemo();
             ColumnasEditor?.Recargar();
 

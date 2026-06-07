@@ -77,6 +77,48 @@ public class CargasGlobales : INotifyPropertyChanged
         return c;
     }
 
+    /// <summary>
+    /// Copia <b>in situ</b> el contenido de <paramref name="origen"/> sobre esta
+    /// instancia, conservando su identidad (no reasigna el objeto). Hace Clear/
+    /// re-add sobre las <see cref="ObservableCollection{T}"/> internas y reasigna
+    /// los escalares — mismo patrón que el resto del modelo en undo/restore, de
+    /// modo que cualquier binding apuntando a esta instancia o a sus colecciones
+    /// internas siga vivo tras la operación.
+    /// <para>
+    /// Usado por la carga de proyecto (<c>AbrirProyectoLpx</c>) y el undo
+    /// (<c>RestoreSnapshot</c>) para restaurar la base de cargas completa (B4).
+    /// </para>
+    /// </summary>
+    public void CopiarDesde(CargasGlobales origen)
+    {
+        if (origen is null) return;
+        if (ReferenceEquals(origen, this)) return;
+
+        // Tabla h ↔ qd.
+        CargaMuertaPorEspesor.Filas.Clear();
+        foreach (var f in origen.CargaMuertaPorEspesor.Filas)
+            CargaMuertaPorEspesor.Filas.Add(f);
+
+        // Pesos propios por uso.
+        PesosPropiosEntrepiso.NombreUso = origen.PesosPropiosEntrepiso.NombreUso;
+        PesosPropiosEntrepiso.Items.Clear();
+        foreach (var i in origen.PesosPropiosEntrepiso.Items) PesosPropiosEntrepiso.Items.Add(i);
+
+        PesosPropiosTecho.NombreUso = origen.PesosPropiosTecho.NombreUso;
+        PesosPropiosTecho.Items.Clear();
+        foreach (var i in origen.PesosPropiosTecho.Items) PesosPropiosTecho.Items.Add(i);
+
+        // Cargas vivas (escalares).
+        CargasVivas.Entrepiso        = origen.CargasVivas.Entrepiso;
+        CargasVivas.BalconesEscalera = origen.CargasVivas.BalconesEscalera;
+        CargasVivas.TechoPlano       = origen.CargasVivas.TechoPlano;
+
+        // Factores de combinación (escalares).
+        Factores.FactorD = origen.Factores.FactorD;
+        Factores.FactorL = origen.Factores.FactorL;
+        Factores.Norma   = origen.Factores.Norma;
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? n = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
