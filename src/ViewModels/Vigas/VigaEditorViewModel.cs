@@ -244,6 +244,37 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
     public void SnapshotAntesDeEditar() => _pushUndoSnapshot();
 
     /// <summary>
+    /// Lo invoca <c>MainViewModel</c> cuando cambia el <c>NivelActivo</c> (D1):
+    /// el editor debe mostrar las vigas del nuevo nivel y no las del anterior.
+    /// Refresca la colección <see cref="Vigas"/> (cambió el nivel detrás del
+    /// pass-through) y reengancha la viga activa al primer elemento del nuevo
+    /// nivel, lo que dispara el recálculo de diagramas. Se fuerza incluso si la
+    /// primera viga del nuevo nivel coincide por referencia (caso ambos null) para
+    /// no dejar la colección antigua visible.
+    /// </summary>
+    public void RefrescarPorCambioDeNivel()
+    {
+        OnPropertyChanged(nameof(Vigas));
+        var primera = Nivel.Vigas.FirstOrDefault();
+        if (ReferenceEquals(_vigaActiva, primera))
+        {
+            // El setter de VigaActiva haría short-circuit; re-enganchar y recalcular a mano.
+            RehookViga(primera);
+            TramoSeleccionado = primera?.Tramos.FirstOrDefault();
+            ApoyoSeleccionado = primera?.Apoyos.FirstOrDefault();
+            OnPropertyChanged(nameof(HayVigaActiva));
+            EliminarVigaCommand.RaiseCanExecuteChanged();
+            AgregarTramoCommand.RaiseCanExecuteChanged();
+            AgregarApoyoCommand.RaiseCanExecuteChanged();
+            SolicitarRecalculo();
+        }
+        else
+        {
+            VigaActiva = primera;   // recorre el setter completo (rehook + recalc)
+        }
+    }
+
+    /// <summary>
     /// Lo invoca <c>MainViewModel</c> tras un Undo/Redo: las colecciones del
     /// nivel se reemplazaron en bloque, así que se reengancha la viga, se
     /// revalida la selección y se recalcula.

@@ -714,8 +714,10 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
                     _nivelActivo.Sistemas.Add(NuevoSistemaDemo());
                 SistemaActivo = _nivelActivo.Sistemas[0];
             }
-            // Refrescar el editor de columnas con las columnas del nivel recién activado.
+            // Refrescar los editores anclados a nivel con los elementos del nivel
+            // recién activado (D1/D2): columnas y vigas del nuevo nivel.
             ColumnasEditor?.Recargar();
+            VigaEditor?.RefrescarPorCambioDeNivel();
         }
     }
 

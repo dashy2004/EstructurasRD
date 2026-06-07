@@ -121,7 +121,8 @@
                                                     Binding="{Binding Peralte, StringFormat=0.###}"/>
                                 <DataGridTextColumn Header="E (kN/m²)" Width="1.3*"
                                                     Binding="{Binding ModuloElasticidad, StringFormat=0}"/>
-                                <DataGridTextColumn Header="I (m⁴)" Width="1.2*"
+                                <!-- I es un valor derivado de Base·Peralte³/12 (D1): sólo lectura. -->
+                                <DataGridTextColumn Header="I (m⁴)" Width="1.2*" IsReadOnly="True"
                                                     Binding="{Binding Inercia, StringFormat=0.######}"/>
                             </DataGrid.Columns>
                         </DataGrid>
