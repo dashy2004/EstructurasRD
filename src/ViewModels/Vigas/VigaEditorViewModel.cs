@@ -119,6 +119,10 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(HayVigaActiva));
             TramoSeleccionado = value?.Tramos.FirstOrDefault();
             ApoyoSeleccionado = value?.Apoyos.FirstOrDefault();
+            // Revaluar predicados que leen _vigaActiva.
+            EliminarVigaCommand.RaiseCanExecuteChanged();
+            AgregarTramoCommand.RaiseCanExecuteChanged();
+            AgregarApoyoCommand.RaiseCanExecuteChanged();
             SolicitarRecalculo();
         }
     }
@@ -136,6 +140,9 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(CargasDelTramo));
             CargaSeleccionada = value?.Cargas.FirstOrDefault();
+            // Revaluar predicados que leen _tramoSeleccionado.
+            EliminarTramoCommand.RaiseCanExecuteChanged();
+            AgregarCargaCommand.RaiseCanExecuteChanged();
             ConstruirModeloSeccion();
         }
     }
@@ -144,14 +151,26 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
     public ApoyoViga? ApoyoSeleccionado
     {
         get => _apoyoSeleccionado;
-        set { _apoyoSeleccionado = value; OnPropertyChanged(); }
+        set
+        {
+            _apoyoSeleccionado = value;
+            OnPropertyChanged();
+            // Revaluar predicado que lee _apoyoSeleccionado.
+            EliminarApoyoCommand.RaiseCanExecuteChanged();
+        }
     }
 
     private CargaElemento? _cargaSeleccionada;
     public CargaElemento? CargaSeleccionada
     {
         get => _cargaSeleccionada;
-        set { _cargaSeleccionada = value; OnPropertyChanged(); }
+        set
+        {
+            _cargaSeleccionada = value;
+            OnPropertyChanged();
+            // Revaluar predicado que lee _cargaSeleccionada.
+            EliminarCargaCommand.RaiseCanExecuteChanged();
+        }
     }
 
     // ---- Selector de combinación / envolvente ----
@@ -205,16 +224,18 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
     }
 
     // ---- Comandos ----
+    // Tipados como RelayCommand (no ICommand) para poder llamar RaiseCanExecuteChanged()
+    // desde los setters de selección — Avalonia carece de CommandManager.RequerySuggested.
 
-    public ICommand NuevaVigaCommand { get; }
-    public ICommand EliminarVigaCommand { get; }
-    public ICommand AgregarTramoCommand { get; }
-    public ICommand EliminarTramoCommand { get; }
-    public ICommand AgregarApoyoCommand { get; }
-    public ICommand EliminarApoyoCommand { get; }
-    public ICommand AgregarCargaCommand { get; }
-    public ICommand EliminarCargaCommand { get; }
-    public ICommand GenerarVigasCommand { get; }
+    public RelayCommand NuevaVigaCommand { get; }
+    public RelayCommand EliminarVigaCommand { get; }
+    public RelayCommand AgregarTramoCommand { get; }
+    public RelayCommand EliminarTramoCommand { get; }
+    public RelayCommand AgregarApoyoCommand { get; }
+    public RelayCommand EliminarApoyoCommand { get; }
+    public RelayCommand AgregarCargaCommand { get; }
+    public RelayCommand EliminarCargaCommand { get; }
+    public RelayCommand GenerarVigasCommand { get; }
 
     /// <summary>
     /// Lo invoca el code-behind desde <c>DataGrid.BeginningEdit</c>: toma un

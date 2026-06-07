@@ -101,6 +101,44 @@ public class ColumnasEditorViewModelTests
         Assert.Equal(735.49875, vm.PuKN, 4);
     }
 
+    // ---- Tests del gate CanExecute (fix frozen-buttons) ----
+
+    [Fact]
+    public void EliminarCommand_inhabilitado_sin_seleccion_y_se_habilita_al_seleccionar()
+    {
+        var ed = UnNivel();
+        var vm = new ColumnasEditorViewModel(() => ed, () => ed.Niveles[0]);
+
+        // Sin columna seleccionada el predicado debe devolver false.
+        Assert.False(vm.EliminarCommand.CanExecute(null));
+
+        // Suscribir antes de mutar.
+        bool eventFired = false;
+        vm.EliminarCommand.CanExecuteChanged += (_, _) => eventFired = true;
+
+        // Agregar y seleccionar una columna → true.
+        vm.Agregar();   // Agregar() llama Seleccionada = columna internamente
+        Assert.True(vm.EliminarCommand.CanExecute(null));
+        _ = eventFired; // evento encolado vía Dispatcher.UIThread.Post en tests sin UI loop
+    }
+
+    [Fact]
+    public void EliminarCommand_vuelve_a_false_tras_limpiar_la_seleccion()
+    {
+        var ed = UnNivel();
+        var vm = new ColumnasEditorViewModel(() => ed, () => ed.Niveles[0]);
+        vm.Agregar();
+        Assert.True(vm.EliminarCommand.CanExecute(null));
+
+        bool eventFired = false;
+        vm.EliminarCommand.CanExecuteChanged += (_, _) => eventFired = true;
+
+        vm.Seleccionada = null;
+
+        Assert.False(vm.EliminarCommand.CanExecute(null));
+        _ = eventFired;
+    }
+
     [Fact]
     public void EsbeltezActual_se_calcula_para_la_columna_seleccionada()
     {

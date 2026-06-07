@@ -62,7 +62,7 @@ public sealed class CargasCombinacionesViewModel : INotifyPropertyChanged
         AgregarCombinacionCommand  = new RelayCommand(p => AgregarCombinacion(p as TipoCombinacion?));
         EliminarCombinacionCommand = new RelayCommand(p => EliminarCombinacion(p as CombinacionCarga),
                                                       p => p is CombinacionCarga);
-        AgregarTerminoCommand      = new RelayCommand(_ => AgregarTermino(), _ => _combinacionSeleccionada is not null);
+        AgregarTerminoCommand      = new RelayCommand(_ => AgregarTermino(),  _ => _combinacionSeleccionada is not null);
         EliminarTerminoCommand     = new RelayCommand(_ => EliminarTermino(), _ => _terminoSeleccionado is not null);
 
         // Vistas filtradas — una por pestaña de la matriz (Servicio / Últimas).
@@ -153,7 +153,13 @@ public sealed class CargasCombinacionesViewModel : INotifyPropertyChanged
     public CasoCarga? CasoSeleccionado
     {
         get => _casoSeleccionado;
-        set { _casoSeleccionado = value; OnPropertyChanged(); }
+        set
+        {
+            _casoSeleccionado = value;
+            OnPropertyChanged();
+            // Revaluar predicado que lee _casoSeleccionado.
+            EliminarCasoCommand.RaiseCanExecuteChanged();
+        }
     }
 
     private CombinacionCarga? _combinacionSeleccionada;
@@ -169,6 +175,8 @@ public sealed class CargasCombinacionesViewModel : INotifyPropertyChanged
         {
             _combinacionSeleccionada = value;
             OnPropertyChanged();
+            // Revaluar predicado que lee _combinacionSeleccionada.
+            AgregarTerminoCommand.RaiseCanExecuteChanged();
             TerminoSeleccionado = null;   // la selección de detalle se reinicia
         }
     }
@@ -178,17 +186,26 @@ public sealed class CargasCombinacionesViewModel : INotifyPropertyChanged
     public TerminoCombinacion? TerminoSeleccionado
     {
         get => _terminoSeleccionado;
-        set { _terminoSeleccionado = value; OnPropertyChanged(); }
+        set
+        {
+            _terminoSeleccionado = value;
+            OnPropertyChanged();
+            // Revaluar predicado que lee _terminoSeleccionado.
+            EliminarTerminoCommand.RaiseCanExecuteChanged();
+        }
     }
 
     // ---- Comandos ----
+    // Los que tienen predicados de selección se tipan como RelayCommand (no ICommand)
+    // para poder llamar RaiseCanExecuteChanged() desde los setters — Avalonia carece
+    // de CommandManager.RequerySuggested.
 
     public ICommand AgregarCasoCommand { get; }
-    public ICommand EliminarCasoCommand { get; }
+    public RelayCommand EliminarCasoCommand { get; }
     public ICommand AgregarCombinacionCommand { get; }
     public ICommand EliminarCombinacionCommand { get; }
-    public ICommand AgregarTerminoCommand { get; }
-    public ICommand EliminarTerminoCommand { get; }
+    public RelayCommand AgregarTerminoCommand { get; }
+    public RelayCommand EliminarTerminoCommand { get; }
 
     /// <summary>
     /// Lo invoca el code-behind de la vista desde <c>DataGrid.BeginningEdit</c>:

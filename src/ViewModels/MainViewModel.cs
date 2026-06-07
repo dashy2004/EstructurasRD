@@ -106,7 +106,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         {
             _proyectoRecienteSeleccionado = value;
             OnPropertyChanged();
-            (AbrirEnEditorCommand as RelayCommand)?.Execute(null);  // no-op si null
+            // Solo actualizar el estado habilitado del botón «Abrir»; NO abrir
+            // el proyecto de inmediato — eso requiere acción explícita del usuario.
+            (AbrirEnEditorCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
     }
 
@@ -413,6 +415,20 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     public bool PuedeUndo => _undoStack.Count > 0 && !_restoringSnapshot;
     public bool PuedeRedo => _redoStack.Count > 0 && !_restoringSnapshot;
 
+    private bool _isDirty;
+    /// <summary>
+    /// True cuando hay cambios sin guardar. Se marca en el chokepoint de
+    /// mutación (<see cref="PushUndoSnapshot"/>) y en las operaciones de
+    /// sistemas que no toman snapshot, y se limpia tras un Guardar/Abrir/Nuevo
+    /// exitoso. Lo consume el handler <c>Closing</c> de la ventana para evitar
+    /// la pérdida silenciosa de trabajo (Fase A — pérdida de datos).
+    /// </summary>
+    public bool IsDirty
+    {
+        get => _isDirty;
+        private set { if (_isDirty == value) return; _isDirty = value; OnPropertyChanged(); }
+    }
+
     /// <summary>
     /// Toma un snapshot del proyecto actual y lo apila como undo. Llamado
     /// ANTES de cualquier mutación significativa (agregar losa, eliminar,
@@ -422,6 +438,8 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     public void PushUndoSnapshot()
     {
         if (_restoringSnapshot) return;  // no auto-record durante restore
+        // Chokepoint de mutación: cualquier cambio undoable ensucia el proyecto.
+        IsDirty = true;
         try
         {
             var snapshot = ProyectoSerializer.ToJson(_proyecto);
@@ -448,6 +466,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         var previous = _undoStack.Pop();
         _redoStack.Push(current);
         RestoreSnapshot(previous);
+        IsDirty = true;
         OnPropertyChanged(nameof(PuedeUndo));
         OnPropertyChanged(nameof(PuedeRedo));
         Log("Undo aplicado.");
@@ -460,6 +479,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         var next = _redoStack.Pop();
         _undoStack.Push(current);
         RestoreSnapshot(next);
+        IsDirty = true;
         OnPropertyChanged(nameof(PuedeUndo));
         OnPropertyChanged(nameof(PuedeRedo));
         Log("Redo aplicado.");
@@ -506,6 +526,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             VigaEditor.NotificarRestauracion();
 
             SistemaActivo = NivelActivo?.Sistemas.FirstOrDefault() ?? NuevoSistemaDemo();
+            ColumnasEditor?.Recargar();
             OnPropertyChanged(nameof(Proyecto));
             OnPropertyChanged(nameof(TituloVentana));
             RefreshDLContent();
@@ -643,6 +664,8 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
                     _nivelActivo.Sistemas.Add(NuevoSistemaDemo());
                 SistemaActivo = _nivelActivo.Sistemas[0];
             }
+            // Refrescar el editor de columnas con las columnas del nivel recién activado.
+            ColumnasEditor?.Recargar();
         }
     }
 
@@ -798,7 +821,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             _sistemaActivo = _nivelActivo.Sistemas[0];
 
         // ---- Commands de persistencia .lpx.json (commit 32) ----
-        NuevoProyectoLpxCommand   = new RelayCommand(_ => NuevoProyectoLpx());
+        NuevoProyectoLpxCommand   = new RelayCommand(_ => _ = NuevoProyectoLpxConfirmadoAsync());
         AbrirProyectoLpxCommand   = new RelayCommand(_ => AbrirProyectoLpxDialog());
         GuardarProyectoLpxCommand = new RelayCommand(_ => GuardarProyectoLpx());
         GuardarComoLpxCommand     = new RelayCommand(_ => GuardarComoLpx());
@@ -937,6 +960,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             
             NivelActivo = niv;
             SistemaActivo = sistemas[0];
+            ColumnasEditor?.Recargar();
             DLPath = path;
             Log($"Cargado .DL: {path} ({sistemas.Count} sistema{(sistemas.Count == 1 ? "" : "s")})");
             OnPropertyChanged(nameof(LosasFiltradas));
@@ -1003,14 +1027,19 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             Fy = SistemaActivo.Fy,
             Adicionales = SistemaActivo.Adicionales,
         };
+        PushUndoSnapshot();
         _proyecto.Sistemas.Add(nuevo);
         SistemaActivo = nuevo;
         Log($"Sistema agregado: {nuevo.Nombre}");
         return nuevo;
     }
 
-    /// <summary>Elimina el sistema dado del proyecto. Si era el activo, queda activo el anterior.</summary>
-    public void EliminarSistema(Sistema s)
+    /// <summary>
+    /// Elimina el sistema dado del proyecto, previa confirmación del usuario y
+    /// tomando un snapshot de undo (Fase A — pérdida de datos: antes borraba sin
+    /// confirmar ni poder deshacer). Si era el activo, queda activo el adyacente.
+    /// </summary>
+    public async Task EliminarSistema(Sistema s)
     {
         if (_proyecto.Sistemas.Count <= 1)
         {
@@ -1019,6 +1048,15 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         }
         var idx = _proyecto.Sistemas.IndexOf(s);
         if (idx < 0) return;
+
+        var detalle = $"Se perderán sus {s.Losas.Count} losa(s)";
+        var confirmar = await MemoriaPlus.Services.AppServices.MessageBox.ConfirmYesNoAsync(
+            "Eliminar sistema",
+            $"¿Eliminar el sistema «{s.Nombre}»?\n\n{detalle}.");
+        if (!confirmar) return;
+
+        // Snapshot ANTES de mutar: el borrado queda en el historial de undo.
+        PushUndoSnapshot();
         var fueActivo = ReferenceEquals(_sistemaActivo, s);
         _proyecto.Sistemas.Remove(s);
         if (fueActivo)
@@ -1163,6 +1201,11 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             TxtPath = path;
             TxtContent = content;
 
+            // Snapshot ANTES de aplicar momentos/armaduras del .TXT: la importación
+            // muta el modelo (Fase A — pérdida de datos) y debe quedar undoable y
+            // marcar IsDirty, igual que ImportarTxtPerdomo en MemoriaPlus.
+            PushUndoSnapshot();
+
             var parsed = TxtParser.Parse(content, Sistema.Losas);
             TxtParser.Apply(parsed, Sistema.Losas);
             TxtParser.ApplyApoyos(parsed, Sistema.BordesX, Sistema.BordesY);
@@ -1193,6 +1236,10 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         try
         {
             Ocupado = true;
+            // Snapshot ANTES de aplicar los momentos/aceros calculados: el cálculo
+            // nativo muta el modelo (Fase A — pérdida de datos) y debe quedar
+            // undoable y marcar IsDirty, igual que la importación de .TXT.
+            PushUndoSnapshot();
             var salida = LosasPlus.Calculo.PieperMartens.SistemaPieperMartensCalculator
                 .Crear().CalcularYAplicar(Sistema);
             OnPropertyChanged(nameof(LosasFiltradas));
@@ -1547,6 +1594,38 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     // =====================================================================
 
     /// <summary>
+    /// Si hay cambios sin guardar, pide confirmación de 3 estados antes de
+    /// descartarlos (Fase A — pérdida de datos). Devuelve <c>true</c> si se puede
+    /// continuar con la operación destructiva (Nuevo/Abrir), <c>false</c> si el
+    /// usuario abortó. Sin cambios sucios ⇒ continúa sin preguntar.
+    /// <list type="bullet">
+    /// <item><c>Cancelar</c> (también el descarte del diálogo: Escape / X) ⇒
+    /// abortar (no descarta).</item>
+    /// <item><c>Guardar</c> ⇒ guarda primero; sólo continúa si el guardado fue
+    /// exitoso.</item>
+    /// <item><c>Descartar</c> ⇒ continúa descartando los cambios.</item>
+    /// </list>
+    /// </summary>
+    public async Task<bool> ConfirmarDescartarSiSucioAsync()
+    {
+        if (!IsDirty) return true;
+        var r = await MemoriaPlus.Services.AppServices.MessageBox.ConfirmarGuardarDescartarCancelarAsync(
+            "Cambios sin guardar",
+            "Hay cambios sin guardar.\n\n¿Querés guardar los cambios antes de continuar?");
+        if (r == MemoriaPlus.Services.ResultadoDescarte.Cancelar) return false;   // abortar
+        if (r == MemoriaPlus.Services.ResultadoDescarte.Guardar)
+            return await GuardarAsync();              // sólo continúa si guardó bien
+        return true;                                  // Descartar: continuar
+    }
+
+    /// <summary>Nuevo proyecto con guardia de cambios sin guardar (cableado al comando).</summary>
+    public async Task NuevoProyectoLpxConfirmadoAsync()
+    {
+        if (!await ConfirmarDescartarSiSucioAsync()) return;
+        NuevoProyectoLpx();
+    }
+
+    /// <summary>
     /// Crea un proyecto vacío con un sistema demo. Reemplaza el activo.
     /// El proyecto queda en memoria sin path hasta que el usuario Guarde.
     /// </summary>
@@ -1564,6 +1643,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         _proyecto.Nombre = "Proyecto sin título";
         NivelActivo = niv;
         SistemaActivo = demo;
+        IsDirty = false;
         StatusPersistencia = "Nuevo proyecto creado.";
         Log("Nuevo proyecto .lpx en memoria.");
         OnPropertyChanged(nameof(TituloVentana));
@@ -1577,6 +1657,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// </summary>
     public async void AbrirProyectoLpxDialog()
     {
+        if (!await ConfirmarDescartarSiSucioAsync()) return;
         var ruta = await MemoriaPlus.Services.AppServices.Dialogs.OpenFileAsync(
             "Abrir proyecto LosasPlus",
             new MemoriaPlus.Services.FileFilter("Proyecto LosasPlus", new[] { "*.lpx.json" }),
@@ -1613,8 +1694,10 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             _proyecto.Ubicacion   = p.Ubicacion;
             _proyecto.Descripcion = p.Descripcion;
             SistemaActivo = _proyecto.Sistemas.FirstOrDefault() ?? NuevoSistemaDemo();
+            ColumnasEditor?.Recargar();
 
             ActualizarRecents();
+            IsDirty = false;
             StatusPersistencia = $"Cargado: {Path.GetFileName(path)}";
             Log($"Proyecto .lpx cargado: {path} ({_proyecto.Sistemas.Count} sistema(s)).");
             OnPropertyChanged(nameof(TituloVentana));
@@ -1631,9 +1714,20 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// Guarda al path actual (Proyecto.Archivo); si no hay, delega en
     /// <see cref="GuardarComoLpx"/>. Bound a Ctrl+S.
     /// </summary>
-    public void GuardarProyectoLpx()
+    public void GuardarProyectoLpx() => _ = GuardarAsync();
+
+    /// <summary>Pregunta destino con SaveFileDialog y guarda. Bound a Ctrl+Shift+S.</summary>
+    public async void GuardarComoLpx() => await GuardarComoAsync();
+
+    /// <summary>
+    /// Guarda al path actual y devuelve <c>true</c> si el guardado fue exitoso.
+    /// Si el proyecto aún no tiene archivo, delega en <see cref="GuardarComoAsync"/>.
+    /// Lo consume el handler <c>Closing</c> de la ventana (Fase A): solo cierra
+    /// si el Save fue exitoso. Limpia <see cref="IsDirty"/> al tener éxito.
+    /// </summary>
+    public async Task<bool> GuardarAsync()
     {
-        if (string.IsNullOrEmpty(_proyecto.Archivo)) { GuardarComoLpx(); return; }
+        if (string.IsNullOrEmpty(_proyecto.Archivo)) return await GuardarComoAsync();
         try
         {
             // Backup ANTES del Save, sobre el archivo existente (preserva
@@ -1641,37 +1735,47 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             MaybeBackup();
             ProyectoSerializer.Save(_proyecto, _proyecto.Archivo);
             ActualizarRecents();
+            IsDirty = false;
             StatusPersistencia = $"Guardado: {Path.GetFileName(_proyecto.Archivo)}";
             Log($"Proyecto .lpx guardado en {_proyecto.Archivo}.");
+            return true;
         }
         catch (Exception ex)
         {
             StatusPersistencia = $"Error al guardar: {ex.Message}";
             Log("Error guardando .lpx: " + ex.Message);
+            return false;
         }
     }
 
-    /// <summary>Pregunta destino con SaveFileDialog y guarda. Bound a Ctrl+Shift+S.</summary>
-    public async void GuardarComoLpx()
+    /// <summary>
+    /// Pregunta destino con SaveFileDialog y guarda. Devuelve <c>true</c> si el
+    /// usuario eligió un destino y el guardado fue exitoso; <c>false</c> si
+    /// canceló o falló. Limpia <see cref="IsDirty"/> al tener éxito.
+    /// </summary>
+    public async Task<bool> GuardarComoAsync()
     {
         var ruta = await MemoriaPlus.Services.AppServices.Dialogs.SaveFileAsync(
             "Guardar proyecto LosasPlus", SugerirNombreLpx(), ProyectoSerializer.Extension,
             new MemoriaPlus.Services.FileFilter("Proyecto LosasPlus", new[] { "*.lpx.json" }),
             new MemoriaPlus.Services.FileFilter("JSON", new[] { "*.json" }));
-        if (ruta is null) return;
+        if (ruta is null) return false;
         try
         {
             ProyectoSerializer.Save(_proyecto, ruta);
             _proyecto.Archivo = ruta;
             ActualizarRecents();
+            IsDirty = false;
             StatusPersistencia = $"Guardado: {Path.GetFileName(ruta)}";
             Log($"Proyecto .lpx guardado en {ruta}.");
             OnPropertyChanged(nameof(TituloVentana));
+            return true;
         }
         catch (Exception ex)
         {
             StatusPersistencia = $"Error al guardar: {ex.Message}";
             Log("Error guardando .lpx: " + ex.Message);
+            return false;
         }
     }
 

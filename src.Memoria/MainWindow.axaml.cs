@@ -14,6 +14,13 @@ namespace MemoriaPlus;
 
 public partial class MainWindow : Window
 {
+    /// <summary>
+    /// True una vez que <see cref="OnClosing"/> ya resolvió la confirmación de
+    /// cambios sin guardar y autorizó el cierre. Evita la re-entrada cuando
+    /// llamamos <see cref="Window.Close"/> programáticamente.
+    /// </summary>
+    private bool _allowClose;
+
     public MainWindow()
     {
         AvaloniaXamlLoader.Load(this);
@@ -22,6 +29,36 @@ public partial class MainWindow : Window
         AppServices.TopLevelAccessor = () => this;
         Loaded += OnLoaded;
         Closed += OnClosed;
+        Closing += OnClosing;
+    }
+
+    /// <summary>
+    /// Intercepta el cierre para no perder trabajo sin guardar (Fase A — pérdida
+    /// de datos). Si el proyecto está sucio, cancela el cierre, pregunta si
+    /// guardar / descartar y solo cierra cuando el usuario decidió.
+    /// </summary>
+    private async void OnClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (_allowClose) return;                       // ya autorizado: dejar cerrar
+        if (DataContext is not MainViewModel vm || !vm.IsDirty) return;
+
+        e.Cancel = true;                               // detener este cierre
+
+        // 3 estados: Guardar antes de cerrar / Descartar y cerrar / Cancelar
+        // (quedarse). CRÍTICO (Fase A): descartar el diálogo (Escape / X) devuelve
+        // Cancelar = quedarse, nunca descarta el trabajo en silencio.
+        var r = await AppServices.MessageBox.ConfirmarGuardarDescartarCancelarAsync(
+            "Cambios sin guardar",
+            "¿Querés guardar los cambios antes de cerrar?");
+        if (r == ResultadoDescarte.Cancelar) return;   // quedarse abierto
+        if (r == ResultadoDescarte.Guardar)
+        {
+            var ok = await vm.GuardarAsync();
+            if (!ok) return;                           // guardado falló/cancelado: no cerrar
+        }
+
+        _allowClose = true;
+        Close();
     }
 
     private void OnLoaded(object? sender, RoutedEventArgs e)
