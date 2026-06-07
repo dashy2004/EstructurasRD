@@ -1,3 +1,4 @@
+using System;
 using LosasPlus.Models;
 using LosasPlus.Services;
 using Xunit;
@@ -58,5 +59,105 @@ public class MotorFeaCutoverTests
         Assert.True(borde.D!.Value > 0);           // canto útil calculado
         Assert.True(borde.AsReq!.Value > 0);       // acero de apoyo diseñado
         Assert.Contains("@", borde.Disponer!);     // disposición "#n @ s cm"
+    }
+
+    // ── Tests de degradación NaN (fix crítico: seccion_insuficiente → no crash) ──
+
+    /// <summary>
+    /// Cuando el motor Python emite <c>NaN</c> literal en campos numéricos
+    /// (losa con sección insuficiente), <see cref="MotorFeaService.ParsearResultado"/>
+    /// NO debe lanzar excepción y la franja debe quedar marcada como insuficiente.
+    /// </summary>
+    [Fact]
+    public void ParsearResultado_con_NaN_no_lanza_y_marca_franja_insuficiente()
+    {
+        // JSON real que emite el motor Python cuando la sección es insuficiente:
+        // los campos numéricos de diseño llegan como bare NaN y seccion_insuficiente=true.
+        const string jsonConNaN = """
+        {
+          "w_central": NaN,
+          "mx_max": NaN,
+          "my_max": NaN,
+          "m_apoyo_max": 0.0,
+          "franja_x": {
+            "as_requerido": NaN,
+            "as_minimo": NaN,
+            "as_diseno": NaN,
+            "seccion_insuficiente": true,
+            "cumple": false,
+            "disponer": "",
+            "numero_barra": 0,
+            "espaciamiento": NaN,
+            "as_provista": NaN,
+            "gobierna_minimo": false
+          },
+          "franja_y": {
+            "as_requerido": NaN,
+            "as_minimo": NaN,
+            "as_diseno": NaN,
+            "seccion_insuficiente": true,
+            "cumple": false,
+            "disponer": "",
+            "numero_barra": 0,
+            "espaciamiento": NaN,
+            "as_provista": NaN,
+            "gobierna_minimo": false
+          }
+        }
+        """;
+
+        // No debe lanzar JsonReaderException ni ninguna otra excepción.
+        var resultado = MotorFeaService.ParsearResultado(jsonConNaN);
+
+        // La franja X debe estar marcada como insuficiente.
+        Assert.True(resultado.FranjaX.SeccionInsuficiente,
+            "FranjaX.SeccionInsuficiente debe ser true cuando el motor emite NaN");
+
+        // La franja Y también.
+        Assert.True(resultado.FranjaY.SeccionInsuficiente,
+            "FranjaY.SeccionInsuficiente debe ser true cuando el motor emite NaN");
+
+        // No debe cumplir (la sección no sirve).
+        Assert.False(resultado.FranjaX.Cumple);
+        Assert.False(resultado.FranjaY.Cumple);
+
+        // Los campos numéricos deben ser NaN (no un valor basura ni 0).
+        Assert.True(double.IsNaN(resultado.WCentral),  "WCentral debe ser NaN");
+        Assert.True(double.IsNaN(resultado.MxMax),     "MxMax debe ser NaN");
+        Assert.True(double.IsNaN(resultado.FranjaX.AsRequerido), "FranjaX.AsRequerido debe ser NaN");
+
+        // El mensaje de Disponer debe indicar sección insuficiente (no cadena vacía).
+        Assert.Contains("INSUFICIENTE", resultado.FranjaX.Disponer,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifica que un JSON completamente válido (sin NaN) sigue parseándose
+    /// correctamente tras el fix — no hay regresión en el camino feliz.
+    /// </summary>
+    [Fact]
+    public void ParsearResultado_json_valido_sin_NaN_sigue_funcionando()
+    {
+        const string jsonValido = """
+        {
+          "w_central": 0.00181, "mx_max": 10494.0, "my_max": 10494.0, "m_apoyo_max": 120.0,
+          "franja_x": {"as_requerido": 300.0, "as_minimo": 360.0, "as_diseno": 360.0,
+                       "seccion_insuficiente": false, "gobierna_minimo": true,
+                       "numero_barra": 3, "espaciamiento": 190.0, "as_provista": 373.0,
+                       "cumple": true, "disponer": "#3 @ 190 mm"},
+          "franja_y": {"as_requerido": 300.0, "as_minimo": 360.0, "as_diseno": 360.0,
+                       "seccion_insuficiente": false, "gobierna_minimo": true,
+                       "numero_barra": 3, "espaciamiento": 190.0, "as_provista": 373.0,
+                       "cumple": true, "disponer": "#3 @ 190 mm"}
+        }
+        """;
+
+        var r = MotorFeaService.ParsearResultado(jsonValido);
+
+        Assert.Equal(10494.0, r.MxMax, 3);
+        Assert.Equal(360.0, r.FranjaX.AsDiseno, 3);
+        Assert.Equal("#3 @ 190 mm", r.FranjaX.Disponer);
+        Assert.True(r.FranjaX.Cumple);
+        Assert.False(r.FranjaX.SeccionInsuficiente);
     }
 }

@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using LosasPlus.Calculo;
 using LosasPlus.Models;
@@ -70,30 +72,90 @@ public static class MotorFeaService
     public static string ParametrosAJson(Dictionary<string, object> parametros)
         => JsonSerializer.Serialize(parametros, new JsonSerializerOptions { WriteIndented = false });
 
-    /// <summary>Parsea el JSON de resultados del motor a un <see cref="ResultadoMotorLosa"/>.</summary>
+    // Regex para normalizar tokens NaN/Infinity/-Infinity del motor Python a null
+    // antes de parsear. Solo reemplaza ocurrencias fuera de strings JSON (tras :,[, ).
+    private static readonly Regex _reNaN =
+        new(@"(?<=[:\[,\s])(-?Infinity|NaN)(?=[\s,\}\]])", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Normaliza tokens <c>NaN</c>/<c>Infinity</c>/<c>-Infinity</c> emitidos por el
+    /// motor Python a <c>null</c>, de modo que el parser JSON estándar los acepte.
+    /// No modifica valores dentro de cadenas de texto.
+    /// </summary>
+    internal static string NormalizarNaN(string json) => _reNaN.Replace(json, "null");
+
+    private static readonly JsonSerializerOptions _opcionesMotor = new()
+    {
+        PropertyNameCaseInsensitive = false,
+    };
+
+    /// <summary>Parsea el JSON de resultados del motor a un <see cref="ResultadoMotorLosa"/>.
+    /// Soporta tokens <c>NaN</c>/<c>Infinity</c> que el motor emite cuando una
+    /// sección es insuficiente; en ese caso la franja queda marcada con
+    /// <see cref="FranjaMotor.SeccionInsuficiente"/> = <see langword="true"/> sin
+    /// lanzar excepción.</summary>
     public static ResultadoMotorLosa ParsearResultado(string json)
     {
-        using var doc = JsonDocument.Parse(json);
-        var r = doc.RootElement;
+        // Pre-normalizar: NaN/Infinity → null para que el parser JSON estándar no falle.
+        string jsonNormalizado = NormalizarNaN(json);
+
+        var dto = JsonSerializer.Deserialize<ResultadoMotorDto>(jsonNormalizado, _opcionesMotor)
+            ?? throw new InvalidOperationException("El motor devolvió JSON vacío o nulo.");
+
         return new ResultadoMotorLosa
         {
-            WCentral = r.GetProperty("w_central").GetDouble(),
-            MxMax = r.GetProperty("mx_max").GetDouble(),
-            MyMax = r.GetProperty("my_max").GetDouble(),
-            MApoyoMax = r.TryGetProperty("m_apoyo_max", out var ma) ? ma.GetDouble() : 0.0,
-            FranjaX = LeerFranja(r.GetProperty("franja_x")),
-            FranjaY = LeerFranja(r.GetProperty("franja_y")),
-            FranjaApoyo = r.TryGetProperty("franja_apoyo", out var fa) ? LeerFranja(fa) : null,
+            WCentral  = dto.WCentral  ?? double.NaN,
+            MxMax     = dto.MxMax     ?? double.NaN,
+            MyMax     = dto.MyMax     ?? double.NaN,
+            MApoyoMax = dto.MApoyoMax ?? 0.0,
+            FranjaX   = MapearFranja(dto.FranjaX),
+            FranjaY   = MapearFranja(dto.FranjaY),
+            FranjaApoyo = dto.FranjaApoyo is not null ? MapearFranja(dto.FranjaApoyo) : null,
         };
     }
 
-    private static FranjaMotor LeerFranja(JsonElement f) => new()
+    private static FranjaMotor MapearFranja(FranjaMotorDto? f)
     {
-        AsRequerido = f.GetProperty("as_requerido").GetDouble(),
-        AsDiseno = f.GetProperty("as_diseno").GetDouble(),
-        Disponer = f.GetProperty("disponer").GetString() ?? "",
-        Cumple = f.GetProperty("cumple").GetBoolean(),
-    };
+        if (f is null) return new FranjaMotor { SeccionInsuficiente = true };
+        // Insuficiente si el motor lo declaró explícitamente O si llegaron NaN (null tras normalizar).
+        bool insuf = f.SeccionInsuficiente || f.AsRequerido is null || f.AsDiseno is null;
+        return new FranjaMotor
+        {
+            AsRequerido       = f.AsRequerido ?? double.NaN,
+            AsDiseno          = f.AsDiseno    ?? double.NaN,
+            Disponer          = insuf ? "SECCIÓN INSUFICIENTE" : (f.Disponer ?? ""),
+            Cumple            = !insuf && f.Cumple,
+            SeccionInsuficiente = insuf,
+        };
+    }
+
+    // ── DTOs internos para deserialización del JSON del motor ──────────────────
+    // Los campos numéricos son nullable para distinguir null (era NaN) de 0.
+
+    private sealed class ResultadoMotorDto
+    {
+        [JsonPropertyName("w_central")]    public double? WCentral  { get; set; }
+        [JsonPropertyName("mx_max")]       public double? MxMax     { get; set; }
+        [JsonPropertyName("my_max")]       public double? MyMax     { get; set; }
+        [JsonPropertyName("m_apoyo_max")]  public double? MApoyoMax { get; set; }
+        [JsonPropertyName("franja_x")]     public FranjaMotorDto? FranjaX   { get; set; }
+        [JsonPropertyName("franja_y")]     public FranjaMotorDto? FranjaY   { get; set; }
+        [JsonPropertyName("franja_apoyo")] public FranjaMotorDto? FranjaApoyo { get; set; }
+    }
+
+    private sealed class FranjaMotorDto
+    {
+        [JsonPropertyName("as_requerido")]        public double? AsRequerido { get; set; }
+        [JsonPropertyName("as_minimo")]           public double? AsMinimo    { get; set; }
+        [JsonPropertyName("as_diseno")]           public double? AsDiseno    { get; set; }
+        [JsonPropertyName("seccion_insuficiente")] public bool   SeccionInsuficiente { get; set; }
+        [JsonPropertyName("cumple")]              public bool    Cumple      { get; set; }
+        [JsonPropertyName("disponer")]            public string? Disponer    { get; set; }
+        [JsonPropertyName("numero_barra")]        public int     NumeroBarra { get; set; }
+        [JsonPropertyName("espaciamiento")]       public double? Espaciamiento { get; set; }
+        [JsonPropertyName("as_provista")]         public double? AsProvista  { get; set; }
+        [JsonPropertyName("gobierna_minimo")]     public bool    GobiernaMinimo { get; set; }
+    }
 
     /// <summary>
     /// Invoca el motor (<paramref name="comando"/>, p. ej. <c>motor-fea</c> o
@@ -161,6 +223,11 @@ public static class MotorFeaService
     /// <summary>
     /// Calcula los momentos de TODAS las losas del sistema con el motor (alternativa
     /// aditiva a <c>Losas.exe</c>) y los aplica. No toca el flujo <c>Losas.exe</c>.
+    /// <para>
+    /// <b>Resilencia por lote:</b> si una losa individual falla (sección insuficiente,
+    /// NaN en el resultado, o error del motor), se registra el error de diagnóstico y
+    /// el lazo continúa con las demás losas — una losa no aborta el lote completo.
+    /// </para>
     /// </summary>
     public static async Task CalcularSistemaConMotorAsync(
         Sistema sistema, string comando = "motor-fea", int nx = MallaDefault, int ny = MallaDefault)
@@ -168,7 +235,28 @@ public static class MotorFeaService
         if (sistema is null) throw new ArgumentNullException(nameof(sistema));
         foreach (var losa in sistema.Losas)
         {
-            var r = await DisenarLosaAsync(losa, sistema, comando, nx, ny);
+            ResultadoMotorLosa r;
+            try
+            {
+                r = await DisenarLosaAsync(losa, sistema, comando, nx, ny);
+            }
+            catch (Exception ex)
+            {
+                // Losa insuficiente u otro error del motor: registrar y continuar.
+                System.Diagnostics.Debug.WriteLine(
+                    $"[MotorFEA] Losa {losa.Id} omitida en el lote: {ex.Message}");
+                continue;
+            }
+
+            // Si el motor devolvió NaN (franja insuficiente) tampoco aplicamos momentos
+            // non-finitos — la losa queda sin momentos del motor para ese ciclo.
+            if (r.FranjaX.SeccionInsuficiente || r.FranjaY.SeccionInsuficiente)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[MotorFEA] Losa {losa.Id}: sección insuficiente — momentos no aplicados.");
+                continue;
+            }
+
             AplicarMomentos(losa, r);
         }
     }
@@ -242,4 +330,11 @@ public sealed class FranjaMotor
     public double AsDiseno { get; set; }
     public string Disponer { get; set; } = "";
     public bool Cumple { get; set; }
+    /// <summary>
+    /// <see langword="true"/> cuando el motor indicó que la sección es insuficiente
+    /// (espesor demasiado pequeño) o cuando los valores numéricos llegaron como
+    /// <c>NaN</c>/<c>Infinity</c>. El resto de los campos puede contener
+    /// <see cref="double.NaN"/> en ese caso — no lanzará excepción.
+    /// </summary>
+    public bool SeccionInsuficiente { get; set; }
 }
