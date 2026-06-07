@@ -73,6 +73,9 @@ class DisenoColumnaCombos:
     combo_gobernante: str
     estribo: aci318.DisenoEstriboColumna
     combo_cortante: str
+    muy: float          # N·m (combo gobernante)
+    muz: float          # N·m
+    utilizacion: float  # (Muy/φMny + Muz/φMnz) en la sección diseñada
 
 
 @dataclass(frozen=True)
@@ -151,8 +154,7 @@ def disenar_columna_combos(esf_por_caso: dict[str, EsfuerzosElemento], b: float,
     b_mm, h_mm, rec_mm = b * 1000.0, h * 1000.0, recubrimiento * 1000.0
     if h_mm - 2 * rec_mm <= 0 or b_mm - 2 * rec_mm <= 0:
         raise ValueError("Recubrimiento incompatible con la sección.")
-    biax = _demanda_biaxial_por_combo(esf_por_caso)          # {combo: (Pu, Muy, Muz, Vu)} N/N·m
-    # Estribo (cortante con axial + confinamiento) para el combo de mayor |Vu|; pu compresión+ = -axial.
+    biax = _demanda_biaxial_por_combo(esf_por_caso)
     combo_v = max(biax, key=lambda k: abs(biax[k][3]))
     estribo = aci318.disenar_estribo_columna(abs(biax[combo_v][3]), -biax[combo_v][0],
                                              b_mm, h_mm, fc, aci318._diametro_barra(num), rec_mm, fy)
@@ -167,15 +169,19 @@ def disenar_columna_combos(esf_por_caso: dict[str, EsfuerzosElemento], b: float,
         if all(pu <= pmax and aci318.factor_biaxial(pu, muy, muz, b_mm, h_mm, fc, fy, capas_y, capas_z) <= 1.0
                for pu, muy, muz in dem.values()):
             gob = _gobernante_columna_biaxial(dem, b_mm, h_mm, fc, fy, capas_y, capas_z, pmax)
+            util = aci318.factor_biaxial(dem[gob][0], dem[gob][1], dem[gob][2], b_mm, h_mm, fc, fy, capas_y, capas_z)
             return DisenoColumnaCombos(dem[gob][0], math.hypot(dem[gob][1], dem[gob][2]), num, n,
-                                       n * area / ag, estribo.cumple, f"{n}#{num}", gob, estribo, combo_v)
+                                       n * area / ag, estribo.cumple, f"{n}#{num}", gob, estribo, combo_v,
+                                       abs(biax[gob][1]), abs(biax[gob][2]), util)
         ultimo_n = n
         n += 1
     capas_y, capas_z = aci318._capas_biaxial(b_mm, h_mm, rec_mm, num, ultimo_n)
     pmax = aci318.axial_maxima_diseno(ag, ultimo_n * area, fc, fy)
     gob = _gobernante_columna_biaxial(dem, b_mm, h_mm, fc, fy, capas_y, capas_z, pmax)
+    util = aci318.factor_biaxial(dem[gob][0], dem[gob][1], dem[gob][2], b_mm, h_mm, fc, fy, capas_y, capas_z)
     return DisenoColumnaCombos(dem[gob][0], math.hypot(dem[gob][1], dem[gob][2]), num, ultimo_n,
-                               ultimo_n * area / ag, False, "SECCIÓN INSUFICIENTE", gob, estribo, combo_v)
+                               ultimo_n * area / ag, False, "SECCIÓN INSUFICIENTE", gob, estribo, combo_v,
+                               abs(biax[gob][1]), abs(biax[gob][2]), util)
 
 
 def disenar_viga_combos(esf_por_caso: dict[str, EsfuerzosElemento], b: float, h: float,

@@ -146,3 +146,14 @@ def test_columna_biaxial_no_menos_barras_que_uniaxial():
                                                    fc=28.0, fy=420.0, recubrimiento=0.05)
     assert d_bia.n_barras >= d_uni.n_barras          # biaxial nunca necesita menos acero
     assert d_bia.combo_gobernante
+
+
+def test_columna_combos_trae_biaxial():
+    m = _columna_xy([CargaNodal(2, fz=-100000.0, caso="D"), CargaNodal(2, fx=20000.0, caso="W"),
+                     CargaNodal(2, fy=15000.0, caso="W")])
+    d = diseno_elemento.disenar_columna_combos(_por_caso(esfuerzos_por_caso(m), 1), b=0.40, h=0.40,
+                                               fc=28.0, fy=420.0, recubrimiento=0.05)
+    assert d.muy > 0 and d.muz > 0           # momento en ambos ejes
+    assert d.utilizacion > 0
+    if d.cumple:
+        assert d.utilizacion <= 1.0 + 1e-9
