@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using LosasPlus.Models;
+using LosasPlus.Services;
 
 namespace LosasPlus.Validation.Rules;
 
@@ -24,14 +25,14 @@ namespace LosasPlus.Validation.Rules;
 public sealed class CargaVivaMinimaR001Rule : IValidationRule
 {
     public int ContarChequeos(Proyecto proyecto)
-        => proyecto.Sistemas.Count(s => s.Losas.Any(l => l.Ql.HasValue));
+        => ProyectoService.EnumerarSistemas(proyecto).Count(s => s.Losas.Any(l => l.Ql.HasValue));
 
     public IEnumerable<ValidationIssue> Evaluar(Proyecto proyecto)
     {
         var minimo = CargaMinimaSegunUso(proyecto.Uso);
         if (minimo <= 0) yield break;
 
-        foreach (var sistema in proyecto.Sistemas)
+        foreach (var sistema in ProyectoService.EnumerarSistemas(proyecto))
         {
             var primeraConQl = sistema.Losas.FirstOrDefault(l => l.Ql.HasValue);
             if (primeraConQl is null) continue;

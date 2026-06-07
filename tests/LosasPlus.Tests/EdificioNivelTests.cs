@@ -100,4 +100,39 @@ public class EdificioNivelTests
         Assert.Single(ed.Ejes);
         Assert.Equal("A", ed.Ejes[0].Etiqueta);
     }
+
+    // =====================================================================
+    // B3 — Uso/Cota viven en Nivel (hogar canónico), no en Sistema.
+    // =====================================================================
+
+    [Fact]
+    public void Nivel_expone_Uso_y_CotaMetros_con_defaults_y_notifica()
+    {
+        var n = new Nivel();
+
+        // Defaults aditivos: Entrepiso y cota 0.
+        Assert.Equal(SistemaUso.Entrepiso, n.Uso);
+        Assert.Equal(0.0, n.CotaMetros, 6);
+
+        var props = new List<string?>();
+        n.PropertyChanged += (_, a) => props.Add(a.PropertyName);
+
+        n.Uso        = SistemaUso.Techo;
+        n.CotaMetros = 5.60;
+
+        Assert.Equal(SistemaUso.Techo, n.Uso);
+        Assert.Equal(5.60, n.CotaMetros, 6);
+        Assert.Contains(nameof(Nivel.Uso), props);
+        Assert.Contains(nameof(Nivel.CotaMetros), props);
+    }
+
+    [Fact]
+    public void Nivel_CotaMetros_es_alias_de_Cota_una_sola_cota()
+    {
+        var n = new Nivel { CotaMetros = 2.80 };
+        Assert.Equal(2.80, n.Cota, 6);          // CotaMetros escribe la misma cota
+
+        n.Cota = 3.40;
+        Assert.Equal(3.40, n.CotaMetros, 6);    // y Cota la refleja de vuelta
+    }
 }

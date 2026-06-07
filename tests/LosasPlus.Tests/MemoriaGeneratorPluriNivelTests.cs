@@ -139,6 +139,46 @@ public class MemoriaGeneratorPluriNivelTests : IDisposable
     }
 
     [Fact]
+    public void RenderearNiveles_renderea_sistemas_de_niveles_2_y_superiores()
+    {
+        // Proyecto pluriNIVEL genuino: 2 plantas reales del edificio, cada una
+        // con su propio Sistema. El sistema del Nivel 2 vive en
+        // Edificios[0].Niveles[1] — NO en la fachada p.Sistemas — así que antes
+        // de B2c la memoria lo omitía por completo.
+        var plantilla = ConstruirPlantillaConMarkers();
+        var output = TempFile("docx");
+
+        var p = new Proyecto { Nombre = "Pluri 2 niveles" };
+        p.AsegurarEstructura();
+
+        // Nivel 1 (entrepiso) vía la fachada.
+        var n1 = new Sistema { Nombre = "N1-Entrepiso", Uso = SistemaUso.Entrepiso, CotaMetros = 0.0 };
+        n1.Losas.Add(new Losa { Id = 1, Lx = 4, Ly = 4 });
+        p.Sistemas.Add(n1);
+
+        // Nivel 2 (techo) como SEGUNDA planta real del edificio.
+        var nivel2 = new Nivel { Nombre = "Nivel 2", Uso = SistemaUso.Techo, Cota = 2.80 };
+        var n2 = new Sistema { Nombre = "N2-Techo", Uso = SistemaUso.Techo, CotaMetros = 2.80 };
+        n2.Losas.Add(new Losa { Id = 1, Lx = 4, Ly = 4 });
+        nivel2.Sistemas.Add(n2);
+        p.Edificios[0].Niveles.Add(nivel2);
+
+        var rep = new MemoriaGenerator().Generar(p, plantilla, output);
+
+        // Se renderean AMBOS niveles (uno por sistema, a través de los 2 niveles).
+        Assert.Equal(2, rep.NivelesRenderizados);
+
+        var texto = ExtraerTexto(output);
+        Assert.Contains("## Nivel: N1-Entrepiso", texto);
+        Assert.Contains("## Nivel: N2-Techo",     texto);  // Nivel 2 — antes omitido.
+
+        // El sistema del Nivel 2 conserva su uso/orden.
+        int posN1 = texto.IndexOf("## Nivel: N1-Entrepiso");
+        int posN2 = texto.IndexOf("## Nivel: N2-Techo");
+        Assert.True(posN1 < posN2);
+    }
+
+    [Fact]
     public void RenderearNiveles_inserta_los_clones_en_orden()
     {
         var plantilla = ConstruirPlantillaConMarkers();

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using LosasPlus.Models;
+using LosasPlus.Services;
 
 namespace LosasPlus.Validation.Rules;
 
@@ -15,7 +16,7 @@ public sealed class AspectoLosaRule : IValidationRule
     public int ContarChequeos(Proyecto proyecto)
     {
         var n = 0;
-        foreach (var s in proyecto.Sistemas)
+        foreach (var s in ProyectoService.EnumerarSistemas(proyecto))
         foreach (var l in s.Losas)
             if (l.Lx > 0 && l.Ly > 0) n++;
         return n;
@@ -23,7 +24,7 @@ public sealed class AspectoLosaRule : IValidationRule
 
     public IEnumerable<ValidationIssue> Evaluar(Proyecto proyecto)
     {
-        foreach (var sistema in proyecto.Sistemas)
+        foreach (var sistema in ProyectoService.EnumerarSistemas(proyecto))
         {
             foreach (var losa in sistema.Losas)
             {

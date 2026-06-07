@@ -112,6 +112,7 @@ public partial class Nivel : INotifyPropertyChanged, IModeloObservable
 {
     private string _nombre = "Nivel 1";
     private double _cota;   // m
+    private SistemaUso _uso = SistemaUso.Entrepiso;
 
     /// <summary>Nombre de la planta (p. ej. «Planta Baja», «Nivel 2», «Techo»).</summary>
     public string Nombre
@@ -125,6 +126,39 @@ public partial class Nivel : INotifyPropertyChanged, IModeloObservable
     {
         get => _cota;
         set { _cota = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// Uso de la planta (Entrepiso / Techo / Balcón / Otro) — <b>hogar canónico</b>
+    /// del uso de nivel (B3). Históricamente vivía en <see cref="Sistema.Uso"/>;
+    /// la migración v3→v4 lo copia aquí. <see cref="Sistema.Uso"/> sigue siendo el
+    /// input de cálculo por sistema, pero el uso «de planta» se lee desde aquí.
+    /// Aditivo (default <see cref="SistemaUso.Entrepiso"/>).
+    /// </summary>
+    public SistemaUso Uso
+    {
+        get => _uso;
+        set { _uso = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// Cota de la planta en metros (B3) — hogar canónico de la cota que antes
+    /// duplicaba <see cref="Sistema.CotaMetros"/>/<see cref="Sistema.Elevacion"/>.
+    /// Alias de almacenamiento con <see cref="Cota"/>: ambos comparten el valor en
+    /// metros para que los lectores nuevos (MemoriaPlus) y los previos (BajadaCargas,
+    /// IfcExporter, 3D) converjan en una sola cota. La migración v3→v4 la rellena
+    /// desde el sistema. Aditivo.
+    /// <para>
+    /// <see cref="JsonIgnoreAttribute">No se serializa</see>: comparte
+    /// almacenamiento con <see cref="Cota"/> (que sí persiste), así el JSON guarda
+    /// una sola cota y se evita el doble campo al (de)serializar.
+    /// </para>
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public double CotaMetros
+    {
+        get => _cota;
+        set { _cota = value; OnPropertyChanged(); OnPropertyChanged(nameof(Cota)); }
     }
 
     /// <summary>

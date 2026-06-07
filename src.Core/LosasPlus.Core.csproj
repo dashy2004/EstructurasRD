@@ -10,7 +10,12 @@
     <!-- CA2255: ModuleInitializer en librería es intencional para registrar cp1252
          (requerido por el parser de .DL/.TXT). Comportamiento documentado en
          EncodingInit.cs y verificado en tests. -->
-    <NoWarn>$(NoWarn);CA2255</NoWarn>
+    <!-- CS0618: la fachada Proyecto.Sistemas y los campos Sistema.CotaMetros/
+         Elevacion están marcados [Obsolete] (B3) pero se conservan FUNCIONANDO
+         durante la ventana de deprecación (back-compat + migración v3→v4). El
+         atributo sigue señalando el API en el IDE; aquí silenciamos sólo el ruido
+         de los lectores internos legítimos. -->
+    <NoWarn>$(NoWarn);CA2255;CS0618</NoWarn>
     <Authors>Emil Guillen De la Cruz</Authors>
     <Product>LosasPlus.Core</Product>
     <Description>

@@ -88,7 +88,11 @@ public sealed class MemoriaGenerator
             int totalSust = 0;
             if (main.Document.Body is { } body0)
             {
-                var (niveles, sustNivel) = RenderearNiveles(body0, proyecto.Sistemas);
+                // Recorre el árbol completo Edificios → Niveles → Sistemas vía
+                // EnumerarSistemas — no sólo la fachada legacy proyecto.Sistemas
+                // (= Niveles[0]), que omitía los sistemas de las plantas 2+ (B2c).
+                var todosLosSistemas = Services.ProyectoService.EnumerarSistemas(proyecto).ToList();
+                var (niveles, sustNivel) = RenderearNiveles(body0, todosLosSistemas);
                 reporte.NivelesRenderizados = niveles;
                 totalSust += sustNivel;
             }

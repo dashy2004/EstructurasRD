@@ -433,6 +433,41 @@ public class CalculoEngineTests
         Assert.Equal(0.10, t.Losas[0].Ql);
     }
 
+    [Fact]
+    public void RecalcularProyecto_recalcula_sistemas_de_niveles_2_y_superiores()
+    {
+        // Proyecto pluriNIVEL genuino: 2 plantas, cada una con su propio Sistema.
+        // Nivel 1 = Edificios[0].Niveles[0] (= la fachada p.Sistemas).
+        // Nivel 2 = Edificios[0].Niveles[1] (NO alcanzable por p.Sistemas).
+        var p = ProyectoFactory.NuevoProyectoSeedeado();
+        p.Nombre  = "Pluri 2 niveles";
+        p.FyKgCm2 = 4200;
+        p.AsegurarEstructura();
+
+        // Nivel 1 (entrepiso) vía la fachada.
+        var n1 = new Sistema { Nombre = "N1-E1", Uso = SistemaUso.Entrepiso };
+        n1.Losas.Add(new Losa { Id = 1, Lx = 4, Ly = 4 });
+        p.Sistemas.Add(n1);
+
+        // Nivel 2 (techo) como SEGUNDA planta real del edificio.
+        var nivel2 = new Nivel { Nombre = "Nivel 2", Uso = SistemaUso.Techo, Cota = 2.80 };
+        var n2 = new Sistema { Nombre = "N2-Techo", Uso = SistemaUso.Techo };
+        n2.Losas.Add(new Losa { Id = 1, Lx = 4, Ly = 4 });
+        nivel2.Sistemas.Add(n2);
+        p.Edificios[0].Niveles.Add(nivel2);
+
+        CalculoEngine.RecalcularProyecto(p);
+
+        // Nivel 1 recalculado (entrepiso → ql = 0.20).
+        Assert.NotNull(n1.Losas[0].Qu);
+        Assert.Equal(0.20, n1.Losas[0].Ql);
+
+        // Nivel 2 recalculado (techo → ql = 0.10). Antes de B2c quedaba en null
+        // porque RecalcularProyecto solo recorría p.Sistemas (= Nivel 1).
+        Assert.NotNull(n2.Losas[0].Qu);
+        Assert.Equal(0.10, n2.Losas[0].Ql);
+    }
+
     // =================================================================
     // ESPESOR EQUIVALENTE — αfm (ACI 9.5.3.3)
     // Ref: ESPESOR EQUIVALENTE.xlsx, columnas T..AA

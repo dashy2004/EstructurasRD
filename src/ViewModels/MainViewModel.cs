@@ -485,6 +485,68 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         Log("Redo aplicado.");
     }
 
+    /// <summary>
+    /// Copia al proyecto vivo <see cref="_proyecto"/> TODO lo que cuelga del
+    /// proyecto fuera del árbol <c>Edificios</c>: metadata básica, metadata
+    /// MemoriaPlus (CODIA, teléfonos, suelo, materiales, normas, espesor
+    /// equivalente) y la base de diseño (<see cref="Proyecto.Cargas"/> +
+    /// <see cref="Proyecto.Combinaciones"/>). Lo hace <b>in situ</b> —sin
+    /// reasignar <c>Cargas</c>/<c>Combinaciones</c>— para mantener vivas las
+    /// <see cref="System.Collections.ObjectModel.ObservableCollection{T}"/>
+    /// bindeadas por la pestaña «Cargas y Combinaciones», igual que el patrón de
+    /// Sistemas. Punto único de verdad para la carga (B4) y el undo total.
+    /// </summary>
+    private void CopiarMetadataYBaseDeCargas(Proyecto origen)
+    {
+        // --- Metadata básica de cabecera ---
+        _proyecto.Archivo       = origen.Archivo;
+        _proyecto.Nombre        = origen.Nombre;
+        _proyecto.Autor         = origen.Autor;
+        _proyecto.CodigoObra    = origen.CodigoObra;
+        _proyecto.Ubicacion     = origen.Ubicacion;
+        _proyecto.Descripcion   = origen.Descripcion;
+        _proyecto.FechaCreacion = origen.FechaCreacion;
+
+        // --- Metadata MemoriaPlus (placeholders de portada, suelo y materiales) ---
+        _proyecto.Codia                    = origen.Codia;
+        _proyecto.TelefonoFijo             = origen.TelefonoFijo;
+        _proyecto.TelefonoCelular          = origen.TelefonoCelular;
+        _proyecto.DisenadorArquitectonico  = origen.DisenadorArquitectonico;
+        _proyecto.Ciudad                   = origen.Ciudad;
+        _proyecto.MesAno                   = origen.MesAno;
+        _proyecto.UbicacionCompleta        = origen.UbicacionCompleta;
+        _proyecto.Uso                      = origen.Uso;
+        _proyecto.CantidadNiveles          = origen.CantidadNiveles;
+        _proyecto.SistemaEstructural       = origen.SistemaEstructural;
+        _proyecto.TipoFundaciones          = origen.TipoFundaciones;
+        _proyecto.EsfuerzoAdmisible        = origen.EsfuerzoAdmisible;
+        _proyecto.ProfundidadDesplante     = origen.ProfundidadDesplante;
+        _proyecto.OtrosParametros          = origen.OtrosParametros;
+        _proyecto.FcKgCm2                  = origen.FcKgCm2;
+        _proyecto.FyKgCm2                  = origen.FyKgCm2;
+        _proyecto.ToppingPorDefecto        = origen.ToppingPorDefecto;
+        _proyecto.VigaPrincipal            = origen.VigaPrincipal;
+        _proyecto.Bovedilla1D              = origen.Bovedilla1D;
+        _proyecto.Bovedilla2D              = origen.Bovedilla2D;
+
+        // Normas: colección get-only → Clear/re-add in situ.
+        _proyecto.Normas.Clear();
+        foreach (var n in origen.Normas) _proyecto.Normas.Add(n);
+
+        // --- Base de cargas (B4): copia in situ, sin reasignar la instancia. ---
+        _proyecto.Cargas.CopiarDesde(origen.Cargas);
+
+        // --- Combinaciones (Fase 2): Clear/re-add sobre las colecciones estables. ---
+        _proyecto.Combinaciones.Norma = origen.Combinaciones.Norma;
+        _proyecto.Combinaciones.Casos.Clear();
+        foreach (var c in origen.Combinaciones.Casos)
+            _proyecto.Combinaciones.Casos.Add(c);
+        _proyecto.Combinaciones.Combinaciones.Clear();
+        foreach (var c in origen.Combinaciones.Combinaciones)
+            _proyecto.Combinaciones.Combinaciones.Add(c);
+        CargasCombinaciones.NotificarRestauracion();
+    }
+
     private void RestoreSnapshot(string json)
     {
         try
@@ -493,24 +555,11 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             var restored = ProyectoSerializer.FromJson(json);
             _proyecto.Edificios.Clear();
             foreach (var e in restored.Edificios) _proyecto.Edificios.Add(e);
-            _proyecto.Archivo     = restored.Archivo;
-            _proyecto.Nombre      = restored.Nombre;
-            _proyecto.Autor       = restored.Autor;
-            _proyecto.CodigoObra  = restored.CodigoObra;
-            _proyecto.Ubicacion   = restored.Ubicacion;
-            _proyecto.Descripcion = restored.Descripcion;
 
-            // Restaurar la base de cargas (Fase 2) sin reasignar el objeto: se
-            // mantienen estables sus ObservableCollection bindeadas por la
-            // pestaña «Cargas y Combinaciones» — patrón idéntico al de Sistemas.
-            _proyecto.Combinaciones.Norma = restored.Combinaciones.Norma;
-            _proyecto.Combinaciones.Casos.Clear();
-            foreach (var c in restored.Combinaciones.Casos)
-                _proyecto.Combinaciones.Casos.Add(c);
-            _proyecto.Combinaciones.Combinaciones.Clear();
-            foreach (var c in restored.Combinaciones.Combinaciones)
-                _proyecto.Combinaciones.Combinaciones.Add(c);
-            CargasCombinaciones.NotificarRestauracion();
+            // Metadata + base de cargas/combinaciones (B4 — undo total): copia
+            // completa in situ, incluyendo Cargas y placeholders MemoriaPlus que
+            // antes el undo descartaba.
+            CopiarMetadataYBaseDeCargas(restored);
 
             // Restaurar las vigas del nivel por defecto (Fase 3) — Clear/re-add
             // sobre la ObservableCollection estable, mismo patrón que Sistemas.
@@ -725,19 +774,27 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// </summary>
     public Edificio? EdificioActivo => _proyecto.Edificios.FirstOrDefault();
 
-    /// <summary>Alias retro-compatible: el resto del código y los XAML siguen accediendo a "Sistema".</summary>
+    /// <summary>
+    /// Alias retro-compatible: el resto del código y los XAML siguen accediendo a
+    /// "Sistema" (sólo lo LEEN — p. ej. <c>{Binding Sistema.Nombre}</c>).
+    /// </summary>
+    /// <remarks>
+    /// B1: el setter antes hacía <c>Clear()+Add()</c> sobre <see cref="NivelActivo"/>.Sistemas,
+    /// colapsando la colección del nivel a un único sistema (pérdida de datos). Ahora
+    /// se limita a la semántica de <see cref="SistemaActivo"/>: cambia el sistema activo
+    /// y, si la referencia no está en el nivel, la añade de forma <b>no destructiva</b>
+    /// (sin borrar los sistemas existentes del nivel).
+    /// </remarks>
     public Sistema Sistema
     {
         get => _sistemaActivo;
         set
         {
             SistemaActivo = value;
-            // Si cambió la referencia, asegurar que esté en el nivel activo.
-            if (NivelActivo != null && !NivelActivo.Sistemas.Contains(value))
-            {
-                NivelActivo.Sistemas.Clear();
+            // Si la referencia no está en el nivel activo, la añadimos SIN borrar
+            // los sistemas ya existentes (el viejo Clear()+Add() era destructivo).
+            if (NivelActivo != null && value != null && !NivelActivo.Sistemas.Contains(value))
                 NivelActivo.Sistemas.Add(value);
-            }
         }
     }
 
@@ -890,9 +947,19 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         };
 
         // ---- Validación normativa (commit 33) ----
-        // Primera validación + re-validación en cada cambio del modelo.
+        // Primera validación + re-validación en cada cambio del modelo. La
+        // suscripción cubre TODOS los niveles (B2b): el CollectionChanged de la
+        // colección Sistemas de cada nivel se engancha dentro del helper, no sólo
+        // el de la fachada Niveles[0].
         Validacion.RevalidarPara(_proyecto);
-        _proyecto.Sistemas.CollectionChanged += (_, _) => Validacion.Revalidar();
+        // Re-suscribir cuando se reconstruye el árbol de edificios (Clear/Add en
+        // carga/undo): los nuevos Edificios/Niveles/Sistemas quedan enganchados.
+        _proyecto.Edificios.CollectionChanged += (_, _) =>
+        {
+            Validacion.Revalidar();
+            Busqueda?.Refrescar();
+            SuscribirRevalidacionEnSistemas();
+        };
         SuscribirRevalidacionEnSistemas();
 
         // Cargar lista de proyectos recientes al arrancar.
@@ -938,6 +1005,14 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
 
     public void RefreshDLContent()
     {
+        // B2b — DECISIÓN: el formato .DL byte-compatible con Losas.exe NO tiene
+        // concepto de nivel ni transporta Uso/Cota; es histórico per-conjunto-
+        // activo (Niveles[0]). Enrutar el .DL a EnumerarSistemas mezclaría en un
+        // solo archivo sistemas de niveles distintos sin discriminador, lo cual
+        // es semánticamente incorrecto. Por diseño el .DL queda en el conjunto
+        // activo (la fachada _proyecto.Sistemas); validación y búsqueda SÍ son
+        // multinivel. El guardado multinivel completo vive en ProyectoService
+        // (manifest .lpx.json + un .DL por sistema de cada nivel).
         try { DLContent = DLFileService.WriteAll(_proyecto.Sistemas); }
         catch (Exception ex) { Log("Error al serializar .DL: " + ex.Message); }
     }
@@ -1016,10 +1091,22 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         catch (Exception ex) { Log("Error guardando proyecto: " + ex.Message); }
     }
 
-    /// <summary>Agrega un sistema vacío al proyecto y lo deja activo.</summary>
+    /// <summary>Agrega un sistema vacío al <b>nivel activo</b> y lo deja activo.</summary>
+    /// <remarks>
+    /// B1 (split-brain de niveles): muta <see cref="NivelActivo"/>.Sistemas — la
+    /// colección que LEE la UI — y NO la fachada <c>Proyecto.Sistemas</c> (que
+    /// siempre apunta a <c>Niveles[0]</c>). Estando parado en el Nivel 2, el sistema
+    /// se crea en el Nivel 2.
+    /// </remarks>
     public Sistema AgregarSistema(string? nombre = null)
     {
-        var n = _proyecto.Sistemas.Count + 1;
+        var nivel = NivelActivo;
+        if (nivel is null)
+        {
+            Log("No se puede agregar sistema: no hay nivel activo.");
+            return SistemaActivo;
+        }
+        var n = nivel.Sistemas.Count + 1;
         var nuevo = new Sistema
         {
             Nombre = nombre ?? $"Sistema No {n}",
@@ -1028,7 +1115,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             Adicionales = SistemaActivo.Adicionales,
         };
         PushUndoSnapshot();
-        _proyecto.Sistemas.Add(nuevo);
+        nivel.Sistemas.Add(nuevo);
         SistemaActivo = nuevo;
         Log($"Sistema agregado: {nuevo.Nombre}");
         return nuevo;
@@ -1041,12 +1128,16 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// </summary>
     public async Task EliminarSistema(Sistema s)
     {
-        if (_proyecto.Sistemas.Count <= 1)
+        // B1 (split-brain de niveles): opera sobre el NIVEL ACTIVO (la colección que
+        // LEE la UI), no sobre la fachada Proyecto.Sistemas (= Niveles[0]).
+        var nivel = NivelActivo;
+        if (nivel is null) return;
+        if (nivel.Sistemas.Count <= 1)
         {
-            Log("No se puede eliminar: el proyecto debe tener al menos un sistema.");
+            Log("No se puede eliminar: el nivel debe tener al menos un sistema.");
             return;
         }
-        var idx = _proyecto.Sistemas.IndexOf(s);
+        var idx = nivel.Sistemas.IndexOf(s);
         if (idx < 0) return;
 
         var detalle = $"Se perderán sus {s.Losas.Count} losa(s)";
@@ -1058,9 +1149,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         // Snapshot ANTES de mutar: el borrado queda en el historial de undo.
         PushUndoSnapshot();
         var fueActivo = ReferenceEquals(_sistemaActivo, s);
-        _proyecto.Sistemas.Remove(s);
+        nivel.Sistemas.Remove(s);
         if (fueActivo)
-            SistemaActivo = _proyecto.Sistemas[Math.Min(idx, _proyecto.Sistemas.Count - 1)];
+            SistemaActivo = nivel.Sistemas[Math.Min(idx, nivel.Sistemas.Count - 1)];
         Log($"Sistema eliminado: {s.Nombre}");
     }
 
@@ -1071,7 +1162,11 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             await Plugins.LoadAllAsync(Log);
             await Plugins.RunHookAsync("pre-dl", BuildPluginContext(), Log);
 
-            // Guarda TODOS los sistemas del proyecto (uno o varios)
+            // B2b — DECISIÓN: el .DL queda en el conjunto activo (Niveles[0]) por
+            // diseño. El formato byte-compatible con Losas.exe no tiene niveles ni
+            // Uso/Cota; para persistir TODO el proyecto multinivel se usa
+            // ProyectoService (manifest + un .DL por sistema de cada nivel). Guarda
+            // TODOS los sistemas del conjunto activo (uno o varios).
             DLFileService.SaveAll(_proyecto.Sistemas, path);
             DLPath = path;
             _proyecto.Archivo = path;
@@ -1687,12 +1782,12 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             _proyecto.Edificios.Clear();
             foreach (var e in p.Edificios) _proyecto.Edificios.Add(e);
             NivelActivo = _proyecto.Edificios.FirstOrDefault()?.Niveles.FirstOrDefault();
-            _proyecto.Archivo     = p.Archivo;
-            _proyecto.Nombre      = p.Nombre;
-            _proyecto.Autor       = p.Autor;
-            _proyecto.CodigoObra  = p.CodigoObra;
-            _proyecto.Ubicacion   = p.Ubicacion;
-            _proyecto.Descripcion = p.Descripcion;
+
+            // Copia COMPLETA (B4): metadata + metadata MemoriaPlus + base de
+            // cargas/combinaciones. Antes sólo se copiaba el árbol + 5 campos de
+            // cabecera, así que las cargas/combos y los placeholders MemoriaPlus
+            // (que el serializador SÍ persiste) desaparecían al reabrir.
+            CopiarMetadataYBaseDeCargas(p);
             SistemaActivo = _proyecto.Sistemas.FirstOrDefault() ?? NuevoSistemaDemo();
             ColumnasEditor?.Recargar();
 
@@ -1813,9 +1908,36 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// lista de sistemas. Asegura que el chip / panel de validación refleje
     /// los cambios live mientras el usuario edita.
     /// </summary>
+    /// <summary>
+    /// Suscribe la re-validación a los cambios de TODOS los niveles (B2b), no
+    /// sólo de la fachada <c>Niveles[0]</c>. Para cada nivel engancha el
+    /// <c>CollectionChanged</c> de su colección <c>Sistemas</c> (alta/baja de
+    /// sistemas en ese nivel) y, para cada sistema, el de sus <c>Losas</c> + el
+    /// <c>PropertyChanged</c> de cada losa. Idempotente: desengancha antes de
+    /// enganchar, así que puede re-llamarse tras una carga/undo sin duplicar.
+    /// </summary>
     private void SuscribirRevalidacionEnSistemas()
     {
-        foreach (var s in _proyecto.Sistemas)
+        // Cada edificio: enganchar el CollectionChanged de su colección Niveles
+        // para re-suscribir cuando se agrega/quita un nivel (AgregarNivel, carga).
+        foreach (var ed in _proyecto.Edificios)
+        {
+            ed.Niveles.CollectionChanged -= OnNivelesDeEdificioChanged;
+            ed.Niveles.CollectionChanged += OnNivelesDeEdificioChanged;
+        }
+
+        // Cada nivel de cada edificio: enganchar el CollectionChanged de su
+        // colección de Sistemas (no sólo Niveles[0]).
+        foreach (var ed in _proyecto.Edificios)
+            foreach (var nivel in ed.Niveles)
+            {
+                nivel.Sistemas.CollectionChanged -= OnSistemasDeNivelChanged;
+                nivel.Sistemas.CollectionChanged += OnSistemasDeNivelChanged;
+            }
+
+        // Cada sistema de CADA nivel: enganchar sus losas (EnumerarSistemas
+        // recorre Edificios → Niveles → Sistemas).
+        foreach (var s in ProyectoService.EnumerarSistemas(_proyecto))
         {
             s.Losas.CollectionChanged -= OnLosasOfSistemaChanged;
             s.Losas.CollectionChanged += OnLosasOfSistemaChanged;
@@ -1825,6 +1947,29 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
                 l.PropertyChanged += OnLosaPropChangedForRevalidacion;
             }
         }
+    }
+
+    /// <summary>
+    /// Alta/baja de un NIVEL en cualquier edificio (AgregarNivel/EliminarNivel,
+    /// carga): re-valida, refresca la búsqueda y re-suscribe para enganchar los
+    /// sistemas y losas del nivel recién agregado.
+    /// </summary>
+    private void OnNivelesDeEdificioChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        Validacion.Revalidar();
+        Busqueda?.Refrescar();
+        SuscribirRevalidacionEnSistemas();
+    }
+
+    /// <summary>
+    /// Alta/baja de sistemas en CUALQUIER nivel: re-valida, refresca la búsqueda
+    /// y re-suscribe (para enganchar las losas del sistema recién agregado).
+    /// </summary>
+    private void OnSistemasDeNivelChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        Validacion.Revalidar();
+        Busqueda?.Refrescar();
+        SuscribirRevalidacionEnSistemas();
     }
 
     private void OnLosasOfSistemaChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)

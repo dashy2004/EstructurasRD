@@ -17,6 +17,8 @@
     </Description>
     <Copyright>(c) 2026 Emil Guillen De la Cruz. Memoria Plus.</Copyright>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!-- CS0618: API legacy [Obsolete] (B3) conservada funcionando; ver src.Core. -->
+    <NoWarn>$(NoWarn);CS0618</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

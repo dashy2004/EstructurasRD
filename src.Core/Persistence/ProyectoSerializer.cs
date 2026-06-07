@@ -33,10 +33,13 @@ public static class ProyectoSerializer
     /// <summary>
     /// Versión actual del formato de archivo. Incrementar con cada cambio breaking.
     /// v1 → v2: jerarquía <c>Edificio → Nivel</c> entre <c>Proyecto</c> y
-    /// <c>Sistema</c>. v2 → v3: casos y combinaciones de carga. Los archivos
-    /// anteriores se migran automáticamente al cargar.
+    /// <c>Sistema</c>. v2 → v3: casos y combinaciones de carga. v3 → v4:
+    /// <c>Uso</c>/<c>Cota</c>/<c>Elevación</c> pasan a ser propiedades de la planta
+    /// (<c>Nivel</c>); la migración copia los valores del primer sistema de cada
+    /// nivel al propio nivel (B3). Los archivos anteriores se migran
+    /// automáticamente al cargar.
     /// </summary>
-    public const int FormatVersion = 3;
+    public const int FormatVersion = 4;
 
     /// <summary>Extensión canónica de archivos de proyecto Memoria Plus.</summary>
     public const string Extension = ".lpx.json";
@@ -111,6 +114,12 @@ public static class ProyectoSerializer
         if (version == 1)
             MigrarV1aV2(root);
 
+        // v3 (o anterior, ya elevado a la jerarquía Edificio→Nivel) → v4: la
+        // cota/elevación y el uso pasan a ser propiedades del Nivel. Se ejecuta
+        // sobre el JSON crudo, antes de materializar el modelo.
+        if (version < 4)
+            MigrarV3aV4(root);
+
         var envelope = root.Deserialize<ProyectoEnvelope>(_opts);
         if (envelope is null)
             throw new InvalidProyectoFileException("El archivo está vacío o malformado.");
@@ -156,6 +165,53 @@ public static class ProyectoSerializer
         };
         proyecto["edificios"] = new JsonArray(edificio);
     }
+
+    /// <summary>
+    /// Migra el JSON v3 → v4 <b>in situ</b> (B3): <c>Uso</c>/<c>CotaMetros</c>/
+    /// <c>Elevación</c> dejan de ser propiedades del <c>Sistema</c> y pasan a la
+    /// <c>Nivel</c>. Para cada nivel, si aún no trae estos campos, los copia desde
+    /// su primer sistema (donde MemoriaPlus los almacenaba históricamente). Los
+    /// campos del sistema se conservan en el JSON: las propiedades
+    /// <see cref="Sistema.CotaMetros"/>/<see cref="Sistema.Elevacion"/> siguen
+    /// existiendo (obsoletas) para no romper lectores previos.
+    /// </summary>
+    private static void MigrarV3aV4(JsonObject root)
+    {
+        root["version"] = 4;
+
+        if (root["proyecto"] is not JsonObject proyecto) return;
+        if (proyecto["edificios"] is not JsonArray edificios) return;
+
+        foreach (var edNode in edificios)
+        {
+            if (edNode is not JsonObject ed) continue;
+            if (ed["niveles"] is not JsonArray niveles) continue;
+
+            foreach (var nivNode in niveles)
+            {
+                if (nivNode is not JsonObject nivel) continue;
+                if (nivel["sistemas"] is not JsonArray sistemas || sistemas.Count == 0) continue;
+                if (sistemas[0] is not JsonObject primerSistema) continue;
+
+                // Cota: copiar la cota/elevación del primer sistema al nivel, sólo
+                // si el nivel no la trae ya (o la trae en 0, valor por defecto).
+                if (!TieneNumeroNoCero(nivel, "cota") && !TieneNumeroNoCero(nivel, "cotaMetros"))
+                {
+                    JsonNode? cota = primerSistema["cotaMetros"]?.DeepClone()
+                                     ?? primerSistema["elevacion"]?.DeepClone();
+                    if (cota is not null) nivel["cota"] = cota;
+                }
+
+                // Uso: copiar el uso del primer sistema al nivel si el nivel no lo trae.
+                if (nivel["uso"] is null && primerSistema["uso"] is JsonNode uso)
+                    nivel["uso"] = uso.DeepClone();
+            }
+        }
+    }
+
+    /// <summary>True si <paramref name="obj"/>[<paramref name="key"/>] es un número distinto de 0.</summary>
+    private static bool TieneNumeroNoCero(JsonObject obj, string key)
+        => obj[key] is JsonValue jv && jv.TryGetValue<double>(out var d) && d != 0.0;
 
     /// <summary>
     /// Guarda <paramref name="proyecto"/> como JSON en <paramref name="path"/>.
@@ -246,9 +302,11 @@ public static class ProyectoSerializer
                     ? v.GetString() ?? ""
                     : "";
 
-            // Conteo version-aware: v2 anida sistemas bajo edificios[].niveles[];
-            // v1 los lista planos en proyecto.sistemas.
-            int CountSistemas()
+            // Conteo de NIVELES (plantas) a través de todos los edificios, no de
+            // sistemas (B3). v2+ anida niveles bajo edificios[].niveles[]; un
+            // archivo v1 plano (proyecto.sistemas) representa una única planta
+            // implícita → cuenta como 1.
+            int CountNiveles()
             {
                 if (proyectoEl.ValueKind != JsonValueKind.Object) return 0;
 
@@ -261,22 +319,15 @@ public static class ProyectoSerializer
                         if (ed.ValueKind == JsonValueKind.Object
                             && ed.TryGetProperty("niveles", out var nivs)
                             && nivs.ValueKind == JsonValueKind.Array)
-                        {
-                            foreach (var niv in nivs.EnumerateArray())
-                            {
-                                if (niv.ValueKind == JsonValueKind.Object
-                                    && niv.TryGetProperty("sistemas", out var sis)
-                                    && sis.ValueKind == JsonValueKind.Array)
-                                    total += sis.GetArrayLength();
-                            }
-                        }
+                            total += nivs.GetArrayLength();
                     }
                     return total;
                 }
 
+                // v1 plano: los sistemas cuelgan directo del proyecto = 1 planta.
                 if (proyectoEl.TryGetProperty("sistemas", out var s)
                     && s.ValueKind == JsonValueKind.Array)
-                    return s.GetArrayLength();
+                    return s.GetArrayLength() > 0 ? 1 : 0;
 
                 return 0;
             }
@@ -291,7 +342,7 @@ public static class ProyectoSerializer
                 NombreProyecto = GetProyecto("nombre"),
                 Ingeniero      = GetProyecto("autor"),
                 Codia          = GetProyecto("codia"),
-                CantidadNiveles = CountSistemas(),
+                CantidadNiveles = CountNiveles(),
             };
         }
         catch (JsonException ex)
