@@ -61,11 +61,131 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
                 SincronizadorPlanta.SincronizarEdificio(EdificioActivo);
             OnPropertyChanged();
             OnPropertyChanged(nameof(EsModoEditor));
+            OnPropertyChanged(nameof(CurrentView));
         }
     }
 
     /// <summary>Conveniencia para DataTriggers que muestran el top bar de acciones solo en Editor.</summary>
     public bool EsModoEditor => _modoActivo == ModoSidebar.Editor;
+
+    // ---- Router de contenido (Fase D, sub-paso 2) ----------------------
+    //
+    // CurrentView reemplaza ~12 de los ~19 bloques IsVisible del MainWindow
+    // por un único ContentControl bindeado a esta propiedad. Es el patrón del
+    // blueprint MemoriaPlus (src.Memoria/MainWindow.axaml): una propiedad
+    // notificada que devuelve la sub-vista (UserControl) del modo activo,
+    // cacheada por modo, que el ContentControl hostea.
+    //
+    // ALCANCE (scope guard de Fase D): sólo se enrutan los modos respaldados
+    // por un UserControl autónomo y SIN dependencias de x:Name en el
+    // code-behind. Los modos cuyo XAML está inline en MainWindow o cuyos
+    // controles nombrados usa el code-behind (Editor → LosasGrid/TiposPanel;
+    // PlanoCad → CadEditorView/CanvasHost) y los grandes bloques inline
+    // (Explorador, DLEditor, Salida, Plugins, Acerca) SIGUEN en el mecanismo
+    // IsVisible. Para esos modos CurrentView devuelve null y el ContentControl
+    // queda vacío (los bloques inline se muestran por su IsVisible).
+
+    private readonly Dictionary<ModoSidebar, Avalonia.Controls.Control> _vistaCache = new();
+
+    /// <summary>
+    /// Callback inyectado por MainWindow para aplicar el cambio de apariencia
+    /// emitido por la <c>ConfiguracionView</c> (modo Configuración). Mantengo el
+    /// VM ignorante de <c>App</c> para que el router sea testeable sin app viva.
+    /// </summary>
+    public Action<LosasPlus.Persistence.AparienciaConfig>? OnAplicarApariencia { get; set; }
+
+    /// <summary>
+    /// Sub-vista (UserControl) del modo activo, o <c>null</c> para los modos que
+    /// siguen renderizándose inline vía IsVisible. El <c>ContentControl</c> de
+    /// MainWindow enlaza su Content a esta propiedad; el setter de
+    /// <see cref="ModoActivo"/> notifica el cambio. Las vistas heredan el
+    /// DataContext (este VM) del ContentControl salvo las que necesitan un
+    /// sub-VM, en cuyo caso se les asigna explícitamente al crearlas.
+    /// </summary>
+    public Avalonia.Controls.Control? CurrentView
+    {
+        get
+        {
+            // Modos que NO se enrutan (inline / x:Name en code-behind).
+            if (_modoActivo is ModoSidebar.Explorador or ModoSidebar.Editor
+                or ModoSidebar.PlanoCad or ModoSidebar.DLEditor or ModoSidebar.Salida
+                or ModoSidebar.Plugins or ModoSidebar.Acerca)
+                return null;
+
+            if (_vistaCache.TryGetValue(_modoActivo, out var cacheada))
+                return cacheada;
+
+            var vista = CrearVista(_modoActivo);
+            if (vista is not null) _vistaCache[_modoActivo] = vista;
+            return vista;
+        }
+    }
+
+    /// <summary>
+    /// Fábrica de la sub-vista de cada modo enrutado. Reproduce 1:1 el
+    /// DataContext / props que tenían los <c>ContentControl</c> originales en
+    /// MainWindow.axaml; las sub-vistas y sus bindings NO cambian.
+    /// </summary>
+    private Avalonia.Controls.Control? CrearVista(ModoSidebar modo)
+    {
+        switch (modo)
+        {
+            case ModoSidebar.Planta2D:
+                // DataContext="{Binding}" → hereda este VM del ContentControl.
+                return new LosasPlus.Views.EditorUnificadoView();
+
+            case ModoSidebar.VisorPdf:
+                // Control autónomo, sin DataContext del VM.
+                return new LosasPlus.Views.PdfViewerControl();
+
+            case ModoSidebar.Vista3D:
+            {
+                // Edificio="{Binding EdificioActivo}" — binding reactivo en C#.
+                var v3d = new LosasPlus.Views.Vista3DControl();
+                v3d.Bind(LosasPlus.Views.Vista3DControl.EdificioProperty,
+                         new Avalonia.Data.Binding(nameof(EdificioActivo)));
+                return v3d;
+            }
+
+            case ModoSidebar.CargasCombinaciones:
+                return new LosasPlus.Views.CargasCombinacionesView();   // DataContext={Binding} → VM
+
+            case ModoSidebar.Vigas:
+                return new LosasPlus.Views.Vigas.VigaEditorView();      // DataContext={Binding} → VM
+
+            case ModoSidebar.Columnas:
+                return new LosasPlus.Views.ColumnasEditorView { DataContext = ColumnasEditor };
+
+            case ModoSidebar.Aceros:
+                return new LosasPlus.Views.AcerosView();                // DataContext={Binding} → VM
+
+            case ModoSidebar.Reglamento:
+                return new LosasPlus.Views.ReglamentoView();            // DataContext={Binding} → VM
+
+            case ModoSidebar.Validacion:
+                return new MemoriaPlus.Views.ValidacionView
+                {
+                    DataContext = Validacion,
+                    HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+                };
+
+            case ModoSidebar.BajadaCargas:
+                return new LosasPlus.Views.BajadaCargasView { DataContext = BajadaCargas };
+
+            case ModoSidebar.Busqueda:
+                return new MemoriaPlus.Views.BusquedaView();            // control autónomo
+
+            case ModoSidebar.Configuracion:
+            {
+                var cfg = new MemoriaPlus.Views.ConfiguracionView { EsCalculadora = true };
+                cfg.AparienciaCambiada += (_, e) => OnAplicarApariencia?.Invoke(e.Apariencia);
+                return cfg;
+            }
+
+            default:
+                return null;
+        }
+    }
 
     /// <summary>Texto de versión mostrado en el branding de la sidebar.</summary>
     public string Version => $"v0.5.0 — {MemoriaPlus.Common.Branding.Producto}";
