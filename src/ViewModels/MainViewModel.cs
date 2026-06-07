@@ -725,19 +725,27 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// </summary>
     public Edificio? EdificioActivo => _proyecto.Edificios.FirstOrDefault();
 
-    /// <summary>Alias retro-compatible: el resto del código y los XAML siguen accediendo a "Sistema".</summary>
+    /// <summary>
+    /// Alias retro-compatible: el resto del código y los XAML siguen accediendo a
+    /// "Sistema" (sólo lo LEEN — p. ej. <c>{Binding Sistema.Nombre}</c>).
+    /// </summary>
+    /// <remarks>
+    /// B1: el setter antes hacía <c>Clear()+Add()</c> sobre <see cref="NivelActivo"/>.Sistemas,
+    /// colapsando la colección del nivel a un único sistema (pérdida de datos). Ahora
+    /// se limita a la semántica de <see cref="SistemaActivo"/>: cambia el sistema activo
+    /// y, si la referencia no está en el nivel, la añade de forma <b>no destructiva</b>
+    /// (sin borrar los sistemas existentes del nivel).
+    /// </remarks>
     public Sistema Sistema
     {
         get => _sistemaActivo;
         set
         {
             SistemaActivo = value;
-            // Si cambió la referencia, asegurar que esté en el nivel activo.
-            if (NivelActivo != null && !NivelActivo.Sistemas.Contains(value))
-            {
-                NivelActivo.Sistemas.Clear();
+            // Si la referencia no está en el nivel activo, la añadimos SIN borrar
+            // los sistemas ya existentes (el viejo Clear()+Add() era destructivo).
+            if (NivelActivo != null && value != null && !NivelActivo.Sistemas.Contains(value))
                 NivelActivo.Sistemas.Add(value);
-            }
         }
     }
 
@@ -1016,10 +1024,22 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         catch (Exception ex) { Log("Error guardando proyecto: " + ex.Message); }
     }
 
-    /// <summary>Agrega un sistema vacío al proyecto y lo deja activo.</summary>
+    /// <summary>Agrega un sistema vacío al <b>nivel activo</b> y lo deja activo.</summary>
+    /// <remarks>
+    /// B1 (split-brain de niveles): muta <see cref="NivelActivo"/>.Sistemas — la
+    /// colección que LEE la UI — y NO la fachada <c>Proyecto.Sistemas</c> (que
+    /// siempre apunta a <c>Niveles[0]</c>). Estando parado en el Nivel 2, el sistema
+    /// se crea en el Nivel 2.
+    /// </remarks>
     public Sistema AgregarSistema(string? nombre = null)
     {
-        var n = _proyecto.Sistemas.Count + 1;
+        var nivel = NivelActivo;
+        if (nivel is null)
+        {
+            Log("No se puede agregar sistema: no hay nivel activo.");
+            return SistemaActivo;
+        }
+        var n = nivel.Sistemas.Count + 1;
         var nuevo = new Sistema
         {
             Nombre = nombre ?? $"Sistema No {n}",
@@ -1028,7 +1048,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             Adicionales = SistemaActivo.Adicionales,
         };
         PushUndoSnapshot();
-        _proyecto.Sistemas.Add(nuevo);
+        nivel.Sistemas.Add(nuevo);
         SistemaActivo = nuevo;
         Log($"Sistema agregado: {nuevo.Nombre}");
         return nuevo;
@@ -1041,12 +1061,16 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// </summary>
     public async Task EliminarSistema(Sistema s)
     {
-        if (_proyecto.Sistemas.Count <= 1)
+        // B1 (split-brain de niveles): opera sobre el NIVEL ACTIVO (la colección que
+        // LEE la UI), no sobre la fachada Proyecto.Sistemas (= Niveles[0]).
+        var nivel = NivelActivo;
+        if (nivel is null) return;
+        if (nivel.Sistemas.Count <= 1)
         {
-            Log("No se puede eliminar: el proyecto debe tener al menos un sistema.");
+            Log("No se puede eliminar: el nivel debe tener al menos un sistema.");
             return;
         }
-        var idx = _proyecto.Sistemas.IndexOf(s);
+        var idx = nivel.Sistemas.IndexOf(s);
         if (idx < 0) return;
 
         var detalle = $"Se perderán sus {s.Losas.Count} losa(s)";
@@ -1058,9 +1082,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         // Snapshot ANTES de mutar: el borrado queda en el historial de undo.
         PushUndoSnapshot();
         var fueActivo = ReferenceEquals(_sistemaActivo, s);
-        _proyecto.Sistemas.Remove(s);
+        nivel.Sistemas.Remove(s);
         if (fueActivo)
-            SistemaActivo = _proyecto.Sistemas[Math.Min(idx, _proyecto.Sistemas.Count - 1)];
+            SistemaActivo = nivel.Sistemas[Math.Min(idx, nivel.Sistemas.Count - 1)];
         Log($"Sistema eliminado: {s.Nombre}");
     }
 
