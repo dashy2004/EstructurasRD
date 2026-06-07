@@ -106,7 +106,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         {
             _proyectoRecienteSeleccionado = value;
             OnPropertyChanged();
-            (AbrirEnEditorCommand as RelayCommand)?.Execute(null);  // no-op si null
+            // Solo actualizar el estado habilitado del botón «Abrir»; NO abrir
+            // el proyecto de inmediato — eso requiere acción explícita del usuario.
+            (AbrirEnEditorCommand as RelayCommand)?.RaiseCanExecuteChanged();
         }
     }
 
