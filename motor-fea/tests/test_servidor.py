@@ -106,3 +106,11 @@ def test_diseno_tiene_combo_y_casos():
     cols = [e for e in data["elementos"] if e["tipo"] == "columna"]
     assert cols and all(e["estribo_txt"].startswith("E#") for e in cols)
     assert all("utilizacion" in e for e in data["elementos"])
+
+
+def test_diseno_query_params():
+    cli = TestClient(crear_app(modelo_ejemplo()))
+    r = cli.get("/diseno?fc=35&fy=500&rec=0.05")
+    assert r.status_code == 200 and len(r.json()["elementos"]) == 8
+    assert cli.get("/diseno?fc=-1").status_code == 400          # fc inválido → 400
+    assert cli.get("/diseno").status_code == 200                # defaults

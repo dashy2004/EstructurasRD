@@ -94,9 +94,9 @@ def crear_app(modelo: ModeloEstructural) -> FastAPI:
             raise HTTPException(status_code=400, detail=str(ex))
 
     @app.get("/diseno")
-    def diseno():
+    def diseno(fc: float = 21.0, fy: float = 420.0, rec: float = 0.04):
         try:
-            return calcular_diseno(modelo)
+            return calcular_diseno(modelo, fc, fy, rec)
         except ValueError as ex:
             raise HTTPException(status_code=400, detail=str(ex))
 
