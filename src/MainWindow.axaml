@@ -6,6 +6,7 @@
         xmlns:svg="clr-namespace:Avalonia.Svg.Skia;assembly=Avalonia.Svg.Skia"
         xmlns:vigas="clr-namespace:LosasPlus.Views.Vigas"
         xmlns:vws="clr-namespace:MemoriaPlus.Views;assembly=MemoriaPlus.UI.Shared"
+        xmlns:cmn="clr-namespace:MemoriaPlus.Common;assembly=MemoriaPlus.UI.Shared"
         xmlns:sys="clr-namespace:System;assembly=System.Runtime"
         x:Class="LosasPlus.MainWindow"
         x:CompileBindings="False"
@@ -117,7 +118,7 @@
                              VerticalAlignment="Center" Margin="0,0,10,0"/>
                     <StackPanel VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="LosasPlus" FontSize="16" FontWeight="SemiBold"
+                            <TextBlock Text="{x:Static cmn:Branding.Producto}" FontSize="16" FontWeight="SemiBold"
                                        Foreground="{DynamicResource Accent}"/>
                             <TextBlock Text="{Binding Version}" FontSize="10"
                                        Foreground="{DynamicResource FgMuted}"
@@ -950,7 +951,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
                               IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Acerca}">
                     <StackPanel Margin="32,24" MaxWidth="900">
-                        <TextBlock Text="LosasPlus" FontSize="24" FontWeight="Bold"
+                        <TextBlock Text="{x:Static cmn:Branding.Producto}" FontSize="24" FontWeight="Bold"
                                    Foreground="{DynamicResource FgPrimary}"/>
                         <TextBlock Text="Capa de UI, edición, visualización y exportación construida sobre el motor original."
                                    Margin="0,4,0,0" Foreground="{DynamicResource FgSecondary}"/>
@@ -975,10 +976,12 @@
                                    Text="· Carga viva ≤ 2/3 de la carga total (sin factorizar). · Apoyos lineales rígidos. · No verifica fuerza cortante. · No calcula deformaciones."/>
 
                         <Separator Margin="0,16"/>
-                        <TextBlock Text="Autor del wrapper LosasPlus" FontWeight="Bold" FontSize="14"
-                                   Foreground="{DynamicResource FgPrimary}"/>
+                        <TextBlock FontWeight="Bold" FontSize="14"
+                                   Foreground="{DynamicResource FgPrimary}">
+                            <Run Text="Autor del wrapper "/><Run Text="{x:Static cmn:Branding.Producto}"/>
+                        </TextBlock>
                         <TextBlock TextWrapping="Wrap" Margin="0,4,0,0" Foreground="{DynamicResource FgSecondary}">
-                            <Run Text="Esta capa de UI/edición/exportación fue construida por "/><Run FontWeight="Bold" Text="Emil Guillen De la Cruz"/><Run Text=" como aporte al ecosistema de herramientas estructurales en República Dominicana. El motor sigue siendo obra exclusiva de F. Perdomo; LosasPlus se ofrece como sugerencia de modernización."/>
+                            <Run Text="Esta capa de UI/edición/exportación fue construida por "/><Run FontWeight="Bold" Text="Emil Guillen De la Cruz"/><Run Text=" como aporte al ecosistema de herramientas estructurales en República Dominicana. El motor sigue siendo obra exclusiva de F. Perdomo; "/><Run Text="{x:Static cmn:Branding.Producto}"/><Run Text=" se ofrece como sugerencia de modernización."/>
                         </TextBlock>
                         <Grid Margin="0,12,0,0" ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto">
                             <TextBlock Grid.Row="0" Grid.Column="0" Text="Email" Foreground="{DynamicResource FgMuted}"/>

@@ -68,10 +68,10 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     public bool EsModoEditor => _modoActivo == ModoSidebar.Editor;
 
     /// <summary>Texto de versión mostrado en el branding de la sidebar.</summary>
-    public string Version => "v0.5.0 — LosasPlus";
+    public string Version => $"v0.5.0 — {MemoriaPlus.Common.Branding.Producto}";
 
     /// <summary>Copyright dinámico (año en curso) — bound al statusbar.</summary>
-    public string CopyrightTexto => $"© {DateTime.Now.Year} LosasPlus · motor: F. Perdomo (Pieper-Martens)";
+    public string CopyrightTexto => $"© {DateTime.Now.Year} {MemoriaPlus.Common.Branding.Producto} · motor: F. Perdomo (Pieper-Martens)";
 
     /// <summary>
     /// Título dinámico del Window. Refleja el nombre del proyecto activo y
@@ -83,8 +83,8 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         {
             var nombre = string.IsNullOrWhiteSpace(_proyecto.Nombre) ? "(sin nombre)" : _proyecto.Nombre;
             if (string.IsNullOrEmpty(_proyecto.Archivo))
-                return $"LosasPlus · {nombre} · sin guardar";
-            return $"LosasPlus · {nombre} · {Path.GetFileName(_proyecto.Archivo)}";
+                return $"{MemoriaPlus.Common.Branding.Producto} · {nombre} · sin guardar";
+            return $"{MemoriaPlus.Common.Branding.Producto} · {nombre} · {Path.GetFileName(_proyecto.Archivo)}";
         }
     }
 

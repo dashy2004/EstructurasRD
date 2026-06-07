@@ -52,7 +52,7 @@ public partial class AppearanceDialog : Window
     {
         ThemeCustomizer.GuardarOverrides();
         _ = AppServices.MessageBox.InfoAsync("Apariencia",
-            "Colores guardados como default.\nSe aplicarán cada vez que abras LosasPlus.");
+            $"Colores guardados como default.\nSe aplicarán cada vez que abras {MemoriaPlus.Common.Branding.Producto}.");
     }
 
     private async void OnReset(object? sender, RoutedEventArgs e)

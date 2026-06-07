@@ -121,4 +121,20 @@ public class MainViewModelTests
         // La selección sí debe quedar asignada.
         Assert.Same(reciente, vm.ProyectoRecienteSeleccionado);
     }
+
+    // ---- Fase C: branding centralizado --------------------------------
+
+    [Fact]
+    public void Branding_const_producto_es_EstructurasRD()
+    {
+        Assert.Equal("EstructurasRD", MemoriaPlus.Common.Branding.Producto);
+    }
+
+    [Fact]
+    public void TituloVentana_usa_la_marca_EstructurasRD()
+    {
+        var vm = new MainViewModel();
+        Assert.StartsWith(MemoriaPlus.Common.Branding.Producto, vm.TituloVentana);
+        Assert.StartsWith("EstructurasRD", vm.TituloVentana);
+    }
 }

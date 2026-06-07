@@ -445,14 +445,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    public string Version => "v0.5.0 — Memoria Plus";
+    public string Version => $"v0.5.0 — {Branding.Producto}";
 
     /// <summary>
     /// Copyright dinámico: usa el año en curso para que el footer no quede
     /// desfasado con el paso del tiempo. Si en el futuro la app pasa a un año
     /// nuevo, el statusbar se actualiza solo al próximo arranque.
     /// </summary>
-    public string CopyrightTexto => $"© {DateTime.Now.Year} Memoria Plus Engineering";
+    public string CopyrightTexto => $"© {DateTime.Now.Year} {Branding.Producto} Engineering";
 
     // -------------------------------------------------------------
     // Listas estáticas para los dropdowns del formulario
@@ -920,10 +920,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// <summary>Título del Window — incluye el path del archivo si está guardado.</summary>
     public string TituloVentana =>
         ProyectoActivo is null
-            ? "Memoria Plus"
+            ? Branding.Producto
             : string.IsNullOrEmpty(ProyectoActivo.Archivo)
-                ? $"Memoria Plus — {ProyectoActivo.Nombre} (sin guardar)"
-                : $"Memoria Plus — {Path.GetFileName(ProyectoActivo.Archivo)}";
+                ? $"{Branding.Producto} — {ProyectoActivo.Nombre} (sin guardar)"
+                : $"{Branding.Producto} — {Path.GetFileName(ProyectoActivo.Archivo)}";
 
     /// <summary>
     /// Reemplaza <see cref="Proyecto.Cargas"/> por una nueva instancia con la
