@@ -1201,6 +1201,11 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             TxtPath = path;
             TxtContent = content;
 
+            // Snapshot ANTES de aplicar momentos/armaduras del .TXT: la importación
+            // muta el modelo (Fase A — pérdida de datos) y debe quedar undoable y
+            // marcar IsDirty, igual que ImportarTxtPerdomo en MemoriaPlus.
+            PushUndoSnapshot();
+
             var parsed = TxtParser.Parse(content, Sistema.Losas);
             TxtParser.Apply(parsed, Sistema.Losas);
             TxtParser.ApplyApoyos(parsed, Sistema.BordesX, Sistema.BordesY);
@@ -1231,6 +1236,10 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         try
         {
             Ocupado = true;
+            // Snapshot ANTES de aplicar los momentos/aceros calculados: el cálculo
+            // nativo muta el modelo (Fase A — pérdida de datos) y debe quedar
+            // undoable y marcar IsDirty, igual que la importación de .TXT.
+            PushUndoSnapshot();
             var salida = LosasPlus.Calculo.PieperMartens.SistemaPieperMartensCalculator
                 .Crear().CalcularYAplicar(Sistema);
             OnPropertyChanged(nameof(LosasFiltradas));
@@ -1585,17 +1594,28 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     // =====================================================================
 
     /// <summary>
-    /// Si hay cambios sin guardar, pide confirmación antes de descartarlos
-    /// (Fase A — pérdida de datos). Devuelve <c>true</c> si se puede continuar
-    /// con la operación destructiva (Nuevo/Abrir), <c>false</c> si el usuario
-    /// canceló. Sin cambios sucios ⇒ continúa sin preguntar.
+    /// Si hay cambios sin guardar, pide confirmación de 3 estados antes de
+    /// descartarlos (Fase A — pérdida de datos). Devuelve <c>true</c> si se puede
+    /// continuar con la operación destructiva (Nuevo/Abrir), <c>false</c> si el
+    /// usuario abortó. Sin cambios sucios ⇒ continúa sin preguntar.
+    /// <list type="bullet">
+    /// <item><c>Cancelar</c> (también el descarte del diálogo: Escape / X) ⇒
+    /// abortar (no descarta).</item>
+    /// <item><c>Guardar</c> ⇒ guarda primero; sólo continúa si el guardado fue
+    /// exitoso.</item>
+    /// <item><c>Descartar</c> ⇒ continúa descartando los cambios.</item>
+    /// </list>
     /// </summary>
     public async Task<bool> ConfirmarDescartarSiSucioAsync()
     {
         if (!IsDirty) return true;
-        return await MemoriaPlus.Services.AppServices.MessageBox.ConfirmYesNoAsync(
+        var r = await MemoriaPlus.Services.AppServices.MessageBox.ConfirmarGuardarDescartarCancelarAsync(
             "Cambios sin guardar",
-            "Hay cambios sin guardar que se perderán.\n\n¿Descartar los cambios y continuar?");
+            "Hay cambios sin guardar.\n\n¿Querés guardar los cambios antes de continuar?");
+        if (r == MemoriaPlus.Services.ResultadoDescarte.Cancelar) return false;   // abortar
+        if (r == MemoriaPlus.Services.ResultadoDescarte.Guardar)
+            return await GuardarAsync();              // sólo continúa si guardó bien
+        return true;                                  // Descartar: continuar
     }
 
     /// <summary>Nuevo proyecto con guardia de cambios sin guardar (cableado al comando).</summary>

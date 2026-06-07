@@ -14,11 +14,32 @@ public interface IDialogService
     Task<string?> SaveFileAsync(string title, string suggestedName, string defaultExt, params FileFilter[] filters);
 }
 
+/// <summary>
+/// Resultado de la confirmación de descarte de 3 estados (Fase A — pérdida de
+/// datos). <see cref="Cancelar"/> es el valor por defecto/seguro: significa
+/// «no hacer nada, quedarse», y es lo que devuelve un descarte del diálogo
+/// (Escape / botón X de la ventana).
+/// </summary>
+public enum ResultadoDescarte
+{
+    Guardar,
+    Descartar,
+    Cancelar,
+}
+
 /// <summary>Cuadros de mensaje (reemplaza System.Windows.MessageBox).</summary>
 public interface IMessageBoxService
 {
     Task<bool> ConfirmYesNoAsync(string title, string message);
     Task InfoAsync(string title, string message);
+
+    /// <summary>
+    /// Confirmación de descarte de 3 estados: «Guardar», «Descartar» o «Cancelar».
+    /// CRÍTICO (Fase A): descartar el diálogo de cualquier forma (Escape / botón X
+    /// de la ventana) devuelve <see cref="ResultadoDescarte.Cancelar"/> = quedarse,
+    /// nunca descarta el trabajo de forma silenciosa.
+    /// </summary>
+    Task<ResultadoDescarte> ConfirmarGuardarDescartarCancelarAsync(string titulo, string mensaje);
 }
 
 /// <summary>Portapapeles (reemplaza System.Windows.Clipboard).</summary>

@@ -44,13 +44,14 @@ public partial class MainWindow : Window
 
         e.Cancel = true;                               // detener este cierre
 
-        // Sí = guardar antes de cerrar; No = descartar y cerrar. Si el guardado
-        // falla o se cancela el SaveAs, no cerramos (evita perder datos).
-        var guardar = await AppServices.MessageBox.ConfirmYesNoAsync(
+        // 3 estados: Guardar antes de cerrar / Descartar y cerrar / Cancelar
+        // (quedarse). CRÍTICO (Fase A): descartar el diálogo (Escape / X) devuelve
+        // Cancelar = quedarse, nunca descarta el trabajo en silencio.
+        var r = await AppServices.MessageBox.ConfirmarGuardarDescartarCancelarAsync(
             "Cambios sin guardar",
-            "Hay cambios sin guardar.\n\n¿Querés guardarlos antes de cerrar?\n" +
-            "(Sí = guardar y cerrar · No = descartar y cerrar)");
-        if (guardar)
+            "¿Querés guardar los cambios antes de cerrar?");
+        if (r == ResultadoDescarte.Cancelar) return;   // quedarse abierto
+        if (r == ResultadoDescarte.Guardar)
         {
             var ok = await vm.GuardarAsync();
             if (!ok) return;                           // guardado falló/cancelado: no cerrar

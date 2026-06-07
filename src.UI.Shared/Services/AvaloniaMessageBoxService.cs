@@ -20,6 +20,71 @@ public sealed class AvaloniaMessageBoxService : IMessageBoxService
     public Task InfoAsync(string title, string message)
         => ShowAsync(title, message, yesNo: false);
 
+    /// <summary>
+    /// Diálogo de 3 botones «Guardar» / «Descartar» / «Cancelar». CRÍTICO
+    /// (Fase A — pérdida de datos): el resultado arranca en
+    /// <see cref="ResultadoDescarte.Cancelar"/> y SÓLO los clicks explícitos en
+    /// «Guardar»/«Descartar» lo cambian. Descartar el diálogo de cualquier forma
+    /// (Escape → botón <c>IsCancel</c>; botón X de la ventana → ningún Click) deja
+    /// el default <c>Cancelar</c> = quedarse, jamás descarta el trabajo en silencio.
+    /// </summary>
+    public async Task<ResultadoDescarte> ConfirmarGuardarDescartarCancelarAsync(string titulo, string mensaje)
+    {
+        var owner = AppServices.TopLevel as Window;
+
+        // Default SEGURO: cualquier forma de cerrar el diálogo sin elegir un botón
+        // explícito (Escape / X de la ventana) deja este valor = quedarse.
+        var result = ResultadoDescarte.Cancelar;
+
+        var msg = new TextBlock
+        {
+            Text = mensaje,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 16),
+        };
+
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Spacing = 8,
+        };
+
+        var window = new Window
+        {
+            Title = titulo,
+            Width = 420,
+            SizeToContent = SizeToContent.Height,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new StackPanel
+            {
+                Margin = new Thickness(20),
+                Children = { msg, buttons },
+            },
+        };
+
+        var guardar = new Button { Content = "Guardar", IsDefault = true, MinWidth = 80 };
+        var descartar = new Button { Content = "Descartar", MinWidth = 80 };
+        // Cancelar es IsCancel: Escape lo dispara, y deja el default Cancelar.
+        var cancelar = new Button { Content = "Cancelar", IsCancel = true, MinWidth = 80 };
+
+        guardar.Click   += (_, _) => { result = ResultadoDescarte.Guardar;   window.Close(); };
+        descartar.Click += (_, _) => { result = ResultadoDescarte.Descartar; window.Close(); };
+        cancelar.Click  += (_, _) => { result = ResultadoDescarte.Cancelar;  window.Close(); };
+
+        buttons.Children.Add(cancelar);
+        buttons.Children.Add(descartar);
+        buttons.Children.Add(guardar);
+
+        if (owner is not null)
+            await window.ShowDialog(owner);
+        else
+            window.Show();
+
+        return result;
+    }
+
     private static async Task<bool> ShowAsync(string title, string message, bool yesNo)
     {
         var owner = AppServices.TopLevel as Window;

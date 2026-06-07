@@ -29,6 +29,15 @@ public class IsDirtyPersistenciaTests : System.IDisposable
     {
         private readonly bool _confirma;
         public int VecesPreguntado { get; private set; }
+
+        /// <summary>
+        /// Respuesta fija de la confirmación de descarte de 3 estados. Default
+        /// <see cref="ResultadoDescarte.Cancelar"/> = quedarse (el valor seguro al
+        /// descartar el diálogo: Escape / X de la ventana).
+        /// </summary>
+        public ResultadoDescarte RespuestaDescarte { get; set; } = ResultadoDescarte.Cancelar;
+        public int VecesPreguntadoDescarte { get; private set; }
+
         public StubMessageBox(bool confirma) => _confirma = confirma;
         public Task<bool> ConfirmYesNoAsync(string title, string message)
         {
@@ -36,11 +45,25 @@ public class IsDirtyPersistenciaTests : System.IDisposable
             return Task.FromResult(_confirma);
         }
         public Task InfoAsync(string title, string message) => Task.CompletedTask;
+
+        public Task<ResultadoDescarte> ConfirmarGuardarDescartarCancelarAsync(string titulo, string mensaje)
+        {
+            VecesPreguntadoDescarte++;
+            return Task.FromResult(RespuestaDescarte);
+        }
     }
 
     private static StubMessageBox InstalarMessageBox(bool confirma)
     {
         var stub = new StubMessageBox(confirma);
+        AppServices.MessageBox = stub;
+        return stub;
+    }
+
+    /// <summary>Instala el stub con una respuesta fija de descarte de 3 estados.</summary>
+    private static StubMessageBox InstalarMessageBox(ResultadoDescarte respuesta)
+    {
+        var stub = new StubMessageBox(confirma: false) { RespuestaDescarte = respuesta };
         AppServices.MessageBox = stub;
         return stub;
     }
@@ -193,7 +216,7 @@ public class IsDirtyPersistenciaTests : System.IDisposable
     [Fact]
     public async Task Memoria_nuevo_proyecto_confirmado_limpia_IsDirty()
     {
-        InstalarMessageBox(confirma: true);  // confirmar el descarte
+        InstalarMessageBox(ResultadoDescarte.Descartar);  // descartar y continuar
         var vm = new MemoriaPlus.ViewModels.MainViewModel();
         vm.AgregarSistemaCommand.Execute(null);
         Assert.True(vm.IsDirty);
@@ -201,6 +224,100 @@ public class IsDirtyPersistenciaTests : System.IDisposable
         await vm.NuevoProyectoConfirmadoAsync();
 
         Assert.False(vm.IsDirty);
+    }
+
+    // ---- Guardia de descarte de 3 estados: dismiss = Cancelar = quedarse ----
+
+    /// <summary>
+    /// CRÍTICO (Fase A): el descarte del diálogo (Escape / X) ⇒ Cancelar, que
+    /// ABORTA el Nuevo: el proyecto NO se reemplaza y sigue sucio (no se pierde
+    /// el trabajo en silencio). El stub devuelve Cancelar por defecto (= dismiss).
+    /// </summary>
+    [Fact]
+    public async Task Nuevo_proyecto_cancelado_no_reemplaza_proyecto()
+    {
+        InstalarMessageBox(ResultadoDescarte.Cancelar);  // = dismiss (Escape / X)
+        var vm = new MainViewModel();
+        vm.AgregarLosa();
+        Assert.True(vm.IsDirty);
+        int countAntes = vm.SistemaActivo.Losas.Count;
+        var sistemaAntes = vm.SistemaActivo;
+
+        await vm.NuevoProyectoLpxConfirmadoAsync();
+
+        // Proyecto intacto: el sistema y sus losas siguen ahí y sigue sucio.
+        Assert.True(vm.IsDirty);
+        Assert.Same(sistemaAntes, vm.SistemaActivo);
+        Assert.Equal(countAntes, vm.SistemaActivo.Losas.Count);
+    }
+
+    /// <summary>Descartar ⇒ procede el Nuevo: proyecto reemplazado, IsDirty limpio.</summary>
+    [Fact]
+    public async Task Nuevo_proyecto_descartar_reemplaza_proyecto()
+    {
+        InstalarMessageBox(ResultadoDescarte.Descartar);
+        var vm = new MainViewModel();
+        vm.AgregarLosa();
+        Assert.True(vm.IsDirty);
+
+        await vm.NuevoProyectoLpxConfirmadoAsync();
+
+        Assert.False(vm.IsDirty);
+    }
+
+    /// <summary>Memoria: Cancelar (= dismiss) aborta el Nuevo y deja el proyecto sucio.</summary>
+    [Fact]
+    public async Task Memoria_nuevo_proyecto_cancelado_no_reemplaza_proyecto()
+    {
+        InstalarMessageBox(ResultadoDescarte.Cancelar);
+        var vm = new MemoriaPlus.ViewModels.MainViewModel();
+        vm.AgregarSistemaCommand.Execute(null);
+        Assert.True(vm.IsDirty);
+        var proyectoAntes = vm.ProyectoActivo;
+
+        await vm.NuevoProyectoConfirmadoAsync();
+
+        // Proyecto intacto y sigue sucio: no se descartó nada en silencio.
+        Assert.True(vm.IsDirty);
+        Assert.Same(proyectoAntes, vm.ProyectoActivo);
+    }
+
+    // ---- IsDirty en importar .TXT y calcular nativo (Fase A) -------------
+
+    /// <summary>Importar un .TXT muta el modelo ⇒ debe marcar IsDirty.</summary>
+    [Fact]
+    public async Task ImportarTxt_marca_IsDirty()
+    {
+        var vm = new MainViewModel();
+        // Estado limpio de partida (Nuevo limpia IsDirty).
+        vm.NuevoProyectoLpx();
+        Assert.False(vm.IsDirty);
+
+        // .TXT mínimo con un bloque de resultados para una losa existente.
+        var ruta = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+            $"losasplus_txt_{System.Guid.NewGuid():N}.TXT");
+        var idLosa = vm.SistemaActivo.Losas.Count > 0 ? vm.SistemaActivo.Losas[0].Id : 1;
+        var contenido = $"LOSA {idLosa}\r\nMXV = 1.23\r\nMYV = 2.34\r\n";
+        await System.IO.File.WriteAllTextAsync(ruta, contenido,
+            System.Text.Encoding.GetEncoding(1252));
+
+        await vm.ImportarTxtAsync(ruta);
+
+        Assert.True(vm.IsDirty);
+        System.IO.File.Delete(ruta);
+    }
+
+    /// <summary>Calcular con el motor nativo muta el modelo ⇒ debe marcar IsDirty.</summary>
+    [Fact]
+    public void CalcularNativo_marca_IsDirty()
+    {
+        var vm = new MainViewModel();
+        vm.NuevoProyectoLpx();
+        Assert.False(vm.IsDirty);
+
+        vm.CalcularNativo();
+
+        Assert.True(vm.IsDirty);
     }
 
     [Fact]
