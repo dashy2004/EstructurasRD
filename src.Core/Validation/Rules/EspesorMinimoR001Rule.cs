@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using LosasPlus.Models;
+using LosasPlus.Services;
 
 namespace LosasPlus.Validation.Rules;
 
@@ -27,7 +28,7 @@ public sealed class EspesorMinimoR001Rule : IValidationRule
     public int ContarChequeos(Proyecto proyecto)
     {
         var n = 0;
-        foreach (var s in proyecto.Sistemas) n += s.Losas.Count;
+        foreach (var s in ProyectoService.EnumerarSistemas(proyecto)) n += s.Losas.Count;
         return n;
     }
 
@@ -35,7 +36,7 @@ public sealed class EspesorMinimoR001Rule : IValidationRule
     {
         var minimo = EspesorMinimoSegunUso(proyecto.Uso);
         var usoEtiqueta = string.IsNullOrWhiteSpace(proyecto.Uso) ? "el uso seleccionado" : proyecto.Uso.ToLowerInvariant();
-        foreach (var sistema in proyecto.Sistemas)
+        foreach (var sistema in ProyectoService.EnumerarSistemas(proyecto))
         {
             foreach (var losa in sistema.Losas)
             {

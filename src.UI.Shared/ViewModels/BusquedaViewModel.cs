@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using LosasPlus.Models;
+using LosasPlus.Services;
 using MemoriaPlus.Common;
 
 namespace MemoriaPlus.ViewModels;
@@ -140,11 +141,13 @@ public sealed class BusquedaViewModel : INotifyPropertyChanged
             }
         }
 
-        // 2) Sistemas y losas del proyecto activo
+        // 2) Sistemas y losas del proyecto activo — TODOS los niveles (B2b), no
+        //    sólo la fachada Niveles[0]. EnumerarSistemas recorre
+        //    Edificios → Niveles → Sistemas.
         var proyecto = _getProyectoActivo();
         if (proyecto is not null)
         {
-            foreach (var sistema in proyecto.Sistemas)
+            foreach (var sistema in ProyectoService.EnumerarSistemas(proyecto))
             {
                 if (sistema.Nombre.Contains(q, StringComparison.OrdinalIgnoreCase))
                 {

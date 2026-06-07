@@ -947,9 +947,19 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         };
 
         // ---- Validación normativa (commit 33) ----
-        // Primera validación + re-validación en cada cambio del modelo.
+        // Primera validación + re-validación en cada cambio del modelo. La
+        // suscripción cubre TODOS los niveles (B2b): el CollectionChanged de la
+        // colección Sistemas de cada nivel se engancha dentro del helper, no sólo
+        // el de la fachada Niveles[0].
         Validacion.RevalidarPara(_proyecto);
-        _proyecto.Sistemas.CollectionChanged += (_, _) => Validacion.Revalidar();
+        // Re-suscribir cuando se reconstruye el árbol de edificios (Clear/Add en
+        // carga/undo): los nuevos Edificios/Niveles/Sistemas quedan enganchados.
+        _proyecto.Edificios.CollectionChanged += (_, _) =>
+        {
+            Validacion.Revalidar();
+            Busqueda?.Refrescar();
+            SuscribirRevalidacionEnSistemas();
+        };
         SuscribirRevalidacionEnSistemas();
 
         // Cargar lista de proyectos recientes al arrancar.
@@ -995,6 +1005,14 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
 
     public void RefreshDLContent()
     {
+        // B2b — DECISIÓN: el formato .DL byte-compatible con Losas.exe NO tiene
+        // concepto de nivel ni transporta Uso/Cota; es histórico per-conjunto-
+        // activo (Niveles[0]). Enrutar el .DL a EnumerarSistemas mezclaría en un
+        // solo archivo sistemas de niveles distintos sin discriminador, lo cual
+        // es semánticamente incorrecto. Por diseño el .DL queda en el conjunto
+        // activo (la fachada _proyecto.Sistemas); validación y búsqueda SÍ son
+        // multinivel. El guardado multinivel completo vive en ProyectoService
+        // (manifest .lpx.json + un .DL por sistema de cada nivel).
         try { DLContent = DLFileService.WriteAll(_proyecto.Sistemas); }
         catch (Exception ex) { Log("Error al serializar .DL: " + ex.Message); }
     }
@@ -1144,7 +1162,11 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             await Plugins.LoadAllAsync(Log);
             await Plugins.RunHookAsync("pre-dl", BuildPluginContext(), Log);
 
-            // Guarda TODOS los sistemas del proyecto (uno o varios)
+            // B2b — DECISIÓN: el .DL queda en el conjunto activo (Niveles[0]) por
+            // diseño. El formato byte-compatible con Losas.exe no tiene niveles ni
+            // Uso/Cota; para persistir TODO el proyecto multinivel se usa
+            // ProyectoService (manifest + un .DL por sistema de cada nivel). Guarda
+            // TODOS los sistemas del conjunto activo (uno o varios).
             DLFileService.SaveAll(_proyecto.Sistemas, path);
             DLPath = path;
             _proyecto.Archivo = path;
@@ -1886,9 +1908,36 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// lista de sistemas. Asegura que el chip / panel de validación refleje
     /// los cambios live mientras el usuario edita.
     /// </summary>
+    /// <summary>
+    /// Suscribe la re-validación a los cambios de TODOS los niveles (B2b), no
+    /// sólo de la fachada <c>Niveles[0]</c>. Para cada nivel engancha el
+    /// <c>CollectionChanged</c> de su colección <c>Sistemas</c> (alta/baja de
+    /// sistemas en ese nivel) y, para cada sistema, el de sus <c>Losas</c> + el
+    /// <c>PropertyChanged</c> de cada losa. Idempotente: desengancha antes de
+    /// enganchar, así que puede re-llamarse tras una carga/undo sin duplicar.
+    /// </summary>
     private void SuscribirRevalidacionEnSistemas()
     {
-        foreach (var s in _proyecto.Sistemas)
+        // Cada edificio: enganchar el CollectionChanged de su colección Niveles
+        // para re-suscribir cuando se agrega/quita un nivel (AgregarNivel, carga).
+        foreach (var ed in _proyecto.Edificios)
+        {
+            ed.Niveles.CollectionChanged -= OnNivelesDeEdificioChanged;
+            ed.Niveles.CollectionChanged += OnNivelesDeEdificioChanged;
+        }
+
+        // Cada nivel de cada edificio: enganchar el CollectionChanged de su
+        // colección de Sistemas (no sólo Niveles[0]).
+        foreach (var ed in _proyecto.Edificios)
+            foreach (var nivel in ed.Niveles)
+            {
+                nivel.Sistemas.CollectionChanged -= OnSistemasDeNivelChanged;
+                nivel.Sistemas.CollectionChanged += OnSistemasDeNivelChanged;
+            }
+
+        // Cada sistema de CADA nivel: enganchar sus losas (EnumerarSistemas
+        // recorre Edificios → Niveles → Sistemas).
+        foreach (var s in ProyectoService.EnumerarSistemas(_proyecto))
         {
             s.Losas.CollectionChanged -= OnLosasOfSistemaChanged;
             s.Losas.CollectionChanged += OnLosasOfSistemaChanged;
@@ -1898,6 +1947,29 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
                 l.PropertyChanged += OnLosaPropChangedForRevalidacion;
             }
         }
+    }
+
+    /// <summary>
+    /// Alta/baja de un NIVEL en cualquier edificio (AgregarNivel/EliminarNivel,
+    /// carga): re-valida, refresca la búsqueda y re-suscribe para enganchar los
+    /// sistemas y losas del nivel recién agregado.
+    /// </summary>
+    private void OnNivelesDeEdificioChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        Validacion.Revalidar();
+        Busqueda?.Refrescar();
+        SuscribirRevalidacionEnSistemas();
+    }
+
+    /// <summary>
+    /// Alta/baja de sistemas en CUALQUIER nivel: re-valida, refresca la búsqueda
+    /// y re-suscribe (para enganchar las losas del sistema recién agregado).
+    /// </summary>
+    private void OnSistemasDeNivelChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        Validacion.Revalidar();
+        Busqueda?.Refrescar();
+        SuscribirRevalidacionEnSistemas();
     }
 
     private void OnLosasOfSistemaChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)

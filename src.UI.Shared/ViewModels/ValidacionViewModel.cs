@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using LosasPlus.Models;
+using LosasPlus.Services;
 using LosasPlus.Validation;
 using MemoriaPlus.Common;
 
@@ -296,7 +297,9 @@ public sealed class ValidacionViewModel : INotifyPropertyChanged
     private Losa? LocalizarLosa(string? nombreSistema, int? losaId)
     {
         if (_proyecto is null || nombreSistema is null || losaId is null) return null;
-        foreach (var s in _proyecto.Sistemas)
+        // Multinivel (B2b): localizar la losa entre TODOS los niveles, no sólo la
+        // fachada Niveles[0], para que el auto-fix opere sobre cualquier nivel.
+        foreach (var s in ProyectoService.EnumerarSistemas(_proyecto))
             if (s.Nombre == nombreSistema)
                 foreach (var l in s.Losas)
                     if (l.Id == losaId.Value) return l;
