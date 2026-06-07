@@ -66,6 +66,23 @@ public sealed class CadCanvasHost : Control
     private IReadOnlyList<LayoutSolver.Placement> _placements = Array.Empty<LayoutSolver.Placement>();
     private double _offsetXPx;
 
+    // ---- Cache del LayoutResult (perf) ----
+    // LayoutSolver.Solve es BFS+LINQ con allocs; antes corría en CADA Render
+    // (pan/zoom/drag/mouse-move → decenas de veces/seg) generando presión de GC y
+    // caída de FPS. El layout SÓLO depende de la topología del sistema (losas +
+    // sus dimensiones/posiciones + bordes); los cambios de pura vista (pan/zoom)
+    // no la alteran. Cacheamos por (instancia de Sistema + RevisionSistema + hash
+    // de topología) y reusamos el resultado mientras la topología no cambie.
+    //
+    // El hash de topología (no sólo RevisionSistema) cubre también las mutaciones
+    // in-canvas que reescriben el SSOT sin incrementar la revisión (crear/mover/
+    // redimensionar losa, crear borde) y se confían a RefrescarLosas() para
+    // repintar — así el cache nunca sirve un layout obsoleto.
+    private LayoutSolver.LayoutResult? _layoutCache;
+    private Sistema? _layoutCacheSistema;
+    private int _layoutCacheRevision = int.MinValue;
+    private int _layoutCacheTopologia;
+
     // ---- Estado de interacción (efímero, sólo de la vista — nunca toca el SSOT) ----
     private enum ModoArrastre { Ninguno, Pan, Mover, Redimensionar, DibujarLosa, DibujarMuro }
     private ModoArrastre _modo = ModoArrastre.Ninguno;
@@ -409,7 +426,7 @@ public sealed class CadCanvasHost : Control
     /// confirmar la edición in-canvas. Port a Avalonia: recomputar chips +
     /// InvalidateVisual() (el render rehace el layout y dibuja el overlay).
     /// </summary>
-    public void RefrescarLosas() { RecomputarChips(); InvalidateVisual(); }
+    public void RefrescarLosas() { InvalidarLayout(); RecomputarChips(); InvalidateVisual(); }
 
     // =====================================================================
     // Capa 0 — Grilla métrica
@@ -604,9 +621,8 @@ public sealed class CadCanvasHost : Control
         if (sistema is null) return;
         if (sistema.Losas.Count == 0) { DibujarMuros(dc, sistema); return; }
 
-        LayoutSolver.LayoutResult layout;
-        try { layout = LayoutSolver.Solve(sistema); }
-        catch { DibujarMuros(dc, sistema); return; }
+        var layout = ObtenerLayout(sistema);
+        if (layout is null) { DibujarMuros(dc, sistema); return; }
 
         var rellenoLosa  = new SolidColorBrush(Color.FromArgb(45, 0x2E, 0x7D, 0x32));
         var rellenoHuerf = new SolidColorBrush(Color.FromArgb(45, 0xC1, 0x8A, 0x2C));
@@ -643,6 +659,67 @@ public sealed class CadCanvasHost : Control
         _placements = layout.Placements;
 
         DibujarMuros(dc, sistema);
+    }
+
+    /// <summary>
+    /// Devuelve el <see cref="LayoutSolver.LayoutResult"/> del sistema, cacheado
+    /// mientras la topología no cambie. La clave es (instancia de
+    /// <see cref="Sistema"/> + <see cref="RevisionSistema"/> + hash de topología);
+    /// los cambios de pura vista (pan/zoom) la dejan intacta y reusan el resultado
+    /// sin reejecutar la BFS+LINQ del solver en cada frame. Devuelve <c>null</c>
+    /// si el solver lanza (mismo fallback que antes: dibujar sólo muros).
+    /// </summary>
+    private LayoutSolver.LayoutResult? ObtenerLayout(Sistema sistema)
+    {
+        int topo = HashTopologia(sistema);
+        if (_layoutCache is not null
+            && ReferenceEquals(_layoutCacheSistema, sistema)
+            && _layoutCacheRevision == RevisionSistema
+            && _layoutCacheTopologia == topo)
+            return _layoutCache;
+
+        try { _layoutCache = LayoutSolver.Solve(sistema); }
+        catch { _layoutCache = null; }
+
+        _layoutCacheSistema = sistema;
+        _layoutCacheRevision = RevisionSistema;
+        _layoutCacheTopologia = topo;
+        return _layoutCache;
+    }
+
+    /// <summary>
+    /// Hash estable de la topología que consume el <see cref="LayoutSolver"/>:
+    /// las losas (Id, Lx, Ly, PosX, PosY) y los bordes de adyacencia (BI, BJ) en
+    /// X e Y. Es O(losas+bordes) — mucho más barato que la BFS+LINQ del solver —,
+    /// así que recalcularlo cada frame para decidir el cache-hit no cuesta nada.
+    /// No incluye datos que no afecten la posición (carga, espesor, tipo…).
+    /// </summary>
+    private static int HashTopologia(Sistema sistema)
+    {
+        var h = new HashCode();
+        h.Add(sistema.Losas.Count);
+        foreach (var l in sistema.Losas)
+        {
+            h.Add(l.Id);
+            h.Add(l.Lx);
+            h.Add(l.Ly);
+            h.Add(l.PosX);
+            h.Add(l.PosY);
+        }
+        h.Add(sistema.BordesX.Count);
+        foreach (var b in sistema.BordesX) { h.Add(b.BI); h.Add(b.BJ); }
+        h.Add(sistema.BordesY.Count);
+        foreach (var b in sistema.BordesY) { h.Add(b.BI); h.Add(b.BJ); }
+        return h.ToHashCode();
+    }
+
+    /// <summary>Invalida el layout cacheado — fuerza un recálculo en el próximo render.</summary>
+    private void InvalidarLayout()
+    {
+        _layoutCache = null;
+        _layoutCacheSistema = null;
+        _layoutCacheRevision = int.MinValue;
+        _layoutCacheTopologia = 0;
     }
 
     private static void DibujarMuros(DrawingContext dc, Sistema sistema)
