@@ -68,10 +68,10 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     public bool EsModoEditor => _modoActivo == ModoSidebar.Editor;
 
     /// <summary>Texto de versión mostrado en el branding de la sidebar.</summary>
-    public string Version => "v0.5.0 — LosasPlus";
+    public string Version => $"v0.5.0 — {MemoriaPlus.Common.Branding.Producto}";
 
     /// <summary>Copyright dinámico (año en curso) — bound al statusbar.</summary>
-    public string CopyrightTexto => $"© {DateTime.Now.Year} LosasPlus · motor: F. Perdomo (Pieper-Martens)";
+    public string CopyrightTexto => $"© {DateTime.Now.Year} {MemoriaPlus.Common.Branding.Producto} · motor: F. Perdomo (Pieper-Martens)";
 
     /// <summary>
     /// Título dinámico del Window. Refleja el nombre del proyecto activo y
@@ -83,8 +83,8 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         {
             var nombre = string.IsNullOrWhiteSpace(_proyecto.Nombre) ? "(sin nombre)" : _proyecto.Nombre;
             if (string.IsNullOrEmpty(_proyecto.Archivo))
-                return $"LosasPlus · {nombre} · sin guardar";
-            return $"LosasPlus · {nombre} · {Path.GetFileName(_proyecto.Archivo)}";
+                return $"{MemoriaPlus.Common.Branding.Producto} · {nombre} · sin guardar";
+            return $"{MemoriaPlus.Common.Branding.Producto} · {nombre} · {Path.GetFileName(_proyecto.Archivo)}";
         }
     }
 
@@ -132,6 +132,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     public ICommand? AbrirShortcutsCommand     { get; private set; }
     public ICommand? IrAModoCommand            { get; private set; }
     public ICommand? AplicarBulkCommand        { get; private set; }
+    public ICommand? AgregarLosaCommand        { get; private set; }
 
     // ---- Validación normativa (commit 33) ----
     /// <summary>
@@ -914,6 +915,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             irALosa:               (s, id) => BuscarYActivarSistema(s));
         IrABusquedaCommand = new RelayCommand(_ => ModoActivo = ModoSidebar.Busqueda);
         GenerarMemoriaCommand = new RelayCommand(_ => GenerarMemoria());
+        // Atajo configurable Ctrl+L (AgregarLosa). El botón usa OnAddLosa; este
+        // command expone la misma acción a una KeyBinding (ver AplicarAtajos).
+        AgregarLosaCommand = new RelayCommand(_ => AgregarLosa());
         
         // Back-compat: el comando sigue existiendo (aplica Wu) pero ahora delega
         // en el método que también devuelve el desglose. El menú Engine usa un

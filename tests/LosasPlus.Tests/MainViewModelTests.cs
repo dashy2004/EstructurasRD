@@ -121,4 +121,35 @@ public class MainViewModelTests
         // La selección sí debe quedar asignada.
         Assert.Same(reciente, vm.ProyectoRecienteSeleccionado);
     }
+
+    // ---- Fase C: branding centralizado --------------------------------
+
+    [Fact]
+    public void Branding_const_producto_es_EstructurasRD()
+    {
+        Assert.Equal("EstructurasRD", MemoriaPlus.Common.Branding.Producto);
+    }
+
+    [Fact]
+    public void TituloVentana_usa_la_marca_EstructurasRD()
+    {
+        var vm = new MainViewModel();
+        Assert.StartsWith(MemoriaPlus.Common.Branding.Producto, vm.TituloVentana);
+        Assert.StartsWith("EstructurasRD", vm.TituloVentana);
+    }
+
+    // ---- Fase C: atajo Ctrl+L (AgregarLosa) cableado a un ICommand -----
+
+    [Fact]
+    public void AgregarLosaCommand_existe_y_agrega_una_losa()
+    {
+        var vm = new MainViewModel();
+        var antes = vm.Sistema.Losas.Count;
+
+        Assert.NotNull(vm.AgregarLosaCommand);
+        Assert.True(vm.AgregarLosaCommand!.CanExecute(null));
+        vm.AgregarLosaCommand.Execute(null);
+
+        Assert.Equal(antes + 1, vm.Sistema.Losas.Count);
+    }
 }

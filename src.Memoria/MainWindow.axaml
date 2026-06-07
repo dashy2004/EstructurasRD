@@ -6,6 +6,7 @@
         x:Class="MemoriaPlus.MainWindow"
         x:CompileBindings="False"
         Title="{Binding TituloVentana}"
+        Icon="avares://MemoriaPlus.UI.Shared/Resources/branding/EstructurasRD.png"
         Height="900" Width="1440"
         MinHeight="640" MinWidth="1100"
         FontFamily="{StaticResource FontFamilyUI}"
@@ -21,7 +22,7 @@
             <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
 
                 <StackPanel Grid.Row="0" Margin="20,20,20,8">
-                    <TextBlock Text="Memoria Plus"
+                    <TextBlock Text="{x:Static cmn:Branding.Producto}"
                                FontFamily="{StaticResource FontFamilyUI}"
                                FontSize="20" FontWeight="SemiBold"
                                Foreground="{StaticResource PrimaryBrush}"/>

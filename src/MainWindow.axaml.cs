@@ -155,6 +155,7 @@ public partial class MainWindow : Window
             { AtajoIds.Guardar,       vm.GuardarProyectoLpxCommand },
             { AtajoIds.GuardarComo,   vm.GuardarComoLpxCommand },
             { AtajoIds.Generar,       vm.GenerarMemoriaCommand },
+            { AtajoIds.AgregarLosa,   vm.AgregarLosaCommand },
             { AtajoIds.Busqueda,      vm.IrABusquedaCommand },
         };
 
@@ -256,13 +257,6 @@ public partial class MainWindow : Window
     // Menú File / Engine / Export — file pickers vía AppServices (async).
     // =====================================================================
 
-    private async void OnBrowseLosasExe(object? sender, RoutedEventArgs e)
-    {
-        var path = await AppServices.Dialogs.OpenFileAsync(
-            "Selecciona Losas.exe", new FileFilter("Ejecutables", new[] { "*.exe" }));
-        if (path is not null) Vm.LosasExePath = path;
-    }
-
     private async void OnOpenClick(object? sender, RoutedEventArgs e)
     {
         var path = await AppServices.Dialogs.OpenFileAsync(
@@ -309,9 +303,6 @@ public partial class MainWindow : Window
             new FileFilter("Archivos de datos Losas", new[] { "*.DL" }));
         if (path is not null) await Vm.GuardarDLAsync(path);
     }
-
-    private async void OnLaunchLosasExeClick(object? sender, RoutedEventArgs e)
-        => await Vm.LanzarLosasExeAsync();
 
     private async void OnImportTxtClick(object? sender, RoutedEventArgs e)
     {
