@@ -91,3 +91,6 @@ plugins/build/
 appsettings.Local.json
 .env
 .env.local
+
+# harness cruft
+**/.claude/
