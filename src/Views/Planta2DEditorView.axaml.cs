@@ -55,6 +55,10 @@ public partial class Planta2DEditorView : UserControl
         BtnCalCancelar.Click += (s, e) => CancelarCalibracionPdf();
         TxtCalDistReal.KeyDown += OnCalDistRealKeyDown;
 
+        // Calcar losa desde el DXF (UI1.3)
+        BtnMapearLosa.IsCheckedChanged += OnMapearLosaToggled;
+        EditorCanvas.PoligonoMapeado += OnPoligonoMapeado;
+
         // Wire buttons
         BtnRecalcular.Click += OnRecalcularClick;
         BtnEliminar.Click += OnEliminarClick;
@@ -190,6 +194,39 @@ public partial class Planta2DEditorView : UserControl
         EditorCanvas.CancelarCalibracionPdf();
         TxtStatus.Text = "Calibración del PDF cancelada.";
         BtnPuntero.IsChecked = true;
+    }
+
+    // ---- Calcar losa desde polilínea del DXF (UI1.3) ----
+
+    private void OnMapearLosaToggled(object? sender, RoutedEventArgs e)
+    {
+        if (BtnMapearLosa.IsChecked != true) return;
+
+        if (Vm?.CadEditor.Plano is not { EstaVacio: false })
+        {
+            TxtStatus.Text = "✕ Calcar losa: primero importá un DXF («📂 DXF»).";
+            BtnPuntero.IsChecked = true;
+            return;
+        }
+
+        EditorCanvas.ActiveTool = "MapearLosa";
+        TxtStatus.Text = "Calcar losa: click dentro de un contorno rectangular cerrado del plano. " +
+                         "La herramienta queda activa para calcar varias seguidas.";
+    }
+
+    private void OnPoligonoMapeado(PolilineaCad? poli)
+    {
+        if (poli is null)
+        {
+            TxtStatus.Text = "✕ Ahí no hay un polígono cerrado del DXF.";
+            return;
+        }
+
+        // El comando valida el rectángulo ortogonal y crea la losa ANCLADA con
+        // la misma fórmula Y-flip que el import batch (paridad F2/UI1.1).
+        Vm?.CadEditor.MapearPoligonoCommand.Execute(poli);
+        TxtStatus.Text = Vm?.CadEditor.EstadoImportacion ?? "";
+        EditorCanvas.InvalidateVisual();
     }
 
     private void OnCanvasSelectionChanged(object? selected)

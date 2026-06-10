@@ -180,6 +180,31 @@ public class PlantaCanvas : Control
             : new Point(p1.X, p2.Y);
     }
 
+    // ---- Underlay DXF: mapeo mundo (Y-up) ↔ planta (Y-down) (UI1.3) ----
+
+    /// <summary>
+    /// Punto mundo del DXF → planta: <c>yPlanta = OffsetY + (MaxY − yMundo)·Escala</c>
+    /// — la MISMA convención que <c>DxfEstructuraMapper.CrearLosaBatch</c> y el
+    /// flip-Y del lienzo CAD. (Antes el underlay se dibujaba sin el flip y el
+    /// plano quedaba espejado verticalmente respecto a la estructura.)
+    /// </summary>
+    public static Point PlanoAPlanta(PlanoReferencia plano, PuntoCad pt) =>
+        new(plano.OffsetX + pt.X * plano.Escala,
+            plano.OffsetY + (plano.MaxY - pt.Y) * plano.Escala);
+
+    /// <summary>Inverso exacto de <see cref="PlanoAPlanta"/> — para el hit-test de «Calcar losa».</summary>
+    public static PuntoCad PlantaAPlano(PlanoReferencia plano, Point pPlanta) =>
+        new((pPlanta.X - plano.OffsetX) / plano.Escala,
+            plano.MaxY - (pPlanta.Y - plano.OffsetY) / plano.Escala);
+
+    /// <summary>
+    /// Polilínea cerrada del DXF clickeada con la herramienta «Calcar losa»
+    /// (<c>null</c> = el click no cayó dentro de ninguna). La vista ejecuta
+    /// <c>CadEditor.MapearPoligonoCommand</c>, que valida el rectángulo y crea
+    /// la losa anclada.
+    /// </summary>
+    public event Action<PolilineaCad?>? PoligonoMapeado;
+
     private Point MetrosAPixel(double mx, double my)
     {
         return new Point(mx * _scale + _tx, my * _scale + _ty);
@@ -240,6 +265,25 @@ public class PlantaCanvas : Control
                     CalibracionPdfLista?.Invoke(p1, dist);
                 }
                 InvalidateVisual();
+                e.Handled = true;
+                return;
+            }
+
+            if (ActiveTool == "MapearLosa")
+            {
+                if (PlanoDxf is { EstaVacio: false } plano)
+                {
+                    var mundo = PlantaAPlano(plano, pM);
+                    PolilineaCad? hit = null;
+                    foreach (var ent in plano.Entidades)
+                        if (ent is PolilineaCad poli && poli.Cerrada
+                            && LosasPlus.Services.PoligonoLosaMapper.ContienePunto(poli, mundo))
+                        {
+                            hit = poli;
+                            break;
+                        }
+                    PoligonoMapeado?.Invoke(hit);
+                }
                 e.Handled = true;
                 return;
             }
@@ -672,11 +716,16 @@ public class PlantaCanvas : Control
         }
 
         // Underlay DXF (calco vectorial) — líneas y polilíneas, debajo de la estructura.
+        // UI1.3: con flip-Y vía PlanoAPlanta — la misma convención que las losas
+        // importadas del DXF (antes el plano se veía espejado verticalmente).
         if (PlanoDxf is { } plano && !plano.EstaVacio)
         {
             var dxfPen = new Pen(new SolidColorBrush(Color.FromArgb(120, 90, 90, 90)), 1.0);
-            Point W(PuntoCad pt) => MetrosAPixel(plano.OffsetX + pt.X * plano.Escala,
-                                                 plano.OffsetY + pt.Y * plano.Escala);
+            Point W(PuntoCad pt)
+            {
+                var pl = PlanoAPlanta(plano, pt);
+                return MetrosAPixel(pl.X, pl.Y);
+            }
             foreach (var ent in plano.Entidades)
             {
                 if (ent is LineaCad ln)

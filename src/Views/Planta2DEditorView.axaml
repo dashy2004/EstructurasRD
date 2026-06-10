@@ -45,6 +45,9 @@
                     <RadioButton x:Name="BtnCalibrarPdf" Content="🎯 Calibrar PDF"
                                  Classes="tool-button" GroupName="FloorTool"
                                  ToolTip.Tip="Dos puntos sobre el PDF + distancia real para corregir su escala. Shift = línea ortogonal · Esc cancela."/>
+                    <RadioButton x:Name="BtnMapearLosa" Content="▱ Calcar losa"
+                                 Classes="tool-button" GroupName="FloorTool"
+                                 ToolTip.Tip="Click sobre un contorno rectangular cerrado del DXF para crear la losa ahí (anclada)."/>
                 </WrapPanel>
 
                 <!-- Acciones globales -->
