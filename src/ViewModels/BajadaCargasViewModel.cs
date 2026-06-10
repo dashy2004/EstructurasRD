@@ -155,7 +155,17 @@ public sealed class BajadaCargasViewModel : INotifyPropertyChanged
         var columnas = edificio.Niveles.SelectMany(n => n.Columnas).ToList();
         if (columnas.Count == 0) { ResumenZapatas = "No hay columnas definidas (agrégalas en el editor de Columnas)."; return; }
 
-        var res = DescensoColumnas.RepartirEquitativo(columnas, CargaEnBase, PresionAdmisible);
+        // F3: descenso geométrico por área tributaria (viga→columna) cuando el
+        // modelo tiene geometría de vigas; si ningún nivel asigna carga, cae al
+        // reparto equitativo histórico (modelos sin vigas en planta). Misma
+        // aproximación que Planta2DEditorView; reacciones reales → F4.
+        var resGeo = new System.Collections.Generic.List<CargaColumna>();
+        foreach (var nivel in edificio.Niveles)
+            resGeo.AddRange(DescensoColumnas.PredimensionarGeometrico(nivel, PresionAdmisible));
+        bool geometrico = resGeo.Count > 0;
+        System.Collections.Generic.IReadOnlyList<CargaColumna> res = geometrico
+            ? resGeo
+            : DescensoColumnas.RepartirEquitativo(columnas, CargaEnBase, PresionAdmisible);
         if (res.Count == 0) { ResumenZapatas = "Sin carga que repartir."; return; }
 
         ZapatasDiseno.Clear();
@@ -183,8 +193,16 @@ public sealed class BajadaCargasViewModel : INotifyPropertyChanged
             });
         }
 
-        double axial = res[0].CargaAxial, lado = res[0].LadoZapata;
-        ResumenZapatas = $"{res.Count} columna(s): {axial:0.##} t c/u (reparto equitativo, Wu) → zapata {lado:0.##}×{lado:0.##} m";
+        if (geometrico)
+        {
+            ResumenZapatas = $"{res.Count} columna(s) (reparto geométrico por área tributaria, Wu) " +
+                             $"→ zapata mayor {res.Max(r => r.LadoZapata):0.##} m de lado";
+        }
+        else
+        {
+            double axial = res[0].CargaAxial, lado = res[0].LadoZapata;
+            ResumenZapatas = $"{res.Count} columna(s): {axial:0.##} t c/u (reparto equitativo, Wu) → zapata {lado:0.##}×{lado:0.##} m";
+        }
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

@@ -1,9 +1,11 @@
 using System;
 using System.IO;
+using System.Linq;
 using ClosedXML.Excel;
 using LosasPlus.Models;
 using LosasPlus.Transmision;
 using LosasPlus.ViewModels;
+using LosasPlus.Vigas;
 using Xunit;
 
 namespace LosasPlus.Tests;
@@ -116,5 +118,41 @@ public class BajadaCargasViewModelTests
         var vm = new BajadaCargasViewModel(() => EdificioDosNiveles());
         vm.PredimensionarZapatas();
         Assert.Contains("No hay columnas", vm.ResumenZapatas);
+    }
+
+    [Fact]
+    public void PredimensionarZapatas_usa_descenso_geometrico_cuando_hay_vigas()
+    {
+        // Fixture geométrico de PredimensionarGeometricoTests: 2 losas (Carga 10,
+        // 4×4), 3 vigas, 4 columnas; C04 recibe Wu = 60 t por área tributaria.
+        var ed = new Edificio();
+        var nivel = new Nivel { Cota = 0 };
+        var s = new Sistema();
+        s.Losas.Add(new Losa { Lx = 4, Ly = 4, Carga = 10, CoordenadaX = 0, CoordenadaY = 0 });
+        s.Losas.Add(new Losa { Lx = 4, Ly = 4, Carga = 10, CoordenadaX = 0, CoordenadaY = 4 });
+        nivel.Sistemas.Add(s);
+        Viga V(double ox, double oy, double len, double ang)
+        {
+            var v = new Viga { OrigenX = ox, OrigenY = oy, AnguloGrados = ang };
+            v.Tramos.Add(new TramoViga { Longitud = len });
+            return v;
+        }
+        nivel.Vigas.Add(V(0, 4, 4, 0));
+        nivel.Vigas.Add(V(0, 0, 4, 0));
+        nivel.Vigas.Add(V(0, 0, 4, 90));
+        var c04 = new Columna { Nombre = "C04", CoordenadaX = 0, CoordenadaY = 4 };
+        nivel.Columnas.Add(new Columna { Nombre = "C00", CoordenadaX = 0, CoordenadaY = 0 });
+        nivel.Columnas.Add(new Columna { Nombre = "C40", CoordenadaX = 4, CoordenadaY = 0 });
+        nivel.Columnas.Add(c04);
+        nivel.Columnas.Add(new Columna { Nombre = "C44", CoordenadaX = 4, CoordenadaY = 4 });
+        ed.Niveles.Add(nivel);
+
+        var vm = new BajadaCargasViewModel(() => ed) { PresionAdmisible = 15 };
+        vm.PredimensionarZapatas();
+
+        // C04 con su axial tributaria real (60 t), no el equitativo CargaEnBase/4.
+        var fila = vm.ZapatasDiseno.Single(z => ReferenceEquals(z.Columna, c04));
+        Assert.Equal(60, fila.PuTon, 3);
+        Assert.Contains("geométrico", vm.ResumenZapatas);
     }
 }
