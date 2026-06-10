@@ -4,7 +4,7 @@
 > Este archivo es la **fuente única de verdad**; si un doc lo contradice, manda este.
 
 <!-- AUTO:START -->
-Estampado: 2026-06-10 05:44 · rama engine/f3-pieper-martens-21 · commit 2009281 · sin commit: 3 archivos
+Estampado: 2026-06-10 05:48 · rama engine/f3-pieper-martens-21 · commit d71c4cc · sin commit: 4 archivos
 
 ## Build & Tests (en vivo)
 - .NET (LosasPlus.Linux.sln): build 0 err / 0 warn · tests 1171 passed / 0 failed / 0 skipped

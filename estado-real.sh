@@ -78,10 +78,11 @@ echo "==> Soft-check de conteos en docs (.md rastreados)"
 STALE=0
 while IFS= read -r f; do
   [ "$f" = "$STATE" ] && continue
-  # Archivos historicos (planes/specs/releases/roadmap): sus conteos viejos son
-  # legitimos — son bitacoras de ejecucion, no tableros de estado.
+  # Archivos historicos (planes/specs/releases/roadmap/bitacora): sus conteos
+  # viejos son legitimos — son bitacoras de ejecucion, no tableros de estado.
   case "$f" in
     docs/superpowers/plans/*|docs/superpowers/specs/*|motor-fea/docs/superpowers/*|docs/releases/*|docs/roadmap/*) continue ;;
+    docs/superpowers/progreso-fases.md) continue ;;
   esac
   # Docs superseded: declaran al tope que STATE.md manda (banner F0); no se
   # auditan sus conteos porque su cuerpo se conserva como historico.
