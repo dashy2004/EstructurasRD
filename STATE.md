@@ -4,7 +4,7 @@
 > Este archivo es la **fuente única de verdad**; si un doc lo contradice, manda este.
 
 <!-- AUTO:START -->
-Estampado: 2026-06-10 00:28 · rama engine/f0-verdad-de-estado · commit ed90bda · sin commit: 2 archivos
+Estampado: 2026-06-10 00:41 · rama engine/f0-verdad-de-estado · commit 8410ec2 · sin commit: 10 archivos
 
 ## Build & Tests (en vivo)
 - .NET (LosasPlus.Linux.sln): build 0 err / 0 warn · tests 1106 passed / 0 failed / 0 skipped

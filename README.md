@@ -1,3 +1,5 @@
+> ⚠️ Estado real autogenerado → ver [/STATE.md](STATE.md) (este documento puede estar desactualizado).
+
 <h1 align="center">LosasPlus &nbsp;/&nbsp; MemoriaPlus</h1>
 
 <p align="center">

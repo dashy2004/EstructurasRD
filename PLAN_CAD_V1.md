@@ -1,3 +1,5 @@
+> ⚠️ Estado real autogenerado → ver [/STATE.md](STATE.md) (este documento puede estar desactualizado).
+
 # PLAN_CAD_V1 — Editor visual CAD + importador DXF
 
 > Documento de arquitectura para la visión **v1.0** de LosasPlus.

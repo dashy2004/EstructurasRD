@@ -1,3 +1,5 @@
+> ⚠️ Estado real autogenerado → ver [/STATE.md](STATE.md) (este documento puede estar desactualizado).
+
 # Prompts para Stitch — interfaces de la suite LosasPlus 2.0
 
 > Documento de referencia para generar mockups de UI con Stitch (https://stitch.withgoogle.com).

@@ -1,3 +1,5 @@
+> ⚠️ Estado real autogenerado → ver [/STATE.md](STATE.md) (este documento puede estar desactualizado).
+
 # Release v1.4.0 — Motor nativo Pieper-Martens + niveles + ejes
 
 Branch: `engine/columnas-diseno` · 957 tests verde.

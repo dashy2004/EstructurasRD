@@ -1,3 +1,5 @@
+> ⚠️ Estado real autogenerado → ver [/STATE.md](STATE.md) (este documento puede estar desactualizado).
+
 # Propuesta de actualización LosasPlus → Suite Estructural
 
 > **Documento de planificación técnica.** Versión 1.0 · 2026-05-21.

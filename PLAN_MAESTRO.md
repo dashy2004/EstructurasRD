@@ -1,3 +1,5 @@
+> ⚠️ Estado real autogenerado → ver [/STATE.md](STATE.md) (este documento puede estar desactualizado).
+
 # Plan Maestro — Correcciones LosasPlus + Motor FEA Nativo
 
 > Backlog único y durable para el loop de integración auto-pautado.

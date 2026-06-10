@@ -1,15 +1,13 @@
 name: ci
 
-# Continuous integration: build + test on every push to main and on PRs.
-# Runs on Windows because the apps are WPF (UseWPF=true) — even the Core
-# library targets net8.0 (no WPF), but tests reference the App via WPF
-# runtime.
+# LEGACY (solo manual): CI del snapshot WPF (LosasPlus.sln, windows-latest).
+# Desde el port a Avalonia la solucion de verdad es LosasPlus.Linux.sln,
+# cubierta por ci-linux.yml + estado-real.yml en cada push/PR. Este workflow
+# se conserva ejecutable a demanda (workflow_dispatch) para validar el
+# snapshot WPF historico; no corre automaticamente. Ver /STATE.md y F8 en
+# docs/superpowers/roadmap-fases-F0-F9.md.
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 jobs:

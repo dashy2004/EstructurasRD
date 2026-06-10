@@ -78,6 +78,14 @@ echo "==> Soft-check de conteos en docs (.md rastreados)"
 STALE=0
 while IFS= read -r f; do
   [ "$f" = "$STATE" ] && continue
+  # Archivos historicos (planes/specs/releases/roadmap): sus conteos viejos son
+  # legitimos — son bitacoras de ejecucion, no tableros de estado.
+  case "$f" in
+    docs/superpowers/plans/*|docs/superpowers/specs/*|motor-fea/docs/superpowers/*|docs/releases/*|docs/roadmap/*) continue ;;
+  esac
+  # Docs superseded: declaran al tope que STATE.md manda (banner F0); no se
+  # auditan sus conteos porque su cuerpo se conserva como historico.
+  head -3 "$f" | grep -q "Estado real autogenerado" && continue
   while IFS= read -r line; do
     [ -z "$line" ] && continue
     n="$(printf '%s' "$line" | grep -oE "[0-9]+ +(tests|passed|pruebas)" | grep -oE "^[0-9]+" | head -1)"
