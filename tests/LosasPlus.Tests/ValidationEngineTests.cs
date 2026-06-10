@@ -321,6 +321,20 @@ public class ValidationEngineTests
     }
 
     [Fact]
+    public void TipoLosaValidoRule_mensaje_no_promete_soporte_del_motor()
+    {
+        var p = ProyectoBase();
+        p.Sistemas[0].Losas[0].Tipo = 99;
+        var issue = new TipoLosaValidoRule().Evaluar(p).Single();
+        // F3 GATE B: el mensaje describe pertenencia al catálogo del formato .DL,
+        // sin afirmar qué subconjunto "soporta" o "procesa" el motor.
+        Assert.DoesNotContain("soportados por la aplicación", issue.Descripcion);
+        Assert.DoesNotContain("el motor de cálculo no puede procesar", issue.Descripcion);
+        Assert.Contains("catálogo de 23 tipos de borde del formato .DL", issue.Descripcion);
+        Assert.DoesNotContain("implementados por el motor", issue.ClausulaCita);
+    }
+
+    [Fact]
     public void Default_engine_incluye_la_regla_de_tipo_y_reporta_el_error()
     {
         var p = ProyectoBase();
