@@ -26,7 +26,7 @@ dotnet build LosasPlus.Linux.sln --no-incremental -c Release && dotnet run --pro
 > Causa raíz de la desincronización: dualidad `PosX/PosY` (CAD) vs `CoordenadaX/Y` (planta) — dos verdades para la misma losa.
 
 - [x] **UI1.1** Unificar el sistema de coordenadas de Losa (una sola fuente; adaptador para proyectos guardados) y auditar el caché de `LayoutSolver`. ✅ 2026-06-10 — `CoordenadaX/Y + Anclada` (PosX/PosY retirados), migración v4→v5 encadenada desde v1, caché CAD por `TopologiaPlanta.Hash`; spec: `docs/superpowers/specs/2026-06-10-ui1.1-coordenadas-unificadas-design.md`.
-- [ ] **UI1.2** Calibración interactiva de PDF → Planta 2D (`CadEditorViewModel.cs:585-664`).
+- [x] **UI1.2** Calibración interactiva de PDF → Planta 2D (`CadEditorViewModel.cs:585-664`). ✅ 2026-06-10 — gesto de 2 puntos en `PlantaCanvas` + panel flotante; homotecia extraída a `CalibradorPdf` (src.Core, testeada) y aplicada vía el comando compartido del `CadEditorViewModel` (misma `PdfReferencia` ⇒ ambos lienzos calibrados).
 - [ ] **UI1.3** Click sobre polilínea del DXF → losa (MapearPoligono, `CadEditorViewModel.cs:847-887`) en PlantaCanvas.
 - [ ] **UI1.4** Leyenda "suma de colores" de muros como overlay (`CadEditorViewModel.cs:529`).
 - [ ] **UI1.5** Resize de LOSAS con handles en PlantaCanvas (reciclar el patrón de `CadCanvasHost.cs:956-970`).
