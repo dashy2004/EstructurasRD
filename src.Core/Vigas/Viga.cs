@@ -94,6 +94,22 @@ public partial class Viga : INotifyPropertyChanged
     [JsonIgnore]
     public double ExtremoY => _origenY + LongitudTotal * Math.Sin(_anguloGrados * Math.PI / 180.0);
 
+    /// <summary>
+    /// Reescala la posición de los apoyos tras un cambio de longitud (p. ej. al
+    /// estirar la viga en el lienzo de planta): cada apoyo conserva su posición
+    /// RELATIVA — el que estaba al 50% sigue al 50%, los de los extremos siguen
+    /// en los extremos. Llamar DESPUÉS de actualizar la longitud del tramo,
+    /// pasando la longitud total previa. Con <paramref name="longitudAnterior"/>
+    /// no positiva no hace nada (sin división por cero).
+    /// </summary>
+    public void ReescalarApoyos(double longitudAnterior)
+    {
+        if (longitudAnterior <= 0) return;
+        double factor = LongitudTotal / longitudAnterior;
+        foreach (var apoyo in Apoyos)
+            apoyo.CoordenadaX *= factor;
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
     private void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

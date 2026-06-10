@@ -25,8 +25,11 @@
                     </ComboBox>
                 </StackPanel>
 
-                <!-- Barra de Herramientas / Modos -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
+                <!-- Barra de Herramientas / Modos. WrapPanel: en resoluciones
+                     chicas los botones bajan a una segunda fila en vez de
+                     desbordarse fuera de la ventana. -->
+                <WrapPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center"
+                           VerticalAlignment="Center">
                     <RadioButton x:Name="BtnPuntero" Content="↖ Puntero" IsChecked="True"
                                  Classes="tool-button" GroupName="FloorTool" ToolTip.Tip="Seleccionar y arrastrar elementos en planta."/>
                     <RadioButton x:Name="BtnAddLosa" Content="▭ + Losa"
@@ -39,7 +42,7 @@
                                  Classes="tool-button" GroupName="FloorTool" ToolTip.Tip="Hacer click en el lienzo para colocar un nuevo eje estructural."/>
                     <RadioButton x:Name="BtnAddMuro" Content="🧱 + Muro"
                                  Classes="tool-button" GroupName="FloorTool" ToolTip.Tip="Hacer click en el lienzo para colocar un nuevo muro."/>
-                </StackPanel>
+                </WrapPanel>
 
                 <!-- Acciones globales -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">

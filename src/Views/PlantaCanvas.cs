@@ -385,16 +385,20 @@ public class PlantaCanvas : Control
                     // Recalculate length/angle
                     double nx = v.ExtremoX - v.OrigenX;
                     double ny = v.ExtremoY - v.OrigenY;
+                    double antes = v.LongitudTotal;
                     v.AnguloGrados = Math.Atan2(ny, nx) * 180 / Math.PI;
                     if (v.Tramos.Count > 0) v.Tramos[0].Longitud = Math.Sqrt(nx * nx + ny * ny);
+                    v.ReescalarApoyos(antes);   // los apoyos siguen a la viga
                 }
                 else if (_dragEndpoint == 1)
                 {
                     // Update endpoint by modifying angle and length
                     double nx = snapResult.X - v.OrigenX;
                     double ny = snapResult.Y - v.OrigenY;
+                    double antes = v.LongitudTotal;
                     v.AnguloGrados = Math.Atan2(ny, nx) * 180 / Math.PI;
                     if (v.Tramos.Count > 0) v.Tramos[0].Longitud = Math.Sqrt(nx * nx + ny * ny);
+                    v.ReescalarApoyos(antes);   // los apoyos siguen a la viga
                 }
                 else
                 {
