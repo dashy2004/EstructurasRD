@@ -233,6 +233,9 @@ public partial class Planta2DEditorView : UserControl
     {
         _updatingProperties = true;
 
+        // Muro recién creado/seleccionado desde Planta: refrescar la leyenda (UI1.4).
+        if (selected is Muro) Vm?.CadEditor.RefrescarResumenMuros();
+
         // Clear previous error backgrounds when selection changes
         ClearErrorBackgrounds();
 
@@ -665,6 +668,7 @@ public partial class Planta2DEditorView : UserControl
                     break;
                 }
             }
+            Vm?.CadEditor.RefrescarResumenMuros();   // leyenda «Suma de Colores» (UI1.4)
         }
         else if (selected is EjeEstructural eje && EditorCanvas.Edificio != null)
         {

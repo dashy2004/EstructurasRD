@@ -830,8 +830,8 @@ public class PlantaCanvas : Control
             context.DrawText(ft, new Point(rect.Right + 4.0, rect.Y - 4.0));
         }
 
-        // 4. Draw Walls (Muros)
-        var muroBrush = new SolidColorBrush(Color.FromRgb(0x8D, 0x6E, 0x63)); // Brown
+        // 4. Draw Walls (Muros) — color por espesor (PaletaMuros, UI1.4): misma
+        // codificación visual que el lienzo CAD y que la leyenda «Suma de Colores».
         var muroSelectBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0x98, 0x00)); // Orange
 
         foreach (var sistema in Nivel.Sistemas)
@@ -840,9 +840,10 @@ public class PlantaCanvas : Control
             {
                 var pStart = MetrosAPixel(muro.PuntoInicio.X, muro.PuntoInicio.Y);
                 var pEnd = MetrosAPixel(muro.PuntoFin.X, muro.PuntoFin.Y);
-                
+
                 bool isSelected = ReferenceEquals(SelectedElement, muro);
-                var pen = new Pen(isSelected ? muroSelectBrush : muroBrush, muro.Espesor * _scale)
+                var pen = new Pen(isSelected ? muroSelectBrush : Cad.PaletaMuros.BrushParaEspesor(muro.Espesor),
+                                  muro.Espesor * _scale)
                 {
                     LineCap = PenLineCap.Flat
                 };

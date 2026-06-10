@@ -1,9 +1,16 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="clr-namespace:LosasPlus.Views"
+             xmlns:cad="clr-namespace:LosasPlus.Views.Cad"
              x:Class="LosasPlus.Views.Planta2DEditorView"
              x:CompileBindings="False"
              Background="{DynamicResource BgPrimary}">
+
+    <UserControl.Resources>
+        <!-- Paleta de muros compartida con el lienzo CAD (UI1.4). -->
+        <cad:EspesorABrushConverter x:Key="EspesorABrush"/>
+        <cad:CountToBoolConverter x:Key="CountToBool"/>
+    </UserControl.Resources>
 
     <DockPanel>
         <!-- Barra superior: Nivel, Herramientas, Acciones -->
@@ -103,6 +110,45 @@
                             <TextBlock Text="m" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource FgMuted}"/>
                             <Button x:Name="BtnCalAceptar" Content="Aplicar" Classes="accent"/>
                             <Button x:Name="BtnCalCancelar" Content="Cancelar"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Leyenda «Suma de Colores» (UI1.4): fija abajo-izquierda;
+                         visible sólo con muros. Mismo desglose que el lienzo CAD —
+                         el SSOT de muros es compartido (CadEditor.ResumenMuros). -->
+                    <Border ZIndex="50" VerticalAlignment="Bottom" HorizontalAlignment="Left"
+                            Margin="12" Padding="12,10" MaxHeight="300" MaxWidth="240"
+                            Background="{DynamicResource BgSecondary}"
+                            BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                            CornerRadius="7"
+                            IsVisible="{Binding CadEditor.ResumenMuros.Count, Converter={StaticResource CountToBool}}">
+                        <StackPanel>
+                            <TextBlock Text="🧱  SUMA DE COLORES" FontWeight="Bold" FontSize="10"
+                                       Foreground="{DynamicResource FgMuted}" Margin="0,0,0,8"/>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="240">
+                                <ItemsControl ItemsSource="{Binding CadEditor.ResumenMuros}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel Margin="0,3">
+                                                <Border DockPanel.Dock="Left" Width="14" Height="14"
+                                                        CornerRadius="3" Margin="0,1,8,0"
+                                                        VerticalAlignment="Top"
+                                                        BorderBrush="{DynamicResource Border}" BorderThickness="1"
+                                                        Background="{Binding Espesor, Converter={StaticResource EspesorABrush}}"/>
+                                                <StackPanel>
+                                                    <TextBlock FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource FgPrimary}"
+                                                               Text="{Binding EtiquetaLosa, Mode=OneWay}"/>
+                                                    <TextBlock FontSize="11" Foreground="{DynamicResource FgSecondary}">
+                                                        <Run Text="e "/><Run Text="{Binding Espesor, StringFormat=0.00, Mode=OneWay}"/><Run Text=" m  ·  "/>
+                                                        <Run Text="{Binding LongitudTotal, StringFormat=0.00, Mode=OneWay}"/><Run Text=" m  ·  ×"/><Run Text="{Binding Cantidad, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
                         </StackPanel>
                     </Border>
                 </Grid>

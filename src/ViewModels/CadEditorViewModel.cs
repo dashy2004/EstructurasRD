@@ -426,6 +426,13 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
     private void NotificarCambioLienzo() => RevisionSistema++;
 
     /// <summary>
+    /// Refresca la leyenda «Suma de Colores» cuando los muros mutan desde
+    /// Planta 2D (UI1.4): el SSOT de muros es compartido, pero la notificación
+    /// de <see cref="ResumenMuros"/> sólo la disparaban los paths del CAD.
+    /// </summary>
+    public void RefrescarResumenMuros() => OnPropertyChanged(nameof(ResumenMuros));
+
+    /// <summary>
     /// Ejecuta el <see cref="MotorGeometriaAnalitica"/> sobre el sistema
     /// activo: alinea las losas vecinas que casi se tocan y genera los
     /// bordes de continuidad de acero entre las que quedan en contacto.
