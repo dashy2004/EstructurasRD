@@ -53,6 +53,6 @@ public class EscenaEdificioVigasTests
 
         // Sólo 1 segmento de eje (viga sin sección/longitud), sin rectángulo de piso.
         var esc = EscenaEdificio.Construir(ed);
-        Assert.Equal(1, esc.Segmentos.Count);
+        Assert.Single(esc.Segmentos);
     }
 }

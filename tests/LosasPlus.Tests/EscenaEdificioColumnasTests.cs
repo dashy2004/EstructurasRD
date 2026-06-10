@@ -19,7 +19,7 @@ public class EscenaEdificioColumnasTests
     {
         var ed = new Edificio();
         ed.Niveles.Add(new Nivel { Cota = 0 }); // nivel vacío → sin massing
-        Assert.Equal(0, EscenaEdificio.Construir(ed).Segmentos.Count);
+        Assert.Empty(EscenaEdificio.Construir(ed).Segmentos);
     }
 
     [Fact]

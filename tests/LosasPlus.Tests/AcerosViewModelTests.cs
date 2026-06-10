@@ -99,6 +99,7 @@ public class AcerosViewModelTests
         // Al aplicar override, debería actualizarse la colección ArmadurasXCentro del Sistema Activo
         filaXCentro.AplicarOverride(6, 10.0); // Barra #6 a 10cm
 
+        Assert.NotNull(s.SalidaPerdomo);
         Assert.Single(s.SalidaPerdomo.ArmadurasXCentro);
         var armadura = s.SalidaPerdomo.ArmadurasXCentro[0];
         Assert.Equal(1, armadura.LosaId);
