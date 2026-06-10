@@ -3,7 +3,7 @@
 > Documento vivo mantenido por el loop (cada ~30 min). Para revisar y decidir.
 > Mapa de fases: [`roadmap-fases-F0-F9.md`](roadmap-fases-F0-F9.md) · Verdad de estado: [`/STATE.md`](../../STATE.md)
 
-**Última actualización:** 2026-06-10 01:05 · rama `engine/f0-verdad-de-estado`
+**Última actualización:** 2026-06-10 05:50 · rama `engine/f3-pieper-martens-21`
 
 ---
 
@@ -28,6 +28,21 @@
    - **Banner "ver STATE.md" a 6 docs vivos más** que declaraban conteos viejos: `README.md` (501), `PLAN_MAESTRO.md`, `PLAN_CAD_V1.md` (488), `PROMPTS_STITCH.md`, `PROPUESTA_UPDATE_v1.md` (501), `docs/RELEASE-v1.4.0.md` (957).
    - **`ci.yml` (WPF legacy) resuelto:** pasa a solo `workflow_dispatch` — la cobertura automática la dan `ci-linux.yml` + `estado-real.yml` sobre la solución de verdad (`LosasPlus.Linux.sln`). No se borró nada.
    - Verificado local: `./estado-real.sh --check` → exit 0, suites verdes 1106/208.
+
+### Iteración 3 (2026-06-10 05:00–05:50)
+
+5. **F1 CERRADA — verdad visual** (rama `engine/f1-verdad-visual`, commits `ff85aee`…`1127396`):
+   - Los 4 diagramas que `oxy:PlotView` dejaba en blanco migrados al patrón PNG (`VigaPng`, `SeccionPng`, `InteraccionPng`, `SeccionColumnaPng`) con 5 tests de píxeles; 0 `oxy:PlotView`/`xmlns:oxy` en `VigaEditorView`/`ColumnasEditorView`.
+   - **Bonus descubierto por los tests de píxeles:** fix de z-order — las `RectangleAnnotation` de concreto/estribo se pintaban `AboveSeries` (default de OxyPlot) y su gris semitransparente lavaba las barras de refuerzo: (0,0,139) quedaba en (40,40,136). Ahora van `BelowSeries`.
+   - Lienzo unificado: `EditorUnificadoView` sin pestañas (base Planta 2D) + botones DXF/PDF/Auto-Conectar; `CadView` intacto en el modo PlanoCad.
+   - Pendiente humano: pase visual manual (correr la app y confirmar los 6 diagramas + underlay).
+6. **F3 CERRADA (lado Linux) — Pieper-Martens 21/21** (rama `engine/f3-pieper-martens-21`, commits `1528db0`…`ca28a08`):
+   - GATE A: captura por-losa — una losa sin mapeo se registra en `LosasNoParseadas` y el sistema no aborta.
+   - GATE B: mensaje veraz en `TipoLosaValidoRule` (ya no promete "23 soportados" cuando el motor mapeaba 1).
+   - Mapeo completo `CodigoASubtipo` 21/21 (biyección con `TablasPerdomo.json`; 23/23 códigos sin `NotSupportedException`; regresión RESTAURANTE 2 intacta). Los 9 tests de simetría a/b pasaron ANTES del mapeo — la convención de orientación del JSON es coherente.
+   - UI con descenso geométrico por área tributaria (BajadaCargas + Editor de Columnas) con fallback equitativo.
+   - Pendiente humano: fixtures vs `Losas.exe` (Windows) para los 12 códigos x3/x4 de confianza media.
+   - Suites al cierre: **1171 .NET / 208 Python**, 0 warnings.
 
 ## 🧭 Decisiones tomadas (autónomas, revisables)
 
@@ -54,9 +69,9 @@
 | Fase | Estado | Próximo paso |
 |------|--------|--------------|
 | F0 | ✅ cerrada | — (solo decisión de merge) |
-| F1 | 🔄 spec+plan en redacción | Implementar VigaPng/InteraccionPng + unificar lienzos |
-| F3 | 🔄 spec+plan en redacción | GATES (captura por-losa, mensaje engañoso) + mapeo 20 códigos |
-| F2 | ⬜ | Tras F1 (espejado Y, PosX/PosY, ambientes en L) |
+| F1 | ✅ cerrada (iter. 3) | Pase visual manual del usuario |
+| F3 | ✅ cerrada lado Linux (iter. 3) | Fixtures vs `Losas.exe` (usuario, Windows) |
+| F2 | ⬜ siguiente | Espejado Y, PosX/PosY, ambientes en L (desbloqueada por F1) |
 | F4 | ⬜ | CargaElemento + peso propio (XL; varias iteraciones) |
 | F5 | ⬜ | Tras F4 (deflexión, deriva, torsión) |
 | F6 | ⬜ | Tras F2 (qwen.config runtime, UI de revisión) |
