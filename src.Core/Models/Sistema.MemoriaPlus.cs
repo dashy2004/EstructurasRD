@@ -589,6 +589,22 @@ public partial class Losa
     /// </summary>
     [JsonIgnore]
     public bool TienePosicionExplicita => _posX.HasValue && _posY.HasValue;
+
+    private bool _anclada;
+
+    /// <summary>
+    /// True cuando la losa tiene posición explícita en el lienzo unificado
+    /// (UI1.1 — fuente única de coordenadas): la fijó el usuario (CAD o
+    /// Planta 2D), un import DXF/foto, la migración v4→v5 del formato de
+    /// proyecto o el horneado de <c>SincronizadorPlanta</c>. Una losa NO
+    /// anclada es "libre": el <c>LayoutSolver</c> la coloca por adyacencias.
+    /// Serializado (aditivo): los proyectos previos cargan <c>false</c>.
+    /// </summary>
+    public bool Anclada
+    {
+        get => _anclada;
+        set { _anclada = value; OnPropertyChanged(); }
+    }
 }
 
 /// <summary>

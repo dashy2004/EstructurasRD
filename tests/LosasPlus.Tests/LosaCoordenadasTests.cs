@@ -19,6 +19,47 @@ public class LosaCoordenadasTests
         Assert.Equal(0, losa.CoordenadaY, 9);
     }
 
+    // =====================================================================
+    // UI1.1 — Fuente única de coordenadas: flag Anclada
+    // =====================================================================
+
+    [Fact]
+    public void Losa_nueva_no_esta_anclada()
+    {
+        var losa = new Losa();
+        Assert.False(losa.Anclada);
+    }
+
+    [Fact]
+    public void Anclada_notifica_PropertyChanged()
+    {
+        var losa = new Losa();
+        var notificadas = new System.Collections.Generic.List<string?>();
+        losa.PropertyChanged += (_, e) => notificadas.Add(e.PropertyName);
+
+        losa.Anclada = true;
+
+        Assert.True(losa.Anclada);
+        Assert.Contains(nameof(Losa.Anclada), notificadas);
+    }
+
+    [Fact]
+    public void Anclada_sobrevive_al_round_trip()
+    {
+        var p = ProyectoFactory.NuevoProyectoSeedeado();
+        p.AsegurarEstructura();
+        var s = new Sistema();
+        s.Losas.Add(new Losa { Id = 1, CoordenadaX = 2.5, CoordenadaY = 3, Anclada = true });
+        s.Losas.Add(new Losa { Id = 2 });   // libre — el default también round-trippea
+        p.Edificios[0].Niveles[0].Sistemas.Add(s);
+
+        var recargado = ProyectoSerializer.FromJson(ProyectoSerializer.ToJson(p));
+        var losas = recargado.Edificios[0].Niveles[0].Sistemas.Last().Losas;
+
+        Assert.True(losas[0].Anclada);
+        Assert.False(losas[1].Anclada);
+    }
+
     [Fact]
     public void La_posicion_en_planta_sobrevive_al_round_trip()
     {
