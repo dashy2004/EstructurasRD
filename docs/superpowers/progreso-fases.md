@@ -3,7 +3,7 @@
 > Documento vivo mantenido por el loop (cada ~30 min). Para revisar y decidir.
 > Mapa de fases: [`roadmap-fases-F0-F9.md`](roadmap-fases-F0-F9.md) · Verdad de estado: [`/STATE.md`](../../STATE.md)
 
-**Última actualización:** 2026-06-10 05:50 · rama `engine/f3-pieper-martens-21`
+**Última actualización:** 2026-06-10 06:25 · rama `engine/f2-cad-deterministico`
 
 ---
 
@@ -44,6 +44,17 @@
    - Pendiente humano: fixtures vs `Losas.exe` (Windows) para los 12 códigos x3/x4 de confianza media.
    - Suites al cierre: **1171 .NET / 208 Python**, 0 warnings.
 
+### Iteración 4 (2026-06-10 05:50–06:25)
+
+7. **F2 CASI CERRADA — pipeline CAD/DXF determinístico** (rama `engine/f2-cad-deterministico`, commits `589837d`…`82973b2`; spec+plan propios redactados y commiteados antes de implementar):
+   - **C1 paridad batch↔interactivo:** la losa importada por DXF batch queda ANCLADA (`PosX/PosY` — el `LayoutSolver` ya no la reubica) y con la Y invertida a la convención del lienzo (helper puro `DxfEstructuraMapper.CrearLosaBatch`, misma fórmula que `MapearPoligono`).
+   - **C2:** rectángulo en capa Viga/Eje ya no se descarta en silencio (contador + `Advertencias`).
+   - **C3:** ambientes en L/T se subdividen en paños rectangulares (`PoligonoLosaMapper.TryDescomponerRectilineo`, celdas por rejilla + fusión por bandas) — un L produce 2 losas con el área exacta.
+   - **C4:** `ArcoCad.BoundingBox()` real (extremos + cardinales del barrido) — un arco parcial no infla el encuadre.
+   - **Diferido a F2b:** heurística forma→columna en capa ambigua + columnas en path de visión.
+   - También: la bitácora se excluyó del soft-check de `estado-real.sh` (histórico, como plans/specs — sin eso cada iteración nueva rompía `--check` en CI).
+   - Suites al cierre de la iteración: **1181 .NET / 208 Python**, 0 warnings.
+
 ## 🧭 Decisiones tomadas (autónomas, revisables)
 
 | # | Decisión | Razón |
@@ -71,7 +82,7 @@
 | F0 | ✅ cerrada | — (solo decisión de merge) |
 | F1 | ✅ cerrada (iter. 3) | Pase visual manual del usuario |
 | F3 | ✅ cerrada lado Linux (iter. 3) | Fixtures vs `Losas.exe` (usuario, Windows) |
-| F2 | ⬜ siguiente | Espejado Y, PosX/PosY, ambientes en L (desbloqueada por F1) |
+| F2 | 🟡 casi cerrada (iter. 4) | F2b: heurística forma→columna + visión columnas |
 | F4 | ⬜ | CargaElemento + peso propio (XL; varias iteraciones) |
 | F5 | ⬜ | Tras F4 (deflexión, deriva, torsión) |
 | F6 | ⬜ | Tras F2 (qwen.config runtime, UI de revisión) |
