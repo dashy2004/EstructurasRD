@@ -124,6 +124,21 @@ public class DxfEstructuraMapperTests
     }
 
     [Fact]
+    public void Rectangulo_en_capa_VIGA_no_se_pierde_en_silencio()
+    {
+        // F2 C2: podría ser una viga con ancho o un anillo de 4 vigas — no se
+        // interpreta a ciegas, pero TAMPOCO se descarta sin aviso.
+        var prop = DxfEstructuraMapper.Mapear(new EntidadCad[] { RectCerrado("VIGAS", 0, 0, 6, 0.3) });
+
+        Assert.Empty(prop.Losas);
+        Assert.Empty(prop.Vigas);
+        Assert.Empty(prop.Columnas);
+        Assert.NotNull(prop.Advertencias);
+        Assert.Contains("Viga", prop.Advertencias);
+        Assert.Contains("rect", prop.Advertencias!.ToLowerInvariant());
+    }
+
+    [Fact]
     public void Escena_mixta_cuenta_cada_tipo()
     {
         var prop = DxfEstructuraMapper.Mapear(new EntidadCad[]

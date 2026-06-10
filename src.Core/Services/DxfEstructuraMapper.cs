@@ -56,6 +56,7 @@ public static class DxfEstructuraMapper
         var vigas = new List<VigaPropuesta>();
         var columnas = new List<ColumnaPropuesta>();
         int contornosNoRect = 0;
+        int rectVigaDescartados = 0;
 
         foreach (var e in entidades ?? Array.Empty<EntidadCad>())
         {
@@ -75,7 +76,11 @@ public static class DxfEstructuraMapper
                             r.MinX + (r.Ancho / 2.0), r.MinY + (r.Alto / 2.0), r.Ancho, r.Alto));
                     else if (cat is CategoriaEstructural.Losa or CategoriaEstructural.Otro)
                         losas.Add(new LosaPropuesta(r.MinX, r.MinY, r.Ancho, r.Alto));
-                    // (rectángulo en capa Viga/Eje: se ignora — no es ninguno de ellos)
+                    else
+                        // F2: rectángulo en capa Viga/Eje — interpretarlo a ciegas
+                        // (¿viga con ancho? ¿anillo de 4 vigas?) sería peor que
+                        // avisar; se cuenta y se reporta en Advertencias.
+                        rectVigaDescartados++;
                     break;
 
                 // --- Polilínea (abierta) en capa Viga → un segmento = una viga ---
@@ -98,10 +103,14 @@ public static class DxfEstructuraMapper
             }
         }
 
-        string? adv = contornosNoRect > 0
-            ? $"{contornosNoRect} contorno(s) cerrado(s) no rectangular(es) omitido(s) " +
-              "(una Losa debe ser rectangular)."
-            : null;
+        var avisos = new List<string>();
+        if (contornosNoRect > 0)
+            avisos.Add($"{contornosNoRect} contorno(s) cerrado(s) no rectangular(es) omitido(s) " +
+                       "(una Losa debe ser rectangular).");
+        if (rectVigaDescartados > 0)
+            avisos.Add($"{rectVigaDescartados} rectángulo(s) en capa Viga/Eje omitido(s) — " +
+                       "revisá si representan vigas con ancho y dibujalas como línea/polilínea.");
+        string? adv = avisos.Count > 0 ? string.Join(" ", avisos) : null;
 
         return new PropuestaElementos(losas, vigas, columnas, Array.Empty<EjePropuesto>(), adv);
     }
