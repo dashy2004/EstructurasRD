@@ -145,6 +145,8 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
             EliminarTramoCommand.RaiseCanExecuteChanged();
             AgregarCargaCommand.RaiseCanExecuteChanged();
             ConstruirModeloSeccion();
+            // La sección cambia al seleccionar otro tramo sin recálculo: re-render del PNG.
+            SeccionPng = DiagramaPng.Render(ModeloSeccion, PngAnchoSeccion, PngAltoSeccion);
         }
     }
 
@@ -216,6 +218,8 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
     private const int PngAltoEsfuerzos = 380;
     private const int PngAltoDeflexion = 320;
     private const int PngAltoViga = 320;
+    private const int PngAnchoSeccion = 600;
+    private const int PngAltoSeccion = 640;
 
     private byte[]? _esfuerzosPng;
     /// <summary>PNG del diagrama de esfuerzos (V/M) para mostrar como imagen.</summary>
@@ -239,6 +243,14 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
     {
         get => _vigaPng;
         private set { _vigaPng = value; OnPropertyChanged(); }
+    }
+
+    private byte[]? _seccionPng;
+    /// <summary>PNG de la sección transversal del tramo seleccionado para mostrar como imagen.</summary>
+    public byte[]? SeccionPng
+    {
+        get => _seccionPng;
+        private set { _seccionPng = value; OnPropertyChanged(); }
     }
 
     private bool _esInestable;
@@ -582,6 +594,7 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         EsfuerzosPng = DiagramaPng.Render(ModeloEsfuerzos, PngAncho, PngAltoEsfuerzos);
         DeflexionPng = DiagramaPng.Render(ModeloDeflexion, PngAncho, PngAltoDeflexion);
         VigaPng = DiagramaPng.Render(ModeloViga, PngAncho, PngAltoViga);
+        SeccionPng = DiagramaPng.Render(ModeloSeccion, PngAnchoSeccion, PngAltoSeccion);
     }
 
     private void LimpiarDiagramas()
@@ -598,6 +611,7 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         EsfuerzosPng = null;
         DeflexionPng = null;
         VigaPng = null;
+        SeccionPng = null;
     }
 
     private void ConstruirModeloViga()
@@ -782,14 +796,16 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         m.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Minimum = -b * 0.40, Maximum = b * 1.40, IsAxisVisible = false });
         m.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Minimum = -h * 0.28, Maximum = h * 1.32, IsAxisVisible = false });
 
-        // Rectángulo de concreto
+        // Rectángulo de concreto. BelowSeries: si quedara encima (default
+        // AboveSeries), su gris semitransparente lavaría las barras de refuerzo.
         m.Annotations.Add(new RectangleAnnotation
         {
             MinimumX = 0, MaximumX = b,
             MinimumY = 0, MaximumY = h,
             Fill = OxyColor.FromAColor(80, OxyColors.Gray),
             Stroke = OxyColors.Black,
-            StrokeThickness = 2
+            StrokeThickness = 2,
+            Layer = AnnotationLayer.BelowSeries
         });
 
         // Cotas b (abajo) y h (al costado).
@@ -799,14 +815,15 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         double rec = VigaFlexionDesigner.RecubrimientoDefaultM;
         if (b <= 2 * rec || h <= 2 * rec) { m.InvalidatePlot(true); return; }
 
-        // Estribo
+        // Estribo (BelowSeries: las barras se dibujan encima, como en la realidad).
         m.Annotations.Add(new RectangleAnnotation
         {
             MinimumX = rec, MaximumX = b - rec,
             MinimumY = rec, MaximumY = h - rec,
             Fill = OxyColors.Transparent,
             Stroke = OxyColors.DarkRed,
-            StrokeThickness = 1.5
+            StrokeThickness = 1.5,
+            Layer = AnnotationLayer.BelowSeries
         });
 
         // ---- Armado real: nº de barras desde la envolvente de diseño ----

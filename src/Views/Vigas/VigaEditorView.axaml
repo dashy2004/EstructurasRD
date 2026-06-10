@@ -1,6 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:oxy="clr-namespace:OxyPlot.Avalonia;assembly=OxyPlot.Avalonia"
              x:Class="LosasPlus.Views.Vigas.VigaEditorView"
              x:CompileBindings="False"
              Background="{DynamicResource BgPrimary}">
@@ -254,7 +253,8 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <TextBlock Grid.Row="0" Text="SECCIÓN TRANSVERSAL" Theme="{StaticResource EtiquetaSeccion}" Margin="0,0,0,6"/>
-                        <oxy:PlotView Grid.Row="1" Model="{Binding ModeloSeccion}" Background="Transparent" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
+                        <Image Grid.Row="1" Source="{Binding SeccionPng, Converter={StaticResource BytesToBitmap}}"
+                               Stretch="Uniform" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
                     </Grid>
                 </Border>
             </Grid>

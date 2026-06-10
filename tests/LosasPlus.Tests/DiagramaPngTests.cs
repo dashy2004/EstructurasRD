@@ -80,4 +80,20 @@ public class DiagramaPngTests
         Assert.True(ContieneColor(vm.VigaPng!, 51, 58, 69), "El PNG del modelo de viga debe dibujar el eje (LineSeries).");
         Assert.True(ContieneColor(vm.VigaPng!, 181, 138, 0), "El PNG del modelo de viga debe dibujar la banda de carga (RectangleAnnotation).");
     }
+
+    [Fact]
+    public async Task SeccionPng_dibuja_estribo_y_barras()
+    {
+        var proyecto = ProyectoFactory.NuevoProyectoSeedeado();
+        proyecto.AsegurarEstructura();
+        proyecto.Edificios[0].Niveles[0].Vigas.Add(VigaResoluble());
+        int n = 0;
+        var vm = new VigaEditorViewModel(proyecto, () => n++, () => proyecto.Edificios[0].Niveles[0]);
+        await vm.RecalcularAsync();
+
+        Assert.NotNull(vm.SeccionPng);
+        // Estribo = DarkRed rgb(139,0,0); barras = DarkBlue rgb(0,0,139).
+        Assert.True(ContieneColor(vm.SeccionPng!, 139, 0, 0), "El PNG de la sección debe dibujar el estribo (annotation).");
+        Assert.True(ContieneColor(vm.SeccionPng!, 0, 0, 139), "El PNG de la sección debe dibujar las barras (ScatterSeries).");
+    }
 }

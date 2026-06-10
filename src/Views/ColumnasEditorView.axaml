@@ -1,6 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:oxy="clr-namespace:OxyPlot.Avalonia;assembly=OxyPlot.Avalonia"
              xmlns:v="clr-namespace:LosasPlus.Views"
              xmlns:vm="clr-namespace:LosasPlus.ViewModels"
              x:Class="LosasPlus.Views.ColumnasEditorView"
@@ -201,7 +200,8 @@
 
                         <TextBlock Text="Sección transversal" Theme="{StaticResource EtiquetaSeccion}" FontSize="14"/>
                         <Border Height="220" BorderBrush="{DynamicResource Border}" BorderThickness="1" Background="{DynamicResource BgInput}">
-                            <oxy:PlotView Model="{Binding ModeloSeccionColumna}" Background="Transparent" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
+                            <Image Source="{Binding SeccionColumnaPng, Converter={StaticResource BytesToBitmap}}"
+                                   Stretch="Uniform" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
                         </Border>
 
                         <TextBlock Text="Diagrama de Interacción P-M" Theme="{StaticResource EtiquetaSeccion}" FontSize="14"/>

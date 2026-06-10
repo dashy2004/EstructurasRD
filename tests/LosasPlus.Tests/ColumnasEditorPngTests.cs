@@ -56,4 +56,13 @@ public class ColumnasEditorPngTests
         vm.Seleccionada = null;
         Assert.Null(vm.InteraccionPng);
     }
+
+    [Fact]
+    public void SeccionColumnaPng_dibuja_estribo_y_barras()
+    {
+        var vm = VmConColumna();
+        Assert.NotNull(vm.SeccionColumnaPng);
+        Assert.True(ContieneColor(vm.SeccionColumnaPng!, 139, 0, 0), "El PNG de la sección de columna debe dibujar el estribo (DarkRed).");
+        Assert.True(ContieneColor(vm.SeccionColumnaPng!, 0, 0, 139), "El PNG de la sección de columna debe dibujar las barras (DarkBlue).");
+    }
 }

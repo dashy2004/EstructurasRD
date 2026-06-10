@@ -219,12 +219,17 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
 
     private const int PngAnchoInteraccion = 900;
     private const int PngAltoInteraccion = 600;
+    private const int PngAnchoSeccionCol = 600;
+    private const int PngAltoSeccionCol = 440;
 
     /// <summary>Resumen del armado longitudinal: «N #b · As = … cm²», o null si no hay diseño válido.</summary>
     public string? ArmadoLongitudinal { get; private set; }
 
     /// <summary>Sección transversal de la columna (concreto + estribo + barras reales), o null.</summary>
     public PlotModel? ModeloSeccionColumna { get; private set; }
+
+    /// <summary>PNG de la sección transversal para mostrar como imagen (patrón DiagramaPng, F1).</summary>
+    public byte[]? SeccionColumnaPng { get; private set; }
 
     private void RecalcularDiseno()
     {
@@ -254,12 +259,14 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
         ConstruirPlot();   // maneja DisenoActual==null → ModeloInteraccion=null (evita dejar el plot viejo stale)
         // Render a imagen (Render(null,…) devuelve null: cubre la rama sin selección).
         InteraccionPng = DiagramaPng.Render(ModeloInteraccion, PngAnchoInteraccion, PngAltoInteraccion);
+        SeccionColumnaPng = DiagramaPng.Render(ModeloSeccionColumna, PngAnchoSeccionCol, PngAltoSeccionCol);
         OnPropertyChanged(nameof(DisenoActual));
         OnPropertyChanged(nameof(EsbeltezActual));
         OnPropertyChanged(nameof(ModeloInteraccion));
         OnPropertyChanged(nameof(InteraccionPng));
         OnPropertyChanged(nameof(ArmadoLongitudinal));
         OnPropertyChanged(nameof(ModeloSeccionColumna));
+        OnPropertyChanged(nameof(SeccionColumnaPng));
     }
 
     /// <summary>
@@ -275,11 +282,13 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
         m.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Minimum = -bMm * 0.80, Maximum = bMm * 0.80, IsAxisVisible = false });
         m.Axes.Add(new LinearAxis { Position = AxisPosition.Left,   Minimum = -hMm * 0.85, Maximum = hMm * 0.85, IsAxisVisible = false });
 
-        // Concreto B×H (centrado en el origen).
+        // Concreto B×H (centrado en el origen). BelowSeries: si quedara encima
+        // (default AboveSeries), su gris semitransparente lavaría las barras.
         m.Annotations.Add(new RectangleAnnotation
         {
             MinimumX = -bMm / 2, MaximumX = bMm / 2, MinimumY = -hMm / 2, MaximumY = hMm / 2,
             Fill = OxyColor.FromAColor(80, OxyColors.Gray), Stroke = OxyColors.Black, StrokeThickness = 2,
+            Layer = AnnotationLayer.BelowSeries,
         });
 
         // Estribo (recubrimiento al centro de la barra).
@@ -289,6 +298,7 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
             {
                 MinimumX = -xi, MaximumX = xi, MinimumY = -yi, MaximumY = yi,
                 Fill = OxyColors.Transparent, Stroke = OxyColors.DarkRed, StrokeThickness = 1.5,
+                Layer = AnnotationLayer.BelowSeries,
             });
 
         // Barras longitudinales reales.
