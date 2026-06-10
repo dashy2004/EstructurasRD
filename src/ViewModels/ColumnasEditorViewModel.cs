@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using LosasPlus.Calculo;
 using LosasPlus.Models;
+using LosasPlus.Rendering;
 using LosasPlus.Transmision;
 using MemoriaPlus.Common;
 using OxyPlot;
@@ -213,6 +214,12 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
     /// <summary>Modelo de OxyPlot que representa el diagrama P-M.</summary>
     public PlotModel? ModeloInteraccion { get; private set; }
 
+    /// <summary>PNG del diagrama P-M para mostrar como imagen (patrón DiagramaPng, F1).</summary>
+    public byte[]? InteraccionPng { get; private set; }
+
+    private const int PngAnchoInteraccion = 900;
+    private const int PngAltoInteraccion = 600;
+
     /// <summary>Resumen del armado longitudinal: «N #b · As = … cm²», o null si no hay diseño válido.</summary>
     public string? ArmadoLongitudinal { get; private set; }
 
@@ -245,9 +252,12 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
             ModeloSeccionColumna = ConstruirSeccionColumna(col, b, h, _recubrimientoMm, barras);
         }
         ConstruirPlot();   // maneja DisenoActual==null → ModeloInteraccion=null (evita dejar el plot viejo stale)
+        // Render a imagen (Render(null,…) devuelve null: cubre la rama sin selección).
+        InteraccionPng = DiagramaPng.Render(ModeloInteraccion, PngAnchoInteraccion, PngAltoInteraccion);
         OnPropertyChanged(nameof(DisenoActual));
         OnPropertyChanged(nameof(EsbeltezActual));
         OnPropertyChanged(nameof(ModeloInteraccion));
+        OnPropertyChanged(nameof(InteraccionPng));
         OnPropertyChanged(nameof(ArmadoLongitudinal));
         OnPropertyChanged(nameof(ModeloSeccionColumna));
     }

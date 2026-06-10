@@ -206,7 +206,8 @@
 
                         <TextBlock Text="Diagrama de Interacción P-M" Theme="{StaticResource EtiquetaSeccion}" FontSize="14"/>
                         <Border Height="300" BorderBrush="{DynamicResource Border}" BorderThickness="1" Background="{DynamicResource BgInput}">
-                            <oxy:PlotView Model="{Binding ModeloInteraccion}" Background="Transparent" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
+                            <Image Source="{Binding InteraccionPng, Converter={StaticResource BytesToBitmap}}"
+                                   Stretch="Uniform" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
                         </Border>
 
                     </StackPanel>
