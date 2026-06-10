@@ -620,26 +620,17 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
     private void AplicarCalibrarPdf(CalibracionPdfArgs? args)
     {
         if (args is null || _pdf is null) { ModoCalibrarPdf = false; return; }
-        if (args.DistanciaActual <= 1e-9 || args.DistanciaReal <= 1e-9)
+
+        // Homotecia compartida (UI1.2): CalibradorPdf conserva el pivote P₁
+        // fijo en el lienzo y corrige Escala/Offsets in situ. Devuelve null si
+        // las distancias son inválidas — en ese caso no muta nada.
+        double? factor = CalibradorPdf.Calibrar(_pdf, args);
+        if (factor is null)
         {
             EstadoImportacion = "✕ Calibración cancelada: la distancia debe ser mayor a cero.";
             ModoCalibrarPdf = false;
             return;
         }
-
-        double factor = args.DistanciaReal / args.DistanciaActual;
-
-        // Homotecia afín preservando el pivote P₁:
-        //   pdf.OffsetX' = P1.X - (P1.X - pdf.OffsetX) * factor
-        //   pdf.OffsetY' = P1.Y - (P1.Y - pdf.OffsetY) * factor
-        //   pdf.Escala' = pdf.Escala * factor
-        // Cualquier punto interno del PDF cuya coord en lienzo coincida con
-        // P₁ antes, sigue coincidiendo con P₁ después. Verificado:
-        //   x_post = OffsetX' + interno * Escala' = P1 - (P1 - OffsetX) * f
-        //          + ((P1 - OffsetX) / Escala) * Escala * f = P1.   ✓
-        _pdf.OffsetX = args.PivoteX - (args.PivoteX - _pdf.OffsetX) * factor;
-        _pdf.OffsetY = args.PivoteY - (args.PivoteY - _pdf.OffsetY) * factor;
-        _pdf.Escala *= factor;
 
         // Forzar redibujado síncrono de la Capa 1 y notificar a los proxies.
         OnPropertyChanged(nameof(EscalaPdf));
@@ -649,7 +640,7 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
 
         ModoCalibrarPdf = false;
         EstadoImportacion =
-            $"✓ PDF recalibrado — factor ×{factor:0.0000} " +
+            $"✓ PDF recalibrado — factor ×{factor.Value:0.0000} " +
             $"({args.DistanciaActual:0.000} m → {args.DistanciaReal:0.000} m).";
     }
 
