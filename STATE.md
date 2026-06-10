@@ -4,10 +4,10 @@
 > Este archivo es la **fuente única de verdad**; si un doc lo contradice, manda este.
 
 <!-- AUTO:START -->
-Estampado: 2026-06-10 05:25 · rama engine/f1-verdad-visual · commit d62adae · sin commit: 2 archivos
+Estampado: 2026-06-10 05:44 · rama engine/f3-pieper-martens-21 · commit 2009281 · sin commit: 3 archivos
 
 ## Build & Tests (en vivo)
-- .NET (LosasPlus.Linux.sln): build 0 err / 0 warn · tests 1111 passed / 0 failed / 0 skipped
+- .NET (LosasPlus.Linux.sln): build 0 err / 0 warn · tests 1171 passed / 0 failed / 0 skipped
 - Python (motor-fea/.venv): 208 passed
 - ⚠️ pytest SOLO corre en motor-fea/.venv (python3 del sistema no tiene pytest)
 <!-- AUTO:END -->
@@ -21,9 +21,10 @@ Estampado: 2026-06-10 05:25 · rama engine/f1-verdad-visual · commit d62adae ·
 ## Issues conocidos diferidos (NO arreglados en F0)
 
 - ~~4 gráficas en blanco~~ — **resuelto en F1 (2026-06-10)**: los 4 diagramas (`VigaPng`, `SeccionPng`, `InteraccionPng`, `SeccionColumnaPng`) se renderizan a PNG vía `DiagramaPng` y se muestran en `<Image>`; 0 `oxy:PlotView` en `VigaEditorView`/`ColumnasEditorView`. Tests de píxeles verdes. Bonus: fix de z-order (concreto/estribo a `BelowSeries` — el gris semitransparente lavaba las barras de refuerzo).
-- **Pieper-Martens nativo mapea 1/21 subtipos** (`src.Core/Calculo/PieperMartens/TablaPieperMartens.cs:70`, lanza `NotSupportedException`). → **F3**.
+- ~~Pieper-Martens nativo mapea 1/21 subtipos~~ — **resuelto en F3 (2026-06-10)**: mapeo completo `CodigoASubtipo` 21/21 (biyección con `TablasPerdomo.json`), captura por-losa (una losa sin mapeo no aborta el sistema) y mensaje veraz en `TipoLosaValidoRule`.
 - **Solver motor-fea solo cargas nodales** (sin peso propio/distribuidas; viga a gravedad da momento ~0). → **F4**.
-- **Descenso de columnas equitativo** (no por área tributaria) (`src.Core/Transmision/DescensoColumnas.cs:13`). → **F4**.
+- **Reparto viga→columna 50/50** (no por reacciones reales; `src.Core/Transmision/RepartoGeometrico.cs:176`, comentario `:166`). → **F4**. (La UI ya usa descenso geométrico por área tributaria con fallback equitativo — F3.)
+- **Mapeo Pieper-Martens x3/x4 (12 códigos de borde libre) con confianza media**: pendiente validación de fixtures contra `Losas.exe` (usuario, Windows) — ver spec F3 §3.3; corrección = 1 línea de `CodigoASubtipo`.
 - **`qwen.config.json` no se carga en runtime** (defaults hardcodeados en `MainViewModel`). → **F6**.
 
 ## Docs stale — esta es la fuente de verdad
