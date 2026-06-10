@@ -74,8 +74,9 @@ public class SalidaPerdomo : INotifyPropertyChanged
     public ObservableCollection<ArmaduraApoyo> ArmadurasYApoyos { get; } = new();
 
     /// <summary>
-    /// IDs de losa presentes en el <c>.dl</c> que no fueron encontradas en el
-    /// <c>.txt</c>. Se reportan como warning al importar.
+    /// IDs de losa presentes en el <c>.dl</c> sin resultado: no encontradas en
+    /// el <c>.txt</c> al importar, u <b>omitidas por el cálculo nativo</b>
+    /// (tipo sin mapear / error por losa). Se reportan como warning.
     /// </summary>
     public List<int> LosasNoParseadas { get; } = new();
 

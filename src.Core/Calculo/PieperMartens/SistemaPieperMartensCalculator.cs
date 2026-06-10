@@ -41,7 +41,18 @@ public sealed class SistemaPieperMartensCalculator
         var filaPorLosa = new Dictionary<int, MomentoLosa>();
         foreach (var losa in sistema.Losas)
         {
-            var m = _momentos.Calcular(losa);
+            MomentosLosa m;
+            try { m = _momentos.Calcular(losa); }
+            catch (Exception ex)
+            {
+                // Tipo sin mapear u otro error de la losa: registrar y continuar —
+                // una losa no aborta el sistema (mismo patrón por-losa que
+                // MotorFeaService.CalcularSistemaConMotorAsync).
+                System.Diagnostics.Debug.WriteLine(
+                    $"[PieperMartens] Losa {losa.Id} (tipo {losa.Tipo}) omitida: {ex.Message}");
+                salida.LosasNoParseadas.Add(losa.Id);
+                continue;
+            }
             momentosPorLosa[losa.Id] = m;
             var fila = new MomentoLosa(losa.Id, losa.Tipo, losa.Carga, losa.Espesor,
                 losa.Lx, losa.Ly, m.Mfx, m.Mfy, m.Msx, m.Msy);
@@ -55,7 +66,8 @@ public sealed class SistemaPieperMartensCalculator
         // distribución. Se anula el centro de la dirección que vuela.
         foreach (var losa in sistema.Losas)
         {
-            var d = AcerosLosaDesigner.DisenarLosa(filaPorLosa[losa.Id], fc, fy, losa.Rec * 100.0);
+            if (!filaPorLosa.TryGetValue(losa.Id, out var fila)) continue; // losa omitida en el paso 1
+            var d = AcerosLosaDesigner.DisenarLosa(fila, fc, fy, losa.Rec * 100.0);
             bool voladizo = MomentosCalculator.EsVoladizo(losa.Tipo, out bool vuelaSegunY);
 
             salida.ArmadurasXCentro.Add(voladizo && !vuelaSegunY
@@ -107,6 +119,7 @@ public sealed class SistemaPieperMartensCalculator
     {
         foreach (var b in bordes)
         {
+            if (!momentos.ContainsKey(b.BI) || !momentos.ContainsKey(b.BJ)) continue; // borde de losa omitida
             var ap = _balanceo.Balancear(b.BI, b.BJ, direccion, b.Balanceo, momentos);
 
             var losaI = BuscarLosa(sistema, b.BI);
