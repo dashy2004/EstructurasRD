@@ -3,7 +3,12 @@
 > Documento vivo mantenido por el loop (cada ~30 min). Para revisar y decidir.
 > Mapa de fases: [`roadmap-fases-F0-F9.md`](roadmap-fases-F0-F9.md) · Verdad de estado: [`/STATE.md`](../../STATE.md)
 
-**Última actualización:** 2026-06-10 06:25 · rama `engine/f2-cad-deterministico`
+**Última actualización:** 2026-06-10 (iter. 5) · rama `engine/f2-cad-deterministico`
+
+> ⚠️ NUEVO MANDATO DEL USUARIO (2026-06-10): auditoría completa de UI/UX y re-arquitectura
+> incremental — ver `AUDITORIA_UI_2026-06-10.md` (fases UI1–UI4: un solo lienzo sin CadView,
+> Nivel⊕Sistema unificado, export XLSX/hover de diagramas, identidad/versión/config).
+> Quick-fixes ya aplicados: apoyos siguen a la viga + toolbar WrapPanel (`7fc2b04`).
 
 ---
 
