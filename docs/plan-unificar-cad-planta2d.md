@@ -1,3 +1,5 @@
+> ✅ Pasos 4-5 ejecutados en F1 (2026-06-10) — ver `docs/superpowers/specs/2026-06-10-f1-verdad-visual-design.md` §2.4/§4.4. Este plan queda como referencia histórica.
+
 # Plan — Unificar Lienzo CAD + Planta 2D (base Planta 2D)
 
 ## Estado actual (dos editores separados)

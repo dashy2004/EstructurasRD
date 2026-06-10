@@ -45,6 +45,12 @@
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
                     <TextBlock Text="q adm (t/m²):" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource FgSecondary}"/>
                     <TextBox x:Name="TxtQAdm" Text="15.0" Width="50" VerticalAlignment="Center"/>
+                    <Button Content="📂 DXF" Command="{Binding CadEditor.ImportarDxfCommand}"
+                            ToolTip.Tip="Importar plano DXF como referencia (underlay) para calcar la estructura."/>
+                    <Button Content="📑 PDF" Command="{Binding CadEditor.ImportarPdfCommand}"
+                            ToolTip.Tip="Importar plano PDF como referencia (underlay)."/>
+                    <Button Content="🤖 Auto-Conectar" Command="{Binding CadEditor.AutoAlinearSistemasCommand}"
+                            ToolTip.Tip="Alinea losas vecinas y genera los bordes de continuidad."/>
                     <Button x:Name="BtnRecalcular" Content="⚡ Recalcular Descenso" Classes="accent"
                             ToolTip.Tip="Calcula el descenso topológico real losa->viga->columna->zapata en este nivel."/>
                     <Button x:Name="BtnEliminar" Content="🗑 Eliminar" Background="#D32F2F" Foreground="White"

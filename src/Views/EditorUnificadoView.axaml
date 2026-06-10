@@ -1,20 +1,13 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="clr-namespace:LosasPlus.Views"
-             xmlns:cad="clr-namespace:LosasPlus.Views.Cad"
              x:Class="LosasPlus.Views.EditorUnificadoView"
              x:CompileBindings="False"
              Background="{DynamicResource BgPrimary}">
 
-    <!-- Paso 5 (unificación): un solo editor con dos superficies. Base = Estructura
-         (Planta 2D). La pestaña CAD trae el import DXF/PDF + muros. Ambas comparten
-         el mismo DataContext (MainViewModel). Ver docs/plan-unificar-cad-planta2d.md. -->
-    <TabControl Padding="0">
-        <TabItem Header="Estructura (Planta 2D)">
-            <v:Planta2DEditorView DataContext="{Binding}"/>
-        </TabItem>
-        <TabItem Header="CAD / Import (DXF · PDF · Muros)">
-            <cad:CadView DataContext="{Binding}"/>
-        </TabItem>
-    </TabControl>
+    <!-- Paso 5 (unificación) COMPLETADO en F1: un solo lienzo (base Planta 2D) con
+         underlay DXF/PDF, muros, import y Auto-Conectar. El CadView completo sigue
+         disponible en el modo PlanoCad del shell (MainWindow.axaml). Reversible:
+         las vistas CAD no se borran. Ver docs/plan-unificar-cad-planta2d.md. -->
+    <v:Planta2DEditorView DataContext="{Binding}"/>
 </UserControl>
