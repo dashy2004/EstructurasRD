@@ -1,5 +1,9 @@
   Determining projects to restore...
-  All projects are up-to-date for restore.
+  Restored /home/gdc/Downloads/EstructurasRD-engine/src.Memoria/MemoriaPlus.App.csproj (in 1.84 sec).
+  Restored /home/gdc/Downloads/EstructurasRD-engine/src/LosasPlus.csproj (in 1.84 sec).
+  Restored /home/gdc/Downloads/EstructurasRD-engine/src.Linux/LosasPlus.Linux.csproj (in 1.84 sec).
+  Restored /home/gdc/Downloads/EstructurasRD-engine/tests/LosasPlus.Tests/LosasPlus.Tests.csproj (in 1.84 sec).
+  2 of 6 projects are up-to-date for restore.
   LosasPlus.Core -> /home/gdc/Downloads/EstructurasRD-engine/src.Core/bin/Debug/net8.0/LosasPlus.Core.dll
   LosasPlus.Linux -> /home/gdc/Downloads/EstructurasRD-engine/src.Linux/bin/Debug/net8.0/LosasPlus.Linux.dll
   MemoriaPlus.UI.Shared -> /home/gdc/Downloads/EstructurasRD-engine/src.UI.Shared/bin/Debug/net8.0/MemoriaPlus.UI.Shared.dll
@@ -11,4 +15,4 @@ Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:04.54
+Time Elapsed 00:00:06.73

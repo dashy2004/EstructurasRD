@@ -259,6 +259,7 @@ public class PlantaCanvas : Control
                         Id = newId,
                         CoordenadaX = sx,
                         CoordenadaY = sy,
+                        Anclada = true,   // colocada por click: posición explícita (UI1.1)
                         Lx = 4.0,
                         Ly = 4.0,
                         Espesor = 0.12,
@@ -375,6 +376,9 @@ public class PlantaCanvas : Control
             {
                 l.CoordenadaX = snapResult.X;
                 l.CoordenadaY = snapResult.Y;
+                // Arrastrada a mano ⇒ anclada: el LayoutSolver no la reubica y el
+                // lienzo CAD invalida su caché (TopologiaPlanta observa Anclada).
+                l.Anclada = true;
             }
             else if (SelectedElement is Viga v)
             {

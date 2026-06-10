@@ -338,6 +338,7 @@ public partial class Planta2DEditorView : UserControl
 
         l.CoordenadaX = x;
         l.CoordenadaY = y;
+        l.Anclada = true;   // coordenadas tecleadas: posición explícita (UI1.1)
         l.Lx = lx;
         l.Ly = ly;
         l.Carga = carga;

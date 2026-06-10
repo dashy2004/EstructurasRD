@@ -4,4 +4,4 @@ VSTest version 17.11.1 (x64)
 Starting test execution, please wait...
 A total of 1 test files matched the specified pattern.
 
-Passed!  - Failed:     0, Passed:  1181, Skipped:     0, Total:  1181, Duration: 10 s - LosasPlus.Tests.dll (net8.0)
+Passed!  - Failed:     0, Passed:  1200, Skipped:     0, Total:  1200, Duration: 12 s - LosasPlus.Tests.dll (net8.0)

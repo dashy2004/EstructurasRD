@@ -25,7 +25,7 @@ dotnet build LosasPlus.Linux.sln --no-incremental -c Release && dotnet run --pro
 ### UI1 — Un solo lienzo (eliminar Plano CAD) · L
 > Causa raíz de la desincronización: dualidad `PosX/PosY` (CAD) vs `CoordenadaX/Y` (planta) — dos verdades para la misma losa.
 
-- [ ] **UI1.1** Unificar el sistema de coordenadas de Losa (una sola fuente; adaptador para proyectos guardados) y auditar el caché de `LayoutSolver`.
+- [x] **UI1.1** Unificar el sistema de coordenadas de Losa (una sola fuente; adaptador para proyectos guardados) y auditar el caché de `LayoutSolver`. ✅ 2026-06-10 — `CoordenadaX/Y + Anclada` (PosX/PosY retirados), migración v4→v5 encadenada desde v1, caché CAD por `TopologiaPlanta.Hash`; spec: `docs/superpowers/specs/2026-06-10-ui1.1-coordenadas-unificadas-design.md`.
 - [ ] **UI1.2** Calibración interactiva de PDF → Planta 2D (`CadEditorViewModel.cs:585-664`).
 - [ ] **UI1.3** Click sobre polilínea del DXF → losa (MapearPoligono, `CadEditorViewModel.cs:847-887`) en PlantaCanvas.
 - [ ] **UI1.4** Leyenda "suma de colores" de muros como overlay (`CadEditorViewModel.cs:529`).
