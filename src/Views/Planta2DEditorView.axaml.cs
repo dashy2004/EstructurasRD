@@ -47,6 +47,13 @@ public partial class Planta2DEditorView : UserControl
         BtnAddCol.IsCheckedChanged += (s, e) => { if (BtnAddCol.IsChecked == true) EditorCanvas.ActiveTool = "Columna"; };
         BtnAddEje.IsCheckedChanged += (s, e) => { if (BtnAddEje.IsChecked == true) EditorCanvas.ActiveTool = "Eje"; };
         BtnAddMuro.IsCheckedChanged += (s, e) => { if (BtnAddMuro.IsChecked == true) EditorCanvas.ActiveTool = "Muro"; };
+        BtnCalibrarPdf.IsCheckedChanged += OnCalibrarPdfToggled;
+
+        // Calibración del PDF (UI1.2)
+        EditorCanvas.CalibracionPdfLista += OnCalibracionPdfLista;
+        BtnCalAceptar.Click += (s, e) => ConfirmarCalibracionPdf();
+        BtnCalCancelar.Click += (s, e) => CancelarCalibracionPdf();
+        TxtCalDistReal.KeyDown += OnCalDistRealKeyDown;
 
         // Wire buttons
         BtnRecalcular.Click += OnRecalcularClick;
@@ -100,6 +107,89 @@ public partial class Planta2DEditorView : UserControl
             ChkSnap.IsChecked = ChkSnap.IsChecked != true;
             e.Handled = true;
         }
+        // Esc cancela el flujo de calibración del PDF (UI1.2).
+        else if (e.Key == Key.Escape && BtnCalibrarPdf.IsChecked == true)
+        {
+            CancelarCalibracionPdf();
+            e.Handled = true;
+        }
+    }
+
+    // ---- Calibración interactiva del PDF en Planta 2D (UI1.2) ----
+
+    private double _calPivoteX, _calPivoteY, _calDistanciaActual;
+
+    private void OnCalibrarPdfToggled(object? sender, RoutedEventArgs e)
+    {
+        if (BtnCalibrarPdf.IsChecked != true)
+        {
+            // Se eligió otra herramienta: abortar cualquier gesto a medias.
+            PanelCalibrarPdf.IsVisible = false;
+            EditorCanvas.CancelarCalibracionPdf();
+            return;
+        }
+
+        if (Vm?.CadEditor.Pdf is not { EstaVacio: false })
+        {
+            TxtStatus.Text = "✕ Calibración: primero importá un PDF («📑 PDF»).";
+            BtnPuntero.IsChecked = true;
+            return;
+        }
+
+        EditorCanvas.ActiveTool = "CalibrarPdf";
+        TxtStatus.Text = "Calibración del PDF: click en el PRIMER punto de referencia. " +
+                         "Shift = línea ortogonal · Esc cancela.";
+    }
+
+    private void OnCalibracionPdfLista(Point pivote, double distanciaActual)
+    {
+        _calPivoteX = pivote.X;
+        _calPivoteY = pivote.Y;
+        _calDistanciaActual = distanciaActual;
+
+        TxtCalLinea.Text = $"Línea trazada: {distanciaActual:0.000} m — medida real:";
+        TxtCalDistReal.Text = distanciaActual.ToString("0.000", CultureInfo.InvariantCulture);
+        PanelCalibrarPdf.IsVisible = true;
+        TxtCalDistReal.Focus();
+        TxtCalDistReal.SelectAll();
+    }
+
+    private void OnCalDistRealKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)       { ConfirmarCalibracionPdf(); e.Handled = true; }
+        else if (e.Key == Key.Escape) { CancelarCalibracionPdf();  e.Handled = true; }
+    }
+
+    /// <summary>Acepta punto o coma decimal («1.25» / «1,25») — formatos de obra reales.</summary>
+    private static bool TryParseDistancia(string? texto, out double valor)
+        => double.TryParse(texto, NumberStyles.Float, CultureInfo.InvariantCulture, out valor)
+           || double.TryParse(texto, NumberStyles.Float, CultureInfo.CurrentCulture, out valor);
+
+    private void ConfirmarCalibracionPdf()
+    {
+        if (!TryParseDistancia(TxtCalDistReal.Text, out double real) || real <= 0)
+        {
+            TxtStatus.Text = "✕ Calibración: la distancia real debe ser un número mayor que cero.";
+            return;
+        }
+
+        // Un solo camino de aplicación (UI1.2): el comando del CadEditorViewModel
+        // delega en CalibradorPdf (homotecia compartida) y notifica a ambos lienzos.
+        Vm?.CadEditor.AplicarCalibrarPdfCommand.Execute(
+            new CalibracionPdfArgs(_calPivoteX, _calPivoteY, _calDistanciaActual, real));
+
+        PanelCalibrarPdf.IsVisible = false;
+        EditorCanvas.InvalidateVisual();   // la PdfReferencia mutó in-place: redibujar ya
+        TxtStatus.Text = Vm?.CadEditor.EstadoImportacion ?? "✓ PDF recalibrado.";
+        BtnPuntero.IsChecked = true;
+    }
+
+    private void CancelarCalibracionPdf()
+    {
+        PanelCalibrarPdf.IsVisible = false;
+        EditorCanvas.CancelarCalibracionPdf();
+        TxtStatus.Text = "Calibración del PDF cancelada.";
+        BtnPuntero.IsChecked = true;
     }
 
     private void OnCanvasSelectionChanged(object? selected)

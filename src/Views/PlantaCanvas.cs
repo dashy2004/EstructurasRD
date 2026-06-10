@@ -147,6 +147,39 @@ public class PlantaCanvas : Control
         ClipToBounds = true;
     }
 
+    // ---- Calibración del PDF (UI1.2): gesto de 2 puntos, en metros ----
+
+    private Point? _calP1M;
+    private Point? _calP2M;
+
+    /// <summary>
+    /// Segundo punto de calibración fijado: (pivote P₁ en metros, distancia
+    /// trazada en metros). La vista pide la distancia real y ejecuta
+    /// <c>CadEditor.AplicarCalibrarPdfCommand</c> (homotecia compartida de
+    /// <c>CalibradorPdf</c>) — un solo camino de aplicación para ambos lienzos.
+    /// </summary>
+    public event Action<Point, double>? CalibracionPdfLista;
+
+    /// <summary>Limpia el gesto de calibración en curso (Esc / cambio de herramienta).</summary>
+    public void CancelarCalibracionPdf()
+    {
+        _calP1M = null;
+        _calP2M = null;
+        InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Con Shift, fuerza la línea P₁→P₂ a horizontal o vertical según el eje
+    /// del delta dominante — el mismo gesto que la calibración del lienzo CAD.
+    /// </summary>
+    public static Point AplicarOrtoCalibracion(Point p1, Point p2, KeyModifiers mods)
+    {
+        if (!mods.HasFlag(KeyModifiers.Shift)) return p2;
+        return Math.Abs(p2.X - p1.X) >= Math.Abs(p2.Y - p1.Y)
+            ? new Point(p2.X, p1.Y)
+            : new Point(p1.X, p2.Y);
+    }
+
     private Point MetrosAPixel(double mx, double my)
     {
         return new Point(mx * _scale + _tx, my * _scale + _ty);
@@ -190,6 +223,26 @@ public class PlantaCanvas : Control
         if (pointer.Properties.IsLeftButtonPressed)
         {
             var pM = PixelAMetros(pointer.Position);
+
+            if (ActiveTool == "CalibrarPdf")
+            {
+                if (_calP1M is null)
+                {
+                    _calP1M = pM;     // P₁ = pivote de la homotecia
+                    _calP2M = pM;
+                }
+                else
+                {
+                    var p1 = _calP1M.Value;
+                    var p2 = AplicarOrtoCalibracion(p1, pM, e.KeyModifiers);
+                    double dist = Math.Sqrt((p2.X - p1.X) * (p2.X - p1.X) + (p2.Y - p1.Y) * (p2.Y - p1.Y));
+                    CancelarCalibracionPdf();
+                    CalibracionPdfLista?.Invoke(p1, dist);
+                }
+                InvalidateVisual();
+                e.Handled = true;
+                return;
+            }
 
             if (ActiveTool == "Puntero")
             {
@@ -351,6 +404,12 @@ public class PlantaCanvas : Control
         var mpos = pointer.Position;
         var pM = PixelAMetros(mpos);
         _mousePosForSnap = pM;
+
+        if (ActiveTool == "CalibrarPdf" && _calP1M is { } calP1)
+        {
+            _calP2M = AplicarOrtoCalibracion(calP1, pM, e.KeyModifiers);
+            InvalidateVisual();
+        }
 
         if (_isPanning)
         {
@@ -800,6 +859,22 @@ public class PlantaCanvas : Control
                 var ftEje = new FormattedText(eje.Etiqueta, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, boldTypeface, 12.0, Brushes.Black);
                 context.DrawText(ftEje, new Point(pEnd.X - ftEje.Width / 2, pEnd.Y - ftEje.Height / 2));
             }
+        }
+
+        // 7. Línea de calibración del PDF (UI1.2) — overlay superior.
+        if (ActiveTool == "CalibrarPdf" && _calP1M is { } cp1 && _calP2M is { } cp2)
+        {
+            var calPen = new Pen(Brushes.OrangeRed, 2.0) { DashStyle = DashStyle.Dash };
+            var a = MetrosAPixel(cp1.X, cp1.Y);
+            var b = MetrosAPixel(cp2.X, cp2.Y);
+            context.DrawLine(calPen, a, b);
+            context.DrawEllipse(Brushes.OrangeRed, null, a, 4, 4);
+            context.DrawEllipse(Brushes.OrangeRed, null, b, 4, 4);
+
+            double distM = Math.Sqrt((cp2.X - cp1.X) * (cp2.X - cp1.X) + (cp2.Y - cp1.Y) * (cp2.Y - cp1.Y));
+            var ftCal = new FormattedText($"{distM:0.000} m", CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight, boldTypeface, 13.0, Brushes.OrangeRed);
+            context.DrawText(ftCal, new Point((a.X + b.X) / 2.0 + 8, (a.Y + b.Y) / 2.0 - 20));
         }
     }
 }

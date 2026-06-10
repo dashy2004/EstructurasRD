@@ -42,6 +42,9 @@
                                  Classes="tool-button" GroupName="FloorTool" ToolTip.Tip="Hacer click en el lienzo para colocar un nuevo eje estructural."/>
                     <RadioButton x:Name="BtnAddMuro" Content="🧱 + Muro"
                                  Classes="tool-button" GroupName="FloorTool" ToolTip.Tip="Hacer click en el lienzo para colocar un nuevo muro."/>
+                    <RadioButton x:Name="BtnCalibrarPdf" Content="🎯 Calibrar PDF"
+                                 Classes="tool-button" GroupName="FloorTool"
+                                 ToolTip.Tip="Dos puntos sobre el PDF + distancia real para corregir su escala. Shift = línea ortogonal · Esc cancela."/>
                 </WrapPanel>
 
                 <!-- Acciones globales -->
@@ -78,11 +81,28 @@
         <Grid ColumnDefinitions="*,300">
             <!-- Canvas Editor -->
             <Border Grid.Column="0" Background="{DynamicResource BgInput}" ClipToBounds="True" Focusable="True">
-                <v:PlantaCanvas x:Name="EditorCanvas" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                                Nivel="{Binding NivelActivo}" Edificio="{Binding EdificioActivo}"
-                                PdfRef="{Binding CadEditor.Pdf}" FondoPdf="{Binding CadEditor.FondoPdf}"
-                                OpacidadPdf="{Binding CadEditor.OpacidadPdf}"
-                                PlanoDxf="{Binding CadEditor.Plano}"/>
+                <Grid>
+                    <v:PlantaCanvas x:Name="EditorCanvas" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                    Nivel="{Binding NivelActivo}" Edificio="{Binding EdificioActivo}"
+                                    PdfRef="{Binding CadEditor.Pdf}" FondoPdf="{Binding CadEditor.FondoPdf}"
+                                    OpacidadPdf="{Binding CadEditor.OpacidadPdf}"
+                                    PlanoDxf="{Binding CadEditor.Plano}"/>
+
+                    <!-- Editor flotante de calibración del PDF (UI1.2): aparece al
+                         fijar el segundo punto. Enter aplica, Esc cancela. -->
+                    <Border x:Name="PanelCalibrarPdf" IsVisible="False"
+                            HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,12,0,0"
+                            Background="{DynamicResource BgSecondary}" BorderBrush="{DynamicResource Border}"
+                            BorderThickness="1" CornerRadius="6" Padding="12,8">
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock x:Name="TxtCalLinea" VerticalAlignment="Center" FontSize="12"/>
+                            <TextBox x:Name="TxtCalDistReal" Width="90" VerticalAlignment="Center"/>
+                            <TextBlock Text="m" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource FgMuted}"/>
+                            <Button x:Name="BtnCalAceptar" Content="Aplicar" Classes="accent"/>
+                            <Button x:Name="BtnCalCancelar" Content="Cancelar"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </Border>
 
             <!-- Panel de Propiedades Lateral -->
