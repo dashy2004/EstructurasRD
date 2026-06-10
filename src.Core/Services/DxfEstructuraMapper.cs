@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using LosasPlus.IA;
+using LosasPlus.Models;
 using LosasPlus.Models.Cad;
 
 namespace LosasPlus.Services;
@@ -103,5 +104,34 @@ public static class DxfEstructuraMapper
             : null;
 
         return new PropuestaElementos(losas, vigas, columnas, Array.Empty<EjePropuesto>(), adv);
+    }
+
+    /// <summary>
+    /// Crea la <see cref="Losa"/> del pipeline <b>batch</b> con paridad exacta
+    /// con el path interactivo (F2): la losa queda <b>anclada</b>
+    /// (<see cref="Losa.PosX"/>/<see cref="Losa.PosY"/> no nulos — el
+    /// <c>LayoutSolver</c> no la reubica) y con la Y convertida a la convención
+    /// del lienzo (Y descendente): <c>PosY = maxYPlano − (YMetros + Ly)</c>,
+    /// la misma fórmula que <c>CadEditorViewModel.MapearPoligono</c>
+    /// (<c>posY = Plano.MaxY − rect.MaxY</c>). Pura y testeable.
+    /// </summary>
+    public static Losa CrearLosaBatch(LosaPropuesta l, double maxYPlano, int id)
+    {
+        double lx = l.LxM > 0 ? l.LxM : 4.0;
+        double ly = l.LyM > 0 ? l.LyM : 4.0;
+        double posY = maxYPlano - (l.YMetros + ly);
+        return new Losa
+        {
+            Id = id,
+            PosX = l.XMetros,
+            PosY = posY,
+            CoordenadaX = l.XMetros,
+            CoordenadaY = posY,
+            Lx = lx,
+            Ly = ly,
+            Espesor = 0.12,
+            Carga = 2.0,
+            Tipo = l.Tipo,
+        };
     }
 }

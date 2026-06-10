@@ -1602,19 +1602,12 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             if (nivel.Sistemas.Count == 0) nivel.Sistemas.Add(new Sistema { Nombre = "Sistema 1" });
             var sys = nivel.Sistemas[0];
 
+            // F2: paridad con el path interactivo — losa ANCLADA (PosX/PosY, el
+            // LayoutSolver no la reubica) y con la Y invertida a la convención
+            // del lienzo (Y descendente), igual que MapearPoligono.
             int losaId = sys.Losas.Count > 0 ? sys.Losas.Max(l => l.Id) : 0;
             foreach (var l in prop.Losas)
-                sys.Losas.Add(new Losa
-                {
-                    Id = ++losaId,
-                    CoordenadaX = l.XMetros,
-                    CoordenadaY = l.YMetros,
-                    Lx = l.LxM > 0 ? l.LxM : 4.0,
-                    Ly = l.LyM > 0 ? l.LyM : 4.0,
-                    Espesor = 0.12,
-                    Carga = 2.0,
-                    Tipo = 10,
-                });
+                sys.Losas.Add(LosasPlus.Services.DxfEstructuraMapper.CrearLosaBatch(l, plano.MaxY, ++losaId));
 
             int vigaId = nivel.Vigas.Count > 0 ? nivel.Vigas.Max(v => v.Id) : 0;
             foreach (var v in prop.Vigas)
