@@ -4,10 +4,10 @@
 > Este archivo es la **fuente única de verdad**; si un doc lo contradice, manda este.
 
 <!-- AUTO:START -->
-Estampado: 2026-06-10 00:41 · rama engine/f0-verdad-de-estado · commit 8410ec2 · sin commit: 10 archivos
+Estampado: 2026-06-10 05:25 · rama engine/f1-verdad-visual · commit d62adae · sin commit: 2 archivos
 
 ## Build & Tests (en vivo)
-- .NET (LosasPlus.Linux.sln): build 0 err / 0 warn · tests 1106 passed / 0 failed / 0 skipped
+- .NET (LosasPlus.Linux.sln): build 0 err / 0 warn · tests 1111 passed / 0 failed / 0 skipped
 - Python (motor-fea/.venv): 208 passed
 - ⚠️ pytest SOLO corre en motor-fea/.venv (python3 del sistema no tiene pytest)
 <!-- AUTO:END -->
@@ -20,7 +20,7 @@ Estampado: 2026-06-10 00:41 · rama engine/f0-verdad-de-estado · commit 8410ec2
 
 ## Issues conocidos diferidos (NO arreglados en F0)
 
-- **4 gráficas en blanco** (`oxy:PlotView` no pinta series): `src/Views/ColumnasEditorView.axaml:204,209` (sección columna, interacción P-M) y `src/Views/Vigas/VigaEditorView.axaml:257,287` (sección viga, `ModeloViga`). → **F1**.
+- ~~4 gráficas en blanco~~ — **resuelto en F1 (2026-06-10)**: los 4 diagramas (`VigaPng`, `SeccionPng`, `InteraccionPng`, `SeccionColumnaPng`) se renderizan a PNG vía `DiagramaPng` y se muestran en `<Image>`; 0 `oxy:PlotView` en `VigaEditorView`/`ColumnasEditorView`. Tests de píxeles verdes. Bonus: fix de z-order (concreto/estribo a `BelowSeries` — el gris semitransparente lavaba las barras de refuerzo).
 - **Pieper-Martens nativo mapea 1/21 subtipos** (`src.Core/Calculo/PieperMartens/TablaPieperMartens.cs:70`, lanza `NotSupportedException`). → **F3**.
 - **Solver motor-fea solo cargas nodales** (sin peso propio/distribuidas; viga a gravedad da momento ~0). → **F4**.
 - **Descenso de columnas equitativo** (no por área tributaria) (`src.Core/Transmision/DescensoColumnas.cs:13`). → **F4**.
