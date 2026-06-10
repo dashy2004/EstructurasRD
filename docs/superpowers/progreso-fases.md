@@ -3,7 +3,7 @@
 > Documento vivo mantenido por el loop (cada ~30 min). Para revisar y decidir.
 > Mapa de fases: [`roadmap-fases-F0-F9.md`](roadmap-fases-F0-F9.md) · Verdad de estado: [`/STATE.md`](../../STATE.md)
 
-**Última actualización:** 2026-06-10 00:30 · rama `engine/f0-verdad-de-estado`
+**Última actualización:** 2026-06-10 01:05 · rama `engine/f0-verdad-de-estado`
 
 ---
 
@@ -20,6 +20,15 @@
    - **Re-estampado** (`582e118`): `STATE.md` dice `0 err / 0 warn · 1106 passed / 208 passed` — y ahora es verdad.
 3. **Specs+planes de F1 y F3 en redacción** (workflow en background; ver próxima iteración).
 
+### Iteración 2 (2026-06-10 00:30–01:05)
+
+4. **F8 PARCIAL — CI gateada con la verdad de estado** (`4a8931f`):
+   - Nuevo `.github/workflows/estado-real.yml`: corre `./estado-real.sh --check` en cada push/PR a `main`/`avalonia-linux` (build `--no-incremental` + ambas suites + consistencia de docs). Sube `STATE.md`/logs como artefacto.
+   - **Soft-check con alcance:** excluye históricos (`plans/`, `specs/`, `releases/`, `roadmap/`) y docs con banner de supersesión → `--check` pasó de 74 falsos positivos a **0** y ya puede gatear.
+   - **Banner "ver STATE.md" a 6 docs vivos más** que declaraban conteos viejos: `README.md` (501), `PLAN_MAESTRO.md`, `PLAN_CAD_V1.md` (488), `PROMPTS_STITCH.md`, `PROPUESTA_UPDATE_v1.md` (501), `docs/RELEASE-v1.4.0.md` (957).
+   - **`ci.yml` (WPF legacy) resuelto:** pasa a solo `workflow_dispatch` — la cobertura automática la dan `ci-linux.yml` + `estado-real.yml` sobre la solución de verdad (`LosasPlus.Linux.sln`). No se borró nada.
+   - Verificado local: `./estado-real.sh --check` → exit 0, suites verdes 1106/208.
+
 ## 🧭 Decisiones tomadas (autónomas, revisables)
 
 | # | Decisión | Razón |
@@ -29,6 +38,10 @@
 | 3 | Conteo de warnings desde `N Warning(s)` (línea-resumen), no grep de líneas | Cada warning aparece inline Y en el resumen → el grep duplicaba (3 reales ≈ 6 líneas). |
 | 4 | Incluir el roadmap F0–F9 en C2 | Es el "brainstorm de fases" que el spec F0 referencia; pertenece al mismo cierre. |
 | 5 | Orden de fases siguientes: F1 y F3 en paralelo (no F4 todavía) | F3/F4 son independientes (verificado: solver Python ≠ Pieper-Martens .NET), pero F4 es XL; F1 y F3 tienen GATES pequeños de alto valor. |
+| 6 | Soft-check excluye históricos + docs con banner (iter. 2) | Los conteos viejos en planes/releases son bitácoras legítimas; sin alcance, `--check` daba 74 falsos positivos y era inutilizable como gate de CI. |
+| 7 | Banner de supersesión a 6 docs vivos en vez de editar sus conteos | Estrategia F0: superseder, no reescribir cuerpos. El soft-check ahora exige que docs vivos NUEVOS no mientan (o lleven banner). |
+| 8 | `ci.yml` WPF → solo manual (no borrado) | Construía la sln WPF vieja con `/warnaserror` en cada push a main; la verdad es `LosasPlus.Linux.sln`. Se conserva ejecutable a demanda por si el snapshot WPF se necesita. |
+| 9 | El workflow de CI crea `motor-fea/.venv` en la ruta exacta | `estado-real.sh` exige ese path a propósito (el python del sistema sin pytest era una de las mentiras originales de estado). |
 
 ## ⏸️ Pendiente de TU decisión (saltado por el loop)
 
@@ -48,7 +61,7 @@
 | F5 | ⬜ | Tras F4 (deflexión, deriva, torsión) |
 | F6 | ⬜ | Tras F2 (qwen.config runtime, UI de revisión) |
 | F7 | ⬜ | Tras F5 (contrato IA, memoria con diagramas) |
-| F8 | ⬜ | CI con `estado-real.sh --check` (parcial sin firma) |
+| F8 | 🟡 parcial | ✅ CI gateada (`estado-real.yml`) + `ci.yml` resuelto · ⏸️ firma/instalador/release-Linux (firma necesita certificado tuyo) |
 | F9 | ⬜ | Tras F7 (IFC 4.3, MITC4, CDCRD — fecha dura 2027-04-10) |
 
 ## 📝 Notas
