@@ -266,9 +266,10 @@ public sealed class DxfImportService : IPlanoImporter
                     Acumular(t.Posicion);
                     break;
                 case ArcoCad a:
-                    // Aproximación: el bounding box del círculo circunscrito.
-                    Acumular(new PuntoCad(a.Centro.X - a.Radio, a.Centro.Y - a.Radio));
-                    Acumular(new PuntoCad(a.Centro.X + a.Radio, a.Centro.Y + a.Radio));
+                    // F2: bbox real del arco (un arco parcial no infla el encuadre).
+                    var (amin, amax) = a.BoundingBox();
+                    Acumular(amin);
+                    Acumular(amax);
                     break;
             }
         }
