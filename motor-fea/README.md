@@ -1,3 +1,5 @@
+> ⚠️ Estado real autogenerado → ver [/STATE.md](STATE.md) (este documento puede estar desactualizado).
+
 # motor-fea
 
 Motor de análisis y diseño estructural **nativo** (FEA) de EstructurasRD —

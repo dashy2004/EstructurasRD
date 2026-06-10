@@ -1,3 +1,5 @@
+> ⚠️ Estado real autogenerado → ver [/STATE.md](STATE.md) (este documento puede estar desactualizado).
+
 # Estado actual — Suite LosasPlus / MemoriaPlus
 
 > ⚠️ **Banner de corrección (2026-06-02):** este documento describe el snapshot

@@ -1,0 +1,24 @@
+  Determining projects to restore...
+  Restored /home/gdc/Downloads/EstructurasRD-engine/src/LosasPlus.csproj (in 1.39 sec).
+  Restored /home/gdc/Downloads/EstructurasRD-engine/src.Memoria/MemoriaPlus.App.csproj (in 1.39 sec).
+  Restored /home/gdc/Downloads/EstructurasRD-engine/tests/LosasPlus.Tests/LosasPlus.Tests.csproj (in 1.39 sec).
+  3 of 6 projects are up-to-date for restore.
+  LosasPlus.Core -> /home/gdc/Downloads/EstructurasRD-engine/src.Core/bin/Debug/net8.0/LosasPlus.Core.dll
+  LosasPlus.Linux -> /home/gdc/Downloads/EstructurasRD-engine/src.Linux/bin/Debug/net8.0/LosasPlus.Linux.dll
+  MemoriaPlus.UI.Shared -> /home/gdc/Downloads/EstructurasRD-engine/src.UI.Shared/bin/Debug/net8.0/MemoriaPlus.UI.Shared.dll
+  MemoriaPlus.App -> /home/gdc/Downloads/EstructurasRD-engine/src.Memoria/bin/Debug/net8.0/MemoriaPlus.dll
+  LosasPlus -> /home/gdc/Downloads/EstructurasRD-engine/src/bin/Debug/net8.0/LosasPlus.dll
+/home/gdc/Downloads/EstructurasRD-engine/tests/LosasPlus.Tests/AcerosViewModelTests.cs(102,23): warning CS8602: Dereference of a possibly null reference. [/home/gdc/Downloads/EstructurasRD-engine/tests/LosasPlus.Tests/LosasPlus.Tests.csproj]
+/home/gdc/Downloads/EstructurasRD-engine/tests/LosasPlus.Tests/EscenaEdificioColumnasTests.cs(22,9): warning xUnit2013: Do not use Assert.Equal() to check for collection size. Use Assert.Empty instead. (https://xunit.net/xunit.analyzers/rules/xUnit2013) [/home/gdc/Downloads/EstructurasRD-engine/tests/LosasPlus.Tests/LosasPlus.Tests.csproj]
+/home/gdc/Downloads/EstructurasRD-engine/tests/LosasPlus.Tests/EscenaEdificioVigasTests.cs(56,9): warning xUnit2013: Do not use Assert.Equal() to check for collection size. Use Assert.Single instead. (https://xunit.net/xunit.analyzers/rules/xUnit2013) [/home/gdc/Downloads/EstructurasRD-engine/tests/LosasPlus.Tests/LosasPlus.Tests.csproj]
+  LosasPlus.Tests -> /home/gdc/Downloads/EstructurasRD-engine/tests/LosasPlus.Tests/bin/Debug/net8.0/LosasPlus.Tests.dll
+
+Build succeeded.
+
+/home/gdc/Downloads/EstructurasRD-engine/tests/LosasPlus.Tests/AcerosViewModelTests.cs(102,23): warning CS8602: Dereference of a possibly null reference. [/home/gdc/Downloads/EstructurasRD-engine/tests/LosasPlus.Tests/LosasPlus.Tests.csproj]
+/home/gdc/Downloads/EstructurasRD-engine/tests/LosasPlus.Tests/EscenaEdificioColumnasTests.cs(22,9): warning xUnit2013: Do not use Assert.Equal() to check for collection size. Use Assert.Empty instead. (https://xunit.net/xunit.analyzers/rules/xUnit2013) [/home/gdc/Downloads/EstructurasRD-engine/tests/LosasPlus.Tests/LosasPlus.Tests.csproj]
+/home/gdc/Downloads/EstructurasRD-engine/tests/LosasPlus.Tests/EscenaEdificioVigasTests.cs(56,9): warning xUnit2013: Do not use Assert.Equal() to check for collection size. Use Assert.Single instead. (https://xunit.net/xunit.analyzers/rules/xUnit2013) [/home/gdc/Downloads/EstructurasRD-engine/tests/LosasPlus.Tests/LosasPlus.Tests.csproj]
+    3 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:08.36

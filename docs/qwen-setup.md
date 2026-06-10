@@ -1,3 +1,5 @@
+> ⚠️ Estado real autogenerado → ver [/STATE.md](STATE.md) (este documento puede estar desactualizado).
+
 # IA local (Qwen) para EstructurasRD — setup
 
 Objetivo: usar una IA **local** (Qwen vía Ollama) para leer **PDF / DXF / imágenes**
