@@ -131,6 +131,15 @@ public sealed class ColumnasEditorViewModel : INotifyPropertyChanged
         var nivel = _nivelSeleccionado;
         if (edificio is null || nivel is null) return;
 
+        // F3: geométrico por área tributaria para la columna seleccionada; si no
+        // recibe carga de vigas (o no hay selección), cae al equitativo histórico.
+        // Misma aproximación que Planta2DEditorView; reacciones reales → F4.
+        if (_seleccionada is not null)
+        {
+            double puGeo = DescensoColumnas.PuDemandaGeometricoKN(nivel, _seleccionada);
+            if (puGeo > 0) { PuKN = puGeo; return; }
+        }
+
         int numColumnas = nivel.Columnas.Count;
         if (numColumnas <= 0) return;
 

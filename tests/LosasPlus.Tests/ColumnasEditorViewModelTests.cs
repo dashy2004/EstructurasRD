@@ -1,6 +1,8 @@
 using System.Linq;
 using LosasPlus.Models;
+using LosasPlus.Transmision;
 using LosasPlus.ViewModels;
+using LosasPlus.Vigas;
 using OxyPlot.Series;
 using Xunit;
 
@@ -101,6 +103,36 @@ public class ColumnasEditorViewModelTests
 
         // CargaEnBase=150 ton / 2 columnas = 75 ton → 75 × 9.80665 = 735.49875 kN.
         Assert.Equal(735.49875, vm.PuKN, 4);
+    }
+
+    [Fact]
+    public void TomarPuDelDescenso_usa_geometrico_para_la_columna_seleccionada()
+    {
+        var ed = new Edificio();
+        var nivel = new Nivel { Cota = 0 };
+        var s = new Sistema();
+        s.Losas.Add(new Losa { Lx = 4, Ly = 4, Carga = 10, CoordenadaX = 0, CoordenadaY = 0 });
+        s.Losas.Add(new Losa { Lx = 4, Ly = 4, Carga = 10, CoordenadaX = 0, CoordenadaY = 4 });
+        nivel.Sistemas.Add(s);
+        Viga V(double ox, double oy, double len, double ang)
+        {
+            var v = new Viga { OrigenX = ox, OrigenY = oy, AnguloGrados = ang };
+            v.Tramos.Add(new TramoViga { Longitud = len });
+            return v;
+        }
+        nivel.Vigas.Add(V(0, 4, 4, 0));
+        nivel.Vigas.Add(V(0, 0, 4, 0));
+        nivel.Vigas.Add(V(0, 0, 4, 90));
+        var c04 = new Columna { Nombre = "C04", CoordenadaX = 0, CoordenadaY = 4 };
+        nivel.Columnas.Add(new Columna { Nombre = "C00", CoordenadaX = 0, CoordenadaY = 0 });
+        nivel.Columnas.Add(c04);
+        ed.Niveles.Add(nivel);
+        var vm = new ColumnasEditorViewModel(() => ed, () => nivel) { Seleccionada = c04 };
+
+        vm.TomarPuDelDescenso();
+
+        // Wu tributaria de C04 = 60 t → 60 × 9.80665 kN, NO CargaEnBase/2 equitativo.
+        Assert.Equal(60 * DescensoColumnas.KN_por_Ton, vm.PuKN, 3);
     }
 
     // ---- D2: editor autónomo (Niveles/NivelSeleccionado reales + recalc al editar) ----

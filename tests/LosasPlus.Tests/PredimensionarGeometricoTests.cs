@@ -60,4 +60,25 @@ public class PredimensionarGeometricoTests
         nivel.Columnas.Add(Col("X", 0, 0));
         Assert.Empty(DescensoColumnas.PredimensionarGeometrico(nivel, 15));
     }
+
+    [Fact]
+    public void PuDemandaGeometricoKN_da_la_axial_tributaria_de_la_columna_en_kN()
+    {
+        var nivel = new Nivel { Cota = 0 };
+        var s = new Sistema();
+        s.Losas.Add(new Losa { Lx = 4, Ly = 4, Carga = 10, CoordenadaX = 0, CoordenadaY = 0 });
+        s.Losas.Add(new Losa { Lx = 4, Ly = 4, Carga = 10, CoordenadaX = 0, CoordenadaY = 4 });
+        nivel.Sistemas.Add(s);
+        nivel.Vigas.Add(Viga(0, 4, 4, 0));
+        nivel.Vigas.Add(Viga(0, 0, 4, 0));
+        nivel.Vigas.Add(Viga(0, 0, 4, 90));
+        var c04 = Col("C04", 0, 4);
+        var lejana = Col("CX", 20, 20);   // ninguna viga apoya cerca
+        foreach (var c in new[] { Col("C00", 0, 0), Col("C40", 4, 0), c04, Col("C44", 4, 4), lejana })
+            nivel.Columnas.Add(c);
+
+        Assert.Equal(60 * DescensoColumnas.KN_por_Ton,
+                     DescensoColumnas.PuDemandaGeometricoKN(nivel, c04), 3);
+        Assert.Equal(0.0, DescensoColumnas.PuDemandaGeometricoKN(nivel, lejana), 6);
+    }
 }

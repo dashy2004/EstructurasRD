@@ -53,6 +53,23 @@ public static class DescensoColumnas
         => numColumnas <= 0 ? 0.0 : (cargaEnBaseTon / numColumnas) * KN_por_Ton;
 
     /// <summary>
+    /// Demanda <c>Pu</c> (kN) de <paramref name="columna"/> por descenso
+    /// <b>geométrico</b> por área tributaria (losa→viga→columna,
+    /// <see cref="RepartoGeometrico.AsignarVigasAColumnas"/>), convertida de ton
+    /// a kN. Devuelve 0 si la columna no recibe carga de ninguna viga (el caller
+    /// decide el fallback equitativo). Pura, sin efectos colaterales.
+    /// </summary>
+    public static double PuDemandaGeometricoKN(
+        Nivel nivel, Columna columna, double tolerancia = RepartoGeometrico.ToleranciaColumna)
+    {
+        if (nivel is null || columna is null) return 0.0;
+        foreach (var carga in RepartoGeometrico.AsignarVigasAColumnas(nivel, tolerancia))
+            if (ReferenceEquals(carga.Columna, columna))
+                return carga.CargaAxial * KN_por_Ton;
+        return 0.0;
+    }
+
+    /// <summary>
     /// Reparte <paramref name="cargaTotalServicio"/> equitativamente entre
     /// <paramref name="columnas"/>, predimensiona la zapata cuadrada de cada una
     /// para la <paramref name="presionAdmisible"/> del terreno (creándola si no
