@@ -108,6 +108,26 @@ public class DxfEstructuraMapperTests
     }
 
     [Fact]
+    public void Ambiente_en_L_en_capa_LOSA_se_subdivide_en_panos_rectangulares()
+    {
+        // F2 C3: L de 8×8 con muesca 4×4 → ≥2 losas que suman el área del L (48 m²).
+        var poliL = new PolilineaCad
+        {
+            Capa = "LOSAS",
+            Cerrada = true,
+            Vertices = new List<PuntoCad> { P(0, 0), P(8, 0), P(8, 4), P(4, 4), P(4, 8), P(0, 8) },
+        };
+
+        var prop = DxfEstructuraMapper.Mapear(new EntidadCad[] { poliL });
+
+        Assert.True(prop.Losas.Count >= 2, "Un ambiente en L debe subdividirse en ≥2 paños.");
+        double area = 0;
+        foreach (var l in prop.Losas) area += l.LxM * l.LyM;
+        Assert.Equal(48.0, area, 6);
+        Assert.NotNull(prop.Advertencias);   // informa la subdivisión
+    }
+
+    [Fact]
     public void Contorno_cerrado_no_rectangular_en_LOSA_genera_advertencia()
     {
         var triangulo = new PolilineaCad

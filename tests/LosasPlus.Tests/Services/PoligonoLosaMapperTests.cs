@@ -106,4 +106,40 @@ public class PoligonoLosaMapperTests
         Assert.True(PoligonoLosaMapper.ContienePunto(poliL, new PuntoCad(1, 1)));   // dentro
         Assert.False(PoligonoLosaMapper.ContienePunto(poliL, new PuntoCad(5, 5))); // en la muesca, fuera
     }
+
+    // =================================================================
+    // TryDescomponerRectilineo (F2: ambientes en L)
+    // =================================================================
+
+    [Fact]
+    public void Descompone_un_L_en_2_rectangulos_con_el_area_exacta()
+    {
+        // L de 8×8 con muesca de 4×4 arriba-derecha: área = 64 − 16 = 48.
+        var poliL = Poli(true, (0, 0), (8, 0), (8, 4), (4, 4), (4, 8), (0, 8));
+
+        Assert.True(PoligonoLosaMapper.TryDescomponerRectilineo(poliL, out var rects));
+        Assert.Equal(2, rects.Count);
+        double area = 0;
+        foreach (var r in rects) area += r.Ancho * r.Alto;
+        Assert.Equal(48.0, area, 6);
+    }
+
+    [Fact]
+    public void Descompone_un_rectangulo_simple_en_su_propio_bbox()
+    {
+        var poli = Poli(true, (2, 3), (8, 3), (8, 7), (2, 7));
+        Assert.True(PoligonoLosaMapper.TryDescomponerRectilineo(poli, out var rects));
+        var r = Assert.Single(rects);
+        Assert.Equal(2, r.MinX, 6);
+        Assert.Equal(3, r.MinY, 6);
+        Assert.Equal(6, r.Ancho, 6);
+        Assert.Equal(4, r.Alto, 6);
+    }
+
+    [Fact]
+    public void Poligono_no_rectilineo_no_se_descompone()
+    {
+        var triangulo = Poli(true, (0, 0), (4, 0), (2, 3));
+        Assert.False(PoligonoLosaMapper.TryDescomponerRectilineo(triangulo, out _));
+    }
 }

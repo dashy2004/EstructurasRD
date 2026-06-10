@@ -102,6 +102,99 @@ public static class PoligonoLosaMapper
         return dentro;
     }
 
+    /// <summary>
+    /// Descompone un polígono cerrado <b>rectilíneo</b> (todos los lados
+    /// paralelos a los ejes — p. ej. un ambiente en L o en T) en rectángulos
+    /// ortogonales que cubren exactamente su interior (F2). Algoritmo de
+    /// celdas: la rejilla definida por las X/Y distintas de los vértices se
+    /// clasifica con <see cref="ContienePunto"/> (centro de celda) y las
+    /// celdas se fusionan en bandas horizontales, extendiendo verticalmente
+    /// los rectángulos con el mismo rango X. Un rectángulo simple produce su
+    /// propio bbox (1 elemento). Devuelve <c>false</c> si el polígono no es
+    /// cerrado, no es rectilíneo (±<paramref name="tolerancia"/>) o queda
+    /// degenerado.
+    /// </summary>
+    public static bool TryDescomponerRectilineo(PolilineaCad poli,
+                                                out List<RectanguloMapeado> rects,
+                                                double tolerancia = 0.02)
+    {
+        rects = new List<RectanguloMapeado>();
+        if (poli is null || !poli.Cerrada) return false;
+
+        var pts = poli.Vertices.ToList();
+        if (pts.Count >= 2 && CasiIgual(pts[0], pts[^1], tolerancia))
+            pts.RemoveAt(pts.Count - 1);
+        if (pts.Count < 4) return false;
+
+        // Rectilíneo: cada lado horizontal XOR vertical.
+        for (int i = 0; i < pts.Count; i++)
+        {
+            var a = pts[i];
+            var b = pts[(i + 1) % pts.Count];
+            bool horizontal = Math.Abs(a.Y - b.Y) <= tolerancia;
+            bool vertical   = Math.Abs(a.X - b.X) <= tolerancia;
+            if (horizontal == vertical) return false;
+        }
+
+        var xs = CoordenadasDistintas(pts.Select(p => p.X), tolerancia);
+        var ys = CoordenadasDistintas(pts.Select(p => p.Y), tolerancia);
+        if (xs.Count < 2 || ys.Count < 2) return false;
+
+        var contorno = new PolilineaCad { Cerrada = true, Vertices = pts };
+
+        // Rectángulos "abiertos" (en crecimiento vertical) de la banda anterior.
+        var abiertos = new List<(double X0, double X1, double Y0)>();
+        for (int j = 0; j < ys.Count - 1; j++)
+        {
+            double cy = (ys[j] + ys[j + 1]) / 2.0;
+
+            // Corridas de celdas interiores contiguas en esta banda.
+            var corridas = new List<(double X0, double X1)>();
+            int inicio = -1;
+            for (int i = 0; i < xs.Count - 1; i++)
+            {
+                bool dentro = ContienePunto(contorno, new PuntoCad((xs[i] + xs[i + 1]) / 2.0, cy));
+                if (dentro && inicio < 0) inicio = i;
+                if (inicio >= 0 && (!dentro || i == xs.Count - 2))
+                {
+                    int fin = dentro ? i : i - 1;
+                    corridas.Add((xs[inicio], xs[fin + 1]));
+                    inicio = -1;
+                }
+            }
+
+            // Continuar los abiertos con el mismo rango X; abrir los nuevos.
+            var siguientes = new List<(double X0, double X1, double Y0)>();
+            foreach (var (x0, x1) in corridas)
+            {
+                int k = abiertos.FindIndex(a =>
+                    Math.Abs(a.X0 - x0) <= tolerancia && Math.Abs(a.X1 - x1) <= tolerancia);
+                if (k >= 0) { siguientes.Add(abiertos[k]); abiertos.RemoveAt(k); }
+                else siguientes.Add((x0, x1, ys[j]));
+            }
+            // Los abiertos sin continuación se cierran en el borde de la banda.
+            foreach (var a in abiertos)
+                rects.Add(new RectanguloMapeado(a.X0, a.Y0, a.X1, ys[j], a.X1 - a.X0, ys[j] - a.Y0));
+            abiertos = siguientes;
+        }
+        foreach (var a in abiertos)
+            rects.Add(new RectanguloMapeado(a.X0, a.Y0, a.X1, ys[^1], a.X1 - a.X0, ys[^1] - a.Y0));
+
+        rects.RemoveAll(r => r.Ancho <= tolerancia || r.Alto <= tolerancia);
+        return rects.Count > 0;
+    }
+
+    /// <summary>Coordenadas ordenadas sin duplicados (±tol).</summary>
+    private static List<double> CoordenadasDistintas(IEnumerable<double> valores, double tol)
+    {
+        var orden = valores.OrderBy(v => v).ToList();
+        var unicos = new List<double>();
+        foreach (var v in orden)
+            if (unicos.Count == 0 || v - unicos[^1] > tol)
+                unicos.Add(v);
+        return unicos;
+    }
+
     private static bool CasiIgual(PuntoCad a, PuntoCad b, double tol) =>
         Math.Abs(a.X - b.X) <= tol && Math.Abs(a.Y - b.Y) <= tol;
 }

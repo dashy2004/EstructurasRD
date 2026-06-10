@@ -57,6 +57,7 @@ public static class DxfEstructuraMapper
         var columnas = new List<ColumnaPropuesta>();
         int contornosNoRect = 0;
         int rectVigaDescartados = 0;
+        int ambientesSubdivididos = 0;
 
         foreach (var e in entidades ?? Array.Empty<EntidadCad>())
         {
@@ -90,9 +91,19 @@ public static class DxfEstructuraMapper
                         vigas.Add(new VigaPropuesta(vs[i].X, vs[i].Y, vs[i + 1].X, vs[i + 1].Y));
                     break;
 
-                // --- Polilínea cerrada no rectangular y no-viga → contorno no mapeable ---
+                // --- Polilínea cerrada no rectangular y no-viga ---
+                // F2: si es un ambiente rectilíneo (L, T) en capa Losa/Otro se
+                // subdivide en paños rectangulares; si no, contorno no mapeable.
                 case PolilineaCad poli when poli.Cerrada:
-                    contornosNoRect++;
+                    if (cat is CategoriaEstructural.Losa or CategoriaEstructural.Otro
+                        && PoligonoLosaMapper.TryDescomponerRectilineo(poli, out var panos, tolerancia))
+                    {
+                        foreach (var p in panos)
+                            losas.Add(new LosaPropuesta(p.MinX, p.MinY, p.Ancho, p.Alto));
+                        ambientesSubdivididos++;
+                    }
+                    else
+                        contornosNoRect++;
                     break;
 
                 // --- Línea en capa Viga → viga ---
@@ -110,6 +121,9 @@ public static class DxfEstructuraMapper
         if (rectVigaDescartados > 0)
             avisos.Add($"{rectVigaDescartados} rectángulo(s) en capa Viga/Eje omitido(s) — " +
                        "revisá si representan vigas con ancho y dibujalas como línea/polilínea.");
+        if (ambientesSubdivididos > 0)
+            avisos.Add($"{ambientesSubdivididos} ambiente(s) rectilíneo(s) (L/T) subdividido(s) " +
+                       "en paños rectangulares — revisá los tipos de borde de cada paño.");
         string? adv = avisos.Count > 0 ? string.Join(" ", avisos) : null;
 
         return new PropuestaElementos(losas, vigas, columnas, Array.Empty<EjePropuesto>(), adv);
