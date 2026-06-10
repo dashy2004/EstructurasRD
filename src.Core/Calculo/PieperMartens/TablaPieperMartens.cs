@@ -64,18 +64,39 @@ public sealed class TablaPieperMartens
 
     /// <summary>
     /// Mapea el código de tipo del .DL (p. ej. 40) al sub-tipo de tabla (p. ej. "4").
-    /// Sólo el 40 está verificado numéricamente contra Losas.exe (RESTAURANTE 2);
-    /// el resto se irá confirmando con más fixtures (ver TABLAS-PERDOMO.md).
+    /// Convención (spec F3 §3.3): d1 = nº de TABLA del PDF (1–6); d2 = 0 bloque
+    /// único (tablas simétricas 1/4/6), 1/2 = orientación a/b (tablas 2/3/5),
+    /// 3/4 = tabla (d1+6) orientación a/b (losas apoyadas en TRES bordes, un
+    /// borde libre — tablas 7–12). Sólo el 40 está verificado numéricamente
+    /// contra Losas.exe (RESTAURANTE 2); el resto se confirmará con fixtures
+    /// del usuario en Windows (ver TABLAS-PERDOMO.md §3). Los voladizos 71/72
+    /// NO pasan por aquí (MomentosCalculator.EsVoladizo los resuelve antes).
     /// </summary>
     public string SubtipoDeCodigoDL(int codigo)
         => CodigoASubtipo.TryGetValue(codigo, out var st)
             ? st
             : throw new NotSupportedException(
-                $"Código de tipo {codigo} aún no mapeado a sub-tipo de tabla (faltan fixtures de validación).");
+                $"Código de tipo {codigo} fuera del catálogo .DL: sin sub-tipo de tabla Pieper-Martens.");
 
     private static readonly IReadOnlyDictionary<int, string> CodigoASubtipo = new Dictionary<int, string>
     {
-        [40] = "4",   // 2 bordes adyacentes empotrados — verificado vs Losas.exe
+        // ---- 4 bordes apoyados (tablas 1–6) ----
+        [10] = "1",    // T1  4 apoyos simples (bloque único)
+        [21] = "2a",   // T2a 1 empotrado horizontal (N/S) → Sy
+        [22] = "2b",   // T2b 1 empotrado vertical (E/W) → Sx
+        [31] = "3a",   // T3a 2 opuestos N,S
+        [32] = "3b",   // T3b 2 opuestos E,W
+        [40] = "4",    // T4  2 adyacentes empotrados — VERIFICADO vs Losas.exe
+        [51] = "5a",   // T5a 3 empotrados, apoyo horizontal
+        [52] = "5b",   // T5b 3 empotrados, apoyo vertical
+        [60] = "6",    // T6  perimetral (bloque único)
+        // ---- 3 bordes apoyados + 1 libre (tablas 7–12): (d1)(3|4) → (d1+6) a|b ----
+        [13] = "7a",  [14] = "7b",
+        [23] = "8a",  [24] = "8b",
+        [33] = "9a",  [34] = "9b",
+        [43] = "10a", [44] = "10b",
+        [53] = "11a", [54] = "11b",
+        [63] = "12a", [64] = "12b",
     };
 
     // ---- helpers ---------------------------------------------------------
