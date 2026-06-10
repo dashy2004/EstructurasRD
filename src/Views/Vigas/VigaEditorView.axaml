@@ -284,7 +284,8 @@
 
                 <!-- Gráfico 1: modelo físico de la viga -->
                 <Border Grid.Row="1" Theme="{StaticResource TarjetaSeccion}">
-                    <oxy:PlotView Model="{Binding ModeloViga}" Background="Transparent"/>
+                    <Image Source="{Binding VigaPng, Converter={StaticResource BytesToBitmap}}"
+                           Stretch="Uniform" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
                 </Border>
 
                 <!-- Gráfico 2: cortante y momento. Render a imagen (PNG vía DiagramaPng)

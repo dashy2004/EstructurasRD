@@ -64,4 +64,20 @@ public class DiagramaPngTests
         Assert.True(ContieneColor(pngEsfuerzos!, 14, 125, 184), "El PNG de esfuerzos debe dibujar la curva de cortante (azul).");
         Assert.True(ContieneColor(pngDeflexion!, 46, 125, 50), "El PNG de deflexión debe dibujar la curva δ (verde).");
     }
+
+    [Fact]
+    public async Task VigaPng_dibuja_eje_y_carga_distribuida()
+    {
+        var proyecto = ProyectoFactory.NuevoProyectoSeedeado();
+        proyecto.AsegurarEstructura();
+        proyecto.Edificios[0].Niveles[0].Vigas.Add(VigaResoluble());
+        int n = 0;
+        var vm = new VigaEditorViewModel(proyecto, () => n++, () => proyecto.Edificios[0].Niveles[0]);
+        await vm.RecalcularAsync();
+
+        Assert.NotNull(vm.VigaPng);
+        // Eje de la viga = ColorViga rgb(51,58,69); banda de carga distribuida = ColorCarga rgb(181,138,0).
+        Assert.True(ContieneColor(vm.VigaPng!, 51, 58, 69), "El PNG del modelo de viga debe dibujar el eje (LineSeries).");
+        Assert.True(ContieneColor(vm.VigaPng!, 181, 138, 0), "El PNG del modelo de viga debe dibujar la banda de carga (RectangleAnnotation).");
+    }
 }

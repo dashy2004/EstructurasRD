@@ -215,6 +215,7 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
     private const int PngAncho = 1100;
     private const int PngAltoEsfuerzos = 380;
     private const int PngAltoDeflexion = 320;
+    private const int PngAltoViga = 320;
 
     private byte[]? _esfuerzosPng;
     /// <summary>PNG del diagrama de esfuerzos (V/M) para mostrar como imagen.</summary>
@@ -230,6 +231,14 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
     {
         get => _deflexionPng;
         private set { _deflexionPng = value; OnPropertyChanged(); }
+    }
+
+    private byte[]? _vigaPng;
+    /// <summary>PNG del modelo físico de la viga para mostrar como imagen.</summary>
+    public byte[]? VigaPng
+    {
+        get => _vigaPng;
+        private set { _vigaPng = value; OnPropertyChanged(); }
     }
 
     private bool _esInestable;
@@ -572,6 +581,7 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         // Render a imagen de los dos diagramas que oxy:PlotView deja en blanco.
         EsfuerzosPng = DiagramaPng.Render(ModeloEsfuerzos, PngAncho, PngAltoEsfuerzos);
         DeflexionPng = DiagramaPng.Render(ModeloDeflexion, PngAncho, PngAltoDeflexion);
+        VigaPng = DiagramaPng.Render(ModeloViga, PngAncho, PngAltoViga);
     }
 
     private void LimpiarDiagramas()
@@ -587,6 +597,7 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         }
         EsfuerzosPng = null;
         DeflexionPng = null;
+        VigaPng = null;
     }
 
     private void ConstruirModeloViga()
