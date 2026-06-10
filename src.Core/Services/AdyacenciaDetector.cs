@@ -83,10 +83,10 @@ public static class AdyacenciaDetector
     {
         cand = default;
 
-        // Ambas losas son ancladas (filtradas por el llamador) → PosX/PosY no nulos.
-        double aL = a.PosX!.Value, aT = a.PosY!.Value;
+        // Ambas losas son ancladas (filtradas por el llamador) — CoordenadaX/Y es su verdad (UI1.1).
+        double aL = a.CoordenadaX, aT = a.CoordenadaY;
         double aR = aL + a.Lx,     aB = aT + a.Ly;
-        double bL = b.PosX!.Value, bT = b.PosY!.Value;
+        double bL = b.CoordenadaX, bT = b.CoordenadaY;
         double bR = bL + b.Lx,     bB = bT + b.Ly;
 
         // --- Bordes verticales (adyacencia X) — el segmento compartido es en Y ---

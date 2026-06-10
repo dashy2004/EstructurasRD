@@ -12,7 +12,7 @@ namespace LosasPlus.Tests.Services;
 public class MotorGeometriaAnaliticaTests
 {
     private static Losa LosaEn(int id, double posX, double posY, double lx = 4.0, double ly = 4.0)
-        => new() { Id = id, Lx = lx, Ly = ly, PosX = posX, PosY = posY };
+        => new() { Id = id, Lx = lx, Ly = ly, CoordenadaX = posX, CoordenadaY = posY, Anclada = true };
 
     [Fact]
     public void DosLosas_LadoALado_HolguraDe3cm_SeAlinean()
@@ -26,7 +26,7 @@ public class MotorGeometriaAnaliticaTests
         var r = MotorGeometriaAnalitica.EjecutarAlineacionYConexion(s);
 
         Assert.Equal(1, r.LosasAlineadasCount);
-        Assert.Equal(4.0, b.PosX!.Value, precision: 9);   // B calza exacto con A.derecha
+        Assert.Equal(4.0, b.CoordenadaX, precision: 9);   // B calza exacto con A.derecha
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public class MotorGeometriaAnaliticaTests
 
         Assert.Equal(0, r.LosasAlineadasCount);
         Assert.Equal(0, r.BordesCreadosCount);
-        Assert.Equal(4.20, b.PosX!.Value, precision: 9);   // B no se movió
+        Assert.Equal(4.20, b.CoordenadaX, precision: 9);   // B no se movió
         Assert.Empty(s.BordesX);
         Assert.Empty(s.BordesY);
     }
@@ -90,7 +90,7 @@ public class MotorGeometriaAnaliticaTests
         var r = MotorGeometriaAnalitica.EjecutarAlineacionYConexion(s);
 
         Assert.Equal(1, r.LosasAlineadasCount);
-        Assert.Equal(4.0, b.PosY!.Value, precision: 9);   // B calza exacto con A.abajo
+        Assert.Equal(4.0, b.CoordenadaY, precision: 9);   // B calza exacto con A.abajo
         Assert.Equal(1, r.BordesCreadosCount);
         Assert.Single(s.BordesY);
         Assert.Empty(s.BordesX);

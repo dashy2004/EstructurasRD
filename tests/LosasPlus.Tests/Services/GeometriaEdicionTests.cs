@@ -15,7 +15,7 @@ public class GeometriaEdicionTests
     {
         var original = new RectM(0, 0, 4, 3);
         var r = GeometriaEdicion.Redimensionar(original, AsaRedim.InfDer, new PuntoM(7, 5), ladoMin: 0.10);
-        // PosX/PosY (esquina sup-izq) intactos; sólo crecen Lx/Ly.
+        // La esquina sup-izq queda intacta; sólo crecen Lx/Ly.
         Assert.Equal(0, r.X, precision: 6);
         Assert.Equal(0, r.Y, precision: 6);
         Assert.Equal(7, r.Ancho, precision: 6);

@@ -11,7 +11,7 @@ public readonly record struct PuntoM(double X, double Y);
 /// <summary>
 /// Rectángulo ortogonal axis-aligned, inmutable, en metros (sistema de
 /// coordenadas con Y descendente, igual que el lienzo CAD y que
-/// <c>Losa.PosX/PosY</c>). Es la moneda geométrica común de
+/// <c>Losa.CoordenadaX/Y</c>). Es la moneda geométrica común de
 /// <see cref="GeometriaEdicion"/>, <see cref="TopologiaAdyacencia"/> y
 /// <see cref="MotorCotas"/>.
 /// </summary>

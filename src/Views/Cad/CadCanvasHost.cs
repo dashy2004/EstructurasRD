@@ -688,30 +688,12 @@ public sealed class CadCanvasHost : Control
     }
 
     /// <summary>
-    /// Hash estable de la topología que consume el <see cref="LayoutSolver"/>:
-    /// las losas (Id, Lx, Ly, PosX, PosY) y los bordes de adyacencia (BI, BJ) en
-    /// X e Y. Es O(losas+bordes) — mucho más barato que la BFS+LINQ del solver —,
-    /// así que recalcularlo cada frame para decidir el cache-hit no cuesta nada.
-    /// No incluye datos que no afecten la posición (carga, espesor, tipo…).
+    /// Clave de invalidación del caché de layout — delega en
+    /// <see cref="TopologiaPlanta.Hash"/> (UI1.1, fuente única): observa
+    /// CoordenadaX/Y + Anclada, así un movimiento hecho en Planta 2D también
+    /// invalida el layout del lienzo CAD (jamás se sirve un layout obsoleto).
     /// </summary>
-    private static int HashTopologia(Sistema sistema)
-    {
-        var h = new HashCode();
-        h.Add(sistema.Losas.Count);
-        foreach (var l in sistema.Losas)
-        {
-            h.Add(l.Id);
-            h.Add(l.Lx);
-            h.Add(l.Ly);
-            h.Add(l.PosX);
-            h.Add(l.PosY);
-        }
-        h.Add(sistema.BordesX.Count);
-        foreach (var b in sistema.BordesX) { h.Add(b.BI); h.Add(b.BJ); }
-        h.Add(sistema.BordesY.Count);
-        foreach (var b in sistema.BordesY) { h.Add(b.BI); h.Add(b.BJ); }
-        return h.ToHashCode();
-    }
+    private static int HashTopologia(Sistema sistema) => TopologiaPlanta.Hash(sistema);
 
     /// <summary>Invalida el layout cacheado — fuerza un recálculo en el próximo render.</summary>
     private void InvalidarLayout()

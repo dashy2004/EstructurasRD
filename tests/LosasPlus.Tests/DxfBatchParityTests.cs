@@ -7,7 +7,7 @@ namespace LosasPlus.Tests;
 /// <summary>
 /// F2 C1 — paridad batch↔interactivo: la losa creada por el pipeline batch
 /// (<see cref="DxfEstructuraMapper.CrearLosaBatch"/>) queda ANCLADA
-/// (PosX/PosY no nulos) y con la Y invertida a la convención del lienzo
+/// (Anclada=true) y con la Y invertida a la convención del lienzo
 /// (Y descendente), exactamente como el path interactivo
 /// (CadEditorViewModel.MapearPoligono: posY = Plano.MaxY − rect.MaxY).
 /// </summary>
@@ -23,11 +23,10 @@ public class DxfBatchParityTests
 
         // Fórmula interactiva: posY = MaxY − rect.MaxY = 20 − (3+4) = 13.
         Assert.Equal(7, losa.Id);
-        Assert.Equal(2.0, losa.PosX!.Value, 9);
-        Assert.Equal(13.0, losa.PosY!.Value, 9);
-        Assert.True(losa.TienePosicionExplicita);          // anclada: LayoutSolver no la reubica
+        Assert.True(losa.Anclada);                         // anclada: LayoutSolver no la reubica
+        Assert.True(losa.TienePosicionExplicita);          // alias histórico de Anclada
         Assert.Equal(2.0, losa.CoordenadaX, 9);
-        Assert.Equal(13.0, losa.CoordenadaY, 9);           // misma convención Y-down que PosY
+        Assert.Equal(13.0, losa.CoordenadaY, 9);           // convención Y-down del lienzo
         Assert.Equal(5.0, losa.Lx, 9);
         Assert.Equal(4.0, losa.Ly, 9);
         Assert.Equal(40, losa.Tipo);                        // el tipo propuesto se propaga

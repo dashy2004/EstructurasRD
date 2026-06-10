@@ -60,9 +60,9 @@ public static class LayoutSolver
         var placements = new Dictionary<int, Placement>();
 
         // ---- Modo híbrido (Fase 2): pre-posicionar las losas ANCLADAS ----
-        // Una losa con PosX/PosY explícitos conserva esas coordenadas exactas
-        // y no se recalcula topológicamente. El BFS las respeta porque saltea
-        // cualquier vecino ya presente en 'placements'.
+        // Una losa anclada (Losa.Anclada — UI1.1, fuente única) conserva sus
+        // CoordenadaX/Y exactas y no se recalcula topológicamente. El BFS las
+        // respeta porque saltea cualquier vecino ya presente en 'placements'.
         bool hayAncladas = false;
         foreach (var l in sistema.Losas)
         {
@@ -71,7 +71,7 @@ public static class LayoutSolver
                 placements[l.Id] = new Placement
                 {
                     Id = l.Id, Losa = l,
-                    X = l.PosX!.Value, Y = l.PosY!.Value,
+                    X = l.CoordenadaX, Y = l.CoordenadaY,
                 };
                 hayAncladas = true;
             }
@@ -158,9 +158,9 @@ public static class LayoutSolver
         }
 
         // Normalizar para que min(x, y) = 0 — SÓLO en modo topológico puro.
-        // Si hay losas ancladas, sus PosX/PosY son coordenadas absolutas del
-        // lienzo CAD y no deben desplazarse: se preserva el sistema de
-        // coordenadas tal cual.
+        // Si hay losas ancladas, sus CoordenadaX/Y son coordenadas absolutas
+        // del lienzo unificado y no deben desplazarse: se preserva el sistema
+        // de coordenadas tal cual.
         if (!hayAncladas)
         {
             double minX = placements.Values.Min(p => p.X);

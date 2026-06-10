@@ -54,13 +54,58 @@ public class SincronizadorPlantaTests
     }
 
     [Fact]
-    public void Sincronizar_respeta_posicion_manual_del_usuario()
+    public void Sincronizar_respeta_ancladas_y_coloca_las_libres_relativo_al_ancla()
     {
+        // UI1.1: una losa colocada explícitamente (drag/import) queda ANCLADA; la
+        // libre apilada en el origen sí se coloca — relativa al ancla (BFS híbrido).
         var s = DosLosasAdyacentesEnX();
-        s.Losas[0].CoordenadaX = 12.5;     // el usuario movió una losa a mano
-        // No todas están en (0,0) → no se reposiciona automáticamente.
-        Assert.False(SincronizadorPlanta.Sincronizar(s));
-        Assert.Equal(12.5, s.Losas[0].CoordenadaX, 6);
+        s.Losas[0].CoordenadaX = 12.5;
+        s.Losas[0].Anclada = true;
+
+        Assert.True(SincronizadorPlanta.Sincronizar(s));
+
+        Assert.Equal(12.5, s.Losas[0].CoordenadaX, 6);   // el ancla no se toca
+        Assert.Equal(16.5, s.Losas[1].CoordenadaX, 6);   // libre → a la derecha del ancla
+        Assert.True(s.Losas[1].Anclada);                  // lo horneado queda anclado
+    }
+
+    [Fact]
+    public void RequiereSincronizacion_ignora_las_ancladas_en_el_origen()
+    {
+        // Dos losas ancladas deliberadamente en (0,0): el usuario las puso ahí.
+        // La guarda nueva mira losas LIBRES en el origen, no coordenadas en cero.
+        var s = DosLosasAdyacentesEnX();
+        s.Losas[0].Anclada = true;
+        s.Losas[1].Anclada = true;
+
+        Assert.False(SincronizadorPlanta.RequiereSincronizacion(s));
+    }
+
+    [Fact]
+    public void RequiereSincronizacion_detecta_losa_libre_en_origen_entre_ancladas()
+    {
+        // Import DXF escribe coordenadas reales (ancladas); una losa creada en el
+        // Editor-grid queda libre en (0,0). Con la guarda vieja ("todas en 0,0")
+        // jamás se colocaría — quedaría apilada en el origen para siempre.
+        var s = DosLosasAdyacentesEnX();
+        s.Losas[0].CoordenadaX = 5.0;
+        s.Losas[0].CoordenadaY = 2.0;
+        s.Losas[0].Anclada = true;
+
+        Assert.True(SincronizadorPlanta.RequiereSincronizacion(s));
+    }
+
+    [Fact]
+    public void Sincronizar_ancla_lo_que_hornea()
+    {
+        // Bake-once: tras hornear el layout, TODAS las posiciones quedan explícitas
+        // — así un ancla posterior no "teletransporta" a las demás (no hay re-BFS).
+        var s = DosLosasAdyacentesEnX();
+
+        Assert.True(SincronizadorPlanta.Sincronizar(s));
+
+        Assert.True(s.Losas[0].Anclada);
+        Assert.True(s.Losas[1].Anclada);
     }
 
     [Fact]

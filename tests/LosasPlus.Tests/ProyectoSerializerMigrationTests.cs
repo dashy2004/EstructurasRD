@@ -186,8 +186,8 @@ public class ProyectoSerializerMigrationTests : IDisposable
     public void Load_de_version_futura_lanza_excepcion()
     {
         var path = TempFile();
-        // Una versión por encima de la soportada (FormatVersion = 4 → usar 5).
-        File.WriteAllText(path, "{ \"version\": 5, \"proyecto\": { \"nombre\": \"X\" } }");
+        // Una versión por encima de la soportada (FormatVersion = 5 → usar 6).
+        File.WriteAllText(path, "{ \"version\": 6, \"proyecto\": { \"nombre\": \"X\" } }");
 
         Assert.Throws<InvalidProyectoFileException>(() => ProyectoSerializer.Load(path));
     }
@@ -320,12 +320,208 @@ public class ProyectoSerializerMigrationTests : IDisposable
         ProyectoSerializer.Save(migrado, v4Path);
 
         var root = JsonNode.Parse(File.ReadAllText(v4Path))!.AsObject();
-        Assert.Equal(4, (int)root["version"]!);   // FormatVersion actual = 4
+        Assert.Equal(ProyectoSerializer.FormatVersion, (int)root["version"]!);   // formato vigente al re-guardar
 
         var recargado = ProyectoSerializer.Load(v4Path);
         var nivel = recargado.Edificios[0].Niveles[0];
         Assert.Equal(SistemaUso.Entrepiso, nivel.Uso);
         Assert.Equal(2.80, nivel.CotaMetros, precision: 2);
+    }
+
+    // =====================================================================
+    // Migración v4 → v5 (UI1.1): posX/posY → coordenadaX/Y + anclada
+    // =====================================================================
+
+    /// <summary>
+    /// Proyecto con un sistema "S-UI11" (las losas dadas) bajo el primer nivel —
+    /// el blanco de los asserts de migración v4→v5.
+    /// </summary>
+    private static Proyecto BuildProyectoUi11(params Losa[] losas)
+    {
+        var p = ProyectoFactory.NuevoProyectoSeedeado();
+        p.Nombre = "Proyecto UI11";
+        p.AsegurarEstructura();
+        var s = new Sistema { Nombre = "S-UI11" };
+        foreach (var l in losas) s.Losas.Add(l);
+        p.Edificios[0].Niveles[0].Sistemas.Add(s);
+        return p;
+    }
+
+    /// <summary>Todas las losas (como <see cref="JsonObject"/>) de todos los sistemas.</summary>
+    private static IEnumerable<JsonObject> LosasJson(JsonObject root)
+    {
+        foreach (var ed in root["proyecto"]!["edificios"]!.AsArray())
+        foreach (var niv in ed!["niveles"]!.AsArray())
+        {
+            if (niv!["sistemas"] is not JsonArray sistemas) continue;
+            foreach (var sis in sistemas)
+                if (sis!["losas"] is JsonArray losas)
+                    foreach (var l in losas)
+                        yield return l!.AsObject();
+        }
+    }
+
+    /// <summary>El array JSON de losas del sistema "S-UI11".</summary>
+    private static JsonArray LosasJsonUi11(JsonObject root)
+    {
+        foreach (var ed in root["proyecto"]!["edificios"]!.AsArray())
+        foreach (var niv in ed!["niveles"]!.AsArray())
+            if (niv!["sistemas"] is JsonArray sistemas)
+                foreach (var sis in sistemas)
+                    if (sis!["nombre"]?.GetValue<string>() == "S-UI11")
+                        return sis["losas"]!.AsArray();
+        throw new InvalidOperationException("fixture sin sistema S-UI11");
+    }
+
+    /// <summary>
+    /// Degrada el formato actual a un v4 auténtico: <c>version = 4</c> y sin el
+    /// campo <c>anclada</c> (no existía en v4). <paramref name="mutar"/> permite
+    /// inyectar <c>posX/posY</c> legados en las losas de "S-UI11".
+    /// </summary>
+    private static string BuildV4Json(Proyecto p, Action<JsonArray>? mutar = null)
+    {
+        var root = JsonNode.Parse(ProyectoSerializer.ToJson(p))!.AsObject();
+        root["version"] = 4;
+        foreach (var l in LosasJson(root)) l.Remove("anclada");
+        mutar?.Invoke(LosasJsonUi11(root));
+        return root.ToJsonString();
+    }
+
+    private static Sistema SistemaUi11(Proyecto p)
+    {
+        foreach (var s in p.Edificios[0].Niveles[0].Sistemas)
+            if (s.Nombre == "S-UI11") return s;
+        throw new InvalidOperationException("proyecto cargado sin sistema S-UI11");
+    }
+
+    [Fact]
+    public void Load_v4_planta_virgen_migra_el_ancla_CAD_a_coordenadas()
+    {
+        // Proyecto v4 "solo CAD": coordenadas de planta vírgenes (0,0) y una losa
+        // anclada en el lienzo CAD legado (posX/posY). El ancla era la única
+        // verdad ⇒ pasa a coordenadaX/Y + anclada.
+        var path = TempFile();
+        File.WriteAllText(path, BuildV4Json(
+            BuildProyectoUi11(new Losa { Id = 1, Lx = 5, Ly = 4 },
+                              new Losa { Id = 2, Lx = 3, Ly = 3 }),
+            losas => { losas[0]!["posX"] = 5.0; losas[0]!["posY"] = 2.0; }));
+
+        var s = SistemaUi11(ProyectoSerializer.Load(path));
+
+        Assert.Equal(5.0, s.Losas[0].CoordenadaX, 9);
+        Assert.Equal(2.0, s.Losas[0].CoordenadaY, 9);
+        Assert.True(s.Losas[0].Anclada);
+        Assert.False(s.Losas[1].Anclada);              // sin ancla y planta virgen ⇒ libre
+        Assert.Equal(0.0, s.Losas[1].CoordenadaX, 9);
+    }
+
+    [Fact]
+    public void Load_v4_planta_arreglada_gana_sobre_el_ancla_CAD_divergente()
+    {
+        // La planta tiene datos (el usuario arregló losas ahí) y el CAD trae una
+        // copia divergente/stale ⇒ política UI1.1: PLANTA GANA y todo queda anclado.
+        var path = TempFile();
+        File.WriteAllText(path, BuildV4Json(
+            BuildProyectoUi11(new Losa { Id = 1, CoordenadaX = 7, CoordenadaY = 1 },
+                              new Losa { Id = 2, CoordenadaX = 3, CoordenadaY = 4 }),
+            losas => { losas[0]!["posX"] = 5.0; losas[0]!["posY"] = 2.0; }));
+
+        var s = SistemaUi11(ProyectoSerializer.Load(path));
+
+        Assert.Equal(7.0, s.Losas[0].CoordenadaX, 9);
+        Assert.Equal(1.0, s.Losas[0].CoordenadaY, 9);
+        Assert.True(s.Losas[0].Anclada);
+        Assert.Equal(3.0, s.Losas[1].CoordenadaX, 9);
+        Assert.Equal(4.0, s.Losas[1].CoordenadaY, 9);
+        Assert.True(s.Losas[1].Anclada);
+    }
+
+    [Fact]
+    public void Load_v4_virgen_sin_anclas_queda_libre()
+    {
+        var path = TempFile();
+        File.WriteAllText(path, BuildV4Json(
+            BuildProyectoUi11(new Losa { Id = 1 }, new Losa { Id = 2 })));
+
+        var s = SistemaUi11(ProyectoSerializer.Load(path));
+
+        Assert.All(s.Losas, l => Assert.False(l.Anclada));
+        Assert.All(s.Losas, l => Assert.Equal(0.0, l.CoordenadaX, 9));
+    }
+
+    [Fact]
+    public void Load_v4_migra_aunque_posX_venga_antes_que_coordenadaX()
+    {
+        // La migración opera sobre el JSON crudo ⇒ debe ser inmune al orden de
+        // propiedades (el footgun clásico de los adaptadores por setter).
+        var path = TempFile();
+        File.WriteAllText(path, BuildV4Json(
+            BuildProyectoUi11(new Losa { Id = 1, Lx = 5, Ly = 4 }),
+            losas =>
+            {
+                var original = losas[0]!.AsObject();
+                var invertida = new JsonObject { ["posX"] = 9.0, ["posY"] = 3.0 };
+                foreach (var kv in System.Linq.Enumerable.ToList(original))
+                    if (kv.Key is not ("posX" or "posY"))
+                        invertida[kv.Key] = kv.Value?.DeepClone();
+                losas[0] = invertida;   // posX/posY ANTES que coordenadaX/Y
+            }));
+
+        var s = SistemaUi11(ProyectoSerializer.Load(path));
+
+        Assert.Equal(9.0, s.Losas[0].CoordenadaX, 9);
+        Assert.Equal(3.0, s.Losas[0].CoordenadaY, 9);
+        Assert.True(s.Losas[0].Anclada);
+    }
+
+    [Fact]
+    public void Load_v4_y_Save_estampan_v5_sin_posX_posY()
+    {
+        // El bump de formato es parte del contrato de UI1.1.
+        Assert.Equal(5, ProyectoSerializer.FormatVersion);
+
+        var v4Path = TempFile();
+        File.WriteAllText(v4Path, BuildV4Json(
+            BuildProyectoUi11(new Losa { Id = 1, Lx = 5, Ly = 4 }),
+            losas => { losas[0]!["posX"] = 5.0; losas[0]!["posY"] = 2.0; }));
+        var migrado = ProyectoSerializer.Load(v4Path);
+
+        var v5Path = TempFile();
+        ProyectoSerializer.Save(migrado, v5Path);
+
+        var root = JsonNode.Parse(File.ReadAllText(v5Path))!.AsObject();
+        Assert.Equal(ProyectoSerializer.FormatVersion, (int)root["version"]!);
+        foreach (var losa in LosasJson(root))
+        {
+            Assert.False(losa.ContainsKey("posX"), "un v5 no debe re-escribir posX");
+            Assert.False(losa.ContainsKey("posY"), "un v5 no debe re-escribir posY");
+        }
+
+        var recargado = SistemaUi11(ProyectoSerializer.Load(v5Path));
+        Assert.Equal(5.0, recargado.Losas[0].CoordenadaX, 9);
+        Assert.True(recargado.Losas[0].Anclada);
+    }
+
+    [Fact]
+    public void Load_v1_con_ancla_CAD_encadena_hasta_v5()
+    {
+        // Cadena completa v1 → v2 → (semilla v3) → v4 → v5 sobre un archivo
+        // ancestral con posX/posY en el primer sistema plano.
+        var root = JsonNode.Parse(BuildV1Json(BuildProyecto()))!.AsObject();
+        foreach (var sis in root["proyecto"]!["sistemas"]!.AsArray())
+            if (sis!["losas"] is JsonArray losas)
+                foreach (var l in losas)
+                    l!.AsObject().Remove("anclada");   // un v1 auténtico no la traía
+        var primera = root["proyecto"]!["sistemas"]![0]!["losas"]![0]!.AsObject();
+        primera["posX"] = 9.0;
+        primera["posY"] = 3.0;
+
+        var p = ProyectoSerializer.FromJson(root.ToJsonString());
+
+        var losa = p.Sistemas[0].Losas[0];
+        Assert.Equal(9.0, losa.CoordenadaX, 9);
+        Assert.Equal(3.0, losa.CoordenadaY, 9);
+        Assert.True(losa.Anclada);
     }
 
     /// <summary>

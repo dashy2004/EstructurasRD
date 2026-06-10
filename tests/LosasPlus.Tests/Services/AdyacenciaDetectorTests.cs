@@ -11,12 +11,12 @@ namespace LosasPlus.Tests.Services;
 /// </summary>
 public class AdyacenciaDetectorTests
 {
-    /// <summary>Losa anclada (con PosX/PosY) — la que el detector sí considera.</summary>
+    /// <summary>Losa anclada (Anclada=true) — la que el detector sí considera.</summary>
     private static Losa Anclada(int id, double x, double y, double lx, double ly) =>
         new() { Id = id, Tipo = 10, Carga = 2.0, Espesor = 0.12, Rec = 0.02,
-                Lx = lx, Ly = ly, PosX = x, PosY = y };
+                Lx = lx, Ly = ly, CoordenadaX = x, CoordenadaY = y, Anclada = true };
 
-    /// <summary>Losa flotante (sin PosX/PosY) — la que el detector ignora.</summary>
+    /// <summary>Losa flotante (libre, sin anclar) — la que el detector ignora.</summary>
     private static Losa Flotante(int id, double lx, double ly) =>
         new() { Id = id, Tipo = 10, Carga = 2.0, Espesor = 0.12, Rec = 0.02, Lx = lx, Ly = ly };
 
@@ -124,7 +124,7 @@ public class AdyacenciaDetectorTests
     {
         var s = new Sistema();
         s.Losas.Add(Anclada(1, 0, 0, 4, 3));
-        s.Losas.Add(Flotante(2, 3, 3));   // sin PosX/PosY → no se considera
+        s.Losas.Add(Flotante(2, 3, 3));   // libre (sin anclar) → no se considera
         Assert.Empty(AdyacenciaDetector.Detectar(s));
     }
 

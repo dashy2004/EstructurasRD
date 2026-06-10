@@ -720,8 +720,9 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
             Tipo = 10,                  // 4 bordes simplemente apoyados (default editable)
             Lx = args.Lx,
             Ly = args.Ly,
-            PosX = args.PosX,
-            PosY = args.PosY,
+            CoordenadaX = args.PosX,    // fuente única (UI1.1): coordenadas de planta
+            CoordenadaY = args.PosY,
+            Anclada = true,             // dibujada ahí explícitamente
             // Carga / Espesor / Rec quedan en sus defaults del modelo Losa.
         };
 
@@ -871,8 +872,9 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
             Tipo = 10,                  // 4 bordes simplemente apoyados (default editable)
             Lx = rect.Ancho,
             Ly = rect.Alto,
-            PosX = posX,
-            PosY = posY,
+            CoordenadaX = posX,
+            CoordenadaY = posY,
+            Anclada = true,             // mapeada del plano: posición explícita
             // Carga / Espesor / Rec quedan en sus defaults del modelo Losa.
         };
 
@@ -905,8 +907,9 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         _pushUndoSnapshot();
 
         var losa = args.Losa;
-        losa.PosX = args.PosX;
-        losa.PosY = args.PosY;
+        losa.CoordenadaX = args.PosX;
+        losa.CoordenadaY = args.PosY;
+        losa.Anclada     = true;        // movida/redimensionada a mano
         losa.Lx   = args.Lx;
         losa.Ly   = args.Ly;
         losa.Tipo = args.Tipo;
@@ -941,8 +944,9 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         {
             var losa = losas.FirstOrDefault(l => l.Id == m.LosaId);
             if (losa is null) continue;
-            losa.PosX = m.PosX;
-            losa.PosY = m.PosY;
+            losa.CoordenadaX = m.PosX;
+            losa.CoordenadaY = m.PosY;
+            losa.Anclada = true;        // bloque colocado a mano
             n++;
         }
 

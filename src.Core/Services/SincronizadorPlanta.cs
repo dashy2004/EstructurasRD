@@ -24,13 +24,15 @@ namespace LosasPlus.Services;
 public static class SincronizadorPlanta
 {
     /// <summary>
-    /// True si el sistema necesita un layout por defecto: tiene ≥2 losas y todas
-    /// están en la posición de planta sin asignar (0,0) → se solaparían.
+    /// True si el sistema necesita un layout por defecto: tiene ≥2 losas y al
+    /// menos una LIBRE (no <see cref="Losa.Anclada"/>) sigue en el origen (0,0)
+    /// → se apilaría sobre las demás. Las ancladas jamás disparan: su posición
+    /// es verdad explícita del usuario/import aunque sea (0,0) (UI1.1).
     /// </summary>
     public static bool RequiereSincronizacion(Sistema? sistema)
     {
         if (sistema is null || sistema.Losas.Count < 2) return false;
-        return sistema.Losas.All(l => l.CoordenadaX == 0.0 && l.CoordenadaY == 0.0);
+        return sistema.Losas.Any(l => !l.Anclada && l.CoordenadaX == 0.0 && l.CoordenadaY == 0.0);
     }
 
     /// <summary>
@@ -49,6 +51,10 @@ public static class SincronizadorPlanta
         {
             p.Losa.CoordenadaX = p.X;
             p.Losa.CoordenadaY = p.Y;
+            // Bake-once (UI1.1): lo horneado queda explícito. Sin esto, anclar
+            // una losa después haría que las libres se re-coloquen relativas a
+            // ella ("teletransporte") en la siguiente sincronización.
+            p.Losa.Anclada = true;
         }
         return layout.Placements.Count > 0;
     }

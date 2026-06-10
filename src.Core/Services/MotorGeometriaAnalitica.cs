@@ -91,9 +91,9 @@ public static class MotorGeometriaAnalitica
     /// <returns><c>true</c> si se movió la losa <paramref name="b"/>.</returns>
     private static bool AlinearPar(Losa a, Losa b, double tol)
     {
-        // Ambas ancladas (filtradas por el llamador) → PosX/PosY no nulos.
-        double aL = a.PosX!.Value, aT = a.PosY!.Value, aR = aL + a.Lx, aB = aT + a.Ly;
-        double bL = b.PosX!.Value, bT = b.PosY!.Value, bR = bL + b.Lx, bB = bT + b.Ly;
+        // Ambas ancladas (filtradas por el llamador) — CoordenadaX/Y es su verdad (UI1.1).
+        double aL = a.CoordenadaX, aT = a.CoordenadaY, aR = aL + a.Lx, aB = aT + a.Ly;
+        double bL = b.CoordenadaX, bT = b.CoordenadaY, bR = bL + b.Lx, bB = bT + b.Ly;
 
         // --- Vecindad lado a lado: se solapan en Y → posible gap en X ---
         double solapeY = Math.Min(aB, bB) - Math.Max(aT, bT);
@@ -103,7 +103,7 @@ public static class MotorGeometriaAnalitica
             double gap = bDerecha ? (bL - aR) : (aL - bR);
             if (Math.Abs(gap) <= tol && Math.Abs(gap) > EpsilonContacto)
             {
-                b.PosX = bDerecha ? aR : (aL - b.Lx);
+                b.CoordenadaX = bDerecha ? aR : (aL - b.Lx);
                 return true;
             }
             return false;
@@ -117,7 +117,7 @@ public static class MotorGeometriaAnalitica
             double gap = bAbajo ? (bT - aB) : (aT - bB);
             if (Math.Abs(gap) <= tol && Math.Abs(gap) > EpsilonContacto)
             {
-                b.PosY = bAbajo ? aB : (aT - b.Ly);
+                b.CoordenadaY = bAbajo ? aB : (aT - b.Ly);
                 return true;
             }
         }

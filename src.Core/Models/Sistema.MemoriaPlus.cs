@@ -553,42 +553,12 @@ public partial class Losa
     public double? AsyCalc { get => _asyCalc; set { _asyCalc = value; OnPropertyChanged(); } }
 
     // =====================================================================
-    // POSICIÓN EN EL LIENZO CAD (Fase 2 del PLAN_CAD_V1)
+    // POSICIÓN EN PLANTA — FUENTE ÚNICA (UI1.1; antes "lienzo CAD", Fase 2)
     // =====================================================================
-
-    private double? _posX;
-    private double? _posY;
-
-    /// <summary>
-    /// Coordenada X de la esquina superior-izquierda de la losa en el lienzo
-    /// CAD (m). <c>null</c> = losa "flotante": su posición la infiere
-    /// <see cref="LosasPlus.Services.LayoutSolver"/> desde las adyacencias.
-    /// Cuando tiene valor (junto con <see cref="PosY"/>), la losa está
-    /// "anclada" — el solver respeta esa coordenada exacta.
-    /// </summary>
-    public double? PosX
-    {
-        get => _posX;
-        set { _posX = value; OnPropertyChanged(); OnPropertyChanged(nameof(TienePosicionExplicita)); }
-    }
-
-    /// <summary>
-    /// Coordenada Y de la esquina superior-izquierda en el lienzo CAD (m),
-    /// con eje Y descendente (igual convención que
-    /// <c>LayoutSolver.Placement</c>). <c>null</c> = losa flotante.
-    /// </summary>
-    public double? PosY
-    {
-        get => _posY;
-        set { _posY = value; OnPropertyChanged(); OnPropertyChanged(nameof(TienePosicionExplicita)); }
-    }
-
-    /// <summary>
-    /// True si la losa tiene posición explícita (ambas <see cref="PosX"/> y
-    /// <see cref="PosY"/> con valor) — está "anclada" en el lienzo CAD.
-    /// </summary>
-    [JsonIgnore]
-    public bool TienePosicionExplicita => _posX.HasValue && _posY.HasValue;
+    // La geometría vive SOLO en CoordenadaX/CoordenadaY (Sistema.cs): metros,
+    // esquina superior-izquierda, Y descendente — la misma convención que tenía
+    // el ancla CAD legada PosX/PosY, retirada en UI1.1. Los archivos v4 se
+    // reconcilian en ProyectoSerializer.MigrarV4aV5.
 
     private bool _anclada;
 
@@ -603,8 +573,12 @@ public partial class Losa
     public bool Anclada
     {
         get => _anclada;
-        set { _anclada = value; OnPropertyChanged(); }
+        set { _anclada = value; OnPropertyChanged(); OnPropertyChanged(nameof(TienePosicionExplicita)); }
     }
+
+    /// <summary>Alias histórico de <see cref="Anclada"/> — lo leen los servicios CAD.</summary>
+    [JsonIgnore]
+    public bool TienePosicionExplicita => _anclada;
 }
 
 /// <summary>

@@ -14,7 +14,7 @@ namespace LosasPlus.Tests.Services;
 public class AnalisisMurosTests
 {
     private static Losa LosaEn(int id, double x, double y, double lx = 4.0, double ly = 4.0)
-        => new() { Id = id, Lx = lx, Ly = ly, PosX = x, PosY = y };
+        => new() { Id = id, Lx = lx, Ly = ly, CoordenadaX = x, CoordenadaY = y, Anclada = true };
 
     private static Muro MuroDe(double x1, double y1, double x2, double y2, double espesor = 0.15)
         => new()

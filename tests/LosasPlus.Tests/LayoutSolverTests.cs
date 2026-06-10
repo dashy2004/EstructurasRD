@@ -153,18 +153,19 @@ public class LayoutSolverTests
     }
 
     // =================================================================
-    // MODO HÍBRIDO (Fase 2) — losas ancladas (PosX/PosY) vs flotantes
+    // MODO HÍBRIDO (Fase 2) — losas ancladas (Anclada) vs flotantes
     // =================================================================
 
     [Fact]
     public void Losa_anclada_conserva_sus_coordenadas_exactas()
     {
-        // Una losa con PosX/PosY explícitos NO se recalcula topológicamente:
-        // su Placement debe usar esas coordenadas tal cual.
+        // Una losa anclada NO se recalcula topológicamente: su Placement debe
+        // usar sus CoordenadaX/Y tal cual.
         var s = new Sistema();
         var losa = L(1, 4, 3);
-        losa.PosX = 12.5;
-        losa.PosY = 7.25;
+        losa.CoordenadaX = 12.5;
+        losa.CoordenadaY = 7.25;
+        losa.Anclada = true;
         s.Losas.Add(losa);
 
         var r = LayoutSolver.Solve(s);
@@ -180,8 +181,9 @@ public class LayoutSolverTests
         // se preservan las coordenadas absolutas del lienzo CAD.
         var s = new Sistema();
         var losa = L(1, 5, 5);
-        losa.PosX = 30.0;
-        losa.PosY = 20.0;
+        losa.CoordenadaX = 30.0;
+        losa.CoordenadaY = 20.0;
+        losa.Anclada = true;
         s.Losas.Add(losa);
 
         var r = LayoutSolver.Solve(s);
@@ -192,7 +194,7 @@ public class LayoutSolverTests
     [Fact]
     public void Losa_flotante_se_sigue_infiriendo_topologicamente()
     {
-        // Sin PosX/PosY el comportamiento legacy se mantiene intacto.
+        // Sin losas ancladas el comportamiento legacy se mantiene intacto.
         var s = new Sistema();
         s.Losas.Add(L(1, 4, 3));
         s.Losas.Add(L(2, 3, 3));
@@ -213,9 +215,10 @@ public class LayoutSolverTests
         // La 2 debe quedar a la derecha de la 1 — relativa al ancla, sin normalizar.
         var s = new Sistema();
         var l1 = L(1, 4, 3);
-        l1.PosX = 10.0;
-        l1.PosY = 10.0;
-        var l2 = L(2, 3, 3);   // flotante (sin PosX/PosY)
+        l1.CoordenadaX = 10.0;
+        l1.CoordenadaY = 10.0;
+        l1.Anclada = true;
+        var l2 = L(2, 3, 3);   // flotante (libre, sin anclar)
         s.Losas.Add(l1);
         s.Losas.Add(l2);
         s.BordesX.Add(new BordeAdic { BI = 1, BJ = 2, Balanceo = "S" });

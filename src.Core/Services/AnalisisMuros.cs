@@ -66,7 +66,7 @@ public static class AnalisisMuros
         // Rectángulos de las losas ancladas (esquina sup-izq + tamaño).
         var rects = sistema.Losas
             .Where(l => l.TienePosicionExplicita)
-            .Select(l => (Id: l.Id, X: l.PosX!.Value, Y: l.PosY!.Value, l.Lx, l.Ly))
+            .Select(l => (Id: l.Id, X: l.CoordenadaX, Y: l.CoordenadaY, l.Lx, l.Ly))
             .ToList();
 
         // Acumulador: (LosaId, Espesor) → (longitud total, cantidad).

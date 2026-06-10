@@ -36,10 +36,12 @@ public static class ProyectoSerializer
     /// <c>Sistema</c>. v2 → v3: casos y combinaciones de carga. v3 → v4:
     /// <c>Uso</c>/<c>Cota</c>/<c>Elevación</c> pasan a ser propiedades de la planta
     /// (<c>Nivel</c>); la migración copia los valores del primer sistema de cada
-    /// nivel al propio nivel (B3). Los archivos anteriores se migran
+    /// nivel al propio nivel (B3). v4 → v5: fuente única de coordenadas de losa
+    /// (UI1.1) — el ancla CAD legada <c>posX/posY</c> se reconcilia en
+    /// <c>coordenadaX/Y</c> + <c>anclada</c>. Los archivos anteriores se migran
     /// automáticamente al cargar.
     /// </summary>
-    public const int FormatVersion = 4;
+    public const int FormatVersion = 5;
 
     /// <summary>Extensión canónica de archivos de proyecto Memoria Plus.</summary>
     public const string Extension = ".lpx.json";
@@ -119,6 +121,12 @@ public static class ProyectoSerializer
         // sobre el JSON crudo, antes de materializar el modelo.
         if (version < 4)
             MigrarV3aV4(root);
+
+        // v4 → v5 (UI1.1): fuente única de coordenadas de losa — el ancla CAD
+        // legada posX/posY se reconcilia en coordenadaX/Y + anclada, sobre el
+        // JSON crudo (inmune al orden de propiedades del archivo).
+        if (version < 5)
+            MigrarV4aV5(root);
 
         var envelope = root.Deserialize<ProyectoEnvelope>(_opts);
         if (envelope is null)
@@ -212,6 +220,81 @@ public static class ProyectoSerializer
     /// <summary>True si <paramref name="obj"/>[<paramref name="key"/>] es un número distinto de 0.</summary>
     private static bool TieneNumeroNoCero(JsonObject obj, string key)
         => obj[key] is JsonValue jv && jv.TryGetValue<double>(out var d) && d != 0.0;
+
+    /// <summary>El número en <paramref name="obj"/>[<paramref name="key"/>], o <c>null</c> si falta o no es numérico.</summary>
+    private static double? LeerNumero(JsonObject obj, string key)
+        => obj[key] is JsonValue jv && jv.TryGetValue<double>(out var d) ? d : null;
+
+    /// <summary>
+    /// Migra el JSON v4 → v5 <b>in situ</b> (UI1.1 — fuente única de coordenadas
+    /// de losa): el ancla CAD legada <c>posX/posY</c> se reconcilia con
+    /// <c>coordenadaX/coordenadaY</c> + <c>anclada</c> y desaparece del archivo.
+    /// Política por sistema: si la planta ya tiene datos (alguna losa fuera de
+    /// (0,0)), la planta GANA — toda losa queda anclada en sus coordenadas y la
+    /// copia CAD (potencialmente stale) se descarta. Si la planta está virgen,
+    /// la losa con ancla CAD hereda esa posición (anclada); el resto queda libre.
+    /// </summary>
+    private static void MigrarV4aV5(JsonObject root)
+    {
+        root["version"] = 5;
+
+        if (root["proyecto"] is not JsonObject proyecto) return;
+        if (proyecto["edificios"] is not JsonArray edificios) return;
+
+        foreach (var edNode in edificios)
+        {
+            if (edNode is not JsonObject ed) continue;
+            if (ed["niveles"] is not JsonArray niveles) continue;
+
+            foreach (var nivNode in niveles)
+            {
+                if (nivNode is not JsonObject nivel) continue;
+                if (nivel["sistemas"] is not JsonArray sistemas) continue;
+
+                foreach (var sisNode in sistemas)
+                {
+                    if (sisNode is not JsonObject sis) continue;
+                    if (sis["losas"] is JsonArray losas)
+                        MigrarLosasV4aV5(losas);
+                }
+            }
+        }
+    }
+
+    /// <summary>Aplica la política v4→v5 a las losas de UN sistema (ver <see cref="MigrarV4aV5"/>).</summary>
+    private static void MigrarLosasV4aV5(JsonArray losas)
+    {
+        bool plantaTieneDatos = false;
+        foreach (var lNode in losas)
+            if (lNode is JsonObject l
+                && (TieneNumeroNoCero(l, "coordenadaX") || TieneNumeroNoCero(l, "coordenadaY")))
+            {
+                plantaTieneDatos = true;
+                break;
+            }
+
+        foreach (var lNode in losas)
+        {
+            if (lNode is not JsonObject losa) continue;
+
+            double? posX = LeerNumero(losa, "posX");
+            double? posY = LeerNumero(losa, "posY");
+            losa.Remove("posX");
+            losa.Remove("posY");
+
+            if (plantaTieneDatos)
+            {
+                losa["anclada"] = true;            // la planta es la verdad viva
+            }
+            else if (posX is double x && posY is double y)
+            {
+                losa["coordenadaX"] = x;           // planta virgen: el ancla CAD era la única verdad
+                losa["coordenadaY"] = y;
+                losa["anclada"] = true;
+            }
+            // Resto: losa libre — sin "anclada" (el modelo default-ea false).
+        }
+    }
 
     /// <summary>
     /// Guarda <paramref name="proyecto"/> como JSON en <paramref name="path"/>.

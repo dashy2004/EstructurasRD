@@ -132,10 +132,10 @@ public static class DxfEstructuraMapper
     /// <summary>
     /// Crea la <see cref="Losa"/> del pipeline <b>batch</b> con paridad exacta
     /// con el path interactivo (F2): la losa queda <b>anclada</b>
-    /// (<see cref="Losa.PosX"/>/<see cref="Losa.PosY"/> no nulos — el
-    /// <c>LayoutSolver</c> no la reubica) y con la Y convertida a la convención
-    /// del lienzo (Y descendente): <c>PosY = maxYPlano − (YMetros + Ly)</c>,
-    /// la misma fórmula que <c>CadEditorViewModel.MapearPoligono</c>
+    /// (<see cref="Losa.Anclada"/> — el <c>LayoutSolver</c> no la reubica) y
+    /// con la Y convertida a la convención del lienzo (Y descendente):
+    /// <c>CoordenadaY = maxYPlano − (YMetros + Ly)</c>, la misma fórmula que
+    /// <c>CadEditorViewModel.MapearPoligono</c>
     /// (<c>posY = Plano.MaxY − rect.MaxY</c>). Pura y testeable.
     /// </summary>
     public static Losa CrearLosaBatch(LosaPropuesta l, double maxYPlano, int id)
@@ -146,10 +146,9 @@ public static class DxfEstructuraMapper
         return new Losa
         {
             Id = id,
-            PosX = l.XMetros,
-            PosY = posY,
             CoordenadaX = l.XMetros,
             CoordenadaY = posY,
+            Anclada = true,
             Lx = lx,
             Ly = ly,
             Espesor = 0.12,
