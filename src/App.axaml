@@ -10,6 +10,13 @@
         <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
         <!-- Tema compartido (tokens Material 3) usado por las vistas de MemoriaPlus.UI.Shared. -->
         <StyleInclude Source="avares://MemoriaPlus.UI.Shared/Resources/Theme.axaml" />
+        <!-- Tema de OxyPlot.Avalonia: registra el ControlTemplate de oxy:PlotView.
+             Sin esto el control se instancia SIN plantilla y renderiza vacío (bloque
+             en blanco) — los PlotModel (ModeloViga/ModeloEsfuerzos/ModeloDeflexion/
+             ModeloSeccion en VigaEditorView y ColumnasEditorView) existen pero no se
+             dibujan. WPF lo resolvía con generic.xaml implícito; Avalonia exige el
+             StyleInclude explícito. -->
+        <StyleInclude Source="avares://OxyPlot.Avalonia/Themes/Default.axaml" />
 
         <!-- ============================================================
              Estilos implícitos de LosasPlus (port de App.xaml WPF). Usan los
@@ -110,6 +117,9 @@
             <lp:NullToCollapsedConverter        x:Key="NullToCollapsed"/>
             <lp:BoolToCollapsedIfTrueConverter  x:Key="BoolToCollapsedIfTrue"/>
             <lp:BoolToCollapsedIfFalseConverter x:Key="BoolToCollapsedIfFalse"/>
+            <!-- byte[] PNG → Bitmap, para mostrar diagramas renderizados como imagen
+                 (workaround del bug de render de oxy:PlotView). -->
+            <lp:BytesToBitmapConverter          x:Key="BytesToBitmap"/>
             <!-- Converters compartidos (necesarios para las vistas de UI.Shared) -->
             <cmn:EnumToBoolConverter            x:Key="EnumToBoolConverter"/>
             <cmn:PathToImageConverter           x:Key="PathToImageConverter"/>

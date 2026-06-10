@@ -287,14 +287,18 @@
                     <oxy:PlotView Model="{Binding ModeloViga}" Background="Transparent"/>
                 </Border>
 
-                <!-- Gráfico 2: cortante y momento -->
+                <!-- Gráfico 2: cortante y momento. Render a imagen (PNG vía DiagramaPng)
+                     en vez de oxy:PlotView: el control de Avalonia no pinta las series
+                     de cortante/deflexión por un bug de su renderer; OxyPlot-core sí. -->
                 <Border Grid.Row="3" Theme="{StaticResource TarjetaSeccion}">
-                    <oxy:PlotView Model="{Binding ModeloEsfuerzos}" Background="Transparent"/>
+                    <Image Source="{Binding EsfuerzosPng, Converter={StaticResource BytesToBitmap}}"
+                           Stretch="Uniform" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
                 </Border>
 
-                <!-- Gráfico 3: deflexión -->
+                <!-- Gráfico 3: deflexión (render a imagen, mismo workaround). -->
                 <Border Grid.Row="5" Theme="{StaticResource TarjetaSeccion}">
-                    <oxy:PlotView Model="{Binding ModeloDeflexion}" Background="Transparent"/>
+                    <Image Source="{Binding DeflexionPng, Converter={StaticResource BytesToBitmap}}"
+                           Stretch="Uniform" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
                 </Border>
             </Grid>
         </Grid>

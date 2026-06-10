@@ -15,6 +15,7 @@ using OxyPlot.Series;
 using LosasPlus.Calculo;
 using LosasPlus.Cargas;
 using LosasPlus.Models;
+using LosasPlus.Rendering;
 using LosasPlus.Services;
 using LosasPlus.Vigas;
 
@@ -206,6 +207,30 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
 
     /// <summary>Diagrama de la sección transversal de la viga.</summary>
     public PlotModel ModeloSeccion { get; }
+
+    // ── Workaround del bug de render de oxy:PlotView (Avalonia 11) ──────────────
+    // El control no pinta las series de cortante/deflexión (sí momento). Como el
+    // PlotModel y sus datos son correctos (lo prueba la paridad con OxyPlot-core),
+    // se renderizan a PNG con DiagramaPng y la vista los muestra en un <Image>.
+    private const int PngAncho = 1100;
+    private const int PngAltoEsfuerzos = 380;
+    private const int PngAltoDeflexion = 320;
+
+    private byte[]? _esfuerzosPng;
+    /// <summary>PNG del diagrama de esfuerzos (V/M) para mostrar como imagen.</summary>
+    public byte[]? EsfuerzosPng
+    {
+        get => _esfuerzosPng;
+        private set { _esfuerzosPng = value; OnPropertyChanged(); }
+    }
+
+    private byte[]? _deflexionPng;
+    /// <summary>PNG del diagrama de deflexión (δ) para mostrar como imagen.</summary>
+    public byte[]? DeflexionPng
+    {
+        get => _deflexionPng;
+        private set { _deflexionPng = value; OnPropertyChanged(); }
+    }
 
     private bool _esInestable;
     /// <summary><c>true</c> si la viga activa es un mecanismo (no resoluble).</summary>
@@ -544,6 +569,9 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
         ConstruirModeloEsfuerzos();
         ConstruirModeloDeflexion();
         ConstruirModeloSeccion();
+        // Render a imagen de los dos diagramas que oxy:PlotView deja en blanco.
+        EsfuerzosPng = DiagramaPng.Render(ModeloEsfuerzos, PngAncho, PngAltoEsfuerzos);
+        DeflexionPng = DiagramaPng.Render(ModeloDeflexion, PngAncho, PngAltoDeflexion);
     }
 
     private void LimpiarDiagramas()
@@ -557,6 +585,8 @@ public sealed class VigaEditorViewModel : INotifyPropertyChanged
             m.Annotations.Clear();
             m.InvalidatePlot(true);
         }
+        EsfuerzosPng = null;
+        DeflexionPng = null;
     }
 
     private void ConstruirModeloViga()
