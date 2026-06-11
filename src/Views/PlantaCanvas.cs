@@ -8,6 +8,7 @@ using System.Globalization;
 using System.Linq;
 using LosasPlus.Models;
 using LosasPlus.Models.Cad;
+using LosasPlus.Services;
 using LosasPlus.Vigas;
 using LosasPlus.Transmision;
 
@@ -205,6 +206,45 @@ public class PlantaCanvas : Control
     /// </summary>
     public event Action<PolilineaCad?>? PoligonoMapeado;
 
+    // ---- Resize de losa con asas (UI1.5) ----
+
+    private Losa? _resizeLosa;
+    private AsaRedim _resizeAsa;
+    private RectM _resizeRectOriginal;
+
+    /// <summary>
+    /// Disparado al INICIAR un gesto que muta el modelo (drag o resize) — la
+    /// vista toma ahí el snapshot de Undo (un Ctrl+Z revierte el gesto entero).
+    /// </summary>
+    public event Action? GestoEdicionIniciado;
+
+    /// <summary>Centros de las 8 asas (orden de <see cref="AsaRedim"/>), en metros.</summary>
+    private static (double X, double Y)[] CentrosAsas(Losa losa)
+    {
+        double izq = losa.CoordenadaX, der = izq + losa.Lx;
+        double sup = losa.CoordenadaY, inf = sup + losa.Ly;
+        double mx = (izq + der) / 2.0, my = (sup + inf) / 2.0;
+        return new[]
+        {
+            (izq, sup), (mx, sup), (der, sup), (der, my),
+            (der, inf), (mx, inf), (izq, inf), (izq, my),
+        };
+    }
+
+    /// <summary>
+    /// Asa de redimensionado de la losa bajo el punto (metros), o <c>null</c>.
+    /// Tolerancia cuadrada de <paramref name="tolM"/> por eje — patrón del
+    /// <c>HandleBajoCursor</c> del lienzo CAD, en el dominio de planta.
+    /// </summary>
+    public static AsaRedim? AsaEnPunto(Losa losa, Point pM, double tolM)
+    {
+        var centros = CentrosAsas(losa);
+        for (int i = 0; i < centros.Length; i++)
+            if (Math.Abs(pM.X - centros[i].X) <= tolM && Math.Abs(pM.Y - centros[i].Y) <= tolM)
+                return (AsaRedim)i;
+        return null;
+    }
+
     private Point MetrosAPixel(double mx, double my)
     {
         return new Point(mx * _scale + _tx, my * _scale + _ty);
@@ -290,6 +330,20 @@ public class PlantaCanvas : Control
 
             if (ActiveTool == "Puntero")
             {
+                // Asa de resize de la losa seleccionada (UI1.5) — prioridad
+                // sobre el hit-test general.
+                if (SelectedElement is Losa losaSel
+                    && AsaEnPunto(losaSel, pM, 10.0 / _scale) is { } asa)
+                {
+                    _resizeLosa = losaSel;
+                    _resizeAsa = asa;
+                    _resizeRectOriginal = new RectM(losaSel.CoordenadaX, losaSel.CoordenadaY, losaSel.Lx, losaSel.Ly);
+                    GestoEdicionIniciado?.Invoke();
+                    e.Pointer.Capture(this);
+                    e.Handled = true;
+                    return;
+                }
+
                 // Hit test using raw mouse coords
                 object? hit = HitTest(pM, out int endpointHit);
                 SelectedElement = hit;
@@ -299,6 +353,7 @@ public class PlantaCanvas : Control
                     _isDragging = true;
                     _dragEndpoint = endpointHit;
                     _dragStartPos = pM;
+                    GestoEdicionIniciado?.Invoke();   // snapshot de Undo del gesto (UI1.5)
                     if (hit is Losa l)
                     {
                         _dragStartElementX = l.CoordenadaX;
@@ -455,6 +510,21 @@ public class PlantaCanvas : Control
             InvalidateVisual();
         }
 
+        if (_resizeLosa is { } losaResize)
+        {
+            var snapRes = PlantaSnapEngine.CalculateSnap(
+                pM.X, pM.Y, Nivel, IsSnappingEnabled, StepGrid, 15.0 / _scale);
+            var r = GeometriaEdicion.Redimensionar(
+                _resizeRectOriginal, _resizeAsa, new PuntoM(snapRes.X, snapRes.Y), ladoMin: 0.10);
+            losaResize.CoordenadaX = r.X;
+            losaResize.CoordenadaY = r.Y;
+            losaResize.Lx = r.Ancho;
+            losaResize.Ly = r.Alto;
+            losaResize.Anclada = true;   // redimensionada a mano: posición explícita
+            InvalidateVisual();
+            return;
+        }
+
         if (_isPanning)
         {
             _tx += mpos.X - _lastMousePos.X;
@@ -559,6 +629,7 @@ public class PlantaCanvas : Control
         base.OnPointerReleased(e);
         _isPanning = false;
         _isDragging = false;
+        _resizeLosa = null;   // fin del gesto de resize (UI1.5)
         e.Pointer.Capture(null);
     }
 
@@ -911,7 +982,19 @@ public class PlantaCanvas : Control
             }
         }
 
-        // 7. Línea de calibración del PDF (UI1.2) — overlay superior.
+        // 7. Asas de redimensionado de la losa seleccionada (UI1.5).
+        if (SelectedElement is Losa losaSelAsas)
+        {
+            var asaBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0x98, 0x00));
+            var asaPen = new Pen(Brushes.White, 1.0);
+            foreach (var (ax, ay) in CentrosAsas(losaSelAsas))
+            {
+                var c = MetrosAPixel(ax, ay);
+                context.DrawRectangle(asaBrush, asaPen, new Rect(c.X - 4, c.Y - 4, 8, 8));
+            }
+        }
+
+        // 8. Línea de calibración del PDF (UI1.2) — overlay superior.
         if (ActiveTool == "CalibrarPdf" && _calP1M is { } cp1 && _calP2M is { } cp2)
         {
             var calPen = new Pen(Brushes.OrangeRed, 2.0) { DashStyle = DashStyle.Dash };

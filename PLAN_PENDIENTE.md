@@ -29,8 +29,8 @@ dotnet build LosasPlus.Linux.sln --no-incremental -c Release && dotnet run --pro
 - [x] **UI1.2** Calibración interactiva de PDF → Planta 2D (`CadEditorViewModel.cs:585-664`). ✅ 2026-06-10 — gesto de 2 puntos en `PlantaCanvas` + panel flotante; homotecia extraída a `CalibradorPdf` (src.Core, testeada) y aplicada vía el comando compartido del `CadEditorViewModel` (misma `PdfReferencia` ⇒ ambos lienzos calibrados).
 - [x] **UI1.3** Click sobre polilínea del DXF → losa (MapearPoligono, `CadEditorViewModel.cs:847-887`) en PlantaCanvas. ✅ 2026-06-10 — herramienta «▱ Calcar losa» (hit-test con `PoligonoLosaMapper.ContienePunto` en coords mundo + comando compartido). Bonus: corregido el **espejo vertical** del underlay DXF en planta (dibujaba sin flip-Y; ahora `PlanoAPlanta` usa la convención `MaxY − y` del mapper/CAD).
 - [x] **UI1.4** Leyenda "suma de colores" de muros como overlay (`CadEditorViewModel.cs:529`). ✅ 2026-06-10 — leyenda flotante en Planta 2D (mismo markup, bindea `CadEditor.ResumenMuros`) + muros de PlantaCanvas coloreados por espesor con `PaletaMuros` + `RefrescarResumenMuros()` para mutaciones desde planta.
-- [ ] **UI1.5** Resize de LOSAS con handles en PlantaCanvas (reciclar el patrón de `CadCanvasHost.cs:956-970`).
-- [ ] **UI1.6** Retirar `CadView`/`CadCanvasHost`/`CadEditorViewModel` del shell (modo PlanoCad) — solo cuando UI1.1–1.5 estén verdes.
+- [x] **UI1.5** Resize de LOSAS con handles en PlantaCanvas (reciclar el patrón de `CadCanvasHost.cs:956-970`). ✅ 2026-06-10 — 8 asas (`AsaEnPunto` + `GeometriaEdicion.Redimensionar`), ancla la losa y snapshotea Undo por gesto (`GestoEdicionIniciado` → `PushUndoSnapshot`; el drag también — avance del hotspot #8).
+- [ ] **UI1.6** Retirar `CadView`/`CadCanvasHost`/`CadEditorViewModel` del shell (modo PlanoCad) — UI1.1–1.5 verdes (1216 tests) ✅; **gateado al pase visual humano** (ver PENDIENTES HUMANOS): confirmar en la app que Planta 2D cubre calibrar PDF, calcar losa, leyenda muros y resize antes de borrar el modo. Nota: conservar `PaletaMuros.cs` (lo usa Planta) y decidir destino de: ajuste espacial del plano (sliders), chips manuales de adyacencia, export Excel del lienzo CAD.
 
 ### UI2 — Modelo unificado Nivel⊕Sistema · L
 > "Niveles separados del sistema" — en la práctica siempre se usa `Sistemas[0]` (hardcodeado en 6 sitios de `src/`).
@@ -77,6 +77,7 @@ dotnet build LosasPlus.Linux.sln --no-incremental -c Release && dotnet run --pro
 
 ### ⏸️ PENDIENTES HUMANOS (no automatizables)
 - [ ] **Pase visual de F1**: correr la app (comando de arriba) y confirmar los 6 diagramas + underlay DXF/PDF.
+- [ ] **Pase visual de UI1 (desbloquea UI1.6)**: en Planta 2D — (1) importar un PDF y calibrarlo con «🎯 Calibrar PDF» (2 clicks + distancia real); (2) importar un DXF, verificar que el plano NO se ve espejado y calcar una losa con «▱ Calcar losa»; (3) dibujar muros y ver la leyenda «Suma de Colores» con colores por espesor; (4) seleccionar una losa, redimensionarla por las 8 asas y deshacer con Ctrl+Z; (5) mover una losa en planta, cambiar a Plano CAD y confirmar que aparece donde se dejó (fin de la desincronización).
 - [ ] **Fixtures vs `Losas.exe` (Windows)**: validar los 12 códigos x3/x4 del mapeo Pieper-Martens (corrección = 1 línea).
 - [ ] **Destino de las ramas** `engine/f1…/f3…/f2…` (encadenadas, sin push): ¿PR a `origin/main` o merge a `avalonia-linux`?
 

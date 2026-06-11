@@ -59,6 +59,9 @@ public partial class Planta2DEditorView : UserControl
         BtnMapearLosa.IsCheckedChanged += OnMapearLosaToggled;
         EditorCanvas.PoligonoMapeado += OnPoligonoMapeado;
 
+        // Undo por gesto en Planta (UI1.5): un Ctrl+Z revierte el drag/resize entero.
+        EditorCanvas.GestoEdicionIniciado += () => Vm?.PushUndoSnapshot();
+
         // Wire buttons
         BtnRecalcular.Click += OnRecalcularClick;
         BtnEliminar.Click += OnEliminarClick;
