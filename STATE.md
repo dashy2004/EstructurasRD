@@ -4,10 +4,10 @@
 > Este archivo es la **fuente única de verdad**; si un doc lo contradice, manda este.
 
 <!-- AUTO:START -->
-Estampado: 2026-06-10 19:43 · rama engine/ui1-un-solo-lienzo · commit de72ffb · sin commit: 3 archivos
+Estampado: 2026-06-11 12:59 · rama engine/ui1-un-solo-lienzo · commit 12e2893 · sin commit: 2 archivos
 
 ## Build & Tests (en vivo)
-- .NET (LosasPlus.Linux.sln): build 0 err / 0 warn · tests 1208 passed / 0 failed / 0 skipped
+- .NET (LosasPlus.Linux.sln): build 0 err / 0 warn · tests 1216 passed / 0 failed / 0 skipped
 - Python (motor-fea/.venv): 208 passed
 - ⚠️ pytest SOLO corre en motor-fea/.venv (python3 del sistema no tiene pytest)
 <!-- AUTO:END -->
