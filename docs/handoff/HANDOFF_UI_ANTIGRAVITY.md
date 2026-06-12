@@ -55,9 +55,10 @@ en todas las vistas.»
 **Estado actual:**
 - La navegación vive en `src/MainWindow.axaml`: cada modo es un `ContentControl`
   con `IsVisible="{Binding ModoActivo, Converter=EnumToBoolConverter, ConverterParameter=<Modo>}"`.
-- El modo activo es `MainViewModel.ModoActivo` (enum **`ModoSidebar`**, ~14 valores:
-  `Explorador, Editor, PlanoCad, Planta2D, VisorPdf, Vista3D, DLEditor, Salida,
-  Aceros, CargasCombinaciones, Vigas, Columnas, Validacion, BajadaCargas`).
+- El modo activo es `MainViewModel.ModoActivo` (enum **`ModoSidebar`**, ~13 valores:
+  `Explorador, Editor, Planta2D, VisorPdf, Vista3D, DLEditor, Salida,
+  Aceros, CargasCombinaciones, Vigas, Columnas, Validacion, BajadaCargas`
+  <!-- PlanoCad retirado en UI1.6 (2026-06-11) -->).
 - Ya existen comandos por modo en `MainViewModel` (p. ej. `IrAExploradorCommand`,
   `IrABusquedaCommand`); cambiar de modo = setear `ModoActivo`.
 

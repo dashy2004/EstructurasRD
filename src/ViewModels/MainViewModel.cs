@@ -271,7 +271,6 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     public ICommand? UndoCommand               { get; private set; }
     public ICommand? RedoCommand               { get; private set; }
     public ICommand? AbrirShortcutsCommand     { get; private set; }
-    public ICommand? IrAModoCommand            { get; private set; }
     public ICommand? AplicarBulkCommand        { get; private set; }
     public ICommand? AgregarLosaCommand        { get; private set; }
 
@@ -287,9 +286,8 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     public MemoriaPlusVm.BusquedaViewModel Busqueda { get; private set; } = null!;
 
     /// <summary>
-    /// Sub-ViewModel del modo Plano CAD (Fase 1.B del PLAN_CAD_V1). Coordina
-    /// la importación de planos .DXF; las losas que dibuja vienen del SSOT
-    /// (<see cref="Sistema"/>.Losas), no de un estado propio.
+    /// Sub-VM de servicios CAD (import DXF/PDF, calibración, calcar, muros)
+    /// consumido por Planta 2D.
     /// </summary>
     public CadEditorViewModel CadEditor { get; private set; } = null!;
 
@@ -1039,11 +1037,6 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         }, _ => _proyectoRecienteSeleccionado is not null
                 && !string.IsNullOrEmpty(_proyectoRecienteSeleccionado.Path));
         IrAExploradorCommand = new RelayCommand(_ => ModoActivo = ModoSidebar.Explorador);
-        IrAModoCommand       = new RelayCommand(p => 
-        {
-            if (p is ModoSidebar m) ModoActivo = m;
-            else if (p is string s && Enum.TryParse<ModoSidebar>(s, out var mStr)) ModoActivo = mStr;
-        });
         UndoCommand          = new RelayCommand(_ => Undo(), _ => PuedeUndo);
         RedoCommand          = new RelayCommand(_ => Redo(), _ => PuedeRedo);
         AbrirShortcutsCommand = new RelayCommand(_ => AbrirShortcutsModal());
@@ -1071,8 +1064,8 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         DisenarConMotorFeaCommand = new MemoriaPlus.Common.AsyncRelayCommand(DisenarConMotorFeaAsync);
         CalcularConMotorCommand = new MemoriaPlus.Common.AsyncRelayCommand(CalcularConMotorAsync);
 
-        // ---- Plano CAD (Fase 1.B/2) — el sub-VM lee las losas del sistema
-        // activo y, al mapear un polígono, toma snapshot de undo antes de mutar.
+        // ---- Sub-VM de servicios CAD (import DXF/PDF, calibración, calcar, muros)
+        // consumido por Planta 2D.
         CadEditor = new CadEditorViewModel(
             getSistemaActivo: () => _sistemaActivo,
             pushUndoSnapshot: PushUndoSnapshot);

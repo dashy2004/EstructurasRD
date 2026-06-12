@@ -39,7 +39,7 @@
 5. **F1 CERRADA — verdad visual** (rama `engine/f1-verdad-visual`, commits `ff85aee`…`1127396`):
    - Los 4 diagramas que `oxy:PlotView` dejaba en blanco migrados al patrón PNG (`VigaPng`, `SeccionPng`, `InteraccionPng`, `SeccionColumnaPng`) con 5 tests de píxeles; 0 `oxy:PlotView`/`xmlns:oxy` en `VigaEditorView`/`ColumnasEditorView`.
    - **Bonus descubierto por los tests de píxeles:** fix de z-order — las `RectangleAnnotation` de concreto/estribo se pintaban `AboveSeries` (default de OxyPlot) y su gris semitransparente lavaba las barras de refuerzo: (0,0,139) quedaba en (40,40,136). Ahora van `BelowSeries`.
-   - Lienzo unificado: `EditorUnificadoView` sin pestañas (base Planta 2D) + botones DXF/PDF/Auto-Conectar; `CadView` intacto en el modo PlanoCad.
+   - Lienzo unificado: `EditorUnificadoView` sin pestañas (base Planta 2D) + botones DXF/PDF/Auto-Conectar; `CadView` intacto en el modo PlanoCad — CadView retirado después, en UI1.6 (2026-06-11).
    - Pendiente humano: pase visual manual (correr la app y confirmar los 6 diagramas + underlay).
 6. **F3 CERRADA (lado Linux) — Pieper-Martens 21/21** (rama `engine/f3-pieper-martens-21`, commits `1528db0`…`ca28a08`):
    - GATE A: captura por-losa — una losa sin mapeo se registra en `LosasNoParseadas` y el sistema no aborta.

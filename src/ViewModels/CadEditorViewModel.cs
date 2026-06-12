@@ -16,14 +16,15 @@ using LosasPlus.Services;
 namespace LosasPlus.ViewModels;
 
 /// <summary>
-/// ViewModel del modo <b>Plano CAD</b> (Fase 1.B del <c>PLAN_CAD_V1.md</c>).
+/// Sub-VM de servicios CAD consumido por Planta 2D (post-UI1.6).
 ///
 /// <para>
-/// Coordina la importación de planos <c>.DXF</c> y expone el
-/// <see cref="PlanoReferencia"/> resultante para que el <c>CadCanvasHost</c>
-/// lo dibuje. Las losas siguen viniendo del <b>SSOT</b> (<see cref="Sistema.Losas"/>
-/// del sistema activo) — el CAD es una vista más sobre la misma colección, no
-/// un estado paralelo.
+/// Coordina la importación de planos <c>.DXF</c> y <c>.PDF</c>, la
+/// calibración del underlay, el módulo de muros y el auto-alineado. Expone
+/// el <see cref="PlanoReferencia"/> y el <see cref="PdfReferencia"/> para
+/// que el <c>PlantaCanvas</c> los dibuje. Las losas siguen viniendo del
+/// <b>SSOT</b> (<see cref="Sistema.Losas"/> del sistema activo) — el CAD es
+/// una vista más sobre la misma colección, no un estado paralelo.
 /// </para>
 /// </summary>
 public sealed class CadEditorViewModel : INotifyPropertyChanged
@@ -48,29 +49,12 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         EliminarDxfCommand = new RelayCommand(_ => EliminarDxf());
         EliminarPdfCommand = new RelayCommand(_ => EliminarPdf());
         AutoAlinearSistemasCommand = new RelayCommand(_ => AutoAlinearSistemas());
-        ReRasterizarPdfCommand = new RelayCommand(
-            p => { if (p is int px) _ = ReRasterizarPdfAsync(px, silencioso: true); },
-            _ => TienePdf && _lastPdfPath is not null && !_invirtiendoEnCurso);
         MapearPoligonoCommand = new RelayCommand(p => MapearPoligono(p as PolilineaCad));
-        ActualizarLosaCommand = new RelayCommand(p => ActualizarLosa(p as ActualizacionLosaArgs));
-        CrearBordeAdicCommand = new RelayCommand(p => CrearBordeAdic(p as AdyacenciaCandidata?));
-        EncuadrarPlanoCommand = new RelayCommand(_ => EncuadrarPlano());
-        EncuadrarPdfCommand = new RelayCommand(_ => EncuadrarPdf());
         IniciarCalibrarPdfCommand = new RelayCommand(_ => IniciarCalibrarPdf());
         AplicarCalibrarPdfCommand = new RelayCommand(p => AplicarCalibrarPdf(p as CalibracionPdfArgs));
         CancelarCalibrarPdfCommand = new RelayCommand(_ => CancelarCalibrarPdf());
-        CrearLosaCommand = new RelayCommand(p => CrearLosa(p as CrearLosaArgs));
-        MoverGrupoCommand = new RelayCommand(p => MoverGrupo(p as MovimientoGrupoArgs));
-        CrearMuroCommand = new RelayCommand(p => CrearMuro(p as CrearMuroArgs));
         _eliminarMuroCommand = new RelayCommand(_ => EliminarMuro(), _ => _muroSeleccionado is not null);
     }
-
-    /// <summary>
-    /// Catálogo de los 23 tipos de losa permitidos, ordenado por código —
-    /// fuente del <c>ComboBox</c> del editor in-canvas (Iteración 2 v1.2).
-    /// </summary>
-    public IReadOnlyList<TipoLosa> CatalogoTipos { get; } =
-        TipoLosa.Catalogo.Values.OrderBy(t => t.Codigo).ToList();
 
     // ---- Plano DXF importado ----
 
@@ -93,26 +77,19 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
     /// <summary>True si hay un plano DXF cargado.</summary>
     public bool TienePlano => _plano is { EstaVacio: false };
 
-    // ---- Ajuste espacial del plano DXF (escala / offset / encuadre) — It. 2 ----
+    // ---- Ajuste espacial del plano DXF (escala / offset) ----
 
     private int _revisionPlano;
     /// <summary>
     /// Token de revisión: se incrementa al cambiar escala/offset para que el
-    /// <c>CadCanvasHost</c> redibuje la Capa 1 (el plano es un objeto mutable;
-    /// cambiar una de sus propiedades no notifica al lienzo por sí solo).
+    /// <c>PlantaCanvas</c> redibuje la capa del underlay DXF (el plano es un
+    /// objeto mutable; cambiar una de sus propiedades no notifica al lienzo por
+    /// sí solo).
     /// </summary>
     public int RevisionPlano
     {
         get => _revisionPlano;
         private set { _revisionPlano = value; OnPropertyChanged(); }
-    }
-
-    private int _solicitudEncuadre;
-    /// <summary>Token de encuadre: se incrementa para pedir un «zoom to fit» del plano.</summary>
-    public int SolicitudEncuadre
-    {
-        get => _solicitudEncuadre;
-        private set { _solicitudEncuadre = value; OnPropertyChanged(); }
     }
 
     /// <summary>Escala uniforme del bloque DXF — proxy bindable de <see cref="PlanoReferencia.Escala"/>.</summary>
@@ -154,15 +131,7 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         }
     }
 
-    /// <summary>Encuadra el plano DXF en el viewport del lienzo (zoom to fit).</summary>
-    public ICommand EncuadrarPlanoCommand { get; }
-
-    private void EncuadrarPlano()
-    {
-        if (TienePlano) SolicitudEncuadre++;
-    }
-
-    // ---- PDF Underlay importado (Iteración 4 Epic v1.2) ----
+    // ---- PDF Underlay importado ----
 
     private PdfReferencia? _pdf;
     /// <summary>
@@ -185,8 +154,8 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
 
     private Bitmap?_fondoPdf;
     /// <summary>
-    /// Bitmap rasterizado de la primera página del PDF, ya <c>.Freeze()</c>-eado
-    /// para poder cruzarse entre el hilo de background y el UI. Null hasta que
+    /// Bitmap rasterizado de la primera página del PDF, ya congelado para
+    /// poder cruzarse entre el hilo de background y el UI. Null hasta que
     /// el usuario importe un PDF (o si la importación falló).
     /// </summary>
     public Bitmap?FondoPdf
@@ -207,20 +176,13 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// Token de revisión análogo a <see cref="RevisionPlano"/> pero para el
     /// PDF: se incrementa al cambiar <see cref="EscalaPdf"/>/<see cref="OffsetXPdf"/>/
-    /// <see cref="OffsetYPdf"/> para que el <c>CadCanvasHost</c> redibuje la Capa 1.
+    /// <see cref="OffsetYPdf"/> para que el <c>PlantaCanvas</c> redibuje la
+    /// capa del underlay PDF.
     /// </summary>
     public int RevisionPdf
     {
         get => _revisionPdf;
         private set { _revisionPdf = value; OnPropertyChanged(); }
-    }
-
-    private int _solicitudEncuadrePdf;
-    /// <summary>Token de encuadre: se incrementa para pedir un «zoom to fit» del PDF.</summary>
-    public int SolicitudEncuadrePdf
-    {
-        get => _solicitudEncuadrePdf;
-        private set { _solicitudEncuadrePdf = value; OnPropertyChanged(); }
     }
 
     /// <summary>Escala uniforme del bloque PDF — proxy bindable de <see cref="PdfReferencia.Escala"/>.</summary>
@@ -264,9 +226,9 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
 
     private double _opacidadPdf = 0.6;
     /// <summary>
-    /// Opacidad del PDF underlay en la Capa 1 (rango 0.0-1.0, default 0.6).
-    /// Bindeada al <c>Slider</c> del panel lateral; al cambiar incrementa
-    /// <see cref="RevisionPdf"/> para forzar el redibujado de la Capa 1.
+    /// Opacidad del PDF underlay (rango 0.0-1.0, default 0.6).
+    /// Bindeada al <c>Slider</c> del panel lateral de Planta 2D; al cambiar
+    /// incrementa <see cref="RevisionPdf"/> para forzar el redibujado.
     /// Aplica sólo al PDF — el DXF se dibuja con su propio pincel sólido.
     /// </summary>
     public double OpacidadPdf
@@ -282,10 +244,8 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         }
     }
 
-    // Modo oscuro CAD (Parche v1.2.2) — invertir los canales B/G/R del PDF
-    // para que el fondo blanco quede negro y las líneas oscuras se vuelvan
-    // blancas resplandecientes. Al togglear, re-rasterizamos en background
-    // preservando la calibración actual (Pdf.Escala/OffsetX/OffsetY).
+    // Modo oscuro (invertir los canales B/G/R del PDF para que el fondo blanco
+    // quede negro y las líneas oscuras se vuelvan blancas resplandecientes).
     private string? _lastPdfPath;       // ruta del último PDF importado con éxito
     private bool _invirtiendoEnCurso;   // gate anti-doble-click durante la re-rasterización
 
@@ -365,32 +325,15 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         finally { _invirtiendoEnCurso = false; }
     }
 
-    /// <summary>Encuadra el PDF en el viewport del lienzo (zoom to fit).</summary>
-    public ICommand EncuadrarPdfCommand { get; }
+    // ---- Eliminación de planos de referencia ----
 
-    private void EncuadrarPdf()
-    {
-        if (TienePdf) SolicitudEncuadrePdf++;
-    }
-
-    /// <summary>
-    /// Re-rasteriza el PDF en alta resolución cuando el host detecta un
-    /// zoom-in significativo (Epic v1.3 — nitidez gráfica). El parámetro es
-    /// un <c>int</c> con el ancho objetivo en píxeles ya calculado por el
-    /// host según el nivel de zoom. Corre en silencio (no toca la barra de
-    /// estado) y preserva la calibración del PDF.
-    /// </summary>
-    public ICommand ReRasterizarPdfCommand { get; }
-
-    // ---- Eliminación de planos de referencia (Epic v1.3 Iteración 2) ----
-
-    /// <summary>Quita el plano DXF del lienzo (vacía la Capa 1; no toca las losas).</summary>
+    /// <summary>Quita el plano DXF del lienzo (vacía la capa del underlay; no toca las losas).</summary>
     public ICommand EliminarDxfCommand { get; }
 
     private void EliminarDxf()
     {
         if (_plano is null) return;
-        Plano = null;   // OnPlanoChanged en el host redibuja la Capa 1 vacía
+        Plano = null;
         EstadoImportacion = "✓ Plano DXF eliminado del lienzo.";
     }
 
@@ -406,29 +349,12 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         EstadoImportacion = "✓ PDF eliminado del lienzo.";
     }
 
-    // ---- Auto-alineación y auto-conexión de losas (Epic v1.3 Iteración 3) ----
-
-    private int _revisionSistema;
-    /// <summary>
-    /// Token de revisión del SSOT: se incrementa cuando un comando muta las
-    /// losas o los bordes del <see cref="Sistema"/> activo <b>sin reemplazar
-    /// la referencia del objeto</b>. El <c>CadCanvasHost</c> lo observa para
-    /// disparar un refresco completo del lienzo (mismo patrón que
-    /// <see cref="RevisionPlano"/> / <see cref="RevisionPdf"/>).
-    /// </summary>
-    public int RevisionSistema
-    {
-        get => _revisionSistema;
-        private set { _revisionSistema = value; OnPropertyChanged(); }
-    }
-
-    /// <summary>Señala al host que el SSOT cambió y debe redibujar el lienzo.</summary>
-    private void NotificarCambioLienzo() => RevisionSistema++;
+    // ---- Auto-alineación y auto-conexión de losas ----
 
     /// <summary>
     /// Refresca la leyenda «Suma de Colores» cuando los muros mutan desde
     /// Planta 2D (UI1.4): el SSOT de muros es compartido, pero la notificación
-    /// de <see cref="ResumenMuros"/> sólo la disparaban los paths del CAD.
+    /// de <see cref="ResumenMuros"/> sólo la disparaban los paths del panel CAD.
     /// </summary>
     public void RefrescarResumenMuros() => OnPropertyChanged(nameof(ResumenMuros));
 
@@ -457,7 +383,6 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         if (r.LosasAlineadasCount > 0 || r.BordesCreadosCount > 0)
         {
             OnPropertyChanged(nameof(Losas));
-            NotificarCambioLienzo();
         }
 
         EstadoImportacion =
@@ -465,7 +390,7 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
             $"se generaron {r.BordesCreadosCount} conexiones de aceros adicionales.";
     }
 
-    // ---- Módulo de Muros v0.9.0 (Epic v1.4.0 Iteración 1) ----
+    // ---- Módulo de Muros ----
 
     private double _espesorMuroNuevo = 0.15;
     /// <summary>Espesor (m) asignado a los muros nuevos que se dibujan en el lienzo.</summary>
@@ -497,8 +422,8 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
 
     private Muro? _muroSeleccionado;
     /// <summary>
-    /// Muro actualmente seleccionado en el panel «MUROS». Sus parámetros
-    /// (espesor, altura) se editan desde el panel; el host lo resalta.
+    /// Muro actualmente seleccionado en el panel «MUROS» de Planta 2D. Sus
+    /// parámetros (espesor, altura) se editan desde el panel.
     /// </summary>
     public Muro? MuroSeleccionado
     {
@@ -512,60 +437,23 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
             if (_muroSeleccionado is not null)
                 _muroSeleccionado.PropertyChanged += OnMuroSeleccionadoEditado;
             OnPropertyChanged();
-            OnPropertyChanged(nameof(MuroSeleccionadoId));
             // Revaluar predicado que lee _muroSeleccionado.
             _eliminarMuroCommand.RaiseCanExecuteChanged();
         }
     }
 
-    /// <summary>Id del muro seleccionado, o −1 si no hay ninguno — bindeado al host.</summary>
-    public int MuroSeleccionadoId => _muroSeleccionado?.Id ?? -1;
-
     private void OnMuroSeleccionadoEditado(object? sender, PropertyChangedEventArgs e)
     {
-        // El usuario editó espesor/altura en el panel → redibujar y recomputar leyenda.
-        NotificarCambioLienzo();
+        // El usuario editó espesor/altura en el panel → recomputar leyenda.
         OnPropertyChanged(nameof(ResumenMuros));
     }
 
     /// <summary>
     /// Desglose «Suma de Colores»: longitudes totales de muro por losa y por
-    /// espesor. Lo consume la leyenda flotante del lienzo.
+    /// espesor. Lo consume la leyenda flotante del lienzo de Planta 2D.
     /// </summary>
     public IReadOnlyList<EntradaResumenMuro> ResumenMuros
         => AnalisisMuros.Resumir(SistemaActivo).Entradas;
-
-    /// <summary>
-    /// Crea un <see cref="Muro"/> a partir del segmento que el usuario trazó
-    /// con la herramienta «Dibujar Muro» (lo dispara <c>CadCanvasHost</c>).
-    /// </summary>
-    public ICommand CrearMuroCommand { get; }
-
-    private void CrearMuro(CrearMuroArgs? args)
-    {
-        if (args is null) return;
-        var sistema = SistemaActivo;
-        int nuevoId = sistema.Muros.Count > 0 ? sistema.Muros.Max(m => m.Id) + 1 : 1;
-
-        // CRÍTICO: snapshot ANTES de mutar el SSOT — preserva el Undo/Redo.
-        _pushUndoSnapshot();
-
-        var muro = new Muro
-        {
-            Id = nuevoId,
-            PuntoInicio = args.Inicio,
-            PuntoFin = args.Fin,
-            Espesor = _espesorMuroNuevo,
-            Altura = _alturaMuroNueva,
-        };
-        sistema.Muros.Add(muro);
-        MuroSeleccionado = muro;
-
-        EstadoImportacion =
-            $"✓ Muro {nuevoId} dibujado — {muro.Longitud:0.00} m, espesor {muro.Espesor:0.00} m.";
-        OnPropertyChanged(nameof(ResumenMuros));
-        NotificarCambioLienzo();
-    }
 
     // Tipado como RelayCommand (no ICommand) para poder llamar RaiseCanExecuteChanged()
     // desde el setter de MuroSeleccionado — Avalonia carece de CommandManager.RequerySuggested.
@@ -586,18 +474,18 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
 
         EstadoImportacion = $"✓ Muro {muro.Id} eliminado.";
         OnPropertyChanged(nameof(ResumenMuros));
-        NotificarCambioLienzo();
     }
 
-    // ---- Calibración interactiva del PDF (Iteración 5 Epic v1.2) ----
+    // ---- Calibración interactiva del PDF ----
 
     private bool _modoCalibrarPdf;
     /// <summary>
     /// Modo de calibración activo: el usuario coloca dos puntos de referencia
     /// sobre el PDF e introduce la distancia real entre ellos para corregir
     /// la <see cref="PdfReferencia.Escala"/> conservando el primer punto fijo.
-    /// Bindeado TwoWay al <c>CadCanvasHost</c>: el VM lo activa con el botón
-    /// «Calibrar PDF», el host lo apaga al cancelar (Escape) o al confirmar.
+    /// Bindeado TwoWay al <c>PlantaCanvas</c>: lo activa la herramienta de
+    /// Planta 2D con el botón «Calibrar PDF»; el canvas lo apaga al cancelar
+    /// (Escape) o al confirmar.
     /// </summary>
     public bool ModoCalibrarPdf
     {
@@ -621,6 +509,7 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
     /// Aplica el factor de homotecia al PDF tras recibir los dos puntos y la
     /// distancia real introducida por el usuario. Conserva el pivote
     /// <c>(PivoteX, PivoteY)</c> fijo en el lienzo y apaga el modo.
+    /// Lo dispara la herramienta de Planta 2D.
     /// </summary>
     public ICommand AplicarCalibrarPdfCommand { get; }
 
@@ -639,7 +528,7 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
             return;
         }
 
-        // Forzar redibujado síncrono de la Capa 1 y notificar a los proxies.
+        // Forzar redibujado síncrono de la capa del underlay y notificar a los proxies.
         OnPropertyChanged(nameof(EscalaPdf));
         OnPropertyChanged(nameof(OffsetXPdf));
         OnPropertyChanged(nameof(OffsetYPdf));
@@ -661,52 +550,45 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         EstadoImportacion = "Calibración del PDF cancelada.";
     }
 
-    private bool _snapActivo = true;
-    /// <summary>
-    /// Encendido del <see cref="SnappingEngine"/> al mover/redimensionar (toggle
-    /// de la toolbar — Iteración 3 Epic v1.2).
-    /// </summary>
-    public bool SnapActivo
-    {
-        get => _snapActivo;
-        set { if (_snapActivo == value) return; _snapActivo = value; OnPropertyChanged(); }
-    }
-
-    private bool _moverConectadas;
-    /// <summary>
-    /// Si está activo, al arrastrar una losa se arrastran rígidamente todas las
-    /// losas conectadas por adyacencia (BFS sobre <c>BordesX</c>/<c>BordesY</c>).
-    /// </summary>
-    public bool MoverConectadas
-    {
-        get => _moverConectadas;
-        set { if (_moverConectadas == value) return; _moverConectadas = value; OnPropertyChanged(); }
-    }
+    // ---- Comando: mapear un polígono del plano a una nueva Losa ----
 
     /// <summary>
-    /// Crea una <see cref="Losa"/> nueva a partir del rectángulo que el usuario
-    /// dibujó en el lienzo (lo dispara <c>CadCanvasHost</c> al soltar el mouse en
-    /// modo «Dibujar Losa»). El parámetro es un
-    /// <see cref="CrearLosaArgs"/> con la geometría ya en metros.
+    /// Convierte un polígono rectangular del plano DXF en una <see cref="Losa"/>
+    /// nueva. El parámetro es la <see cref="PolilineaCad"/> sobre la que el
+    /// usuario hizo clic en el <c>PlantaCanvas</c> (herramienta «▱ Calcar losa»).
     /// </summary>
-    public ICommand CrearLosaCommand { get; }
+    public ICommand MapearPoligonoCommand { get; }
 
-    private void CrearLosa(CrearLosaArgs? args)
+    private void MapearPoligono(PolilineaCad? poli)
     {
-        if (args is null) return;
+        if (poli is null) return;
+
+        // Restricción geométrica estricta: solo rectángulos ortogonales.
+        if (!PoligonoLosaMapper.TryMapearRectangulo(poli, out var rect))
+        {
+            EstadoImportacion =
+                "✕ El polígono no es un rectángulo ortogonal — no se puede mapear a una losa. " +
+                "Solo se aceptan contornos rectangulares de 4 lados a 90°.";
+            return;
+        }
 
         var sistema = SistemaActivo;
         int nuevoId = sistema.Losas.Count > 0 ? sistema.Losas.Max(l => l.Id) + 1 : 1;
+
+        // Conversión a coordenadas del lienzo (Y descendente): la esquina
+        // superior-izquierda en pantalla corresponde al Y máximo del DXF.
+        double posX = rect.MinX;
+        double posY = (Plano?.MaxY ?? rect.MaxY) - rect.MaxY;
 
         var losa = new Losa
         {
             Id = nuevoId,
             Tipo = 10,                  // 4 bordes simplemente apoyados (default editable)
-            Lx = args.Lx,
-            Ly = args.Ly,
-            CoordenadaX = args.PosX,    // fuente única (UI1.1): coordenadas de planta
-            CoordenadaY = args.PosY,
-            Anclada = true,             // dibujada ahí explícitamente
+            Lx = rect.Ancho,
+            Ly = rect.Alto,
+            CoordenadaX = posX,
+            CoordenadaY = posY,
+            Anclada = true,             // mapeada del plano: posición explícita
             // Carga / Espesor / Rec quedan en sus defaults del modelo Losa.
         };
 
@@ -715,8 +597,8 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         sistema.Losas.Add(losa);
 
         EstadoImportacion =
-            $"✓ Losa {nuevoId} dibujada — {args.Lx:0.00} × {args.Ly:0.00} m. " +
-            $"Editá tipo y cargas en el modo Editor.";
+            $"✓ Losa {nuevoId} creada desde el polígono — " +
+            $"{rect.Ancho:0.00} × {rect.Alto:0.00} m. Editá tipo y cargas en el modo Editor.";
         OnPropertyChanged(nameof(Losas));
     }
 
@@ -778,13 +660,13 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         }
     }
 
-    // ---- Comando: importar un .PDF (Iteración 4 Epic v1.2) ----
+    // ---- Comando: importar un .PDF ----
 
     /// <summary>
     /// Abre un <c>OpenFileDialog</c> filtrado a .pdf y rasteriza la primera
     /// página vía <see cref="PdfImportador"/> en un hilo de background, sin
     /// bloquear el UI. Al terminar, asigna <see cref="Pdf"/> + <see cref="FondoPdf"/>
-    /// y dispara un encuadre automático.
+    /// y dispara un encuadre automático en el <c>PlantaCanvas</c>.
     /// </summary>
     public ICommand ImportarPdfCommand { get; }
 
@@ -811,157 +693,10 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         var meta = resultado.Meta!;
         Pdf = meta;
         FondoPdf = resultado.Imagen;
-        _lastPdfPath = ruta;   // para re-rasterizar al togglear Modo Oscuro (v1.2.2)
+        _lastPdfPath = ruta;   // para re-rasterizar al togglear Modo Oscuro
         EstadoImportacion = resultado.Aviso ??
             $"✓ {meta.NombreArchivo} — {meta.Ancho:0.00} × {meta.Alto:0.00} m " +
             $"(rasterizado).";
-
-        // Auto-encuadrar al recién importar para que el PDF caiga centrado.
-        SolicitudEncuadrePdf++;
-    }
-
-    // ---- Comando: mapear un polígono del plano a una nueva Losa (Fase 2) ----
-
-    /// <summary>
-    /// Convierte un polígono rectangular del plano DXF en una <see cref="Losa"/>
-    /// nueva. El parámetro es la <see cref="PolilineaCad"/> sobre la que el
-    /// usuario hizo clic en el lienzo (lo dispara <c>CadCanvasHost</c>).
-    /// </summary>
-    public ICommand MapearPoligonoCommand { get; }
-
-    private void MapearPoligono(PolilineaCad? poli)
-    {
-        if (poli is null) return;
-
-        // Restricción geométrica estricta: solo rectángulos ortogonales.
-        if (!PoligonoLosaMapper.TryMapearRectangulo(poli, out var rect))
-        {
-            EstadoImportacion =
-                "✕ El polígono no es un rectángulo ortogonal — no se puede mapear a una losa. " +
-                "Solo se aceptan contornos rectangulares de 4 lados a 90°.";
-            return;
-        }
-
-        var sistema = SistemaActivo;
-        int nuevoId = sistema.Losas.Count > 0 ? sistema.Losas.Max(l => l.Id) + 1 : 1;
-
-        // Conversión a coordenadas del lienzo (Y descendente): la esquina
-        // superior-izquierda en pantalla corresponde al Y máximo del DXF.
-        double posX = rect.MinX;
-        double posY = (Plano?.MaxY ?? rect.MaxY) - rect.MaxY;
-
-        var losa = new Losa
-        {
-            Id = nuevoId,
-            Tipo = 10,                  // 4 bordes simplemente apoyados (default editable)
-            Lx = rect.Ancho,
-            Ly = rect.Alto,
-            CoordenadaX = posX,
-            CoordenadaY = posY,
-            Anclada = true,             // mapeada del plano: posición explícita
-            // Carga / Espesor / Rec quedan en sus defaults del modelo Losa.
-        };
-
-        // CRÍTICO: snapshot ANTES de mutar el SSOT — preserva el Undo/Redo.
-        _pushUndoSnapshot();
-        sistema.Losas.Add(losa);
-
-        EstadoImportacion =
-            $"✓ Losa {nuevoId} creada desde el polígono — " +
-            $"{rect.Ancho:0.00} × {rect.Alto:0.00} m. Editá tipo y cargas en el modo Editor.";
-        OnPropertyChanged(nameof(Losas));
-    }
-
-    // ---- Comando: actualizar una losa movida o redimensionada (Fase 3) ----
-
-    /// <summary>
-    /// Persiste en el SSOT el resultado de un gesto de <b>mover</b> o
-    /// <b>redimensionar</b> una losa en el lienzo CAD. El parámetro es un
-    /// <see cref="ActualizacionLosaArgs"/> que el <c>CadCanvasHost</c> construye
-    /// al soltar el mouse — el ViewModel nunca ve eventos de <c>System.Windows.Input</c>.
-    /// </summary>
-    public ICommand ActualizarLosaCommand { get; }
-
-    private void ActualizarLosa(ActualizacionLosaArgs? args)
-    {
-        if (args is null) return;
-
-        // CRÍTICO: un ÚNICO snapshot ANTES de mutar — todo el arrastre (mover
-        // o redimensionar) se revierte con un solo Ctrl+Z.
-        _pushUndoSnapshot();
-
-        var losa = args.Losa;
-        losa.CoordenadaX = args.PosX;
-        losa.CoordenadaY = args.PosY;
-        losa.Anclada     = true;        // movida/redimensionada a mano
-        losa.Lx   = args.Lx;
-        losa.Ly   = args.Ly;
-        losa.Tipo = args.Tipo;
-
-        EstadoImportacion =
-            $"✓ Losa {losa.Id} actualizada — {args.Lx:0.00} × {args.Ly:0.00} m, " +
-            $"tipo {args.Tipo} @ ({args.PosX:0.00}, {args.PosY:0.00}).";
-        OnPropertyChanged(nameof(Losas));
-    }
-
-    // ---- Comando: mover un bloque conectado de losas (Iteración 3 v1.2) ----
-
-    /// <summary>
-    /// Aplica las nuevas posiciones a todas las losas del bloque conectado que
-    /// se arrastró rígidamente (con <see cref="MoverConectadas"/> activo). El
-    /// <c>CadCanvasHost</c> arma el DTO con la componente conexa y las nuevas
-    /// <c>PosX/PosY</c>; el ViewModel toma <b>un único</b> snapshot de Undo y
-    /// muta el SSOT (Ctrl+Z revierte el bloque entero de una vez).
-    /// </summary>
-    public ICommand MoverGrupoCommand { get; }
-
-    private void MoverGrupo(MovimientoGrupoArgs? args)
-    {
-        if (args is null || args.Movimientos.Count == 0) return;
-
-        // CRÍTICO: UN solo snapshot para todo el bloque conectado.
-        _pushUndoSnapshot();
-
-        int n = 0;
-        var losas = SistemaActivo.Losas;
-        foreach (var m in args.Movimientos)
-        {
-            var losa = losas.FirstOrDefault(l => l.Id == m.LosaId);
-            if (losa is null) continue;
-            losa.CoordenadaX = m.PosX;
-            losa.CoordenadaY = m.PosY;
-            losa.Anclada = true;        // bloque colocado a mano
-            n++;
-        }
-
-        EstadoImportacion = $"✓ Bloque conectado movido — {n} losa(s) actualizadas.";
-        OnPropertyChanged(nameof(Losas));
-    }
-
-    // ---- Comando: crear una adyacencia (BordeAdic) desde un chip del lienzo (Fase 4) ----
-
-    /// <summary>
-    /// Crea un <see cref="BordeAdic"/> a partir de un chip de adyacencia del
-    /// lienzo CAD. El parámetro es la <see cref="AdyacenciaCandidata"/> detectada
-    /// por <see cref="AdyacenciaDetector"/> — el ViewModel toma el snapshot de
-    /// Undo y agrega el borde a <c>BordesX</c> o <c>BordesY</c> según el sentido.
-    /// </summary>
-    public ICommand CrearBordeAdicCommand { get; }
-
-    private void CrearBordeAdic(AdyacenciaCandidata? c)
-    {
-        if (c is null) return;
-        var cand = c.Value;
-
-        // CRÍTICO: snapshot ANTES de mutar el SSOT — preserva el Undo/Redo.
-        _pushUndoSnapshot();
-
-        var borde = new BordeAdic { BI = cand.BI, BJ = cand.BJ, Balanceo = "S" };
-        (cand.EsBordeX ? SistemaActivo.BordesX : SistemaActivo.BordesY).Add(borde);
-
-        EstadoImportacion =
-            $"✓ Adyacencia {(cand.EsBordeX ? "X" : "Y")} creada entre las losas " +
-            $"{cand.BI} y {cand.BJ}.";
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

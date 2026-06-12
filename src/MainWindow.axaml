@@ -2,7 +2,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:LosasPlus.ViewModels"
         xmlns:v="clr-namespace:LosasPlus.Views"
-
         xmlns:vigas="clr-namespace:LosasPlus.Views.Vigas"
         xmlns:vws="clr-namespace:MemoriaPlus.Views;assembly=MemoriaPlus.UI.Shared"
         xmlns:cmn="clr-namespace:MemoriaPlus.Common;assembly=MemoriaPlus.UI.Shared"
@@ -870,7 +869,6 @@
                         </ScrollViewer>
                     </Border>
                 </Grid>
-
 
                 <!-- Modos enrutados al ContentControl de arriba (Fase D):
                      Planta2D, VisorPdf, Vista3D, CargasCombinaciones, Vigas,
