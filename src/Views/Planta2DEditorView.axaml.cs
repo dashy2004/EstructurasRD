@@ -21,6 +21,9 @@ public partial class Planta2DEditorView : UserControl
     private MainViewModel? Vm => DataContext as MainViewModel;
     private bool _updatingProperties;
 
+    /// <summary>Lienzo de planta — lo usa la captura del export a Excel (UI1.6).</summary>
+    public PlantaCanvas CanvasPlanta => EditorCanvas;
+
     public Planta2DEditorView()
     {
         InitializeComponent();

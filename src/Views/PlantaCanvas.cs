@@ -101,6 +101,51 @@ public class PlantaCanvas : Control
         set { if (SetAndRaise(PlanoDxfProperty, ref _planoDxf, value)) InvalidateVisual(); }
     }
 
+    // ---- Tokens de revisión (UI1.6): Plano/Pdf son objetos mutables; el VM
+    // bumpea RevisionPlano/RevisionPdf al editar Escala/Offset y este canvas
+    // redibuja al observarlos — patrón del CadCanvasHost retirado. ----
+    private int _revisionPlano;
+    public static readonly DirectProperty<PlantaCanvas, int> RevisionPlanoProperty =
+        AvaloniaProperty.RegisterDirect<PlantaCanvas, int>(
+            nameof(RevisionPlano), o => o.RevisionPlano, (o, v) => o.RevisionPlano = v);
+    public int RevisionPlano
+    {
+        get => _revisionPlano;
+        set { if (SetAndRaise(RevisionPlanoProperty, ref _revisionPlano, value)) InvalidateVisual(); }
+    }
+
+    private int _revisionPdf;
+    public static readonly DirectProperty<PlantaCanvas, int> RevisionPdfProperty =
+        AvaloniaProperty.RegisterDirect<PlantaCanvas, int>(
+            nameof(RevisionPdf), o => o.RevisionPdf, (o, v) => o.RevisionPdf = v);
+    public int RevisionPdf
+    {
+        get => _revisionPdf;
+        set { if (SetAndRaise(RevisionPdfProperty, ref _revisionPdf, value)) InvalidateVisual(); }
+    }
+
+    // ---- Defaults de muros nuevos (UI1.6): compartidos con el panel PLANO/PDF
+    // vía binding a CadEditor.EspesorMuroNuevo/AlturaMuroNueva (paridad CAD). ----
+    private double _espesorMuroNuevo = 0.15;
+    public static readonly DirectProperty<PlantaCanvas, double> EspesorMuroNuevoProperty =
+        AvaloniaProperty.RegisterDirect<PlantaCanvas, double>(
+            nameof(EspesorMuroNuevo), o => o.EspesorMuroNuevo, (o, v) => o.EspesorMuroNuevo = v);
+    public double EspesorMuroNuevo
+    {
+        get => _espesorMuroNuevo;
+        set => SetAndRaise(EspesorMuroNuevoProperty, ref _espesorMuroNuevo, value);
+    }
+
+    private double _alturaMuroNueva = 3.0;
+    public static readonly DirectProperty<PlantaCanvas, double> AlturaMuroNuevaProperty =
+        AvaloniaProperty.RegisterDirect<PlantaCanvas, double>(
+            nameof(AlturaMuroNueva), o => o.AlturaMuroNueva, (o, v) => o.AlturaMuroNueva = v);
+    public double AlturaMuroNueva
+    {
+        get => _alturaMuroNueva;
+        set => SetAndRaise(AlturaMuroNuevaProperty, ref _alturaMuroNueva, value);
+    }
+
     public static readonly DirectProperty<PlantaCanvas, Edificio?> EdificioProperty =
         AvaloniaProperty.RegisterDirect<PlantaCanvas, Edificio?>(
             nameof(Edificio),
@@ -480,8 +525,8 @@ public class PlantaCanvas : Control
                         Id = newId,
                         PuntoInicio = new PuntoCad(sx, sy),
                         PuntoFin = new PuntoCad(sx + 3.0, sy),
-                        Espesor = 0.15,
-                        Altura = 3.0
+                        Espesor = EspesorMuroNuevo,
+                        Altura = AlturaMuroNueva
                     };
                     sys.Muros.Add(muro);
                     SelectedElement = muro;
@@ -1009,5 +1054,25 @@ public class PlantaCanvas : Control
                 FlowDirection.LeftToRight, boldTypeface, 13.0, Brushes.OrangeRed);
             context.DrawText(ftCal, new Point((a.X + b.X) / 2.0 + 8, (a.Y + b.Y) / 2.0 - 20));
         }
+    }
+
+    /// <summary>
+    /// Captura la planta como imagen para incrustarla en la exportación a
+    /// Excel (UI1.6 — antes se capturaba el lienzo CAD, hoy retirado). Render
+    /// del viewport actual; si el control no fue realizado aún (export sin
+    /// haber abierto Planta 2D), se mide/arregla a 1200×800 como mejor esfuerzo.
+    /// </summary>
+    public Avalonia.Media.Imaging.Bitmap CaptureCanvasPng()
+    {
+        double w = Bounds.Width  >= 1 ? Bounds.Width  : 1200;
+        double h = Bounds.Height >= 1 ? Bounds.Height : 800;
+
+        Measure(new Size(w, h));
+        Arrange(new Rect(0, 0, w, h));
+
+        var rtb = new Avalonia.Media.Imaging.RenderTargetBitmap(
+            new PixelSize((int)Math.Ceiling(w), (int)Math.Ceiling(h)), new Vector(96, 96));
+        rtb.Render(this);
+        return rtb;
     }
 }

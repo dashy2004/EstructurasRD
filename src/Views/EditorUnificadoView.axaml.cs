@@ -15,4 +15,7 @@ public partial class EditorUnificadoView : UserControl
     public EditorUnificadoView() => InitializeComponent();
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
+
+    /// <summary>Editor de planta hosteado — lo usa la captura del export a Excel (UI1.6).</summary>
+    public Planta2DEditorView? Editor => this.FindControl<Planta2DEditorView>("EditorView");
 }

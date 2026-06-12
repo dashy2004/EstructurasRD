@@ -382,18 +382,21 @@ public partial class MainWindow : Window
             new FileFilter("Excel Workbook", new[] { "*.xlsx" }));
         if (path is null) return;
 
-        // Captura del lienzo CAD como esquema del .xlsx (mejor esfuerzo: si la
-        // captura falla, se exporta el Excel sin imagen). Port a Avalonia (Fase E.1):
-        // CaptureCanvasPng() devuelve un Bitmap; lo codificamos a PNG con Bitmap.Save.
+        // Captura del lienzo de PLANTA como esquema del .xlsx (UI1.6 — antes se
+        // capturaba el lienzo CAD; mejor esfuerzo: si la captura falla, se
+        // exporta el Excel sin imagen).
         byte[]? png = null;
         try
         {
-            var bmp = CadEditorView.CanvasHost.CaptureCanvasPng();
-            using var ms = new MemoryStream();
-            bmp.Save(ms);
-            png = ms.ToArray();
+            if (Vm.ObtenerVistaPlanta2D() is Views.EditorUnificadoView { Editor.CanvasPlanta: { } canvas })
+            {
+                var bmp = canvas.CaptureCanvasPng();
+                using var ms = new MemoryStream();
+                bmp.Save(ms);
+                png = ms.ToArray();
+            }
         }
-        catch (Exception ex) { Vm.Log("No se pudo capturar el lienzo CAD: " + ex.Message); }
+        catch (Exception ex) { Vm.Log("No se pudo capturar el lienzo de planta: " + ex.Message); }
 
         await Vm.ExportarXlsxAsync(path, png);
     }
