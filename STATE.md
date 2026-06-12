@@ -4,7 +4,7 @@
 > Este archivo es la **fuente única de verdad**; si un doc lo contradice, manda este.
 
 <!-- AUTO:START -->
-Estampado: 2026-06-12 01:02 · rama engine/ui1-un-solo-lienzo · commit fa72416 · sin commit: 4 archivos
+Estampado: 2026-06-12 01:13 · rama engine/ui1-un-solo-lienzo · commit 6b8c6b8 · sin commit: 2 archivos
 
 ## Build & Tests (en vivo)
 - .NET (LosasPlus.Linux.sln): build 0 err / 0 warn · tests 1207 passed / 0 failed / 0 skipped
