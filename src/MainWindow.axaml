@@ -194,7 +194,6 @@
                         <TextBlock Classes="sidecat" Text="GEOMETRÍA"/>
                         <RadioButton Classes="navside" GroupName="ModoNav" Content="📐  Planta 2D"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Planta2D}"/>
-
                         <RadioButton Classes="navside" GroupName="ModoNav" Content="🧊  Vista 3D"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vista3D}"/>
                         <RadioButton Classes="navside" GroupName="ModoNav" Content="📄  Visor PDF"
