@@ -661,20 +661,6 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         EstadoImportacion = "Calibración del PDF cancelada.";
     }
 
-    // ---- Herramienta de interacción del lienzo (Iteración 3) ----
-
-    private ModoInteraccionCad _modoInteraccion = ModoInteraccionCad.Puntero;
-    /// <summary>
-    /// Herramienta activa del lienzo CAD: <see cref="ModoInteraccionCad.Puntero"/>
-    /// (selección/arrastre) o <see cref="ModoInteraccionCad.DibujarLosa"/>
-    /// (click-drag para crear losas). La cambia la toolbar flotante de <c>CadView</c>.
-    /// </summary>
-    public ModoInteraccionCad ModoInteraccion
-    {
-        get => _modoInteraccion;
-        set { if (_modoInteraccion == value) return; _modoInteraccion = value; OnPropertyChanged(); }
-    }
-
     private bool _snapActivo = true;
     /// <summary>
     /// Encendido del <see cref="SnappingEngine"/> al mover/redimensionar (toggle
@@ -700,7 +686,7 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// Crea una <see cref="Losa"/> nueva a partir del rectángulo que el usuario
     /// dibujó en el lienzo (lo dispara <c>CadCanvasHost</c> al soltar el mouse en
-    /// modo <see cref="ModoInteraccionCad.DibujarLosa"/>). El parámetro es un
+    /// modo «Dibujar Losa»). El parámetro es un
     /// <see cref="CrearLosaArgs"/> con la geometría ya en metros.
     /// </summary>
     public ICommand CrearLosaCommand { get; }

@@ -4,12 +4,12 @@ using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
 
-namespace LosasPlus.Views.Cad;
+namespace LosasPlus.Views;
 
 /// <summary>
 /// Paleta cromática del Módulo de Muros (Epic v1.4.0). Asigna un color
-/// diferenciado a cada espesor de muro para la codificación visual del
-/// lienzo CAD y la leyenda «Suma de Colores».
+/// diferenciado a cada espesor de muro para la codificación visual de
+/// la planta y la leyenda «Suma de Colores».
 ///
 /// <para>
 /// Vive en la capa de presentación (<c>src/</c>) porque produce
@@ -53,7 +53,7 @@ public static class PaletaMuros
 /// Convierte un espesor de muro (m, <see cref="double"/>) en el
 /// <see cref="SolidColorBrush"/> que <see cref="PaletaMuros"/> le asigna.
 /// Lo usa el swatch de color de la leyenda «Suma de Colores» en
-/// <c>CadView.axaml</c>.
+/// <c>Planta2DEditorView.axaml</c>.
 /// </summary>
 public sealed class EspesorABrushConverter : IValueConverter
 {
@@ -66,7 +66,7 @@ public sealed class EspesorABrushConverter : IValueConverter
 
 /// <summary>
 /// Convierte un conteo (<see cref="int"/>) en <see cref="bool"/>: <c>true</c> si es
-/// mayor que cero. Lo usa la leyenda «Suma de Colores» en <c>CadView.axaml</c> para
+/// mayor que cero. Lo usa la leyenda «Suma de Colores» en <c>Planta2DEditorView.axaml</c> para
 /// mostrarse sólo cuando hay al menos un muro (Avalonia no auto-convierte int→bool).
 /// </summary>
 public sealed class CountToBoolConverter : IValueConverter

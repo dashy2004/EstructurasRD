@@ -682,7 +682,6 @@ public partial class MainWindow : Window
             var modes = new[]
             {
                 ModoSidebar.Editor,
-                ModoSidebar.PlanoCad,
                 ModoSidebar.Planta2D,
                 ModoSidebar.Vista3D,
                 ModoSidebar.Columnas,

@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:LosasPlus.ViewModels"
         xmlns:v="clr-namespace:LosasPlus.Views"
-        xmlns:cad="clr-namespace:LosasPlus.Views.Cad"
+
         xmlns:vigas="clr-namespace:LosasPlus.Views.Vigas"
         xmlns:vws="clr-namespace:MemoriaPlus.Views;assembly=MemoriaPlus.UI.Shared"
         xmlns:cmn="clr-namespace:MemoriaPlus.Common;assembly=MemoriaPlus.UI.Shared"
@@ -26,7 +26,7 @@
            · MouseDoubleClick                  → DoubleTapped.
            · Window.InputBindings/KeyBinding   → Window.KeyBindings + KeyGesture
              (los 4 fijos acá; los 6 personalizables los aplica el code-behind).
-           · Lienzo CAD = CadView completo (canvas + calibrar PDF + muros + DXF).
+           · Lienzo CAD = Planta 2D (canvas + calibrar PDF + muros + DXF desde UI1.6).
          ============================================================ -->
     <Window.DataContext>
         <vm:MainViewModel/>
@@ -195,8 +195,7 @@
                         <TextBlock Classes="sidecat" Text="GEOMETRÍA"/>
                         <RadioButton Classes="navside" GroupName="ModoNav" Content="📐  Planta 2D"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Planta2D}"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="🗺  Plano CAD"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}"/>
+
                         <RadioButton Classes="navside" GroupName="ModoNav" Content="🧊  Vista 3D"
                                      IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vista3D}"/>
                         <RadioButton Classes="navside" GroupName="ModoNav" Content="📄  Visor PDF"
@@ -387,7 +386,7 @@
                    autónomo se hostean en este único ContentControl vía
                    CurrentView. Para los modos inline CurrentView devuelve null
                    y este control queda vacío.
-                 · Inline (IsVisible + EnumToBool): Explorador, Editor, PlanoCad,
+                 · Inline (IsVisible + EnumToBool): Explorador, Editor,
                    DLEditor, Salida, Plugins, Acerca — conservan su XAML inline
                    y sus controles x:Name usados por el code-behind.
                  ========================================================= -->
@@ -872,10 +871,6 @@
                     </Border>
                 </Grid>
 
-                <!-- MODO Lienzo CAD (stub Fase E). -->
-                <ContentControl IsVisible="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}">
-                    <cad:CadView x:Name="CadEditorView" DataContext="{Binding}"/>
-                </ContentControl>
 
                 <!-- Modos enrutados al ContentControl de arriba (Fase D):
                      Planta2D, VisorPdf, Vista3D, CargasCombinaciones, Vigas,

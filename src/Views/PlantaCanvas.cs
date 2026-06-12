@@ -103,7 +103,7 @@ public class PlantaCanvas : Control
 
     // ---- Tokens de revisión (UI1.6): Plano/Pdf son objetos mutables; el VM
     // bumpea RevisionPlano/RevisionPdf al editar Escala/Offset y este canvas
-    // redibuja al observarlos — patrón del CadCanvasHost retirado. ----
+    // redibuja al observarlos (mismo patrón que usaba el host CAD, retirado en UI1.6). ----
     private int _revisionPlano;
     public static readonly DirectProperty<PlantaCanvas, int> RevisionPlanoProperty =
         AvaloniaProperty.RegisterDirect<PlantaCanvas, int>(
@@ -959,7 +959,7 @@ public class PlantaCanvas : Control
                 var pEnd = MetrosAPixel(muro.PuntoFin.X, muro.PuntoFin.Y);
 
                 bool isSelected = ReferenceEquals(SelectedElement, muro);
-                var pen = new Pen(isSelected ? muroSelectBrush : Cad.PaletaMuros.BrushParaEspesor(muro.Espesor),
+                var pen = new Pen(isSelected ? muroSelectBrush : PaletaMuros.BrushParaEspesor(muro.Espesor),
                                   muro.Espesor * _scale)
                 {
                     LineCap = PenLineCap.Flat

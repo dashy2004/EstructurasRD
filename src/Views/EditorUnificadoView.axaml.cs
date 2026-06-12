@@ -4,11 +4,8 @@ using Avalonia.Markup.Xaml;
 namespace LosasPlus.Views;
 
 /// <summary>
-/// Editor unificado (Paso 5): hospeda en un solo lugar la edición estructural
-/// (Planta 2D, base) y la herramienta CAD/import (DXF·PDF·muros), como dos
-/// sub-pestañas que comparten el mismo <c>MainViewModel</c>. Primer paso de la
-/// unificación — los canvas internos no cambian. Ver
-/// <c>docs/plan-unificar-cad-planta2d.md</c>.
+/// Editor unificado (UI1): hospeda Planta 2D, el único lienzo desde UI1.6.
+/// Conserva el punto de extensión del shell y el accessor de captura para el export.
 /// </summary>
 public partial class EditorUnificadoView : UserControl
 {

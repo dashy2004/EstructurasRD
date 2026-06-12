@@ -158,7 +158,6 @@ public class MainViewModelTests
     [Theory]
     [InlineData(ModoSidebar.Explorador)]
     [InlineData(ModoSidebar.Editor)]
-    [InlineData(ModoSidebar.PlanoCad)]
     [InlineData(ModoSidebar.DLEditor)]
     [InlineData(ModoSidebar.Salida)]
     [InlineData(ModoSidebar.Plugins)]

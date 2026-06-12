@@ -8,10 +8,10 @@ namespace LosasPlus.Tests.Services;
 /// <summary>
 /// Tests del mapeo mundo-DXF ↔ planta de <see cref="PlantaCanvas"/> (UI1.3).
 /// El DXF guarda coordenadas mundo (Y ascendente); la planta es Y descendente.
-/// La convención es la misma que <c>DxfEstructuraMapper.CrearLosaBatch</c> y el
-/// <c>CadTransform</c> del lienzo CAD: <c>yPlanta = MaxY − yMundo</c> (+ ajuste
-/// espacial Escala/Offset del plano). El bug que esto fija: el underlay DXF de
-/// planta se dibujaba SIN el flip ⇒ plano espejado verticalmente vs la estructura.
+/// La convención es la misma que <c>DxfEstructuraMapper.CrearLosaBatch</c>
+/// (la que usaba el lienzo CAD retirado en UI1.6): <c>yPlanta = MaxY − yMundo</c>
+/// (+ ajuste espacial Escala/Offset del plano). El bug que esto fija: el underlay
+/// DXF de planta se dibujaba SIN el flip ⇒ plano espejado verticalmente vs la estructura.
 /// </summary>
 public class PlantaCanvasPlanoDxfTests
 {

@@ -1,15 +1,15 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:v="clr-namespace:LosasPlus.Views"
-             xmlns:cad="clr-namespace:LosasPlus.Views.Cad"
+
              x:Class="LosasPlus.Views.Planta2DEditorView"
              x:CompileBindings="False"
              Background="{DynamicResource BgPrimary}">
 
     <UserControl.Resources>
-        <!-- Paleta de muros compartida con el lienzo CAD (UI1.4). -->
-        <cad:EspesorABrushConverter x:Key="EspesorABrush"/>
-        <cad:CountToBoolConverter x:Key="CountToBool"/>
+        <!-- Paleta de muros (UI1.4) — desde UI1.6 vive en Views/. -->
+        <v:EspesorABrushConverter x:Key="EspesorABrush"/>
+        <v:CountToBoolConverter x:Key="CountToBool"/>
     </UserControl.Resources>
 
     <DockPanel>
@@ -298,8 +298,8 @@
                         </StackPanel>
 
                         <!-- Panel PLANO / PDF (UI1.6): portado del panel lateral del
-                             lienzo CAD retirado (CadView.axaml). Mismos bindings
-                             CadEditor.*; el lienzo refresca vía RevisionPlano/Pdf. -->
+                             lienzo CAD retirado. Mismos bindings CadEditor.*;
+                             el lienzo refresca vía RevisionPlano/Pdf. -->
                         <Expander Header="📐 PLANO / PDF" IsExpanded="False">
                             <StackPanel Margin="0,8,0,0">
                                 <DockPanel Margin="0,0,0,6" LastChildFill="False">

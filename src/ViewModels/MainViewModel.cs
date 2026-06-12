@@ -57,7 +57,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             // Sincronización 2D↔3D: al entrar a una vista geométrica, asegurar que
             // las losas sin posicionar reciban un layout por defecto (no apiladas
             // en el origen). Conservador: sólo toca sistemas todos en (0,0).
-            if (value is ModoSidebar.Planta2D or ModoSidebar.Vista3D or ModoSidebar.PlanoCad)
+            if (value is ModoSidebar.Planta2D or ModoSidebar.Vista3D)
                 SincronizadorPlanta.SincronizarEdificio(EdificioActivo);
             OnPropertyChanged();
             OnPropertyChanged(nameof(EsModoEditor));
@@ -79,11 +79,11 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     // ALCANCE (scope guard de Fase D): sólo se enrutan los modos respaldados
     // por un UserControl autónomo y SIN dependencias de x:Name en el
     // code-behind. Los modos cuyo XAML está inline en MainWindow o cuyos
-    // controles nombrados usa el code-behind (Editor → LosasGrid/TiposPanel;
-    // PlanoCad → CadEditorView/CanvasHost) y los grandes bloques inline
-    // (Explorador, DLEditor, Salida, Plugins, Acerca) SIGUEN en el mecanismo
-    // IsVisible. Para esos modos CurrentView devuelve null y el ContentControl
-    // queda vacío (los bloques inline se muestran por su IsVisible).
+    // controles nombrados usa el code-behind (Editor → LosasGrid/TiposPanel)
+    // y los grandes bloques inline (Explorador, DLEditor, Salida, Plugins,
+    // Acerca) SIGUEN en el mecanismo IsVisible. Para esos modos CurrentView
+    // devuelve null y el ContentControl queda vacío (los bloques inline se
+    // muestran por su IsVisible).
 
     private readonly Dictionary<ModoSidebar, Avalonia.Controls.Control> _vistaCache = new();
 
@@ -108,7 +108,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         {
             // Modos que NO se enrutan (inline / x:Name en code-behind).
             if (_modoActivo is ModoSidebar.Explorador or ModoSidebar.Editor
-                or ModoSidebar.PlanoCad or ModoSidebar.DLEditor or ModoSidebar.Salida
+                or ModoSidebar.DLEditor or ModoSidebar.Salida
                 or ModoSidebar.Plugins or ModoSidebar.Acerca)
                 return null;
 
@@ -2281,8 +2281,6 @@ public enum ModoSidebar
 {
     Explorador,
     Editor,
-    /// <summary>Editor visual CAD: plano DXF de referencia + losas (Fase 1.B).</summary>
-    PlanoCad,
     /// <summary>Editor 2D de planta (paños reales, vigas y columnas).</summary>
     Planta2D,
     /// <summary>Visor PDF multipágina con toolbar prev/next + zoom (H3).</summary>
