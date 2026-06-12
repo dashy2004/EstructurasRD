@@ -7,8 +7,9 @@ namespace LosasPlus.Models.Cad;
 /// real introducida por el usuario.
 ///
 /// <para>
-/// Lo construye el code-behind del editor flotante de <c>CadView</c> al
-/// presionar OK/Enter, y lo recibe <c>AplicarCalibrarPdfCommand</c> en el
+/// Lo construye el code-behind de <c>Planta2DEditorView</c> al confirmar
+/// el gesto de calibración (2 puntos + distancia real) en Planta 2D, y lo
+/// recibe <c>AplicarCalibrarPdfCommand</c> en el
 /// <c>CadEditorViewModel</c>. El ViewModel calcula el factor de homotecia
 /// (<c>DistanciaReal / DistanciaActual</c>) y lo aplica a la
 /// <see cref="PdfReferencia"/> conservando el pivote <c>(PivoteX, PivoteY)</c>

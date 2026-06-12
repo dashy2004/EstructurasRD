@@ -50,9 +50,7 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         EliminarPdfCommand = new RelayCommand(_ => EliminarPdf());
         AutoAlinearSistemasCommand = new RelayCommand(_ => AutoAlinearSistemas());
         MapearPoligonoCommand = new RelayCommand(p => MapearPoligono(p as PolilineaCad));
-        IniciarCalibrarPdfCommand = new RelayCommand(_ => IniciarCalibrarPdf());
         AplicarCalibrarPdfCommand = new RelayCommand(p => AplicarCalibrarPdf(p as CalibracionPdfArgs));
-        CancelarCalibrarPdfCommand = new RelayCommand(_ => CancelarCalibrarPdf());
         _eliminarMuroCommand = new RelayCommand(_ => EliminarMuro(), _ => _muroSeleccionado is not null);
     }
 
@@ -271,45 +269,29 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Re-rasteriza el PDF actual preservando su calibración (sólo cambia
-    /// <see cref="FondoPdf"/>, nunca <see cref="Pdf"/>). Lo usan dos flujos:
-    /// el toggle de modo oscuro (sin parámetros, con mensajes de estado) y
-    /// la re-rasterización dinámica por zoom (con <paramref name="anchoObjetivoPx"/>
-    /// y <paramref name="silencioso"/> = true para no spammear la barra).
+    /// Re-rasteriza la primera página con la inversión de color vigente
+    /// (lo dispara <see cref="InvertirColorPdf"/>). Sólo actualiza
+    /// <see cref="FondoPdf"/>; la metadata <see cref="Pdf"/> (incluida la
+    /// calibración Escala/Offset) se preserva intacta.
     /// </summary>
-    /// <param name="anchoObjetivoPx">
-    /// Resolución horizontal objetivo del bitmap. <c>null</c> → default del
-    /// <see cref="PdfImportador"/> (2400 px).
-    /// </param>
-    /// <param name="silencioso">
-    /// Si <c>true</c>, no escribe en <see cref="EstadoImportacion"/> ni abre
-    /// <c>MessageBox</c> — para la re-rasterización por zoom, que es frecuente.
-    /// </param>
-    private async Task ReRasterizarPdfAsync(int? anchoObjetivoPx = null, bool silencioso = false)
+    private async Task ReRasterizarPdfAsync()
     {
         if (_lastPdfPath is null) return;
         _invirtiendoEnCurso = true;
         try
         {
-            if (!silencioso)
-                EstadoImportacion = _invertirColorPdf
-                    ? "Aplicando modo oscuro…"
-                    : "Restaurando colores normales…";
+            EstadoImportacion = _invertirColorPdf
+                ? "Aplicando modo oscuro…"
+                : "Restaurando colores normales…";
 
-            var r = anchoObjetivoPx is { } px
-                ? await PdfImportador.RasterizarPrimeraPaginaAsync(
-                    _lastPdfPath, px, invertColors: _invertirColorPdf)
-                : await PdfImportador.RasterizarPrimeraPaginaAsync(
-                    _lastPdfPath, invertColors: _invertirColorPdf);
+            var r = await PdfImportador.RasterizarPrimeraPaginaAsync(
+                _lastPdfPath, invertColors: _invertirColorPdf);
 
             if (!r.EsExito)
             {
-                if (!silencioso)
-                {
-                    _ = AppServices.MessageBox.InfoAsync("Re-rasterizar PDF",
-                        r.Error ?? "Error al re-rasterizar el PDF.");
-                    EstadoImportacion = "✕ No se pudo re-rasterizar el PDF.";
-                }
+                _ = AppServices.MessageBox.InfoAsync("Re-rasterizar PDF",
+                    r.Error ?? "Error al re-rasterizar el PDF.");
+                EstadoImportacion = "✕ No se pudo re-rasterizar el PDF.";
                 return;
             }
 
@@ -317,10 +299,9 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
             // Escala/Offset calibrados por el usuario) se preserva intacta.
             FondoPdf = r.Imagen;
             RevisionPdf++;
-            if (!silencioso)
-                EstadoImportacion = _invertirColorPdf
-                    ? "✓ Modo oscuro activado — fondo negro con líneas blancas."
-                    : "✓ Modo claro restaurado.";
+            EstadoImportacion = _invertirColorPdf
+                ? "✓ Modo oscuro activado — fondo negro con líneas blancas."
+                : "✓ Modo claro restaurado.";
         }
         finally { _invirtiendoEnCurso = false; }
     }
@@ -345,7 +326,7 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         if (_pdf is null && _fondoPdf is null) return;
         Pdf = null;
         FondoPdf = null;
-        _lastPdfPath = null;   // corta la re-rasterización dinámica por zoom
+        _lastPdfPath = null;   // libera el bitmap y el estado del PDF
         EstadoImportacion = "✓ PDF eliminado del lienzo.";
     }
 
@@ -478,44 +459,21 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
 
     // ---- Calibración interactiva del PDF ----
 
-    private bool _modoCalibrarPdf;
-    /// <summary>
-    /// Modo de calibración activo: el usuario coloca dos puntos de referencia
-    /// sobre el PDF e introduce la distancia real entre ellos para corregir
-    /// la <see cref="PdfReferencia.Escala"/> conservando el primer punto fijo.
-    /// Bindeado TwoWay al <c>PlantaCanvas</c>: lo activa la herramienta de
-    /// Planta 2D con el botón «Calibrar PDF»; el canvas lo apaga al cancelar
-    /// (Escape) o al confirmar.
-    /// </summary>
-    public bool ModoCalibrarPdf
-    {
-        get => _modoCalibrarPdf;
-        set { if (_modoCalibrarPdf == value) return; _modoCalibrarPdf = value; OnPropertyChanged(); }
-    }
-
-    /// <summary>Entra al modo de calibración (sólo si hay un PDF cargado).</summary>
-    public ICommand IniciarCalibrarPdfCommand { get; }
-
-    private void IniciarCalibrarPdf()
-    {
-        if (!TienePdf) return;
-        ModoCalibrarPdf = true;
-        EstadoImportacion =
-            "Calibración del PDF: haga clic en el PRIMER punto de referencia. " +
-            "Mantenga Shift para línea ortogonal. Esc cancela.";
-    }
-
     /// <summary>
     /// Aplica el factor de homotecia al PDF tras recibir los dos puntos y la
-    /// distancia real introducida por el usuario. Conserva el pivote
-    /// <c>(PivoteX, PivoteY)</c> fijo en el lienzo y apaga el modo.
-    /// Lo dispara la herramienta de Planta 2D.
+    /// distancia real introducida por el usuario. Lo invoca el code-behind de
+    /// <c>Planta2DEditorView</c> al confirmar el gesto de calibración (2 puntos
+    /// + distancia real) con la herramienta «🎯 Calibrar PDF» del
+    /// <c>PlantaCanvas</c>. La homotecia compartida vive en <c>CalibradorPdf</c>
+    /// (src.Core): conserva el pivote <c>(PivoteX, PivoteY)</c> fijo en el
+    /// lienzo y corrige <see cref="EscalaPdf"/>/<see cref="OffsetXPdf"/>/
+    /// <see cref="OffsetYPdf"/> in situ.
     /// </summary>
     public ICommand AplicarCalibrarPdfCommand { get; }
 
     private void AplicarCalibrarPdf(CalibracionPdfArgs? args)
     {
-        if (args is null || _pdf is null) { ModoCalibrarPdf = false; return; }
+        if (args is null || _pdf is null) return;
 
         // Homotecia compartida (UI1.2): CalibradorPdf conserva el pivote P₁
         // fijo en el lienzo y corrige Escala/Offsets in situ. Devuelve null si
@@ -524,7 +482,6 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         if (factor is null)
         {
             EstadoImportacion = "✕ Calibración cancelada: la distancia debe ser mayor a cero.";
-            ModoCalibrarPdf = false;
             return;
         }
 
@@ -534,20 +491,9 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(OffsetYPdf));
         RevisionPdf++;
 
-        ModoCalibrarPdf = false;
         EstadoImportacion =
             $"✓ PDF recalibrado — factor ×{factor.Value:0.0000} " +
             $"({args.DistanciaActual:0.000} m → {args.DistanciaReal:0.000} m).";
-    }
-
-    /// <summary>Cancela el modo de calibración sin aplicar cambios.</summary>
-    public ICommand CancelarCalibrarPdfCommand { get; }
-
-    private void CancelarCalibrarPdf()
-    {
-        if (!_modoCalibrarPdf) return;
-        ModoCalibrarPdf = false;
-        EstadoImportacion = "Calibración del PDF cancelada.";
     }
 
     // ---- Comando: mapear un polígono del plano a una nueva Losa ----
@@ -665,8 +611,8 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// Abre un <c>OpenFileDialog</c> filtrado a .pdf y rasteriza la primera
     /// página vía <see cref="PdfImportador"/> en un hilo de background, sin
-    /// bloquear el UI. Al terminar, asigna <see cref="Pdf"/> + <see cref="FondoPdf"/>
-    /// y dispara un encuadre automático en el <c>PlantaCanvas</c>.
+    /// bloquear el UI. Al terminar, asigna <see cref="Pdf"/> + <see cref="FondoPdf"/>;
+    /// el <c>PlantaCanvas</c> redibuja vía los bindings de <c>Pdf</c>/<c>FondoPdf</c>.
     /// </summary>
     public ICommand ImportarPdfCommand { get; }
 
