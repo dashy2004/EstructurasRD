@@ -124,18 +124,21 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// <summary>
     /// Vista del modo Planta 2D, creada y cacheada bajo demanda — la usa el
     /// export a Excel para capturar el lienzo de planta aunque el usuario no
-    /// haya visitado el modo (UI1.6). DataContext explícito: creada fuera del
-    /// ContentControl no hay herencia.
+    /// haya visitado el modo (UI1.6). DataContext explícito en cada retorno: fuera del
+    /// ContentControl no hay herencia y una vista desacoplada lo pierde.
     /// </summary>
     public Avalonia.Controls.Control? ObtenerVistaPlanta2D()
     {
-        if (_vistaCache.TryGetValue(ModoSidebar.Planta2D, out var cacheada)) return cacheada;
-        var vista = CrearVista(ModoSidebar.Planta2D);
-        if (vista is not null)
+        if (!_vistaCache.TryGetValue(ModoSidebar.Planta2D, out var vista))
         {
-            vista.DataContext = this;
+            vista = CrearVista(ModoSidebar.Planta2D);
+            if (vista is null) return null;
             _vistaCache[ModoSidebar.Planta2D] = vista;
         }
+        // Re-ancla SIEMPRE: si la vista quedó desacoplada del ContentControl
+        // (usuario cambió de modo), su DataContext heredado volvió a null y la
+        // captura renderizaría una planta vacía.
+        vista.DataContext = this;
         return vista;
     }
 

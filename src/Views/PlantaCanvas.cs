@@ -125,7 +125,8 @@ public class PlantaCanvas : Control
     }
 
     // ---- Defaults de muros nuevos (UI1.6): compartidos con el panel PLANO/PDF
-    // vía binding a CadEditor.EspesorMuroNuevo/AlturaMuroNueva (paridad CAD). ----
+    // vía binding a CadEditor.EspesorMuroNuevo/AlturaMuroNueva (paridad CAD).
+    // Defaults alineados con los del VM (0.15 / 2.80) — el binding los pisa al cargar la vista. ----
     private double _espesorMuroNuevo = 0.15;
     public static readonly DirectProperty<PlantaCanvas, double> EspesorMuroNuevoProperty =
         AvaloniaProperty.RegisterDirect<PlantaCanvas, double>(
@@ -136,7 +137,7 @@ public class PlantaCanvas : Control
         set => SetAndRaise(EspesorMuroNuevoProperty, ref _espesorMuroNuevo, value);
     }
 
-    private double _alturaMuroNueva = 3.0;
+    private double _alturaMuroNueva = 2.80;
     public static readonly DirectProperty<PlantaCanvas, double> AlturaMuroNuevaProperty =
         AvaloniaProperty.RegisterDirect<PlantaCanvas, double>(
             nameof(AlturaMuroNueva), o => o.AlturaMuroNueva, (o, v) => o.AlturaMuroNueva = v);
@@ -1067,8 +1068,13 @@ public class PlantaCanvas : Control
         double w = Bounds.Width  >= 1 ? Bounds.Width  : 1200;
         double h = Bounds.Height >= 1 ? Bounds.Height : 800;
 
-        Measure(new Size(w, h));
-        Arrange(new Rect(0, 0, w, h));
+        // Solo medir/arreglar si el control no fue realizado (export sin haber
+        // abierto Planta 2D); sobre un control vivo sería mutar el layout.
+        if (Bounds.Width < 1 || Bounds.Height < 1)
+        {
+            Measure(new Size(w, h));
+            Arrange(new Rect(0, 0, w, h));
+        }
 
         var rtb = new Avalonia.Media.Imaging.RenderTargetBitmap(
             new PixelSize((int)Math.Ceiling(w), (int)Math.Ceiling(h)), new Vector(96, 96));

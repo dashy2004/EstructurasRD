@@ -390,11 +390,12 @@ public partial class MainWindow : Window
         {
             if (Vm.ObtenerVistaPlanta2D() is Views.EditorUnificadoView { Editor.CanvasPlanta: { } canvas })
             {
-                var bmp = canvas.CaptureCanvasPng();
+                using var bmp = canvas.CaptureCanvasPng();
                 using var ms = new MemoryStream();
                 bmp.Save(ms);
                 png = ms.ToArray();
             }
+            else Vm.Log("Export XLSX: no se pudo resolver la vista de planta — el .xlsx irá sin esquema.");
         }
         catch (Exception ex) { Vm.Log("No se pudo capturar el lienzo de planta: " + ex.Message); }
 
