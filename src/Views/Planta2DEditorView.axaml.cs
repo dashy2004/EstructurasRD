@@ -51,6 +51,7 @@ public partial class Planta2DEditorView : UserControl
         BtnAddEje.IsCheckedChanged += (s, e) => { if (BtnAddEje.IsChecked == true) EditorCanvas.ActiveTool = "Eje"; };
         BtnAddMuro.IsCheckedChanged += (s, e) => { if (BtnAddMuro.IsChecked == true) EditorCanvas.ActiveTool = "Muro"; };
         BtnCalibrarPdf.IsCheckedChanged += OnCalibrarPdfToggled;
+        BtnConectarBordes.IsCheckedChanged += OnConectarBordesToggled;
 
         // Calibración del PDF (UI1.2)
         EditorCanvas.CalibracionPdfLista += OnCalibracionPdfLista;
@@ -125,6 +126,12 @@ public partial class Planta2DEditorView : UserControl
         else if (e.Key == Key.Escape && BtnCalibrarPdf.IsChecked == true)
         {
             CancelarCalibracionPdf();
+            e.Handled = true;
+        }
+        // Esc cancela el modo Conectar Bordes (UI1.8).
+        else if (e.Key == Key.Escape && BtnConectarBordes.IsChecked == true)
+        {
+            BtnPuntero.IsChecked = true;
             e.Handled = true;
         }
     }
@@ -237,6 +244,24 @@ public partial class Planta2DEditorView : UserControl
         Vm?.CadEditor.MapearPoligonoCommand.Execute(poli);
         TxtStatus.Text = Vm?.CadEditor.EstadoImportacion ?? "";
         EditorCanvas.InvalidateVisual();
+    }
+
+    // ---- Conectar bordes de continuidad entre losas (UI1.8) ----
+
+    private void OnConectarBordesToggled(object? sender, RoutedEventArgs e)
+    {
+        if (BtnConectarBordes.IsChecked != true)
+        {
+            // Otra herramienta seleccionada: salir del modo.
+            EditorCanvas.ActiveTool = "Puntero";
+            if (Vm != null) Vm.ModoConectarBordes = false;
+            return;
+        }
+
+        EditorCanvas.ActiveTool = "ConectarBordes";
+        if (Vm != null) Vm.ModoConectarBordes = true;
+        TxtStatus.Text = "Conectar bordes: click en la PRIMERA losa. " +
+                         "Luego click en la SEGUNDA losa para crear el borde. Esc cancela.";
     }
 
     private void OnCanvasSelectionChanged(object? selected)

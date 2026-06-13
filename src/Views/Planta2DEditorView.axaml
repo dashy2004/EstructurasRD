@@ -54,6 +54,9 @@
                     <RadioButton x:Name="BtnMapearLosa" Content="▱ Calcar losa"
                                  Classes="tool-button" GroupName="FloorTool"
                                  ToolTip.Tip="Click sobre un contorno rectangular cerrado del DXF para crear la losa ahí (anclada)."/>
+                    <RadioButton x:Name="BtnConectarBordes" Content="🔗 Conectar bordes"
+                                 Classes="tool-button" GroupName="FloorTool"
+                                 ToolTip.Tip="Click en 2 losas para crear un borde de continuidad entre ellas. Esc cancela."/>
                 </WrapPanel>
 
                 <!-- Acciones globales -->
