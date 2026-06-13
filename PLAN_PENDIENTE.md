@@ -31,8 +31,9 @@ dotnet build LosasPlus.Linux.sln --no-incremental -c Release && dotnet run --pro
 - [x] **UI1.4** Leyenda "suma de colores" de muros como overlay (`CadEditorViewModel.cs:529`). ✅ 2026-06-10 — leyenda flotante en Planta 2D (mismo markup, bindea `CadEditor.ResumenMuros`) + muros de PlantaCanvas coloreados por espesor con `PaletaMuros` + `RefrescarResumenMuros()` para mutaciones desde planta.
 - [x] **UI1.5** Resize de LOSAS con handles en PlantaCanvas (reciclar el patrón de `CadCanvasHost.cs:956-970`). ✅ 2026-06-10 — 8 asas (`AsaEnPunto` + `GeometriaEdicion.Redimensionar`), ancla la losa y snapshotea Undo por gesto (`GestoEdicionIniciado` → `PushUndoSnapshot`; el drag también — avance del hotspot #8).
 - [x] **UI1.6** Retirar `CadView`/`CadCanvasHost` del shell (modo PlanoCad). ✅ 2026-06-11 — pase visual humano ✓; modo PlanoCad + vista CAD borrados (~2900 líneas); `CadEditorViewModel` queda como sub-VM de servicios (podado de los miembros host-only); portados a Planta 2D: panel PLANO/PDF (ajuste espacial, opacidad, modo oscuro, muros), defaults de muros nuevos y captura del lienzo para el export .xlsx; `PaletaMuros` → `Views/`; suite 1216 → 1207 (−CadTransformTests −InlineData PlanoCad). Spec: `docs/superpowers/specs/2026-06-11-ui1.6-retirar-cadview-design.md`.
-- [ ] **UI1.7** (alcance decidido 2026-06-12: bugs+limpieza; el render de bordes se va a UI1.8) (1) Clamp `Escala > 0` en los proxies `EscalaPlano/EscalaPdf` del `CadEditorViewModel` — el TextBox puede commitear un 0 transitorio y `PlantaAPlano` divide por `Escala`. (2) Encuadre del `CaptureCanvasPng` de planta para el export Excel (hoy captura el viewport actual; edificios > ~27 m salen recortados con el zoom default — el CAD encuadraba antes de capturar). (3) Encuadre automático al importar PDF en Planta (se perdió con el host: `SolicitudEncuadrePdf`); reutiliza la tubería de encuadre de (2). (4) `SnappingEngine` (src.Core) quedó sin consumidor de producción — Planta usa `PlantaSnapEngine`; borrar o converger.
+- [ ] **UI1.7** (alcance decidido 2026-06-12: bugs+limpieza; el render de bordes se va a UI1.8) (1) Clamp `Escala > 0` en los proxies `EscalaPlano/EscalaPdf` del `CadEditorViewModel` — el TextBox puede commitear un 0 transitorio y `PlantaAPlano` divide por `Escala`. (2) Encuadre del `CaptureCanvasPng` de planta para el export Excel (hoy captura el viewport actual; edificios > ~27 m salen recortados con el zoom default — el CAD encuadraba antes de capturar). (3) Encuadre automático al importar PDF en Planta (se perdió con el host: `SolicitudEncuadrePdf`); reutiliza la tubería de encuadre de (2). (4) `SnappingEngine` (src.Core) quedó sin consumidor de producción — Planta usa `PlantaSnapEngine`; borrar o converger (decidido: borrar). (5) Prioridad de muros en el hit-test de `PlantaCanvas` — hoy Columnas→Vigas→Losas→Muros (`:696-748`) y una losa captura el click/gesto encima de un muro (el render ya dibuja muros sobre losas). Ampliado 2026-06-12: + botón «⛶ Encuadrar» y auto-encuadre también al importar DXF. Spec: `docs/superpowers/specs/2026-06-12-ui1.7-encuadre-clamp-poda-design.md`.
 - [ ] **UI1.8** Render de bordes de continuidad + chips «+» de adyacencia en `PlantaCanvas` — con CAD retirado no hay visualización interactiva de bordes; hoy cubren 🤖 Auto-Conectar y «+ Borde Y/− Borde Y» del modo Editor. Feature mayor: brainstorming/spec propios.
+- [ ] **UI1.9** Etiquetas cortadas en Planta 2D en resoluciones bajas — abreviaturas o scroll horizontal (triage 2026-06-12; decisión de diseño pendiente).
 
 ### UI2 — Modelo unificado Nivel⊕Sistema · L
 > "Niveles separados del sistema" — en la práctica siempre se usa `Sistemas[0]` (hardcodeado en 6 sitios de `src/`).
@@ -41,6 +42,7 @@ dotnet build LosasPlus.Linux.sln --no-incremental -c Release && dotnet run --pro
 - [ ] **UI2.2** Migrar los 6 usos de `Sistemas[0]` a la fachada; serialización JSON intacta (compatibilidad con proyectos guardados).
 - [ ] **UI2.3** Semántica columna↔cota en el 3D: definir qué pasa con una columna de 6 m en un nivel de 3 m (¿atraviesa al nivel 2?) y corregir `EscenaEdificio*` ("las columnas elevan los niveles/losas").
 - [ ] **UI2.4** Carga viva/muerta POR LOSA: overrides anulables `CargaMuerta?`/`CargaViva?` sobre el global de `CargasGlobales` + campo en la UI de propiedades + lectura en `CalculoEngine` (combinaciones 1.2D+1.6L).
+- [ ] **UI2.5** Tipo de uso por losa (triage 2026-06-12, extiende UI2.4): selector de reglamento → tipo de ocupación → carga viva automática; carga muerta automática de muros apoyados sobre losas; «reset de normas».
 
 ### UI3 — Diagramas vivos (export + hover + escala) · M
 - [ ] **UI3.1** Botón "Exportar a Excel" en el editor de VIGAS: hojas Esfuerzos V-M, Deflexión δ, Reacciones (datos ya existen: `PuntoDiagrama{X,Cortante,Momento,Deflexion}`, `EnvolventeViga`; reciclar `AcerosLosaExporter.cs:140-210`).
@@ -55,6 +57,12 @@ dotnet build LosasPlus.Linux.sln --no-incremental -c Release && dotnet run --pro
 - [ ] **UI4.3** Página de Configuración real: tema, unidades, rutas, snap, factores de combinación visibles, parámetros IA.
 - [ ] **UI4.4** Cargar `qwen.config.json` en runtime (hoy defaults hardcodeados en `MainViewModel`) — absorbe la vieja F6.
 
+### UI5 — Shell y navegación global · XL (triage 2026-06-12 — brainstorming propio)
+> Reorganización propuesta por el usuario: navegación superior global (Logo/Home · Proyecto · **Calcular** persistente · Configuración · Plugins); dentro de proyecto: Explorador (árbol del modelo), Búsqueda, editores por elemento (Losas, Vigas, Columnas, Muros — estos dos últimos no existen como editores hoy) y Validación; visualización flotante o panel lateral (Planta 2D, Visor 3D, **Visor PDF consolidado** — hoy hay vistas PDF duplicadas). Pestaña Calcular: motor FEA por elemento (losas/vigas/columnas), generación automática (geometría desde columnas; sistema desde foto IA/QIF con **panel de razonamiento**; sistema estructural XYZ), cargas y combinaciones, y exportación (DL, TXT, Aceros, PDF-memoria). Nota: `Explorador`, `Busqueda`, `Acerca` y `Plugins` ya existen como modos del sidebar — esto re-agrupa, no crea de cero.
+
+### UI6 — Design system · L (deuda «Antigravity/UI», triage 2026-06-12)
+- [ ] Redesign del kit de componentes; brushes obsoletos de Main; tipografía y versiones desactualizadas (solapa con UI4.1); página Acerca: verificar contenido y licencias (solapa con UI4.2).
+
 ### F2b — CAD restante · M
 - [ ] **F2b.1** Heurística forma→columna en capa ambigua (`DxfEstructuraMapper.cs:65`; hoy círculo en capa ambigua ⇒ 0 columnas).
 - [ ] **F2b.2** Columnas en el path de visión (`QwenAnalizador.cs:94-120` devuelve `Array.Empty`). Requiere Ollama + fixtures.
@@ -64,6 +72,7 @@ dotnet build LosasPlus.Linux.sln --no-incremental -c Release && dotnet run --pro
 - [ ] **F4.1** Cargas distribuidas + peso propio en el solver de motor-fea (hoy solo cargas nodales; viga a gravedad da momento ~0).
 - [ ] **F4.2** Reparto viga→columna por REACCIONES reales (hoy 50/50; `RepartoGeometrico.cs:176`).
 - [ ] **F4.3** Validar el descenso completo losa→viga→columna→zapata contra un caso de referencia.
+- [ ] **F4.4** Profiling del motor FEA con columnas (ineficiencia reportada 2026-06-12) — medir antes de rediseñar el algoritmo.
 
 ### F5 — Servicio · M  (tras F4)
 - [ ] Deflexión, deriva y torsión como chequeos de servicio en el flujo principal.
