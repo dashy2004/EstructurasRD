@@ -124,4 +124,45 @@ public class BordesPlantaServiceTests
 
         Assert.All(aristas, ar => Assert.Equal(BorderKind.Apoyado, ar.Kind));
     }
+
+    private static Sistema SistemaDosLosasConBordeX()
+    {
+        var s = new Sistema();
+        s.Losas.Add(L(1, 0, 0, lx: 4, ly: 3));
+        s.Losas.Add(L(2, 4, 0, lx: 4, ly: 3));     // pegada a la derecha
+        s.BordesX.Add(new BordeAdic { BI = 1, BJ = 2, Balanceo = "S" });
+        return s;
+    }
+
+    [Fact]
+    public void HitTestBorde_click_sobre_la_cara_compartida_devuelve_el_borde()
+    {
+        var s = SistemaDosLosasConBordeX();
+        var hit = BordesPlantaService.HitTestBorde(4.0, 1.5, s, tol: 0.2);  // sobre x=4, dentro del solape
+        Assert.NotNull(hit);
+        Assert.Equal(EjeBorde.X, hit!.Value.Eje);
+        Assert.Same(s.BordesX[0], hit.Value.Borde);
+    }
+
+    [Fact]
+    public void HitTestBorde_click_lejano_devuelve_null()
+    {
+        var s = SistemaDosLosasConBordeX();
+        Assert.Null(BordesPlantaService.HitTestBorde(1.0, 1.5, s, tol: 0.2));
+    }
+
+    [Fact]
+    public void HitTestBorde_borde_con_id_inexistente_se_ignora()
+    {
+        var s = new Sistema();
+        s.Losas.Add(L(1, 0, 0));
+        s.BordesX.Add(new BordeAdic { BI = 1, BJ = 99, Balanceo = "S" });  // 99 no existe
+        Assert.Null(BordesPlantaService.HitTestBorde(4.0, 1.5, s, tol: 0.5));
+    }
+
+    [Fact]
+    public void HitTestBorde_sistema_null_devuelve_null()
+    {
+        Assert.Null(BordesPlantaService.HitTestBorde(0, 0, null!, tol: 0.2));
+    }
 }

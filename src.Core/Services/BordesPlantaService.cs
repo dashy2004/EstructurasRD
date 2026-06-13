@@ -71,6 +71,62 @@ public static class BordesPlantaService
         return null;
     }
 
+    /// <summary>
+    /// Borde de continuidad más cercano al punto <c>(px,py)</c> (metros) dentro de
+    /// <paramref name="tol"/>, o <c>null</c>. El ancla de cada borde es su cara
+    /// compartida; si las losas no se tocan (par creado libremente), la línea
+    /// centroide-a-centroide. Bordes con Ids inexistentes se ignoran.
+    /// </summary>
+    public static BordeLocalizado? HitTestBorde(double px, double py, Sistema sistema, double tol)
+    {
+        if (sistema is null) return null;
+
+        BordeLocalizado? mejor = null;
+        double mejorDist = double.MaxValue;
+
+        void Probar(IEnumerable<BordeAdic> bordes, EjeBorde ejeColeccion)
+        {
+            foreach (var borde in bordes)
+            {
+                var a = BuscarLosa(sistema, borde.BI);
+                var b = BuscarLosa(sistema, borde.BJ);
+                if (a is null || b is null) continue;
+                var seg = SegmentoCompartido(a, b) ?? AnclaCentroides(a, b, ejeColeccion);
+                double d = DistanciaPuntoSegmento(px, py, seg.X0, seg.Y0, seg.X1, seg.Y1);
+                if (d <= tol && d < mejorDist)
+                {
+                    mejorDist = d;
+                    mejor = new BordeLocalizado(borde, ejeColeccion);
+                }
+            }
+        }
+
+        Probar(sistema.BordesX, EjeBorde.X);
+        Probar(sistema.BordesY, EjeBorde.Y);
+        return mejor;
+    }
+
+    private static Losa? BuscarLosa(Sistema s, int id)
+    {
+        foreach (var l in s.Losas) if (l.Id == id) return l;
+        return null;
+    }
+
+    private static SegmentoBorde AnclaCentroides(Losa a, Losa b, EjeBorde eje)
+        => new SegmentoBorde(
+            a.CoordenadaX + a.Lx / 2, a.CoordenadaY + a.Ly / 2,
+            b.CoordenadaX + b.Lx / 2, b.CoordenadaY + b.Ly / 2, eje);
+
+    private static double DistanciaPuntoSegmento(double px, double py, double x0, double y0, double x1, double y1)
+    {
+        double dx = x1 - x0, dy = y1 - y0;
+        double len2 = dx * dx + dy * dy;
+        if (len2 < 1e-9) return Math.Sqrt((px - x0) * (px - x0) + (py - y0) * (py - y0));
+        double t = Math.Clamp(((px - x0) * dx + (py - y0) * dy) / len2, 0.0, 1.0);
+        double cx = x0 + t * dx, cy = y0 + t * dy;
+        return Math.Sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
+    }
+
     private static readonly BorderKind[] CuatroApoyados =
         { BorderKind.Apoyado, BorderKind.Apoyado, BorderKind.Apoyado, BorderKind.Apoyado };
 
