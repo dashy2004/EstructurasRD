@@ -429,8 +429,6 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         }
 
         PushUndoSnapshot();
-        // Heurística de eje: si BI<BJ por ID, los agregamos a BordesX (convención
-        // simple). El usuario puede después editar el grid si está mal.
         var bi = Math.Min(primer, losaId);
         var bj = Math.Max(primer, losaId);
         var nuevo = new BordeAdic { BI = bi, BJ = bj, Balanceo = "S" };
@@ -439,8 +437,15 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         if (LosaTieneVoladizo(bi) || LosaTieneVoladizo(bj))
             nuevo.Balanceo = "N";
 
-        SistemaActivo.BordesX.Add(nuevo);
-        Log($"Borde X creado: I={bi} J={bj} BAL={nuevo.Balanceo}.");
+        // Eje inferido por geometría (UI1.8): lado a lado ⇒ BordesX, apiladas ⇒ BordesY.
+        var la = SistemaActivo.Losas.FirstOrDefault(l => l.Id == bi);
+        var lb = SistemaActivo.Losas.FirstOrDefault(l => l.Id == bj);
+        var eje = (la is not null && lb is not null)
+            ? BordesPlantaService.EjeInferido(la, lb)
+            : EjeBorde.X;
+        if (eje == EjeBorde.X) SistemaActivo.BordesX.Add(nuevo);
+        else                   SistemaActivo.BordesY.Add(nuevo);
+        Log($"Borde {(eje == EjeBorde.X ? "X" : "Y")} creado: I={bi} J={bj} BAL={nuevo.Balanceo}.");
         _primerIdParaBorde = null;
         ModoConectarBordes = false;  // sale del modo después de un par exitoso
         OnPropertyChanged(nameof(PrimerIdParaBorde));
