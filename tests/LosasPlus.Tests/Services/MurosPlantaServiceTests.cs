@@ -40,4 +40,23 @@ public class MurosPlantaServiceTests
         var m = M(0, 0, 0.1, 0);
         Assert.Equal(1, MurosPlantaService.AsaExtremo(m, new PuntoM(0.08, 0.0), 0.2));
     }
+
+    [Fact]
+    public void MoverExtremoLibre_punto_normal_es_identidad()
+    {
+        var fijo = new PuntoCad(0, 0);
+        var r = MurosPlantaService.MoverExtremoLibre(fijo, new PuntoM(3, 4), 0.10);
+        Assert.Equal(3.0, r.X, 9);
+        Assert.Equal(4.0, r.Y, 9);
+    }
+
+    [Fact]
+    public void MoverExtremoLibre_clampa_a_longitud_minima()
+    {
+        var fijo = new PuntoCad(0, 0);
+        // cursor a 0.04 m sobre +X; minLen 0.10 ⇒ se empuja a (0.10, 0).
+        var r = MurosPlantaService.MoverExtremoLibre(fijo, new PuntoM(0.04, 0.0), 0.10);
+        Assert.Equal(0.10, r.X, 9);
+        Assert.Equal(0.0, r.Y, 9);
+    }
 }

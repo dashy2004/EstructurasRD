@@ -28,6 +28,23 @@ public static class MurosPlantaService
         return null;
     }
 
+    /// <summary>
+    /// Modo libre: nueva posición del extremo arrastrado = <paramref name="cursor"/>,
+    /// salvo que su distancia a <paramref name="fijo"/> sea menor que
+    /// <paramref name="minLen"/>, en cuyo caso se clampa a esa longitud en la
+    /// dirección <c>fijo → cursor</c>. Si el cursor coincide con el extremo fijo
+    /// (sin dirección), se empuja <paramref name="minLen"/> en +X.
+    /// </summary>
+    public static PuntoCad MoverExtremoLibre(PuntoCad fijo, PuntoM cursor, double minLen)
+    {
+        double dx = cursor.X - fijo.X, dy = cursor.Y - fijo.Y;
+        double len = Math.Sqrt(dx * dx + dy * dy);
+        if (len >= minLen) return new PuntoCad(cursor.X, cursor.Y);
+        if (len < 1e-9) return new PuntoCad(fijo.X + minLen, fijo.Y);
+        double s = minLen / len;
+        return new PuntoCad(fijo.X + dx * s, fijo.Y + dy * s);
+    }
+
     private static double Dist2(double ax, double ay, double bx, double by)
     {
         double dx = ax - bx, dy = ay - by;
