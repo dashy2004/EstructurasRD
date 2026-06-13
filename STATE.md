@@ -4,10 +4,10 @@
 > Este archivo es la **fuente única de verdad**; si un doc lo contradice, manda este.
 
 <!-- AUTO:START -->
-Estampado: 2026-06-12 01:13 · rama engine/ui1-un-solo-lienzo · commit 6b8c6b8 · sin commit: 2 archivos
+Estampado: 2026-06-12 21:29 · rama engine/ui1.7-encuadre-clamp-poda · commit df584c5 · sin commit: 6 archivos
 
 ## Build & Tests (en vivo)
-- .NET (LosasPlus.Linux.sln): build 0 err / 0 warn · tests 1207 passed / 0 failed / 0 skipped
+- .NET (LosasPlus.Linux.sln): build 0 err / 0 warn · tests 1209 passed / 0 failed / 0 skipped
 - Python (motor-fea/.venv): 208 passed
 - ⚠️ pytest SOLO corre en motor-fea/.venv (python3 del sistema no tiene pytest)
 <!-- AUTO:END -->
