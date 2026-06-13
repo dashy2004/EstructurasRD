@@ -736,19 +736,10 @@ public class PlantaCanvas : Control
             }
         }
 
-        // 3. Slabs (filled rectangles)
+        // 3. Walls (line segments with thickness) — antes que las losas: un
+        // muro pisa la losa de abajo y debe ganar el click/drag (UI1.7).
         foreach (var sistema in Nivel.Sistemas)
         {
-            foreach (var losa in sistema.Losas)
-            {
-                if (p.X >= losa.CoordenadaX && p.X <= losa.CoordenadaX + losa.Lx &&
-                    p.Y >= losa.CoordenadaY && p.Y <= losa.CoordenadaY + losa.Ly)
-                {
-                    return losa;
-                }
-            }
-
-            // 4. Walls (line segments with thickness)
             foreach (var muro in sistema.Muros)
             {
                 var a = new Point(muro.PuntoInicio.X, muro.PuntoInicio.Y);
@@ -757,6 +748,19 @@ public class PlantaCanvas : Control
                 if (dist <= muro.Espesor / 2.0 + 0.1) // tolerance + half thickness in meters
                 {
                     return muro;
+                }
+            }
+        }
+
+        // 4. Slabs (filled rectangles)
+        foreach (var sistema in Nivel.Sistemas)
+        {
+            foreach (var losa in sistema.Losas)
+            {
+                if (p.X >= losa.CoordenadaX && p.X <= losa.CoordenadaX + losa.Lx &&
+                    p.Y >= losa.CoordenadaY && p.Y <= losa.CoordenadaY + losa.Ly)
+                {
+                    return losa;
                 }
             }
         }
