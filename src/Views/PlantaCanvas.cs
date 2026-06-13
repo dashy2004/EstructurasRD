@@ -907,6 +907,27 @@ public class PlantaCanvas : Control
             }
         }
 
+        // === UI1.8: capa de bordes de continuidad (sobre losas, bajo muros/columnas) ===
+        var hachuraPen = new Pen(new SolidColorBrush(Color.FromRgb(0x2E, 0x7D, 0x32)), 1.5);
+        var conectorS  = new Pen(new SolidColorBrush(Color.FromRgb(0x3F, 0x51, 0xB5)), 3.0); // índigo, sólido = Balanceo S
+        var conectorN  = new Pen(new SolidColorBrush(Color.FromRgb(0x3F, 0x51, 0xB5)), 3.0)  // discontinuo = Balanceo N
+            { DashStyle = new DashStyle(new double[] { 3, 3 }, 0) };
+
+        foreach (var sistema in Nivel.Sistemas)
+        {
+            // 6a. Hachura por arista (solo lectura, desde losa.Tipo)
+            foreach (var losa in sistema.Losas)
+            {
+                var centroM = new Point(losa.CoordenadaX + losa.Lx / 2, losa.CoordenadaY + losa.Ly / 2);
+                foreach (var ar in LosasPlus.Services.BordesPlantaService.HachuraAristas(losa))
+                    DibujarHachuraArista(context, hachuraPen, ar, centroM);
+            }
+
+            // 6b. Conectores de continuidad (uno por BordeAdic)
+            foreach (var b in sistema.BordesX) DibujarConector(context, sistema, b, conectorS, conectorN);
+            foreach (var b in sistema.BordesY) DibujarConector(context, sistema, b, conectorS, conectorN);
+        }
+
         // 2. Draw Beams
         var beamBrush = new SolidColorBrush(Color.FromRgb(0x19, 0x76, 0xD2));
         var beamPen = new Pen(beamBrush, 4.0);
@@ -1106,6 +1127,61 @@ public class PlantaCanvas : Control
             return;
         }
         Avalonia.Threading.Dispatcher.UIThread.Post(EncuadrarContenido);
+    }
+
+    private void DibujarHachuraArista(DrawingContext ctx, Pen pen,
+        LosasPlus.Services.AristaHachura ar, Point centroM)
+    {
+        var p0 = MetrosAPixel(ar.X0, ar.Y0);
+        var p1 = MetrosAPixel(ar.X1, ar.Y1);
+        double largoPx = Math.Sqrt((p1.X - p0.X) * (p1.X - p0.X) + (p1.Y - p0.Y) * (p1.Y - p0.Y));
+        if (largoPx < 16) return;  // zoom lejano: no saturar
+
+        switch (ar.Kind)
+        {
+            case LosasPlus.Models.BorderKind.Empotrado:
+            {
+                // ticks ⟂ hacia adentro: la normal "hacia adentro" apunta al centro de la losa.
+                double ux = (p1.X - p0.X) / largoPx, uy = (p1.Y - p0.Y) / largoPx;
+                double nx = uy, ny = -ux;
+                var medio  = new Point((p0.X + p1.X) / 2, (p0.Y + p1.Y) / 2);
+                var centro = MetrosAPixel(centroM.X, centroM.Y);
+                if ((centro.X - medio.X) * nx + (centro.Y - medio.Y) * ny < 0) { nx = -nx; ny = -ny; }
+                double tick = Math.Clamp(largoPx * 0.10, 4, 10);
+                for (double d = 8; d < largoPx; d += 10)
+                {
+                    double bx = p0.X + ux * d, by = p0.Y + uy * d;
+                    ctx.DrawLine(pen, new Point(bx, by), new Point(bx + nx * tick, by + ny * tick));
+                }
+                break;
+            }
+            case LosasPlus.Models.BorderKind.Libre:
+            case LosasPlus.Models.BorderKind.Vuelo:
+            {
+                var dotted = new Pen(pen.Brush, 1.5) { DashStyle = new DashStyle(new double[] { 2, 2 }, 0) };
+                ctx.DrawLine(dotted, p0, p1);
+                break;
+            }
+            // Apoyado: sin añadido (la arista de la losa ya es línea fina)
+        }
+    }
+
+    private void DibujarConector(DrawingContext ctx, LosasPlus.Models.Sistema sistema,
+        LosasPlus.Models.BordeAdic b, Pen penS, Pen penN)
+    {
+        var a  = sistema.Losas.FirstOrDefault(l => l.Id == b.BI);
+        var bb = sistema.Losas.FirstOrDefault(l => l.Id == b.BJ);
+        if (a is null || bb is null) return;
+
+        var seg = LosasPlus.Services.BordesPlantaService.SegmentoCompartido(a, bb);
+        Point q0, q1;
+        if (seg is { } s) { q0 = MetrosAPixel(s.X0, s.Y0); q1 = MetrosAPixel(s.X1, s.Y1); }
+        else
+        {
+            q0 = MetrosAPixel(a.CoordenadaX + a.Lx / 2, a.CoordenadaY + a.Ly / 2);
+            q1 = MetrosAPixel(bb.CoordenadaX + bb.Lx / 2, bb.CoordenadaY + bb.Ly / 2);
+        }
+        ctx.DrawLine(b.Balanceo == "N" ? penN : penS, q0, q1);
     }
 
     /// <summary>
