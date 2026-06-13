@@ -286,6 +286,9 @@ public class PlantaCanvas : Control
     /// <summary>Se dispara con (idA, idB) cuando el usuario elige 2 losas en modo «Conectar bordes».</summary>
     public event Action<int, int>? BordeConexionSolicitada;
 
+    public event Action<LosasPlus.Services.BordeLocalizado>? AlternarBalanceoSolicitado;
+    public event Action<LosasPlus.Services.BordeLocalizado>? EliminarBordeSolicitado;
+
     /// <summary>Centros de las 8 asas (orden de <see cref="AsaRedim"/>), en metros.</summary>
     private static (double X, double Y)[] CentrosAsas(Losa losa)
     {
@@ -347,6 +350,21 @@ public class PlantaCanvas : Control
 
         if (pointer.Properties.IsMiddleButtonPressed || pointer.Properties.IsRightButtonPressed)
         {
+            // UI1.8: click derecho sobre un borde ⇒ menú contextual (no pan).
+            if (pointer.Properties.IsRightButtonPressed && Nivel != null)
+            {
+                var pM = PixelAMetros(pointer.Position);
+                foreach (var sistema in Nivel.Sistemas)
+                {
+                    var hb = LosasPlus.Services.BordesPlantaService.HitTestBorde(pM.X, pM.Y, sistema, 12.0 / _scale);
+                    if (hb is { } bl)
+                    {
+                        AbrirMenuBorde(bl);
+                        e.Handled = true;
+                        return;
+                    }
+                }
+            }
             _isPanning = true;
             e.Pointer.Capture(this);
             e.Handled = true;
@@ -1250,5 +1268,19 @@ public class PlantaCanvas : Control
             _tx = txAntes;
             _ty = tyAntes;
         }
+    }
+
+    private void AbrirMenuBorde(LosasPlus.Services.BordeLocalizado bl)
+    {
+        var menu = new ContextMenu();
+        var destino = bl.Borde.Balanceo == "S" ? "N" : "S";
+        var toggle = new MenuItem { Header = $"Balanceo: {bl.Borde.Balanceo} → {destino}" };
+        toggle.Click += (_, __) => AlternarBalanceoSolicitado?.Invoke(bl);
+        var del = new MenuItem { Header = "Eliminar borde" };
+        del.Click += (_, __) => EliminarBordeSolicitado?.Invoke(bl);
+        menu.Items.Add(toggle);
+        menu.Items.Add(del);
+        menu.PlacementTarget = this;
+        menu.Open(this);
     }
 }

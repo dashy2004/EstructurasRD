@@ -452,6 +452,23 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         RefreshDLContent();
     }
 
+    public void AlternarBalanceoBorde(BordeLocalizado bl)
+    {
+        PushUndoSnapshot();
+        bl.Borde.Balanceo = bl.Borde.Balanceo == "S" ? "N" : "S";
+        Log($"Balanceo del borde I={bl.Borde.BI} J={bl.Borde.BJ} → {bl.Borde.Balanceo}.");
+        RefreshDLContent();
+    }
+
+    public void EliminarBordeLocalizado(BordeLocalizado bl)
+    {
+        PushUndoSnapshot();
+        var coll = bl.Eje == EjeBorde.X ? SistemaActivo.BordesX : SistemaActivo.BordesY;
+        coll.Remove(bl.Borde);
+        Log($"Borde eliminado: I={bl.Borde.BI} J={bl.Borde.BJ}.");
+        RefreshDLContent();
+    }
+
     /// <summary>Crea un BordeAdic desde el lienzo (UI1.8): eje inferido + balanceo por voladizo.</summary>
     public void ConectarBordesDesdeLienzo(int idA, int idB)
     {
@@ -459,6 +476,15 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         var la = SistemaActivo.Losas.FirstOrDefault(l => l.Id == idA);
         var lb = SistemaActivo.Losas.FirstOrDefault(l => l.Id == idB);
         if (la is null || lb is null) return;
+
+        var biG = Math.Min(idA, idB);
+        var bjG = Math.Max(idA, idB);
+        if (SistemaActivo.BordesX.Any(b => b.BI == biG && b.BJ == bjG) ||
+            SistemaActivo.BordesY.Any(b => b.BI == biG && b.BJ == bjG))
+        {
+            Log($"Borde I={biG} J={bjG} ya existe — no se duplica.");
+            return;
+        }
 
         PushUndoSnapshot();
         var bi = Math.Min(idA, idB);
