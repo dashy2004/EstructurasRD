@@ -89,4 +89,29 @@ public static class EncuadrePlanta
 
         return hay ? new RectM(minX, minY, maxX - minX, maxY - minY) : null;
     }
+
+    /// <summary>
+    /// Transform de ajuste: escala (px/m) y traslación (px) que centran
+    /// <paramref name="rect"/> en un viewport de
+    /// <paramref name="anchoPx"/>×<paramref name="altoPx"/> con un margen
+    /// fraccional por lado. La escala se clampa a <see cref="EscalaMax"/>;
+    /// un rect sin extensión en ambos ejes usa <see cref="EscalaFallback"/>.
+    /// </summary>
+    public static (double Escala, double Tx, double Ty) CalcularEncuadre(
+        RectM rect, double anchoPx, double altoPx, double margen = 0.05)
+    {
+        const double eps = 1e-9;
+        double util = 1.0 - 2.0 * margen;
+
+        double porAncho = rect.Ancho > eps ? anchoPx * util / rect.Ancho : double.PositiveInfinity;
+        double porAlto  = rect.Alto  > eps ? altoPx  * util / rect.Alto  : double.PositiveInfinity;
+
+        double escala = Math.Min(porAncho, porAlto);
+        if (double.IsPositiveInfinity(escala)) escala = EscalaFallback;
+        escala = Math.Min(escala, EscalaMax);
+
+        double tx = anchoPx / 2.0 - rect.CentroX * escala;
+        double ty = altoPx  / 2.0 - rect.CentroY * escala;
+        return (escala, tx, ty);
+    }
 }

@@ -147,4 +147,48 @@ public class EncuadrePlantaTests
 
         Assert.Null(EncuadrePlanta.CalcularExtents(null, plano, pdf, incluirUnderlays: true));
     }
+
+    // ---- CalcularEncuadre (fit) ----
+
+    [Fact]
+    public void Encuadre_escala_por_el_eje_limitante_con_margen()
+    {
+        // 1200×800, rect 20×10, margen 5% c/lado ⇒ min(1200·0.9/20, 800·0.9/10) = 54.
+        var (escala, tx, ty) = EncuadrePlanta.CalcularEncuadre(new RectM(0, 0, 20, 10), 1200, 800);
+
+        Assert.Equal(54.0, escala, precision: 9);
+        Assert.Equal(600 - 10 * 54.0, tx, precision: 9);   // centra cx = 10
+        Assert.Equal(400 - 5 * 54.0, ty, precision: 9);    // centra cy = 5
+    }
+
+    [Fact]
+    public void Encuadre_clampa_la_escala_a_200()
+    {
+        var (escala, tx, ty) = EncuadrePlanta.CalcularEncuadre(new RectM(0, 0, 1, 1), 1200, 800);
+
+        Assert.Equal(EncuadrePlanta.EscalaMax, escala);
+        Assert.Equal(600 - 0.5 * 200.0, tx, precision: 9);
+        Assert.Equal(400 - 0.5 * 200.0, ty, precision: 9);
+    }
+
+    [Fact]
+    public void Encuadre_degenerado_total_usa_escala_default_centrada()
+    {
+        // Una sola columna: rect 0×0 en (5, 7) ⇒ escala 40 y el punto al centro.
+        var (escala, tx, ty) = EncuadrePlanta.CalcularEncuadre(new RectM(5, 7, 0, 0), 1200, 800);
+
+        Assert.Equal(EncuadrePlanta.EscalaFallback, escala);
+        Assert.Equal(600 - 5 * 40.0, tx, precision: 9);
+        Assert.Equal(400 - 7 * 40.0, ty, precision: 9);
+    }
+
+    [Fact]
+    public void Encuadre_con_un_solo_eje_degenerado_manda_el_otro()
+    {
+        // Fila horizontal de columnas: alto 0 ⇒ manda el ancho (1200·0.9/10 = 108).
+        var (escala, _, ty) = EncuadrePlanta.CalcularEncuadre(new RectM(0, 0, 10, 0), 1200, 800);
+
+        Assert.Equal(108.0, escala, precision: 9);
+        Assert.Equal(400.0, ty, precision: 9);   // cy = 0 ⇒ ty = altoPx/2
+    }
 }
