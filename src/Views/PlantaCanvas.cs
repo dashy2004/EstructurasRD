@@ -1093,10 +1093,21 @@ public class PlantaCanvas : Control
                 
                 context.DrawLine(pen, pStart, pEnd);
 
-                // Label
-                var ft = new FormattedText($"Muro {muro.Id}", CultureInfo.InvariantCulture, FlowDirection.LeftToRight, boldTypeface, 11.0, Brushes.SaddleBrown);
+                // Label — longitud en vivo cuando está seleccionado (UI1.10).
+                string etiqueta = isSelected
+                    ? $"Muro {muro.Id} · {muro.Longitud:0.00} m"
+                    : $"Muro {muro.Id}";
+                var ft = new FormattedText(etiqueta, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, boldTypeface, 11.0, Brushes.SaddleBrown);
                 var mid = new Point((pStart.X + pEnd.X) / 2.0, (pStart.Y + pEnd.Y) / 2.0 - (muro.Espesor * _scale) / 2.0 - 15.0);
                 context.DrawText(ft, mid);
+
+                // Asas de extremo (UI1.10) — mismo look que las asas de losa (UI1.5).
+                if (isSelected)
+                {
+                    var asaPen = new Pen(Brushes.White, 1.0);
+                    context.DrawRectangle(muroSelectBrush, asaPen, new Rect(pStart.X - 4, pStart.Y - 4, 8, 8));
+                    context.DrawRectangle(muroSelectBrush, asaPen, new Rect(pEnd.X - 4, pEnd.Y - 4, 8, 8));
+                }
             }
         }
 
