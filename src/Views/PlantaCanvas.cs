@@ -280,6 +280,12 @@ public class PlantaCanvas : Control
     /// </summary>
     public event Action? GestoEdicionIniciado;
 
+    // ---- Conectar bordes desde el lienzo (UI1.8) ----
+
+    private int? _primerLosaIdBorde;
+    /// <summary>Se dispara con (idA, idB) cuando el usuario elige 2 losas en modo «Conectar bordes».</summary>
+    public event Action<int, int>? BordeConexionSolicitada;
+
     /// <summary>Centros de las 8 asas (orden de <see cref="AsaRedim"/>), en metros.</summary>
     private static (double X, double Y)[] CentrosAsas(Losa losa)
     {
@@ -385,6 +391,24 @@ public class PlantaCanvas : Control
                             break;
                         }
                     PoligonoMapeado?.Invoke(hit);
+                }
+                e.Handled = true;
+                return;
+            }
+
+            if (ActiveTool == "ConectarBordes")
+            {
+                if (HitTest(pM, out _) is Losa losaClic)
+                {
+                    if (_primerLosaIdBorde is null)
+                        _primerLosaIdBorde = losaClic.Id;
+                    else if (_primerLosaIdBorde.Value != losaClic.Id)
+                    {
+                        BordeConexionSolicitada?.Invoke(_primerLosaIdBorde.Value, losaClic.Id);
+                        _primerLosaIdBorde = null;
+                    }
+                    else _primerLosaIdBorde = null;
+                    InvalidateVisual();
                 }
                 e.Handled = true;
                 return;

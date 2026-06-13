@@ -64,6 +64,7 @@ public partial class Planta2DEditorView : UserControl
 
         // Undo por gesto en Planta (UI1.5): un Ctrl+Z revierte el drag/resize entero.
         EditorCanvas.GestoEdicionIniciado += () => Vm?.PushUndoSnapshot();
+        EditorCanvas.BordeConexionSolicitada += (idA, idB) => Vm?.ConectarBordesDesdeLienzo(idA, idB);
 
         // Wire buttons
         BtnEncuadrar.Click += (s, e) => EditorCanvas.EncuadrarContenido();

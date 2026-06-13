@@ -452,6 +452,27 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         RefreshDLContent();
     }
 
+    /// <summary>Crea un BordeAdic desde el lienzo (UI1.8): eje inferido + balanceo por voladizo.</summary>
+    public void ConectarBordesDesdeLienzo(int idA, int idB)
+    {
+        if (idA == idB) return;
+        var la = SistemaActivo.Losas.FirstOrDefault(l => l.Id == idA);
+        var lb = SistemaActivo.Losas.FirstOrDefault(l => l.Id == idB);
+        if (la is null || lb is null) return;
+
+        PushUndoSnapshot();
+        var bi = Math.Min(idA, idB);
+        var bj = Math.Max(idA, idB);
+        var nuevo = new BordeAdic { BI = bi, BJ = bj, Balanceo = "S" };
+        if (LosaTieneVoladizo(bi) || LosaTieneVoladizo(bj)) nuevo.Balanceo = "N";
+
+        var eje = BordesPlantaService.EjeInferido(la, lb);
+        if (eje == EjeBorde.X) SistemaActivo.BordesX.Add(nuevo);
+        else                   SistemaActivo.BordesY.Add(nuevo);
+        Log($"Borde {(eje == EjeBorde.X ? "X" : "Y")} creado (lienzo): I={bi} J={bj} BAL={nuevo.Balanceo}.");
+        RefreshDLContent();
+    }
+
     private bool LosaTieneVoladizo(int losaId)
     {
         var losa = SistemaActivo.Losas.FirstOrDefault(l => l.Id == losaId);
