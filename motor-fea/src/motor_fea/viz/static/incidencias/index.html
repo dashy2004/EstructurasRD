@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Incidencias VR — EstructurasRD</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; }
+    #ficha { position: fixed; top: 8px; right: 8px; width: 280px; padding: 10px;
+             background: rgba(20,20,20,.85); color: #eee; border-radius: 8px; display: none; }
+    #ficha input, #ficha textarea, #ficha select { width: 100%; margin: 3px 0; }
+    #barra { position: fixed; top: 8px; left: 8px; display: flex; gap: 6px; }
+    #msg { position: fixed; bottom: 8px; left: 8px; color: #f55; }
+    button { cursor: pointer; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "../vendor/three.module.js",
+      "three/addons/": "../vendor/addons/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="barra">
+    <button id="btn-importar">Importar JSON</button>
+    <button id="btn-exportar">Exportar JSON</button>
+    <input id="file-importar" type="file" accept="application/json" hidden />
+  </div>
+  <div id="ficha">
+    <div><b>Incidencia</b></div>
+    <label>Categoría <input id="f-categoria" /></label>
+    <label>Severidad
+      <select id="f-severidad">
+        <option>baja</option><option selected>media</option>
+        <option>alta</option><option>critica</option>
+      </select>
+    </label>
+    <label>Descripción <textarea id="f-descripcion" rows="3"></textarea></label>
+    <label>Recursos (coma) <input id="f-recursos" /></label>
+    <button id="btn-clasificar">Clasificar con IA</button>
+    <button id="btn-guardar-ficha">Guardar</button>
+    <button id="btn-borrar">Borrar</button>
+  </div>
+  <div id="msg"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
