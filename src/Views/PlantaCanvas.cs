@@ -1106,9 +1106,12 @@ public class PlantaCanvas : Control
 
     /// <summary>
     /// Captura la planta como imagen para incrustarla en la exportación a
-    /// Excel (UI1.6 — antes se capturaba el lienzo CAD, hoy retirado). Render
-    /// del viewport actual; si el control no fue realizado aún (export sin
-    /// haber abierto Planta 2D), se mide/arregla a 1200×800 como mejor esfuerzo.
+    /// Excel. UI1.7: encuadra el ENTREGABLE — la estructura manda y los
+    /// underlays son fallback — mutando _scale/_tx/_ty solo durante el render
+    /// al bitmap (set-render-restore; sin InvalidateVisual la vista en
+    /// pantalla no se entera). Sin contenido, render del viewport tal cual.
+    /// Si el control no fue realizado aún (export sin haber abierto Planta
+    /// 2D), se mide/arregla a 1200×800 como mejor esfuerzo.
     /// </summary>
     public Avalonia.Media.Imaging.Bitmap CaptureCanvasPng()
     {
@@ -1123,9 +1126,25 @@ public class PlantaCanvas : Control
             Arrange(new Rect(0, 0, w, h));
         }
 
-        var rtb = new Avalonia.Media.Imaging.RenderTargetBitmap(
-            new PixelSize((int)Math.Ceiling(w), (int)Math.Ceiling(h)), new Vector(96, 96));
-        rtb.Render(this);
-        return rtb;
+        var rect = EncuadrePlanta.CalcularExtents(Nivel, PlanoDxf, PdfRef, incluirUnderlays: false)
+                ?? EncuadrePlanta.CalcularExtents(Nivel, PlanoDxf, PdfRef, incluirUnderlays: true);
+
+        double escalaAntes = _scale, txAntes = _tx, tyAntes = _ty;
+        try
+        {
+            if (rect is RectM r)
+                (_scale, _tx, _ty) = EncuadrePlanta.CalcularEncuadre(r, w, h);
+
+            var rtb = new Avalonia.Media.Imaging.RenderTargetBitmap(
+                new PixelSize((int)Math.Ceiling(w), (int)Math.Ceiling(h)), new Vector(96, 96));
+            rtb.Render(this);
+            return rtb;
+        }
+        finally
+        {
+            _scale = escalaAntes;
+            _tx = txAntes;
+            _ty = tyAntes;
+        }
     }
 }
