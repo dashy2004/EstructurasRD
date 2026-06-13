@@ -21,6 +21,7 @@ from motor_fea.viz.resultados import calcular_resultados
 from motor_fea.viz.resultados_losa import calcular_resultados_losa
 from motor_fea.viz.armado import calcular_armado
 from motor_fea.viz.diseno import calcular_diseno
+from motor_fea.api.incidencias import crear_router as _crear_incidencias
 
 _STATIC = Path(__file__).resolve().parent.parent / "viz" / "static"
 
@@ -99,6 +100,10 @@ def crear_app(modelo: ModeloEstructural) -> FastAPI:
             return calcular_diseno(modelo, fc, fy, rec)
         except ValueError as ex:
             raise HTTPException(status_code=400, detail=str(ex))
+
+    # Router de incidencias VR (store JSON en viz/static/incidencias/).
+    _store = Path(__file__).resolve().parent.parent / "viz" / "static" / "incidencias" / "store.json"
+    app.include_router(_crear_incidencias(_store))
 
     # Montar al final: las rutas de API registradas arriba tienen prioridad.
     app.mount("/", StaticFiles(directory=str(_STATIC), html=True), name="static")
