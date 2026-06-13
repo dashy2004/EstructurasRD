@@ -37,4 +37,37 @@ public static class BordesPlantaService
         double dy = Math.Abs((a.CoordenadaY + a.Ly / 2) - (b.CoordenadaY + b.Ly / 2));
         return dx >= dy ? EjeBorde.X : EjeBorde.Y;
     }
+
+    /// <summary>
+    /// Si <paramref name="a"/> y <paramref name="b"/> comparten una cara (hueco ≤
+    /// <paramref name="tol"/> y solape &gt; tol en el eje paralelo), devuelve el
+    /// segmento de solape en metros y su <see cref="EjeBorde"/>; si no, <c>null</c>.
+    /// </summary>
+    public static SegmentoBorde? SegmentoCompartido(Losa a, Losa b, double tol = TolContactoM)
+    {
+        double ax0 = a.CoordenadaX, ax1 = a.CoordenadaX + a.Lx;
+        double ay0 = a.CoordenadaY, ay1 = a.CoordenadaY + a.Ly;
+        double bx0 = b.CoordenadaX, bx1 = b.CoordenadaX + b.Lx;
+        double by0 = b.CoordenadaY, by1 = b.CoordenadaY + b.Ly;
+
+        // Cara vertical compartida (continuidad en X): A.der ~ B.izq  o  B.der ~ A.izq
+        bool vertTouch = Math.Abs(ax1 - bx0) <= tol || Math.Abs(bx1 - ax0) <= tol;
+        double yLo = Math.Max(ay0, by0), yHi = Math.Min(ay1, by1);
+        if (vertTouch && yHi - yLo > tol)
+        {
+            double x = Math.Abs(ax1 - bx0) <= tol ? (ax1 + bx0) / 2 : (bx1 + ax0) / 2;
+            return new SegmentoBorde(x, yLo, x, yHi, EjeBorde.X);
+        }
+
+        // Cara horizontal compartida (continuidad en Y): A.inf ~ B.sup  o  B.inf ~ A.sup
+        bool horizTouch = Math.Abs(ay1 - by0) <= tol || Math.Abs(by1 - ay0) <= tol;
+        double xLo = Math.Max(ax0, bx0), xHi = Math.Min(ax1, bx1);
+        if (horizTouch && xHi - xLo > tol)
+        {
+            double y = Math.Abs(ay1 - by0) <= tol ? (ay1 + by0) / 2 : (by1 + ay0) / 2;
+            return new SegmentoBorde(xLo, y, xHi, y, EjeBorde.Y);
+        }
+
+        return null;
+    }
 }
