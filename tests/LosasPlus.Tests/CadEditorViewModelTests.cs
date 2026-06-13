@@ -100,4 +100,66 @@ public class CadEditorViewModelTests
         vm.MuroSeleccionado = m2;
         Assert.True(vm.EliminarMuroCommand.CanExecute(null));
     }
+
+    // ---- Clamp Escala > 0 (UI1.7): el TextBox commitea un «0» transitorio ----
+
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(-3.0)]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    public void EscalaPlano_rechaza_valores_invalidos_sin_mutar_ni_redibujar(double invalido)
+    {
+        var vm = Crear();
+        vm.Plano = new PlanoReferencia { MinX = 0, MinY = 0, MaxX = 10, MaxY = 5, Escala = 2.0 };
+        int revAntes = vm.RevisionPlano;
+
+        vm.EscalaPlano = invalido;
+
+        Assert.Equal(2.0, vm.EscalaPlano);
+        Assert.Equal(revAntes, vm.RevisionPlano);
+    }
+
+    [Fact]
+    public void EscalaPlano_acepta_valores_validos_y_bumpea_revision()
+    {
+        var vm = Crear();
+        vm.Plano = new PlanoReferencia { MinX = 0, MinY = 0, MaxX = 10, MaxY = 5, Escala = 2.0 };
+        int revAntes = vm.RevisionPlano;
+
+        vm.EscalaPlano = 0.5;
+
+        Assert.Equal(0.5, vm.EscalaPlano);
+        Assert.Equal(revAntes + 1, vm.RevisionPlano);
+    }
+
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(-1.0)]
+    [InlineData(double.NaN)]
+    [InlineData(double.NegativeInfinity)]
+    public void EscalaPdf_rechaza_valores_invalidos_sin_mutar_ni_redibujar(double invalido)
+    {
+        var vm = Crear();
+        vm.Pdf = new PdfReferencia { Ancho = 0.841, Alto = 0.594, Escala = 100.0 };
+        int revAntes = vm.RevisionPdf;
+
+        vm.EscalaPdf = invalido;
+
+        Assert.Equal(100.0, vm.EscalaPdf);
+        Assert.Equal(revAntes, vm.RevisionPdf);
+    }
+
+    [Fact]
+    public void EscalaPdf_acepta_valores_validos_y_bumpea_revision()
+    {
+        var vm = Crear();
+        vm.Pdf = new PdfReferencia { Ancho = 0.841, Alto = 0.594, Escala = 100.0 };
+        int revAntes = vm.RevisionPdf;
+
+        vm.EscalaPdf = 50.0;
+
+        Assert.Equal(50.0, vm.EscalaPdf);
+        Assert.Equal(revAntes + 1, vm.RevisionPdf);
+    }
 }

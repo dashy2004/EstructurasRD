@@ -61,7 +61,7 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
     public PlanoReferencia? Plano
     {
         get => _plano;
-        private set
+        internal set
         {
             _plano = value;
             OnPropertyChanged();
@@ -96,6 +96,9 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         get => _plano?.Escala ?? 1.0;
         set
         {
+            // Clamp UI1.7: el TextBox commitea un «0» transitorio al teclear
+            // «0.5» y PlantaAPlano divide por Escala — rechazar sin mutar.
+            if (!double.IsFinite(value) || value <= 0) return;
             if (_plano is null || Math.Abs(_plano.Escala - value) < 1e-9) return;
             _plano.Escala = value;
             OnPropertyChanged();
@@ -139,7 +142,7 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
     public PdfReferencia? Pdf
     {
         get => _pdf;
-        private set
+        internal set
         {
             _pdf = value;
             OnPropertyChanged();
@@ -189,6 +192,9 @@ public sealed class CadEditorViewModel : INotifyPropertyChanged
         get => _pdf?.Escala ?? 1.0;
         set
         {
+            // Clamp UI1.7: el TextBox commitea un «0» transitorio al teclear
+            // «0.5» y PlantaAPlano divide por Escala — rechazar sin mutar.
+            if (!double.IsFinite(value) || value <= 0) return;
             if (_pdf is null || Math.Abs(_pdf.Escala - value) < 1e-9) return;
             _pdf.Escala = value;
             OnPropertyChanged();

@@ -66,4 +66,8 @@
        ya no queda XAML WPF que excluir, así que se retiró el andamiaje
        Compile Remove/Include que usaba el port incremental (Fases D–F). -->
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="LosasPlus.Tests" />
+  </ItemGroup>
+
 </Project>
