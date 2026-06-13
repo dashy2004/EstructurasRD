@@ -453,6 +453,23 @@ public class PlantaCanvas : Control
                     return;
                 }
 
+                // Asa de extremo del muro seleccionado (UI1.10) — prioridad sobre
+                // el cuerpo del muro; radio de captura generoso como en losa.
+                if (SelectedElement is Muro muroSel
+                    && MurosPlantaService.AsaExtremo(muroSel, new PuntoM(pM.X, pM.Y), 10.0 / _scale) is { } extMuro)
+                {
+                    _isDragging = true;
+                    _dragEndpoint = extMuro;
+                    _dragStartPos = pM;
+                    var extPt = extMuro == 0 ? muroSel.PuntoInicio : muroSel.PuntoFin;
+                    _dragStartElementX = extPt.X;
+                    _dragStartElementY = extPt.Y;
+                    GestoEdicionIniciado?.Invoke();   // snapshot de Undo del gesto
+                    e.Pointer.Capture(this);
+                    e.Handled = true;
+                    return;
+                }
+
                 // Hit test using raw mouse coords
                 object? hit = HitTest(pM, out int endpointHit);
                 SelectedElement = hit;
@@ -699,10 +716,26 @@ public class PlantaCanvas : Control
             }
             else if (SelectedElement is Muro m)
             {
-                double dxStart = snapResult.X - m.PuntoInicio.X;
-                double dyStart = snapResult.Y - m.PuntoInicio.Y;
-                m.PuntoInicio = new PuntoCad(m.PuntoInicio.X + dxStart, m.PuntoInicio.Y + dyStart);
-                m.PuntoFin = new PuntoCad(m.PuntoFin.X + dxStart, m.PuntoFin.Y + dyStart);
+                if (_dragEndpoint == 0 || _dragEndpoint == 1)
+                {
+                    // Redimensionar por un extremo (UI1.10): el otro extremo queda fijo.
+                    var fijo = _dragEndpoint == 0 ? m.PuntoFin : m.PuntoInicio;
+                    var refEje = new PuntoCad(_dragStartElementX, _dragStartElementY); // pos. original del extremo
+                    var cur = new PuntoM(snapResult.X, snapResult.Y);
+                    bool soloLongitud = (e.KeyModifiers & KeyModifiers.Shift) != 0;
+                    var nuevo = soloLongitud
+                        ? MurosPlantaService.ProyectarSobreEje(fijo, refEje, cur, 0.10)
+                        : MurosPlantaService.MoverExtremoLibre(fijo, cur, 0.10);
+                    if (_dragEndpoint == 0) m.PuntoInicio = nuevo; else m.PuntoFin = nuevo;
+                }
+                else
+                {
+                    // Cuerpo: traslada ambos extremos (comportamiento previo).
+                    double dxStart = snapResult.X - m.PuntoInicio.X;
+                    double dyStart = snapResult.Y - m.PuntoInicio.Y;
+                    m.PuntoInicio = new PuntoCad(m.PuntoInicio.X + dxStart, m.PuntoInicio.Y + dyStart);
+                    m.PuntoFin = new PuntoCad(m.PuntoFin.X + dxStart, m.PuntoFin.Y + dyStart);
+                }
             }
             else if (SelectedElement is EjeEstructural eje)
             {
@@ -739,6 +772,7 @@ public class PlantaCanvas : Control
         _isPanning = false;
         _isDragging = false;
         _resizeLosa = null;   // fin del gesto de resize (UI1.5)
+        _dragEndpoint = 2;    // fin del arrastre de extremo (UI1.10)
         e.Pointer.Capture(null);
     }
 
