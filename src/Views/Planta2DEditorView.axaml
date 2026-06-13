@@ -64,6 +64,8 @@
                             ToolTip.Tip="Importar plano DXF como referencia (underlay) para calcar la estructura."/>
                     <Button Content="📑 PDF" Command="{Binding CadEditor.ImportarPdfCommand}"
                             ToolTip.Tip="Importar plano PDF como referencia (underlay)."/>
+                    <Button x:Name="BtnEncuadrar" Content="⛶ Encuadrar"
+                            ToolTip.Tip="Encuadrar todo el contenido (estructura + planos)"/>
                     <Button Content="🤖 Auto-Conectar" Command="{Binding CadEditor.AutoAlinearSistemasCommand}"
                             ToolTip.Tip="Alinea losas vecinas y genera los bordes de continuidad."/>
                     <Button x:Name="BtnRecalcular" Content="⚡ Recalcular Descenso" Classes="accent"

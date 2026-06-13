@@ -66,6 +66,7 @@ public partial class Planta2DEditorView : UserControl
         EditorCanvas.GestoEdicionIniciado += () => Vm?.PushUndoSnapshot();
 
         // Wire buttons
+        BtnEncuadrar.Click += (s, e) => EditorCanvas.EncuadrarContenido();
         BtnRecalcular.Click += OnRecalcularClick;
         BtnEliminar.Click += OnEliminarClick;
         BtnGenerarVigaContinua.Click += OnGenerarVigaContinuaClick;

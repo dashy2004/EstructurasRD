@@ -68,7 +68,15 @@ public class PlantaCanvas : Control
     public PdfReferencia? PdfRef
     {
         get => _pdfRef;
-        set { if (SetAndRaise(PdfRefProperty, ref _pdfRef, value)) InvalidateVisual(); }
+        set
+        {
+            bool esNuevo = _pdfRef is null && value is not null;
+            if (SetAndRaise(PdfRefProperty, ref _pdfRef, value))
+            {
+                InvalidateVisual();
+                if (esNuevo) EncuadrarTrasImport();   // UI1.7: auto-encuadre al importar
+            }
+        }
     }
 
     private Avalonia.Media.Imaging.Bitmap? _fondoPdf;
@@ -98,7 +106,15 @@ public class PlantaCanvas : Control
     public PlanoReferencia? PlanoDxf
     {
         get => _planoDxf;
-        set { if (SetAndRaise(PlanoDxfProperty, ref _planoDxf, value)) InvalidateVisual(); }
+        set
+        {
+            bool esNuevo = _planoDxf is null && value is not null;
+            if (SetAndRaise(PlanoDxfProperty, ref _planoDxf, value))
+            {
+                InvalidateVisual();
+                if (esNuevo) EncuadrarTrasImport();   // UI1.7: auto-encuadre al importar
+            }
+        }
     }
 
     // ---- Tokens de revisión (UI1.6): Plano/Pdf son objetos mutables; el VM
@@ -1055,6 +1071,37 @@ public class PlantaCanvas : Control
                 FlowDirection.LeftToRight, boldTypeface, 13.0, Brushes.OrangeRed);
             context.DrawText(ftCal, new Point((a.X + b.X) / 2.0 + 8, (a.Y + b.Y) / 2.0 - 20));
         }
+    }
+
+    /// <summary>
+    /// Encuadra el lienzo al contenido completo (estructura + underlays
+    /// DXF/PDF): aplica el fit de <see cref="EncuadrePlanta"/> sobre
+    /// _scale/_tx/_ty y redibuja. No-op sin contenido o sin layout (UI1.7).
+    /// </summary>
+    public void EncuadrarContenido()
+    {
+        if (Bounds.Width < 1 || Bounds.Height < 1) return;
+
+        var rect = EncuadrePlanta.CalcularExtents(Nivel, PlanoDxf, PdfRef, incluirUnderlays: true);
+        if (rect is not RectM r) return;
+
+        (_scale, _tx, _ty) = EncuadrePlanta.CalcularEncuadre(r, Bounds.Width, Bounds.Height);
+        InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Auto-encuadre tras importar un underlay (UI1.7). Si el binding inicial
+    /// llega antes del layout (Bounds aún 0), difiere un ciclo de UI — el
+    /// mismo patrón que <see cref="OnModeloCambiado"/>.
+    /// </summary>
+    private void EncuadrarTrasImport()
+    {
+        if (Bounds.Width >= 1 && Bounds.Height >= 1)
+        {
+            EncuadrarContenido();
+            return;
+        }
+        Avalonia.Threading.Dispatcher.UIThread.Post(EncuadrarContenido);
     }
 
     /// <summary>
