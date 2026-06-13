@@ -59,4 +59,57 @@ public class MurosPlantaServiceTests
         Assert.Equal(0.10, r.X, 9);
         Assert.Equal(0.0, r.Y, 9);
     }
+
+    [Fact]
+    public void ProyectarSobreEje_punto_sobre_el_eje_es_identidad()
+    {
+        var fijo = new PuntoCad(0, 0);
+        var refEje = new PuntoCad(5, 0);            // eje horizontal +X
+        var r = MurosPlantaService.ProyectarSobreEje(fijo, refEje, new PuntoM(3, 0), 0.10);
+        Assert.Equal(3.0, r.X, 9);
+        Assert.Equal(0.0, r.Y, 9);
+    }
+
+    [Fact]
+    public void ProyectarSobreEje_punto_fuera_del_eje_proyecta_perpendicular()
+    {
+        var fijo = new PuntoCad(0, 0);
+        var refEje = new PuntoCad(5, 0);            // eje horizontal
+        // cursor (3, 2) ⇒ proyección sobre el eje = (3, 0).
+        var r = MurosPlantaService.ProyectarSobreEje(fijo, refEje, new PuntoM(3, 2), 0.10);
+        Assert.Equal(3.0, r.X, 9);
+        Assert.Equal(0.0, r.Y, 9);
+    }
+
+    [Fact]
+    public void ProyectarSobreEje_diagonal_mantiene_la_orientacion()
+    {
+        var fijo = new PuntoCad(0, 0);
+        var refEje = new PuntoCad(3, 4);            // eje a 5 m, dir (0.6, 0.8)
+        // cursor en (6, 8) está sobre el eje a 10 m ⇒ identidad.
+        var r = MurosPlantaService.ProyectarSobreEje(fijo, refEje, new PuntoM(6, 8), 0.10);
+        Assert.Equal(6.0, r.X, 9);
+        Assert.Equal(8.0, r.Y, 9);
+    }
+
+    [Fact]
+    public void ProyectarSobreEje_no_voltea_y_clampa_a_longitud_minima()
+    {
+        var fijo = new PuntoCad(0, 0);
+        var refEje = new PuntoCad(5, 0);            // eje +X
+        // cursor en el lado opuesto (-3, 0): t < 0 ⇒ clamp a minLen sobre +X.
+        var r = MurosPlantaService.ProyectarSobreEje(fijo, refEje, new PuntoM(-3, 0), 0.10);
+        Assert.Equal(0.10, r.X, 9);
+        Assert.Equal(0.0, r.Y, 9);
+    }
+
+    [Fact]
+    public void ProyectarSobreEje_eje_degenerado_cae_a_libre()
+    {
+        var fijo = new PuntoCad(2, 2);
+        var refEje = new PuntoCad(2, 2);            // longitud ~0: sin dirección
+        var r = MurosPlantaService.ProyectarSobreEje(fijo, refEje, new PuntoM(5, 6), 0.10);
+        Assert.Equal(5.0, r.X, 9);
+        Assert.Equal(6.0, r.Y, 9);
+    }
 }

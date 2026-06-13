@@ -45,6 +45,28 @@ public static class MurosPlantaService
         return new PuntoCad(fijo.X + dx * s, fijo.Y + dy * s);
     }
 
+    /// <summary>
+    /// Modo Shift (solo longitud): proyecta <paramref name="cursor"/> sobre la recta
+    /// que pasa por <paramref name="fijo"/> en la dirección <c>fijo → refEje</c>.
+    /// La distancia resultante a <paramref name="fijo"/> se clampa a
+    /// <paramref name="minLen"/>, lo que además impide el volteo (la proyección
+    /// nunca cae del lado opuesto a <paramref name="refEje"/>). Si el eje es
+    /// degenerado (<paramref name="fijo"/> ≈ <paramref name="refEje"/>) cae a
+    /// <see cref="MoverExtremoLibre"/>.
+    /// </summary>
+    public static PuntoCad ProyectarSobreEje(PuntoCad fijo, PuntoCad refEje, PuntoM cursor, double minLen)
+    {
+        double ax = refEje.X - fijo.X, ay = refEje.Y - fijo.Y;
+        double l2 = ax * ax + ay * ay;
+        if (l2 < 1e-12) return MoverExtremoLibre(fijo, cursor, minLen);
+
+        double len = Math.Sqrt(l2);
+        double ux = ax / len, uy = ay / len;                 // dirección unitaria del eje
+        double t = (cursor.X - fijo.X) * ux + (cursor.Y - fijo.Y) * uy;  // proyección escalar (m)
+        if (t < minLen) t = minLen;                          // longitud mínima + no-volteo
+        return new PuntoCad(fijo.X + ux * t, fijo.Y + uy * t);
+    }
+
     private static double Dist2(double ax, double ay, double bx, double by)
     {
         double dx = ax - bx, dy = ay - by;
