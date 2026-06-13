@@ -90,4 +90,38 @@ public class BordesPlantaServiceTests
         var b = L(2, 20, 20, lx: 4, ly: 3);
         Assert.Null(BordesPlantaService.SegmentoCompartido(a, b));
     }
+
+    [Fact]
+    public void HachuraAristas_tipo_del_catalogo_mapea_NESW_y_geometria()
+    {
+        var kvp = TipoLosa.Catalogo.First();       // un tipo válido cualquiera, sin hardcodear el patrón
+        var losa = L(1, 1, 2, lx: 4, ly: 3, tipo: kvp.Key);
+        var esperado = kvp.Value.Bordes;           // [N,E,S,W]
+
+        var aristas = BordesPlantaService.HachuraAristas(losa);
+
+        Assert.Equal(4, aristas.Count);
+        Assert.Equal(esperado[0], aristas[0].Kind); // N
+        Assert.Equal(esperado[1], aristas[1].Kind); // E
+        Assert.Equal(esperado[2], aristas[2].Kind); // S
+        Assert.Equal(esperado[3], aristas[3].Kind); // W
+        // N = arista superior (1,2)-(5,2)
+        Assert.Equal(1, aristas[0].X0, 3); Assert.Equal(2, aristas[0].Y0, 3);
+        Assert.Equal(5, aristas[0].X1, 3); Assert.Equal(2, aristas[0].Y1, 3);
+        // W = arista izquierda (1,2)-(1,5)
+        Assert.Equal(1, aristas[3].X0, 3); Assert.Equal(2, aristas[3].Y0, 3);
+        Assert.Equal(1, aristas[3].X1, 3); Assert.Equal(5, aristas[3].Y1, 3);
+    }
+
+    [Fact]
+    public void HachuraAristas_tipo_fuera_del_catalogo_degrada_a_4_apoyado()
+    {
+        int invalido = Enumerable.Range(1, 100000)
+            .First(c => !TipoLosa.Catalogo.ContainsKey(TipoLosa.NormalizarCodigo(c)));
+        var losa = L(1, 0, 0, tipo: invalido);
+
+        var aristas = BordesPlantaService.HachuraAristas(losa);
+
+        Assert.All(aristas, ar => Assert.Equal(BorderKind.Apoyado, ar.Kind));
+    }
 }

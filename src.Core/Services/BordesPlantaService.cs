@@ -70,4 +70,29 @@ public static class BordesPlantaService
 
         return null;
     }
+
+    private static readonly BorderKind[] CuatroApoyados =
+        { BorderKind.Apoyado, BorderKind.Apoyado, BorderKind.Apoyado, BorderKind.Apoyado };
+
+    /// <summary>
+    /// Las 4 aristas <c>[N, E, S, W]</c> de la losa con su <see cref="BorderKind"/>
+    /// (resuelto desde <c>losa.Tipo</c> en <see cref="TipoLosa.Catalogo"/>) y sus
+    /// coordenadas mundo. Tipo fuera del catálogo ⇒ 4 aristas <c>Apoyado</c>.
+    /// </summary>
+    public static IReadOnlyList<AristaHachura> HachuraAristas(Losa losa)
+    {
+        var kinds = TipoLosa.Catalogo.TryGetValue(TipoLosa.NormalizarCodigo(losa.Tipo), out var t)
+            ? t.Bordes
+            : CuatroApoyados;
+
+        double x0 = losa.CoordenadaX, x1 = losa.CoordenadaX + losa.Lx;
+        double y0 = losa.CoordenadaY, y1 = losa.CoordenadaY + losa.Ly;
+        return new[]
+        {
+            new AristaHachura(kinds[0], x0, y0, x1, y0), // N — superior
+            new AristaHachura(kinds[1], x1, y0, x1, y1), // E — derecha
+            new AristaHachura(kinds[2], x0, y1, x1, y1), // S — inferior
+            new AristaHachura(kinds[3], x0, y0, x0, y1), // W — izquierda
+        };
+    }
 }
