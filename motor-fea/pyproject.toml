@@ -22,6 +22,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=7.4"]
 api = ["fastapi>=0.110", "uvicorn>=0.29"]
+ia = ["anthropic>=0.40"]
 
 [project.scripts]
 # Frontera de integración: el C# invoca este CLI igual que hoy lanza Losas.exe
@@ -38,6 +39,9 @@ where = ["src"]
     "static/vendor/*.js",
     "static/vendor/addons/controls/*.js",
     "static/vendor/addons/webxr/*.js",
+    "static/vendor/addons/loaders/*.js",
+    "static/vendor/addons/utils/*.js",
+    "static/incidencias/*",
 ]
 
 [tool.pytest.ini_options]
