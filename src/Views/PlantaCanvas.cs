@@ -480,9 +480,9 @@ public class PlantaCanvas : Control
                     }
                     else if (hit is Muro m)
                     {
-                        _dragStartElementX = m.PuntoInicio.X;
-                        _dragStartElementY = m.PuntoInicio.Y;
-                        // Not capturing PuntoFin for dragging yet, but allows basic selection
+                        var ext = _dragEndpoint == 1 ? m.PuntoFin : m.PuntoInicio;
+                        _dragStartElementX = ext.X;   // posición original del extremo arrastrado (eje Shift)
+                        _dragStartElementY = ext.Y;
                     }
                     else if (hit is EjeEstructural eje)
                     {
@@ -785,12 +785,16 @@ public class PlantaCanvas : Control
 
         // 3. Walls (line segments with thickness) — antes que las losas: un
         // muro pisa la losa de abajo y debe ganar el click/drag (UI1.7).
+        // Extremos detectados como asas (endpointHit 0/1) — patrón Viga/Eje (UI1.10).
         foreach (var sistema in Nivel.Sistemas)
         {
             foreach (var muro in sistema.Muros)
             {
                 var a = new Point(muro.PuntoInicio.X, muro.PuntoInicio.Y);
                 var b = new Point(muro.PuntoFin.X, muro.PuntoFin.Y);
+                if (DistancePoint(p, a) <= tolE) { endpointHit = 0; return muro; }
+                if (DistancePoint(p, b) <= tolE) { endpointHit = 1; return muro; }
+
                 double dist = DistanceToSegment(p, a, b);
                 if (dist <= muro.Espesor / 2.0 + 0.1) // tolerance + half thickness in meters
                 {
