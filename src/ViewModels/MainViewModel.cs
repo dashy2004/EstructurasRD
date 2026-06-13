@@ -431,6 +431,14 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         PushUndoSnapshot();
         var bi = Math.Min(primer, losaId);
         var bj = Math.Max(primer, losaId);
+        if (SistemaActivo.BordesX.Any(b => b.BI == bi && b.BJ == bj) ||
+            SistemaActivo.BordesY.Any(b => b.BI == bi && b.BJ == bj))
+        {
+            Log($"Borde I={bi} J={bj} ya existe — no se duplica.");
+            _primerIdParaBorde = null;
+            OnPropertyChanged(nameof(PrimerIdParaBorde));
+            return;
+        }
         var nuevo = new BordeAdic { BI = bi, BJ = bj, Balanceo = "S" };
 
         // Determinar el balanceo correcto según tipos de las losas.

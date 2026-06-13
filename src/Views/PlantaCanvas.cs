@@ -203,7 +203,12 @@ public class PlantaCanvas : Control
         }
     }
 
-    public string ActiveTool { get; set; } = "Puntero";
+    private string _activeTool = "Puntero";
+    public string ActiveTool
+    {
+        get => _activeTool;
+        set { _activeTool = value; if (value != "ConectarBordes") _primerLosaIdBorde = null; }
+    }
 
     public PlantaCanvas()
     {
