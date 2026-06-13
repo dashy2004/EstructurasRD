@@ -1,0 +1,43 @@
+using LosasPlus.Models.Cad;
+using LosasPlus.Services;
+using Xunit;
+
+namespace LosasPlus.Tests.Services;
+
+/// <summary>
+/// Tests del servicio puro de geometría de redimensionado de muros (UI1.10).
+/// </summary>
+public class MurosPlantaServiceTests
+{
+    private static Muro M(double x0, double y0, double x1, double y1)
+        => new Muro { Id = 1, PuntoInicio = new PuntoCad(x0, y0), PuntoFin = new PuntoCad(x1, y1) };
+
+    [Fact]
+    public void AsaExtremo_cerca_de_inicio_devuelve_0()
+    {
+        var m = M(0, 0, 5, 0);
+        Assert.Equal(0, MurosPlantaService.AsaExtremo(m, new PuntoM(0.05, 0.02), 0.2));
+    }
+
+    [Fact]
+    public void AsaExtremo_cerca_de_fin_devuelve_1()
+    {
+        var m = M(0, 0, 5, 0);
+        Assert.Equal(1, MurosPlantaService.AsaExtremo(m, new PuntoM(4.95, 0.0), 0.2));
+    }
+
+    [Fact]
+    public void AsaExtremo_lejos_devuelve_null()
+    {
+        var m = M(0, 0, 5, 0);
+        Assert.Null(MurosPlantaService.AsaExtremo(m, new PuntoM(2.5, 1.0), 0.2));
+    }
+
+    [Fact]
+    public void AsaExtremo_empate_gana_el_mas_cercano()
+    {
+        // Muro corto: ambos extremos dentro de tol; el punto está más cerca de fin.
+        var m = M(0, 0, 0.1, 0);
+        Assert.Equal(1, MurosPlantaService.AsaExtremo(m, new PuntoM(0.08, 0.0), 0.2));
+    }
+}
