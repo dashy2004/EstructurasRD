@@ -5,6 +5,8 @@ import os
 import tempfile
 from contextlib import redirect_stdout
 
+import pytest
+
 from motor_fea.api import cli, contrato
 from motor_fea.core.modelo import (
     Apoyo,
@@ -15,6 +17,7 @@ from motor_fea.core.modelo import (
     Nodo,
     Seccion,
 )
+from motor_fea.core.solver import resolver
 
 E = 2.0e10
 I = 0.30**4 / 12
@@ -126,9 +129,6 @@ def test_cli_disenar_losa_archivo():
 # ---------------------------------------------------------------------------
 # Task 1: esfuerzos_a_dict
 # ---------------------------------------------------------------------------
-from motor_fea.core.solver import resolver  # noqa: E402 — ya importado por contrato, expuesto aquí para los tests
-
-
 def test_esfuerzos_a_dict_forma_y_convenciones():
     modelo = contrato.modelo_desde_dict(_voladizo_dict())
     resultado = resolver(modelo)
@@ -173,3 +173,10 @@ def test_analizar_completo_dict_estructura():
     modelo = contrato.modelo_desde_dict(md)
     directo = contrato.esfuerzos_a_dict(modelo, resolver(modelo), n=11)
     assert d["esfuerzos"] == directo
+
+
+def test_esfuerzos_a_dict_rechaza_n_menor_2():
+    modelo = contrato.modelo_desde_dict(_voladizo_dict())
+    resultado = resolver(modelo)
+    with pytest.raises(ValueError):
+        contrato.esfuerzos_a_dict(modelo, resultado, n=1)
