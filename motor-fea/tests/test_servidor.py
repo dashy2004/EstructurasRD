@@ -6,6 +6,7 @@ pytest.importorskip("httpx")  # requerido por fastapi.testclient
 
 from fastapi.testclient import TestClient
 
+from motor_fea.api.contrato import modelo_a_dict
 from motor_fea.api.servidor import crear_app, modelo_ejemplo
 from motor_fea.core.modelo import ElementoFrame, ModeloEstructural
 
@@ -145,3 +146,26 @@ def test_esfuerzos_modelo_invalido_da_400():
     m.elementos.append(ElementoFrame(1, 1, 2, 1, 1))  # refs inexistentes
     cli = TestClient(crear_app(m))
     assert cli.get("/esfuerzos").status_code == 400
+
+
+def test_analizar_post_ok_coincide_con_gets():
+    cli = TestClient(crear_app(modelo_ejemplo()))
+    md = modelo_a_dict(modelo_ejemplo())
+    r = cli.post("/analizar", json=md)
+    assert r.status_code == 200
+    data = r.json()
+    assert set(data) == {"resultados", "esfuerzos"}
+    assert data["esfuerzos"] == cli.get("/esfuerzos").json()
+
+
+def test_analizar_post_modelo_invalido_da_400():
+    cli = TestClient(crear_app(modelo_ejemplo()))
+    r = cli.post("/analizar", json={"nodos": [], "elementos": [{"id": 1, "nodo_i": 1,
+                 "nodo_j": 2, "material_id": 1, "seccion_id": 1}]})
+    assert r.status_code == 400
+
+
+def test_analizar_post_n_invalido_da_422():
+    cli = TestClient(crear_app(modelo_ejemplo()))
+    md = modelo_a_dict(modelo_ejemplo())
+    assert cli.post("/analizar?n=1", json=md).status_code == 422
