@@ -16,7 +16,7 @@ const COMP = [
 
 function nodo(tag, attrs) {
   const n = document.createElementNS(SVGNS, tag);
-  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  for (const k of Object.keys(attrs)) n.setAttribute(k, attrs[k]);
   return n;
 }
 
@@ -33,7 +33,7 @@ export function diagramaSVG(elemento, opts = {}) {
   const total = COMP.length * (H + gap);
 
   const svg = nodo('svg', {
-    width: W, height: total, viewBox: `0 0 ${W} ${total}`, xmlns: SVGNS,
+    width: W, height: total, viewBox: `0 0 ${W} ${total}`,
   });
 
   COMP.forEach((c, ci) => {
@@ -45,7 +45,7 @@ export function diagramaSVG(elemento, opts = {}) {
     const esc = m > 0 ? (H / 2 - 2) / m : 0;   // auto-escala; evita /0
 
     const pico = (m / 1000).toFixed(c.momento ? 1 : 0);
-    const etq = nodo('text', { x: pad, y: y0 - 6, fill: '#fff', 'font-size': 11 });
+    const etq = nodo('text', { x: pad, y: y0 - 6, fill: '#fff', 'font-size': 11, 'font-family': 'sans-serif' });
     etq.textContent = `${c.nombre}  |máx| = ${pico} ${c.unidad}`;
     svg.appendChild(etq);
 
