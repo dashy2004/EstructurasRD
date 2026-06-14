@@ -169,3 +169,30 @@ def test_analizar_post_n_invalido_da_422():
     cli = TestClient(crear_app(modelo_ejemplo()))
     md = modelo_a_dict(modelo_ejemplo())
     assert cli.post("/analizar?n=1", json=md).status_code == 422
+
+
+def test_visor_post_ok_coincide_con_gets():
+    m = modelo_ejemplo()
+    cli = TestClient(crear_app(m))
+    r = cli.post("/visor", json=modelo_a_dict(m))
+    assert r.status_code == 200
+    data = r.json()
+    assert set(data) == {"escena", "resultados", "esfuerzos"}
+    assert len(data["escena"]["barras"]) == 8
+    assert len(data["esfuerzos"]["elementos"]) == 8
+    # round-trip: el modelo de ejemplo serializado reproduce los GET del mismo modelo
+    assert data["escena"] == cli.get("/escena").json()
+    assert data["esfuerzos"] == cli.get("/esfuerzos").json()
+
+
+def test_visor_post_modelo_invalido_da_400():
+    cli = TestClient(crear_app(modelo_ejemplo()))
+    r = cli.post("/visor", json={"nodos": [], "elementos": [{"id": 1, "nodo_i": 1,
+                 "nodo_j": 2, "material_id": 1, "seccion_id": 1}]})
+    assert r.status_code == 400
+
+
+def test_visor_post_n_invalido_da_422():
+    cli = TestClient(crear_app(modelo_ejemplo()))
+    md = modelo_a_dict(modelo_ejemplo())
+    assert cli.post("/visor?n=1", json=md).status_code == 422
