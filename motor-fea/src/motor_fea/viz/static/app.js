@@ -323,6 +323,11 @@ function reconstruirCintas() {
   cintasGroup.visible = true;
 }
 
+function etiquetaCintas() {
+  const nombres = esfuerzos ? esfuerzos.orden_componentes : ['N', 'Vy', 'Vz', 'T', 'My', 'Mz'];
+  info.textContent = `diagramas 3D — ${nombres[diagComp]}`;
+}
+
 function fantasma(on) {
   for (const m of [MAT.columna, MAT.viga]) {
     m.transparent = on;
@@ -404,8 +409,7 @@ function entrarDiagramas() {
   exagInput.min = 0; exagInput.max = span; exagInput.step = span / 100;
   exagInput.value = span * 0.25; exag = span * 0.25;
   reconstruirCintas();
-  const nombres = esfuerzos ? esfuerzos.orden_componentes : ['N','Vy','Vz','T','My','Mz'];
-  info.textContent = `diagramas 3D — ${nombres[diagComp]}`;
+  etiquetaCintas();
   if (frameBbox) encuadrar(frameBbox.min, frameBbox.max);
 }
 
@@ -439,7 +443,7 @@ exagInput.addEventListener('input', () => {
 });
 selDiagComp.addEventListener('change', () => {
   diagComp = parseInt(selDiagComp.value, 10);
-  if (diagActivo) reconstruirCintas();   // definido en la Task 4
+  if (diagActivo) { reconstruirCintas(); etiquetaCintas(); }
 });
 btnPlay.addEventListener('click', () => {
   playing = !playing;
