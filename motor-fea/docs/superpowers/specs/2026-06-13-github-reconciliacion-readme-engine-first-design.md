@@ -146,7 +146,33 @@ dirección A. Estructura propuesta:
 
 El README viejo (suite .NET) se preserva en `archive/dotnet-suite`.
 
-## 8. Seguridad y gates
+## 8. Retiro de workflows .NET (CI/CD)
+
+**Hallazgo:** GitHub Actions tiene **4 workflows registrados**: `ci`
+(id 273323063) y `release` (id 273323065) — legacy .NET (IDs antiguos) — y
+`ci-linux` (289608043) y `ci-motor-fea` (289608044) — más nuevos. El worktree
+.NET (`EstructurasRD-main`) contiene físicamente `.github/workflows/ci.yml` y
+`release.yml` (.NET). Las líneas del motor (`master`) y `origin/avalonia-linux`
+no tienen `.yml` en sus tips, pero los workflows siguen **registrados/activos**
+en Actions desde la historia previa.
+
+**Política:**
+
+- El nuevo `main` (motor) conserva **solo** CI del motor (`ci-motor-fea`).
+- Los workflows .NET (`ci`, `release`, y `ci-linux` si se clasifica como .NET)
+  se **retiran** de la línea viva: sus `.yml` no existen en `main`, quedan
+  preservados en la historia de `archive/dotnet-suite`, y se **deshabilitan**
+  en Actions (`gh workflow disable <id|nombre>`) para que no aparezcan activos
+  ni se disparen.
+- **Verificación previa obligatoria (en el plan):** localizar y clasificar los
+  4 workflows (cuál es .NET, cuál es del motor) **antes** de deshabilitar —
+  nunca tocar `ci-motor-fea`. `ci-linux` se inspecciona para decidir si es
+  build .NET-Linux (retirar) o algo del motor (conservar).
+
+**Reversibilidad:** los `.yml` viven en la historia de `archive/dotnet-suite`;
+re-activar es `gh workflow enable` o restaurar el archivo en `main`.
+
+## 9. Seguridad y gates
 
 - **Toda operación destructiva** (force-push a `main`, borrado de ramas
   remotas) se ejecuta **por lote, con confirmación explícita del usuario**, y
@@ -154,21 +180,22 @@ El README viejo (suite .NET) se preserva en `archive/dotnet-suite`.
 - **Orden invariante:** (1) crear tags de archivo → (2) push de tags →
   (3) verificar tags en remoto → (4) crear `archive/dotnet-suite` y pushear →
   (5) force-push motor a `main` → (6) push `engine/incidencias-vr-mvp` →
-  (7) borrar ramas remotas → (8) limpieza local.
+  (7) borrar ramas remotas → (8) retirar/deshabilitar workflows .NET →
+  (9) limpieza local.
 - **Rollback:** cualquier paso es reversible reconstruyendo ramas desde los
   tags `archive/dotnet/*`.
 - **No tocar `main` a ciegas:** el reemplazo de `main` es deliberado y
   documentado aquí; no se hace ningún otro push a `main` fuera de este flujo.
 
-## 9. Fuera de alcance (de #0)
+## 10. Fuera de alcance (de #0)
 
 - Cambios en el código del motor o del visor (eso es #1–#4).
 - Fusión física monorepo del .NET (eso es #5).
 - Merge del visor VR de incidencias a `main` (D3: diferido a su gate).
-- CI/CD nuevo del motor (se puede tratar como sub-tarea aparte si el usuario
-  lo pide).
+- **Autoría de CI nuevo** del motor más allá de conservar el `ci-motor-fea`
+  existente. Retirar los workflows .NET sí está **en alcance** (§8).
 
-## 10. Criterios de éxito
+## 11. Criterios de éxito
 
 1. `origin` queda con `main` (motor) + `engine/incidencias-vr-mvp` +
    `archive/dotnet-suite` + tags `archive/dotnet/*`; sin ramas huérfanas.
@@ -178,3 +205,6 @@ El README viejo (suite .NET) se preserva en `archive/dotnet-suite`.
    `archive/dotnet-suite`.
 4. Cero pérdida de historia; cada acción destructiva fue confirmada y es
    reversible.
+5. GitHub Actions muestra **solo** CI del motor activo (`ci-motor-fea`); los
+   workflows .NET (`ci`, `release`, y `ci-linux` si aplica) quedan
+   deshabilitados y recuperables desde `archive/dotnet-suite`.
