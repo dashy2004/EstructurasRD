@@ -371,6 +371,7 @@ function resetOverlays() {
   if (cintasGroup) cintasGroup.visible = false;
   disposeAnillo();
   if (secDiv) secDiv.style.display = 'none';
+  secElId = null; secSvgActual = null;
   fantasma(false);
   for (const bar of barras) bar.mesh.visible = true;
 }
@@ -612,6 +613,7 @@ function construirAnilloSeccion(el) {
 function posicionarAnillo(s, el) {
   if (!anilloSeccion) return;
   const bar = barras.find((b) => b.id === el.id);
+  if (!bar) return;
   const vi = basePos[bar.i], vj = basePos[bar.j];
   if (!vi || !vj) return;
   const L = el.longitud || vi.distanceTo(vj) || 1;
