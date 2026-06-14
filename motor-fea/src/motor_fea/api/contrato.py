@@ -118,6 +118,11 @@ def esfuerzos_a_dict(modelo: ModeloEstructural, resultado: ResultadoAnalisis, n:
     }
 
 
+def esfuerzos_modelo_dict(modelo: ModeloEstructural, n: int = 11) -> dict:
+    """Resuelve el modelo y serializa sus esfuerzos por elemento (DTO de esfuerzos_a_dict)."""
+    return esfuerzos_a_dict(modelo, resolver(modelo), n)
+
+
 def analizar_completo_dict(modelo_dict: dict, n: int = 11) -> dict:
     """Pipeline dict→dict: deserializa, resuelve y serializa resultados + esfuerzos."""
     modelo = modelo_desde_dict(modelo_dict)

@@ -149,9 +149,9 @@ def test_esfuerzos_modelo_invalido_da_400():
 
 
 def test_analizar_post_ok_coincide_con_gets():
-    cli = TestClient(crear_app(modelo_ejemplo()))
-    md = modelo_a_dict(modelo_ejemplo())
-    r = cli.post("/analizar", json=md)
+    m = modelo_ejemplo()
+    cli = TestClient(crear_app(m))
+    r = cli.post("/analizar", json=modelo_a_dict(m))
     assert r.status_code == 200
     data = r.json()
     assert set(data) == {"resultados", "esfuerzos"}
