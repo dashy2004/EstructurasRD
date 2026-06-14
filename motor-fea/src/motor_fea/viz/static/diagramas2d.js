@@ -1,7 +1,7 @@
 // Panel 2D de diagramas P/V/M: función pura que arma un SVG con los 6
 // mini-diagramas (N, Vy, Vz, T, My, Mz) apilados de un elemento del DTO
 // `esfuerzos`. No conoce three.js; no muta el DOM global (solo crea nodos).
-const SVGNS = 'http://www.w3.org/2000/svg';
+import { nodo } from './svgutil.js';
 
 // k = índice de la columna del valor en una fila del diagrama [s, N, Vy, Vz, T, My, Mz].
 // momento → unidad kN·m; fuerza → kN. Ambos se dividen por 1000.
@@ -13,12 +13,6 @@ const COMP = [
   { k: 5, nombre: 'My', unidad: 'kN·m', momento: true  },
   { k: 6, nombre: 'Mz', unidad: 'kN·m', momento: true  },
 ];
-
-function nodo(tag, attrs) {
-  const n = document.createElementNS(SVGNS, tag);
-  for (const k of Object.keys(attrs)) n.setAttribute(k, attrs[k]);
-  return n;
-}
 
 // elemento: { longitud, diagrama: [[s,N,Vy,Vz,T,My,Mz], ...] }
 export function diagramaSVG(elemento, opts = {}) {
