@@ -3,6 +3,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
 import { crearShell } from './shell.js';
 import { diagramaSVG } from './diagramas2d.js';
+import { seccionSVG } from './seccion2d.js';
+import { descargarSVG, descargarPNG } from './svgutil.js';
 
 const msg = document.getElementById('msg');
 const setMsg = (t) => { msg.textContent = t; };
@@ -47,6 +49,11 @@ let diagActivo = false;
 let diagComp = 0;            // componente activo de la cinta: N=0 … Mz=5
 let frameBbox = null;
 
+let anilloSeccion = null;    // marcador 3D del plano de corte
+let secActivo = false;
+let secElId = null;          // id del miembro seleccionado
+let secSvgActual = null;     // último SVGElement dibujado (para export)
+
 let losa = null;
 let losaMesh = null;
 let losaActiva = false;
@@ -77,12 +84,17 @@ const inpRec = document.getElementById('rec');
 const btnRedi = document.getElementById('redisenar');
 const selDiagComp = document.getElementById('diag-comp');
 const diagSvg = document.getElementById('diag-svg');
+const secDiv = document.getElementById('sec');
+const secHost = document.getElementById('sec-svg');
+const secSlider = document.getElementById('sec-s');
+const btnSecSvg = document.getElementById('sec-svg-dl');
+const btnSecPng = document.getElementById('sec-png-dl');
 
 // --- Barras ---
 function addBarra(b) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(b.b, b.h, 1), MAT[b.tipo] || MAT.viga);
   scene.add(mesh);
-  barras.push({ mesh, i: b.i, j: b.j, id: b.id });
+  barras.push({ mesh, i: b.i, j: b.j, id: b.id, b: b.b, h: b.h });
 }
 
 function despNodo(id, fase) {
@@ -352,10 +364,13 @@ function resetOverlays() {
   refuerzoActivo = false;
   disenoActivo = false;
   diagActivo = false;
+  secActivo = false;
   if (losaMesh) losaMesh.visible = false;
   if (armadoGroup) armadoGroup.visible = false;
   if (disenoGroup) disenoGroup.visible = false;
   if (cintasGroup) cintasGroup.visible = false;
+  disposeAnillo();
+  if (secDiv) secDiv.style.display = 'none';
   fantasma(false);
   for (const bar of barras) bar.mesh.visible = true;
 }
@@ -413,14 +428,26 @@ function entrarDiagramas() {
   if (frameBbox) encuadrar(frameBbox.min, frameBbox.max);
 }
 
+function entrarSeccion() {
+  secActivo = true;
+  secElId = null;
+  secSvgActual = null;
+  secHost.replaceChildren();
+  if (diagSvg) diagSvg.replaceChildren();   // evita el diagrama viejo encima del panel
+  secDiv.style.display = 'flex';
+  info.textContent = 'toca una barra para ver su sección';
+  if (frameBbox) encuadrar(frameBbox.min, frameBbox.max);
+}
+
 function setEstado(nuevo) {
-  const veniaEspecial = losaActiva || refuerzoActivo || disenoActivo || diagActivo;
+  const veniaEspecial = losaActiva || refuerzoActivo || disenoActivo || diagActivo || secActivo;
   estado = nuevo;
   resetOverlays();
   if (nuevo.startsWith('losa-')) { entrarLosa(nuevo); return; }
   if (nuevo === 'refuerzo') { entrarRefuerzo(); return; }
   if (nuevo === 'diseno') { entrarDiseno(); return; }
   if (nuevo === 'diagramas') { entrarDiagramas(); return; }
+  if (nuevo === 'seccion') { entrarSeccion(); return; }
   if (veniaEspecial && frameBbox) encuadrar(frameBbox.min, frameBbox.max);
   const fs = fsDe(estado);
   exagInput.min = 0; exagInput.max = fs * 5; exagInput.step = fs / 100;
@@ -445,6 +472,9 @@ selDiagComp.addEventListener('change', () => {
   diagComp = parseInt(selDiagComp.value, 10);
   if (diagActivo) { reconstruirCintas(); etiquetaCintas(); }
 });
+secSlider.addEventListener('input', () => { if (secActivo) dibujarSeccion(); });
+btnSecSvg.addEventListener('click', () => descargarSVG(secSvgActual, 'seccion.svg'));
+btnSecPng.addEventListener('click', () => descargarPNG(secSvgActual, 'seccion.png'));
 btnPlay.addEventListener('click', () => {
   playing = !playing;
   btnPlay.textContent = playing ? '⏸' : '▶';
@@ -468,7 +498,19 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
     const bar = barras.find((b) => b.mesh === hits[0].object);
     const el = bar && diseno.elementos.find((e) => e.id === bar.id);
     if (el) mostrarDiseno(el);
-  } else if (esfuerzos && !refuerzoActivo && !diagActivo) {   // panel 2D solo en modos no-overlay (spec §5.2/§7)
+  } else if (secActivo && esfuerzos) {
+    const hits = punteroRay.intersectObjects(barras.map((b) => b.mesh));
+    if (!hits.length) return;
+    const bar = barras.find((b) => b.mesh === hits[0].object);
+    if (!bar) return;
+    const el = esfuerzos.elementos.find((e) => e.id === bar.id);
+    if (!el) return;
+    secElId = bar.id;
+    const L = el.longitud || 1;
+    secSlider.min = 0; secSlider.max = L; secSlider.step = L / 100; secSlider.value = L / 2;
+    construirAnilloSeccion(el);
+    dibujarSeccion();
+  } else if (esfuerzos && !refuerzoActivo && !diagActivo && !secActivo) {   // panel 2D solo en modos no-overlay (spec §5.2/§7)
     const hits = punteroRay.intersectObjects(barras.map((b) => b.mesh));
     if (!hits.length) return;
     const bar = barras.find((b) => b.mesh === hits[0].object);
@@ -524,6 +566,80 @@ function dibujarDiagramas2D(id) {
   diagSvg.replaceChildren(diagramaSVG(el));
 }
 
+function esfuerzosEnEstacion(el, s) {
+  const filas = el && el.diagrama;
+  if (!filas || !filas.length) return [0, 0, 0, 0, 0, 0];
+  if (s <= filas[0][0]) return filas[0].slice(1);
+  const ult = filas[filas.length - 1];
+  if (s >= ult[0]) return ult.slice(1);
+  for (let k = 0; k < filas.length - 1; k++) {
+    const s0 = filas[k][0], s1 = filas[k + 1][0];
+    if (s >= s0 && s <= s1) {
+      const t = s1 > s0 ? (s - s0) / (s1 - s0) : 0;
+      return filas[k].slice(1).map((v, c) => v + (filas[k + 1][c + 1] - v) * t);
+    }
+  }
+  return ult.slice(1);
+}
+
+function datosSeccion(id, s, L) {
+  const el = esfuerzos && esfuerzos.elementos.find((e) => e.id === id);
+  const bar = barras.find((b) => b.id === id);
+  if (!el || !bar) return null;
+  const d = (diseno && diseno.elementos.find((e) => e.id === id))
+         || (armado && armado.elementos.find((e) => e.id === id));
+  return {
+    b: bar.b, h: bar.h,
+    long: d ? d.long : null,
+    estribo: d ? d.estribo : null,
+    designacion: d ? d.designacion : undefined,
+    cumple: d ? d.cumple : undefined,
+    fuerzas: esfuerzosEnEstacion(el, s),
+    s, L,
+  };
+}
+
+function construirAnilloSeccion(el) {
+  disposeAnillo();
+  const bar = barras.find((b) => b.id === el.id);
+  if (!bar) return;
+  const r = Math.max(bar.b, bar.h) * 0.7;
+  const geo = new THREE.TorusGeometry(r, r * 0.06, 8, 32);
+  anilloSeccion = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x00ff88 }));
+  scene.add(anilloSeccion);
+}
+
+function posicionarAnillo(s, el) {
+  if (!anilloSeccion) return;
+  const bar = barras.find((b) => b.id === el.id);
+  const vi = basePos[bar.i], vj = basePos[bar.j];
+  if (!vi || !vj) return;
+  const L = el.longitud || vi.distanceTo(vj) || 1;
+  anilloSeccion.position.copy(vi).lerp(vj, Math.max(0, Math.min(1, s / L)));
+  anilloSeccion.lookAt(vj);   // eje del miembro = normal del toro (plano del corte ⟂ al eje)
+}
+
+function disposeAnillo() {
+  if (!anilloSeccion) return;
+  scene.remove(anilloSeccion);
+  anilloSeccion.geometry.dispose();
+  anilloSeccion.material.dispose();
+  anilloSeccion = null;
+}
+
+function dibujarSeccion() {
+  if (secElId == null || !esfuerzos) return;
+  const el = esfuerzos.elementos.find((e) => e.id === secElId);
+  if (!el) return;
+  const L = el.longitud || 1;
+  const s = parseFloat(secSlider.value);
+  const datos = datosSeccion(secElId, s, L);
+  if (!datos) return;
+  secSvgActual = seccionSVG(datos);
+  secHost.replaceChildren(secSvgActual);
+  posicionarAnillo(s, el);
+}
+
 // --- Teardown: limpiar la escena para cargar otro modelo ---
 function limpiarEscena() {
   for (const bar of barras) { scene.remove(bar.mesh); bar.mesh.geometry.dispose(); }
@@ -540,6 +656,10 @@ function limpiarEscena() {
   disposeCintas();
   if (diagSvg) diagSvg.replaceChildren();          // limpiar panel 2D del modelo anterior
   diagComp = 0; selDiagComp.value = '0';           // reset del componente de cintas
+  disposeAnillo();
+  if (secHost) secHost.replaceChildren();
+  if (secDiv) secDiv.style.display = 'none';
+  secActivo = false; secElId = null; secSvgActual = null;
 
   resultados = null; esfuerzos = null; frameBbox = null;
   losa = null; armado = null; diseno = null;
@@ -571,6 +691,7 @@ function renderEscena({ escena, resultados: res, esfuerzos: esf }) {
   if (esf) {
     esfuerzos = esf;
     selEstado.add(new Option('diagramas', 'diagramas'));
+    selEstado.add(new Option('sección', 'seccion'));
   }
 }
 
