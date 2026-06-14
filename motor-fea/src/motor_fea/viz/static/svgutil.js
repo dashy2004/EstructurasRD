@@ -42,5 +42,6 @@ export function descargarPNG(svg, nombre, escala = 2) {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     canvas.toBlob((blob) => { if (blob) descargarBlob(blob, nombre); });
   };
+  img.onerror = () => console.error('svgutil: no se pudo rasterizar el SVG a PNG');
   img.src = url;
 }
