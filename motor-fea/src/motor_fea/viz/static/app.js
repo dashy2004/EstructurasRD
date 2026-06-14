@@ -433,9 +433,9 @@ function entrarSeccion() {
   secActivo = true;
   secElId = null;
   secSvgActual = null;
-  secHost.replaceChildren();
+  if (secHost) secHost.replaceChildren();
   if (diagSvg) diagSvg.replaceChildren();   // evita el diagrama viejo encima del panel
-  secDiv.style.display = 'flex';
+  if (secDiv) secDiv.style.display = 'flex';
   info.textContent = 'toca una barra para ver su sección';
   if (frameBbox) encuadrar(frameBbox.min, frameBbox.max);
 }
