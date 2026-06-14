@@ -20,6 +20,8 @@
     #shell textarea { font-family: monospace; font-size: 12px; }
     #shell-estado { min-height: 16px; opacity: .85; }
     #info { min-height: 16px; opacity: .85; }
+    #diag-svg { margin-top: 4px; max-height: 56vh; overflow-y: auto; }
+    #diag-svg svg { background: rgba(255,255,255,.04); border-radius: 4px; }
   </style>
   <!-- three.js vendorizado (sin CDN): el visor funciona 100% offline y se elimina
        el riesgo de cadena de suministro. Mapeos explícitos por-archivo: solo se
@@ -53,7 +55,19 @@
       <label for="rec">rec</label><input type="number" id="rec" value="0.04" min="0.01" step="0.005" style="width:3.8em">
       <button id="redisenar" type="button">rediseñar</button>
     </div>
+    <div class="fila">
+      <label for="diag-comp">cinta</label>
+      <select id="diag-comp" aria-label="componente de cinta 3D">
+        <option value="0">N</option>
+        <option value="1">Vy</option>
+        <option value="2">Vz</option>
+        <option value="3">T</option>
+        <option value="4">My</option>
+        <option value="5">Mz</option>
+      </select>
+    </div>
     <span id="info"></span>
+    <div id="diag-svg"></div>
   </div>
   <div id="shell"></div>
   <script type="module" src="./app.js"></script>
