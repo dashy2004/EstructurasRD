@@ -2,7 +2,8 @@
 
 Esta es la capa 3: traduce entre el JSON del modelo/resultados y los objetos
 puros de ``motor_fea.core``. El núcleo de análisis no conoce JSON; sólo este
-módulo y el CLI tocan I/O.
+módulo y el CLI tocan I/O. Además compone los DTOs del visor (``visor_dict``) reusando
+``motor_fea.viz``: una dependencia hacia abajo (``viz`` nunca importa ``contrato``).
 
 Esquema del modelo (entrada)::
 
@@ -39,6 +40,8 @@ from motor_fea.core.modelo import (
     Seccion,
 )
 from motor_fea.core.solver import ResultadoAnalisis, esfuerzos_elementos, resolver
+from motor_fea.viz.escena import exportar_escena
+from motor_fea.viz.resultados import calcular_resultados
 
 
 def modelo_desde_dict(d: dict) -> ModeloEstructural:
@@ -121,6 +124,22 @@ def esfuerzos_a_dict(modelo: ModeloEstructural, resultado: ResultadoAnalisis, n:
 def esfuerzos_modelo_dict(modelo: ModeloEstructural, n: int = 11) -> dict:
     """Resuelve el modelo y serializa sus esfuerzos por elemento (DTO de esfuerzos_a_dict)."""
     return esfuerzos_a_dict(modelo, resolver(modelo), n)
+
+
+def visor_dict(modelo_dict: dict, n: int = 11) -> dict:
+    """Pipeline dict→dict: los DTOs que el visor necesita para un modelo propio.
+
+    Compone los mismos DTOs que el visor ya pinta (escena + deformada/modos +
+    esfuerzos). Nota: ``calcular_resultados`` y ``esfuerzos_modelo_dict`` resuelven
+    el modelo por separado → 2 solves por request; aceptable para el MVP (modelos
+    pequeños). Compartir un único solve es optimización futura.
+    """
+    modelo = modelo_desde_dict(modelo_dict)
+    return {
+        "escena": exportar_escena(modelo),
+        "resultados": calcular_resultados(modelo),
+        "esfuerzos": esfuerzos_modelo_dict(modelo, n),
+    }
 
 
 def analizar_completo_dict(modelo_dict: dict, n: int = 11) -> dict:
