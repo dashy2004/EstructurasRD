@@ -351,6 +351,12 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
     const bar = barras.find((b) => b.mesh === hits[0].object);
     const el = bar && diseno.elementos.find((e) => e.id === bar.id);
     if (el) mostrarDiseno(el);
+  } else if (esfuerzos) {
+    const hits = punteroRay.intersectObjects(barras.map((b) => b.mesh));
+    if (!hits.length) return;
+    const bar = barras.find((b) => b.mesh === hits[0].object);
+    const txt = bar && resumenEsfuerzos(bar.id);
+    if (txt) info.textContent = txt;
   }
 });
 
@@ -375,6 +381,21 @@ function mostrarDiseno(el) {
     ? `Pu=${kN(el.demanda.pu)} kN, My=${kN(el.muy)} Mz=${kN(el.muz)} kN·m (u=${el.utilizacion.toFixed(2)})`
     : `Mu=${kN(el.demanda.mu)} kN·m, Vu=${kN(el.demanda.vu)} kN`;
   info.textContent = `${el.designacion} · combo ${el.combo} · ${dem}${est} · ${el.cumple ? 'cumple' : 'NO cumple'}`;
+}
+
+function resumenEsfuerzos(id) {
+  if (!esfuerzos) return null;
+  const el = esfuerzos.elementos.find((e) => e.id === id);
+  if (!el) return null;
+  const N = -el.extremo_i[0];                       // tracción +
+  const signo = N >= 0 ? 'tracción' : 'compresión';
+  let mmax = 0;
+  for (const fila of el.diagrama) {
+    mmax = Math.max(mmax, Math.abs(fila[5]), Math.abs(fila[6]));   // |My|, |Mz|
+  }
+  const kN = (n) => (n / 1000).toFixed(0);
+  const kNm = (n) => (n / 1000).toFixed(1);
+  return `N = ${kN(Math.abs(N))} kN (${signo}) · |M|máx = ${kNm(mmax)} kN·m`;
 }
 
 // --- Teardown: limpiar la escena para cargar otro modelo ---
