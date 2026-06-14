@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
+import { crearShell } from './shell.js';
 
 const msg = document.getElementById('msg');
 const setMsg = (t) => { msg.textContent = t; };
@@ -627,3 +628,13 @@ renderer.setAnimationLoop((time) => {
 });
 
 cargar();
+
+// Modo-custom: cargar un modelo propio reemplaza la escena (sin overlays de ejemplo).
+crearShell({
+  onModelo: (bundle) => {
+    limpiarEscena();
+    renderEscena(bundle);
+    selEstado.value = 'sin-deformar';
+    setEstado('sin-deformar');
+  },
+});
