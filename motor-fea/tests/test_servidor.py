@@ -114,3 +114,34 @@ def test_diseno_query_params():
     assert r.status_code == 200 and len(r.json()["elementos"]) == 8
     assert cli.get("/diseno?fc=-1").status_code == 400          # fc inválido → 400
     assert cli.get("/diseno").status_code == 200                # defaults
+
+
+def test_esfuerzos_ok():
+    cli = TestClient(crear_app(modelo_ejemplo()))
+    r = cli.get("/esfuerzos")
+    assert r.status_code == 200
+    data = r.json()
+    assert set(data) == {"orden_componentes", "elementos"}
+    assert len(data["elementos"]) == 8
+    e0 = data["elementos"][0]
+    assert set(e0) == {"id", "longitud", "extremo_i", "extremo_j", "diagrama"}
+    assert len(e0["diagrama"]) == 11
+
+
+def test_esfuerzos_n_configurable():
+    cli = TestClient(crear_app(modelo_ejemplo()))
+    r = cli.get("/esfuerzos?n=5")
+    assert r.status_code == 200
+    assert all(len(e["diagrama"]) == 5 for e in r.json()["elementos"])
+
+
+def test_esfuerzos_n_invalido_da_422():
+    cli = TestClient(crear_app(modelo_ejemplo()))
+    assert cli.get("/esfuerzos?n=1").status_code == 422
+
+
+def test_esfuerzos_modelo_invalido_da_400():
+    m = ModeloEstructural()
+    m.elementos.append(ElementoFrame(1, 1, 2, 1, 1))  # refs inexistentes
+    cli = TestClient(crear_app(m))
+    assert cli.get("/esfuerzos").status_code == 400
