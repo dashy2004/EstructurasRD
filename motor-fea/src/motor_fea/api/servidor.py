@@ -9,13 +9,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 
-from motor_fea.api.contrato import modelo_desde_dict
+from motor_fea.api.contrato import analizar_completo_dict, esfuerzos_a_dict, modelo_desde_dict
 from motor_fea.core.modelo import (
     Apoyo, CargaNodal, ElementoFrame, Material, ModeloEstructural, Nodo, Seccion,
 )
+from motor_fea.core.solver import resolver
 from motor_fea.viz.escena import exportar_escena
 from motor_fea.viz.resultados import calcular_resultados
 from motor_fea.viz.resultados_losa import calcular_resultados_losa
@@ -97,6 +98,13 @@ def crear_app(modelo: ModeloEstructural) -> FastAPI:
     def diseno(fc: float = 21.0, fy: float = 420.0, rec: float = 0.04):
         try:
             return calcular_diseno(modelo, fc, fy, rec)
+        except ValueError as ex:
+            raise HTTPException(status_code=400, detail=str(ex))
+
+    @app.get("/esfuerzos")
+    def esfuerzos(n: int = Query(11, ge=2)):
+        try:
+            return esfuerzos_a_dict(modelo, resolver(modelo), n)
         except ValueError as ex:
             raise HTTPException(status_code=400, detail=str(ex))
 
