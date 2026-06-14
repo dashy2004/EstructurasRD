@@ -39,6 +39,7 @@ const MAT_FALLA = new THREE.MeshStandardMaterial({ color: 0xff3b30 });  // dise�
 const basePos = {};
 const barras = [];           // { mesh, i, j, id }
 let resultados = null;
+let esfuerzos = null;        // DTO de esfuerzos por elemento (para el pick readout)
 let frameBbox = null;
 
 let losa = null;
@@ -376,44 +377,82 @@ function mostrarDiseno(el) {
   info.textContent = `${el.designacion} · combo ${el.combo} · ${dem}${est} · ${el.cumple ? 'cumple' : 'NO cumple'}`;
 }
 
-// --- Carga ---
+// --- Teardown: limpiar la escena para cargar otro modelo ---
+function limpiarEscena() {
+  for (const bar of barras) { scene.remove(bar.mesh); bar.mesh.geometry.dispose(); }
+  barras.length = 0;
+  for (const k of Object.keys(basePos)) delete basePos[k];
+
+  if (losaMesh) { scene.remove(losaMesh); losaMesh.geometry.dispose(); losaMesh.material.dispose(); losaMesh = null; }
+  if (armadoGroup) {
+    scene.remove(armadoGroup);
+    armadoGroup.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+    armadoGroup = null;
+  }
+  disposeDiseno();
+
+  resultados = null; esfuerzos = null; frameBbox = null;
+  losa = null; armado = null; diseno = null;
+  losaActiva = false; refuerzoActivo = false; disenoActivo = false;
+
+  // Reconstruir el <select> dejando solo sin-deformar.
+  selEstado.length = 0;
+  selEstado.add(new Option('sin deformar', 'sin-deformar'));
+  estado = 'sin-deformar';
+}
+
+// --- Render: construir barras + deformada/modos desde los DTOs ya obtenidos ---
+function renderEscena({ escena, resultados: res, esfuerzos: esf }) {
+  for (const n of escena.nodos) basePos[n.id] = new THREE.Vector3(n.p[0], n.p[1], n.p[2]);
+  for (const b of escena.barras) {
+    if (basePos[b.i] && basePos[b.j]) addBarra(b);
+  }
+  frameBbox = escena.bbox;
+  encuadrar(escena.bbox.min, escena.bbox.max);
+  setMsg(`${escena.barras.length} barras · ${escena.nodos.length} nodos`);
+
+  if (res) {
+    resultados = res;
+    selEstado.add(new Option('deformada', 'deformada'));
+    for (const m of resultados.modos) {
+      selEstado.add(new Option('modo ' + m.indice, 'modo-' + m.indice));
+    }
+  }
+  if (esf) esfuerzos = esf;
+}
+
+// --- Carga (modo-ejemplo: el modelo del server) ---
 async function cargar() {
-  let data;
+  let escena;
   try {
     const r = await fetch('./escena');
     if (!r.ok) throw new Error('HTTP ' + r.status);
-    data = await r.json();
+    escena = await r.json();
   } catch (e) {
     setMsg('Error cargando /escena: ' + e.message);
     return;
   }
-  for (const n of data.nodos) basePos[n.id] = new THREE.Vector3(n.p[0], n.p[1], n.p[2]);
-  for (const b of data.barras) {
-    if (basePos[b.i] && basePos[b.j]) addBarra(b);
-  }
-  frameBbox = data.bbox;
-  encuadrar(data.bbox.min, data.bbox.max);
-  setMsg(`${data.barras.length} barras · ${data.nodos.length} nodos`);
 
-  await cargarResultados();
+  let res = null;
+  try {
+    const r = await fetch('./resultados');
+    if (r.ok) res = await r.json();
+    else setMsg(msg.textContent + ' · sin resultados (HTTP ' + r.status + ')');
+  } catch (e) {
+    setMsg(msg.textContent + ' · sin resultados (' + e.message + ')');
+  }
+
+  let esf = null;
+  try {
+    const r = await fetch('./esfuerzos');
+    if (r.ok) esf = await r.json();
+  } catch (e) { /* sin esfuerzos: el pick readout queda inactivo */ }
+
+  renderEscena({ escena, resultados: res, esfuerzos: esf });
+
   await cargarLosa();
   await cargarArmado();
   await cargarDiseno();
-}
-
-async function cargarResultados() {
-  try {
-    const r = await fetch('./resultados');
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    resultados = await r.json();
-  } catch (e) {
-    setMsg(msg.textContent + ' · sin resultados (' + e.message + ')');
-    return;
-  }
-  selEstado.add(new Option('deformada', 'deformada'));
-  for (const m of resultados.modos) {
-    selEstado.add(new Option('modo ' + m.indice, 'modo-' + m.indice));
-  }
 }
 
 async function cargarLosa() {
