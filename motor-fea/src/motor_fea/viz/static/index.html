@@ -14,6 +14,11 @@
              font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
     #panel .fila { display: flex; align-items: center; gap: 6px; }
     #panel select, #panel button { font-size: 13px; }
+    #shell { position: fixed; bottom: 8px; left: 8px; padding: 8px 10px;
+             background: rgba(0,0,0,.6); color: #fff; border-radius: 6px;
+             font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
+    #shell textarea { font-family: monospace; font-size: 12px; }
+    #shell-estado { min-height: 16px; opacity: .85; }
     #info { min-height: 16px; opacity: .85; }
   </style>
   <!-- three.js vendorizado (sin CDN): el visor funciona 100% offline y se elimina
@@ -50,6 +55,7 @@
     </div>
     <span id="info"></span>
   </div>
+  <div id="shell"></div>
   <script type="module" src="./app.js"></script>
 </body>
 </html>
