@@ -108,6 +108,13 @@ def crear_app(modelo: ModeloEstructural) -> FastAPI:
         except ValueError as ex:
             raise HTTPException(status_code=400, detail=str(ex))
 
+    @app.post("/analizar")
+    def analizar(modelo_dict: dict = Body(...), n: int = Query(11, ge=2)):
+        try:
+            return analizar_completo_dict(modelo_dict, n)
+        except (ValueError, KeyError, TypeError) as ex:
+            raise HTTPException(status_code=400, detail=f"Modelo inválido: {ex}")
+
     # Montar al final: las rutas de API registradas arriba tienen prioridad.
     app.mount("/", StaticFiles(directory=str(_STATIC), html=True), name="static")
     return app
