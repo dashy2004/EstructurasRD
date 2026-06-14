@@ -1,3 +1,6 @@
+# Recursos locales sin rastrear del visor (preexistente, ajeno al motor)
+src/motor_fea/viz/static/incidencias/
+
 # Entornos virtuales y artefactos de Python
 .venv/
 venv/
