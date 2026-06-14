@@ -499,6 +499,7 @@ secSlider.addEventListener('input', () => { if (secActivo) dibujarSeccion(); });
 btnSecSvg.addEventListener('click', () => descargarSVG(secSvgActual, 'seccion.svg'));
 btnSecPng.addEventListener('click', () => descargarPNG(secSvgActual, 'seccion.png'));
 corteOrientSel.addEventListener('change', () => {
+  if (!corteActivo) return;
   corteOrient = corteOrientSel.value;
   configurarSliderCorte();
   reconstruirCorte();
@@ -771,11 +772,11 @@ function disposePlanoCorte() {
 function dibujarDetalleCorte(idStr) {
   const cr = cruceActuales.find((c) => String(c.id) === String(idStr));
   if (!cr || !esfuerzos) return;
-  corteElId = cr.id;
   const el = esfuerzos.elementos.find((e) => e.id === cr.id);
   const L = el ? (el.longitud || 1) : 1;
   const datos = datosSeccion(cr.id, cr.s, L);
   if (!datos) return;
+  corteElId = cr.id;
   corteDetHost.replaceChildren(seccionSVG(datos));
   if (cruceMarkers) {
     for (const m of cruceMarkers.children) {
@@ -824,7 +825,7 @@ function limpiarEscena() {
   if (corteDetHost) corteDetHost.replaceChildren();
   if (corteDiv) corteDiv.style.display = 'none';
   corteActivo = false; corteElId = null; corteSvgActual = null; cruceActuales = [];
-  corteOrient = 'planta';
+  corteOrient = 'planta'; corteC = 0;
 
   resultados = null; esfuerzos = null; frameBbox = null;
   losa = null; armado = null; diseno = null;
