@@ -242,6 +242,86 @@ function construirJaula(dto, matLongFn) {
   return grupo;
 }
 
+// --- Cintas 3D de diagramas (overlay) ---
+// Para el componente c (0=N … 5=Mz), una tira de triángulos por barra entre la
+// polilínea base (eje del miembro) y la polilínea desplazada (valor × escala).
+// Dirección de despliegue derivada del eje + up global (aprox. de orientación,
+// ver spec §6.3): Mz,Vy,N,T → t1 ; Vz,My → t2.
+function construirCintas(c) {
+  const grupo = new THREE.Group();
+  grupo.visible = false;
+  if (!esfuerzos) { scene.add(grupo); return grupo; }
+
+  let maxAbs = 0;
+  for (const el of esfuerzos.elementos)
+    for (const fila of el.diagrama) maxAbs = Math.max(maxAbs, Math.abs(fila[c + 1]));
+  const norm = maxAbs > 0 ? exag / maxAbs : 0;   // valor pico → offset = exag (m)
+
+  const up = new THREE.Vector3(0, 1, 0);
+  const altUp = new THREE.Vector3(1, 0, 0);
+
+  for (const el of esfuerzos.elementos) {
+    const bar = barras.find((b) => b.id === el.id);
+    if (!bar) continue;
+    const vi = basePos[bar.i], vj = basePos[bar.j];
+    if (!vi || !vj) continue;
+    const L = vi.distanceTo(vj);
+    if (L === 0) continue;                         // largo 0: se omite
+
+    const axis = vj.clone().sub(vi).normalize();
+    let t1 = new THREE.Vector3().crossVectors(axis, up);
+    if (t1.lengthSq() < 1e-6) t1 = new THREE.Vector3().crossVectors(axis, altUp);
+    t1.normalize();
+    const t2 = new THREE.Vector3().crossVectors(axis, t1).normalize();
+    const dir = (c === 2 || c === 4) ? t2 : t1;    // Vz, My → t2 ; resto → t1
+
+    const filas = el.diagrama;
+    const n = filas.length;
+    const pos = new Float32Array(n * 2 * 3);
+    const col = new Float32Array(n * 2 * 3);
+    for (let k = 0; k < n; k++) {
+      const s = filas[k][0];
+      const val = filas[k][c + 1];
+      const base = vi.clone().lerp(vj, el.longitud ? s / el.longitud : 0);
+      const off = base.clone().add(dir.clone().multiplyScalar(val * norm));
+      pos[k * 6 + 0] = base.x; pos[k * 6 + 1] = base.y; pos[k * 6 + 2] = base.z;
+      pos[k * 6 + 3] = off.x;  pos[k * 6 + 4] = off.y;  pos[k * 6 + 5] = off.z;
+      const cc = colorDeCampo('diagrama', val, -maxAbs, maxAbs);   // divergente por signo
+      col[k * 6 + 0] = cc.r; col[k * 6 + 1] = cc.g; col[k * 6 + 2] = cc.b;
+      col[k * 6 + 3] = cc.r; col[k * 6 + 4] = cc.g; col[k * 6 + 5] = cc.b;
+    }
+    const idx = [];
+    for (let k = 0; k < n - 1; k++) {
+      const b0 = k * 2, o0 = k * 2 + 1, b1 = (k + 1) * 2, o1 = (k + 1) * 2 + 1;
+      idx.push(b0, o0, o1, b0, o1, b1);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geo.setIndex(idx);
+    const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+    grupo.add(new THREE.Mesh(geo, mat));
+  }
+  scene.add(grupo);
+  return grupo;
+}
+
+function disposeCintas() {
+  if (!cintasGroup) return;
+  scene.remove(cintasGroup);
+  cintasGroup.traverse((o) => {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) o.material.dispose();
+  });
+  cintasGroup = null;
+}
+
+function reconstruirCintas() {
+  disposeCintas();
+  cintasGroup = construirCintas(diagComp);
+  cintasGroup.visible = true;
+}
+
 function fantasma(on) {
   for (const m of [MAT.columna, MAT.viga]) {
     m.transparent = on;
@@ -265,9 +345,11 @@ function resetOverlays() {
   losaActiva = false;
   refuerzoActivo = false;
   disenoActivo = false;
+  diagActivo = false;
   if (losaMesh) losaMesh.visible = false;
   if (armadoGroup) armadoGroup.visible = false;
   if (disenoGroup) disenoGroup.visible = false;
+  if (cintasGroup) cintasGroup.visible = false;
   fantasma(false);
   for (const bar of barras) bar.mesh.visible = true;
 }
@@ -311,13 +393,29 @@ function entrarDiseno() {
   if (frameBbox) encuadrar(frameBbox.min, frameBbox.max);
 }
 
+function entrarDiagramas() {
+  diagActivo = true;
+  // las barras quedan en su posición base (estado 'diagramas' → despNodo = 0);
+  // la escala exag controla la altura de las cintas.
+  const span = frameBbox
+    ? new THREE.Vector3(...frameBbox.max).distanceTo(new THREE.Vector3(...frameBbox.min))
+    : 10;
+  exagInput.min = 0; exagInput.max = span; exagInput.step = span / 100;
+  exagInput.value = span * 0.25; exag = span * 0.25;
+  reconstruirCintas();
+  const nombres = esfuerzos ? esfuerzos.orden_componentes : ['N','Vy','Vz','T','My','Mz'];
+  info.textContent = `diagramas 3D — ${nombres[diagComp]}`;
+  if (frameBbox) encuadrar(frameBbox.min, frameBbox.max);
+}
+
 function setEstado(nuevo) {
-  const veniaEspecial = losaActiva || refuerzoActivo || disenoActivo;
+  const veniaEspecial = losaActiva || refuerzoActivo || disenoActivo || diagActivo;
   estado = nuevo;
   resetOverlays();
   if (nuevo.startsWith('losa-')) { entrarLosa(nuevo); return; }
   if (nuevo === 'refuerzo') { entrarRefuerzo(); return; }
   if (nuevo === 'diseno') { entrarDiseno(); return; }
+  if (nuevo === 'diagramas') { entrarDiagramas(); return; }
   if (veniaEspecial && frameBbox) encuadrar(frameBbox.min, frameBbox.max);
   const fs = fsDe(estado);
   exagInput.min = 0; exagInput.max = fs * 5; exagInput.step = fs / 100;
@@ -334,7 +432,10 @@ function setEstado(nuevo) {
 }
 
 selEstado.addEventListener('change', () => setEstado(selEstado.value));
-exagInput.addEventListener('input', () => { exag = parseFloat(exagInput.value); });
+exagInput.addEventListener('input', () => {
+  exag = parseFloat(exagInput.value);
+  if (diagActivo) reconstruirCintas();
+});
 selDiagComp.addEventListener('change', () => {
   diagComp = parseInt(selDiagComp.value, 10);
   if (diagActivo) reconstruirCintas();   // definido en la Task 4
@@ -431,10 +532,11 @@ function limpiarEscena() {
     armadoGroup = null;
   }
   disposeDiseno();
+  disposeCintas();
 
   resultados = null; esfuerzos = null; frameBbox = null;
   losa = null; armado = null; diseno = null;
-  losaActiva = false; refuerzoActivo = false; disenoActivo = false;
+  losaActiva = false; refuerzoActivo = false; disenoActivo = false; diagActivo = false;
 
   // Reconstruir el <select> dejando solo sin-deformar.
   selEstado.length = 0;
@@ -459,7 +561,10 @@ function renderEscena({ escena, resultados: res, esfuerzos: esf }) {
       selEstado.add(new Option('modo ' + m.indice, 'modo-' + m.indice));
     }
   }
-  if (esf) esfuerzos = esf;
+  if (esf) {
+    esfuerzos = esf;
+    selEstado.add(new Option('diagramas', 'diagramas'));
+  }
 }
 
 // --- Carga (modo-ejemplo: el modelo del server) ---
