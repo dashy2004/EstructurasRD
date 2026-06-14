@@ -18,6 +18,8 @@ from motor_fea.core.modelo import (
     Seccion,
 )
 from motor_fea.core.solver import resolver
+from motor_fea.viz.escena import exportar_escena
+from motor_fea.viz.resultados import calcular_resultados
 
 E = 2.0e10
 I = 0.30**4 / 12
@@ -186,3 +188,27 @@ def test_esfuerzos_modelo_dict_equivale_a_resolver_mas_serializar():
     modelo = contrato.modelo_desde_dict(_voladizo_dict())
     assert contrato.esfuerzos_modelo_dict(modelo, n=11) == \
         contrato.esfuerzos_a_dict(modelo, resolver(modelo), n=11)
+
+
+# ---------------------------------------------------------------------------
+# #2: visor_dict — DTOs que el visor necesita para un modelo propio
+# ---------------------------------------------------------------------------
+def test_visor_dict_estructura_y_coherencia():
+    md = _voladizo_dict()
+    d = contrato.visor_dict(md, n=11)
+
+    assert set(d) == {"escena", "resultados", "esfuerzos"}
+    assert set(d["escena"]) == {"unidades", "bbox", "nodos", "barras", "losas"}
+    assert set(d["resultados"]) == {"deformada", "modos"}
+    assert set(d["esfuerzos"]) == {"orden_componentes", "elementos"}
+
+    modelo = contrato.modelo_desde_dict(md)
+    # coherencia: esfuerzos del visor == esfuerzos_modelo_dict directo (mismo solve lógico)
+    assert d["esfuerzos"] == contrato.esfuerzos_modelo_dict(modelo, 11)
+    assert d["escena"] == exportar_escena(modelo)
+    assert d["resultados"] == calcular_resultados(modelo)
+
+
+def test_visor_dict_rechaza_n_menor_2():
+    with pytest.raises(ValueError):
+        contrato.visor_dict(_voladizo_dict(), n=1)
