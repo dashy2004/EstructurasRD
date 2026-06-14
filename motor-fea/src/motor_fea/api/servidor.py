@@ -1,8 +1,11 @@
 """Servidor FastAPI del visor WebXR (capa frontera). Requiere el extra `api`.
 
 Expone GET /escena (SceneDTO), GET /resultados (deformada + modos), GET /losa
-(heatmap de losa), GET /armado (refuerzo 3D de ejemplo) y GET /diseno (armado diseñado por fuerzas), y sirve los estáticos del visor. El análisis y la
-exportación viven en otras capas; este módulo es I/O delgado.
+(heatmap de losa), GET /armado (refuerzo 3D de ejemplo), GET /diseno (armado
+diseñado por fuerzas), GET /esfuerzos (esfuerzos por elemento: extremos + diagrama),
+POST /analizar (analiza un modelo propio, stateless → resultados + esfuerzos), y
+sirve los estáticos del visor. El análisis y la exportación viven en otras capas;
+este módulo es I/O delgado.
 """
 from __future__ import annotations
 
