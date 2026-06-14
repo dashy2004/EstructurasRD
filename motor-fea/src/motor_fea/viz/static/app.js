@@ -468,7 +468,7 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
     const bar = barras.find((b) => b.mesh === hits[0].object);
     const el = bar && diseno.elementos.find((e) => e.id === bar.id);
     if (el) mostrarDiseno(el);
-  } else if (esfuerzos) {
+  } else if (esfuerzos && !refuerzoActivo && !diagActivo) {   // panel 2D solo en modos no-overlay (spec §5.2/§7)
     const hits = punteroRay.intersectObjects(barras.map((b) => b.mesh));
     if (!hits.length) return;
     const bar = barras.find((b) => b.mesh === hits[0].object);
@@ -538,6 +538,8 @@ function limpiarEscena() {
   }
   disposeDiseno();
   disposeCintas();
+  if (diagSvg) diagSvg.replaceChildren();          // limpiar panel 2D del modelo anterior
+  diagComp = 0; selDiagComp.value = '0';           // reset del componente de cintas
 
   resultados = null; esfuerzos = null; frameBbox = null;
   losa = null; armado = null; diseno = null;
