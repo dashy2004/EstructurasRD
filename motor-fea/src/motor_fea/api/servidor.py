@@ -3,7 +3,8 @@
 Expone GET /escena (SceneDTO), GET /resultados (deformada + modos), GET /losa
 (heatmap de losa), GET /armado (refuerzo 3D de ejemplo), GET /diseno (armado
 diseñado por fuerzas), GET /esfuerzos (esfuerzos por elemento: extremos + diagrama),
-POST /analizar (analiza un modelo propio, stateless → resultados + esfuerzos), y
+POST /analizar (analiza un modelo propio, stateless → resultados + esfuerzos),
+POST /visor (modelo propio → escena + resultados + esfuerzos, para el visor), y
 sirve los estáticos del visor. El análisis y la exportación viven en otras capas;
 este módulo es I/O delgado.
 """
@@ -15,7 +16,7 @@ from pathlib import Path
 from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 
-from motor_fea.api.contrato import analizar_completo_dict, esfuerzos_modelo_dict, modelo_desde_dict
+from motor_fea.api.contrato import analizar_completo_dict, esfuerzos_modelo_dict, modelo_desde_dict, visor_dict
 from motor_fea.core.modelo import (
     Apoyo, CargaNodal, ElementoFrame, Material, ModeloEstructural, Nodo, Seccion,
 )
@@ -114,6 +115,13 @@ def crear_app(modelo: ModeloEstructural) -> FastAPI:
     def analizar(modelo_dict: dict = Body(...), n: int = Query(11, ge=2)):
         try:
             return analizar_completo_dict(modelo_dict, n)
+        except (ValueError, KeyError, TypeError) as ex:
+            raise HTTPException(status_code=400, detail=f"Modelo inválido: {ex}")
+
+    @app.post("/visor")
+    def visor(modelo_dict: dict = Body(...), n: int = Query(11, ge=2)):
+        try:
+            return visor_dict(modelo_dict, n)
         except (ValueError, KeyError, TypeError) as ex:
             raise HTTPException(status_code=400, detail=f"Modelo inválido: {ex}")
 
