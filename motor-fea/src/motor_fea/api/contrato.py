@@ -108,10 +108,10 @@ def esfuerzos_a_dict(modelo: ModeloEstructural, resultado: ResultadoAnalisis, n:
         "elementos": [
             {
                 "id": e.id,
-                "longitud": esf[e.id].longitud,
-                "extremo_i": list(esf[e.id].extremo_i),
-                "extremo_j": list(esf[e.id].extremo_j),
-                "diagrama": [list(fila) for fila in esf[e.id].diagrama(n)],
+                "longitud": (ef := esf[e.id]).longitud,
+                "extremo_i": list(ef.extremo_i),
+                "extremo_j": list(ef.extremo_j),
+                "diagrama": [list(fila) for fila in ef.diagrama(n)],
             }
             for e in modelo.elementos
         ],
