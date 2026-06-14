@@ -267,6 +267,7 @@ function construirCintas(c) {
     if (!vi || !vj) continue;
     const L = vi.distanceTo(vj);
     if (L === 0) continue;                         // largo 0: se omite
+    if (el.longitud <= 0 || el.diagrama.length < 2) continue;   // diagrama degenerado
 
     const axis = vj.clone().sub(vi).normalize();
     let t1 = new THREE.Vector3().crossVectors(axis, up);
