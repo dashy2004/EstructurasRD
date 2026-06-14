@@ -43,6 +43,7 @@ export function intersectarPlano(segmentos, orient, c) {
 
 // Color divergente (blanco→azul para v<0, blanco→rojo para v>0). Sólo se usa si opts.comp.
 function colorDivergente(val, maxAbs) {
+  if (!Number.isFinite(val)) return '#888';
   const s = Math.max(-1, Math.min(1, val / (maxAbs || 1)));
   const m = Math.abs(s);
   const r = s > 0 ? 255 : Math.round(255 * (1 - m));
@@ -79,9 +80,8 @@ export function corteSVG(cruces, opts = {}) {
   // Auto-fit: rango de (u,v) incluyendo el tamaño de cada rect, con margen.
   let uMin = Infinity, uMax = -Infinity, vMin = Infinity, vMax = -Infinity;
   for (const cr of cruces) {
-    const hb = Math.max(cr.b, cr.h) / 2;
-    uMin = Math.min(uMin, cr.u - hb); uMax = Math.max(uMax, cr.u + hb);
-    vMin = Math.min(vMin, cr.v - hb); vMax = Math.max(vMax, cr.v + hb);
+    uMin = Math.min(uMin, cr.u - cr.b / 2); uMax = Math.max(uMax, cr.u + cr.b / 2);
+    vMin = Math.min(vMin, cr.v - cr.h / 2); vMax = Math.max(vMax, cr.v + cr.h / 2);
   }
   const du = (uMax - uMin) || 1, dv = (vMax - vMin) || 1;
   const dispW = W - 2 * pad, dispH = H - 2 * pad;
