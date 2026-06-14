@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
 import { crearShell } from './shell.js';
+import { diagramaSVG } from './diagramas2d.js';
 
 const msg = document.getElementById('msg');
 const setMsg = (t) => { msg.textContent = t; };
@@ -41,6 +42,9 @@ const basePos = {};
 const barras = [];           // { mesh, i, j, id }
 let resultados = null;
 let esfuerzos = null;        // DTO de esfuerzos por elemento (para el pick readout)
+let cintasGroup = null;      // overlay de cintas 3D (Group de Meshes)
+let diagActivo = false;
+let diagComp = 0;            // componente activo de la cinta: N=0 … Mz=5
 let frameBbox = null;
 
 let losa = null;
@@ -71,6 +75,8 @@ const inpFc = document.getElementById('fc');
 const inpFy = document.getElementById('fy');
 const inpRec = document.getElementById('rec');
 const btnRedi = document.getElementById('redisenar');
+const selDiagComp = document.getElementById('diag-comp');
+const diagSvg = document.getElementById('diag-svg');
 
 // --- Barras ---
 function addBarra(b) {
@@ -329,6 +335,10 @@ function setEstado(nuevo) {
 
 selEstado.addEventListener('change', () => setEstado(selEstado.value));
 exagInput.addEventListener('input', () => { exag = parseFloat(exagInput.value); });
+selDiagComp.addEventListener('change', () => {
+  diagComp = parseInt(selDiagComp.value, 10);
+  if (diagActivo) reconstruirCintas();   // definido en la Task 4
+});
 btnPlay.addEventListener('click', () => {
   playing = !playing;
   btnPlay.textContent = playing ? '⏸' : '▶';
@@ -356,8 +366,10 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
     const hits = punteroRay.intersectObjects(barras.map((b) => b.mesh));
     if (!hits.length) return;
     const bar = barras.find((b) => b.mesh === hits[0].object);
-    const txt = bar && resumenEsfuerzos(bar.id);
+    if (!bar) return;
+    const txt = resumenEsfuerzos(bar.id);
     if (txt) info.textContent = txt;
+    dibujarDiagramas2D(bar.id);
   }
 });
 
@@ -397,6 +409,13 @@ function resumenEsfuerzos(id) {
   const kN = (n) => (n / 1000).toFixed(0);
   const kNm = (n) => (n / 1000).toFixed(1);
   return `N = ${kN(Math.abs(N))} kN (${signo}) · |M|máx = ${kNm(mmax)} kN·m`;
+}
+
+function dibujarDiagramas2D(id) {
+  if (!esfuerzos || !diagSvg) return;
+  const el = esfuerzos.elementos.find((e) => e.id === id);
+  if (!el) return;                      // id no encontrado: panel intacto
+  diagSvg.replaceChildren(diagramaSVG(el));
 }
 
 // --- Teardown: limpiar la escena para cargar otro modelo ---
