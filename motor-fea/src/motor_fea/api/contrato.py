@@ -38,7 +38,7 @@ from motor_fea.core.modelo import (
     Nodo,
     Seccion,
 )
-from motor_fea.core.solver import ResultadoAnalisis, resolver
+from motor_fea.core.solver import ResultadoAnalisis, esfuerzos_elementos, resolver
 
 
 def modelo_desde_dict(d: dict) -> ModeloEstructural:
@@ -91,6 +91,30 @@ def resultado_a_dict(r: ResultadoAnalisis) -> dict:
         "n_gdl": r.n_gdl,
         "desplazamientos": {str(k): list(v) for k, v in r.desplazamientos.items()},
         "reacciones": {str(k): list(v) for k, v in r.reacciones.items()},
+    }
+
+
+def esfuerzos_a_dict(modelo: ModeloEstructural, resultado: ResultadoAnalisis, n: int = 11) -> dict:
+    """Serializa los esfuerzos por elemento a un dict JSON-able.
+
+    Por elemento: ``extremo_i``/``extremo_j`` son las fuerzas NODALES de extremo crudas
+    (``f_local``); ``diagrama`` son ``n`` estaciones del esfuerzo INTERNO de sección
+    (``internos(t)``, tracción +), cada una ``[s, N, Vy, Vz, T, My, Mz]``. Nota:
+    ``internos(0) == -extremo_i`` (convenciones distintas, ambas expuestas a propósito).
+    """
+    esf = esfuerzos_elementos(modelo, resultado)
+    return {
+        "orden_componentes": ["N", "Vy", "Vz", "T", "My", "Mz"],
+        "elementos": [
+            {
+                "id": e.id,
+                "longitud": esf[e.id].longitud,
+                "extremo_i": list(esf[e.id].extremo_i),
+                "extremo_j": list(esf[e.id].extremo_j),
+                "diagrama": [list(fila) for fila in esf[e.id].diagrama(n)],
+            }
+            for e in modelo.elementos
+        ],
     }
 
 

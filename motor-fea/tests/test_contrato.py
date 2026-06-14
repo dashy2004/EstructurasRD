@@ -121,3 +121,55 @@ def test_cli_disenar_losa_archivo():
         assert out["mx_max"] > 0
     finally:
         os.unlink(path)
+
+
+# ---------------------------------------------------------------------------
+# Task 1: esfuerzos_a_dict
+# ---------------------------------------------------------------------------
+from motor_fea.core.solver import resolver  # noqa: E402 — ya importado por contrato, expuesto aquí para los tests
+
+
+def test_esfuerzos_a_dict_forma_y_convenciones():
+    modelo = contrato.modelo_desde_dict(_voladizo_dict())
+    resultado = resolver(modelo)
+    d = contrato.esfuerzos_a_dict(modelo, resultado, n=11)
+
+    assert set(d) == {"orden_componentes", "elementos"}
+    assert d["orden_componentes"] == ["N", "Vy", "Vz", "T", "My", "Mz"]
+    assert len(d["elementos"]) == len(modelo.elementos)
+
+    e0 = d["elementos"][0]
+    assert set(e0) == {"id", "longitud", "extremo_i", "extremo_j", "diagrama"}
+    assert e0["id"] == modelo.elementos[0].id
+    assert len(e0["extremo_i"]) == 6 and len(e0["extremo_j"]) == 6
+
+    assert len(e0["diagrama"]) == 11
+    assert e0["diagrama"][0][0] == 0.0
+    assert abs(e0["diagrama"][-1][0] - e0["longitud"]) < 1e-9
+    assert len(e0["diagrama"][0]) == 7
+
+    estacion0 = e0["diagrama"][0][1:]
+    for comp, ext in zip(estacion0, e0["extremo_i"]):
+        assert abs(comp - (-ext)) < 1e-9
+
+
+def test_esfuerzos_a_dict_n_configurable():
+    modelo = contrato.modelo_desde_dict(_voladizo_dict())
+    resultado = resolver(modelo)
+    d = contrato.esfuerzos_a_dict(modelo, resultado, n=5)
+    assert all(len(e["diagrama"]) == 5 for e in d["elementos"])
+
+
+# ---------------------------------------------------------------------------
+# Task 2: analizar_completo_dict
+# ---------------------------------------------------------------------------
+def test_analizar_completo_dict_estructura():
+    md = _voladizo_dict()
+    d = contrato.analizar_completo_dict(md, n=11)
+
+    assert set(d) == {"resultados", "esfuerzos"}
+    assert set(d["resultados"]) == {"n_gdl", "desplazamientos", "reacciones"}
+    assert set(d["esfuerzos"]) == {"orden_componentes", "elementos"}
+    modelo = contrato.modelo_desde_dict(md)
+    directo = contrato.esfuerzos_a_dict(modelo, resolver(modelo), n=11)
+    assert d["esfuerzos"] == directo
