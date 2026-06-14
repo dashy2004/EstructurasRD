@@ -2,7 +2,29 @@
 
 **Fecha:** 2026-06-13
 **Sub-proyecto:** #0 del programa "EstructurasRD bajo dirección A (motor = núcleo)"
-**Estado:** Diseño aprobado (pendiente revisión del spec por el usuario)
+**Estado:** Aprobado; lo aditivo ya ejecutado. **Ver §0 (actualización monorepo).**
+
+---
+
+## 0. ACTUALIZACIÓN — hallazgo del monorepo (corrige asunciones)
+
+Durante la ejecución se descubrió que **`master` NO es la línea del motor pura: es
+un MONOREPO** — suite .NET en la raíz (`src.Core`, `src.Memoria`, `src.UI.Shared`,
+`src.Linux`, `LosasPlus*.sln`) **+** el motor Python en `motor-fea/`, en una historia
+unificada y coherente (sin ancestro común con `origin/main`, la línea .NET vieja del
+remoto).
+
+**Decisión revisada (aprobada por el usuario):** publicar el monorepo `master` como
+`main` con un **README de raíz engine-first** (no reestructurar; la fusión de
+historias ya existe en `master`). Esto corrige **D1** y **D5** abajo.
+
+**Estado de ejecución (opción "solo lo seguro"):**
+- ✅ 11 tags `archive/dotnet/*` + rama `archive/dotnet-suite` pusheados (red de
+  seguridad .NET completa en remoto).
+- ✅ README de raíz engine-first/monorepo commiteado en `master` (`3828c13`), **no pusheado**.
+- ⏸️ Destructivo pendiente (con gate): force-push `master`→`main`, push
+  `engine/incidencias-vr-mvp`, poda de 11 ramas, deshabilitar workflows .NET,
+  limpieza local. `origin/main` **intacto** hasta entonces.
 
 ---
 
@@ -14,9 +36,11 @@ incoherente respecto a la dirección elegida:
 - **`origin/main` está obsoleto:** del 2026-05-22, solo contiene `feat/fase1-3`
   mergeadas. No refleja ni siquiera el producto .NET vivo.
 - **La suite .NET viva (`avalonia-linux`, 2026-06-07) NO está en `main`.**
-- **El motor Python (la línea elegida como futuro) no está publicado en
-  ningún lado** — vive en `master` local, **sin ancestro común** con
-  `origin/main` (verificado: `git merge-base master origin/main` → vacío).
+- **El monorepo local (`master`) — suite .NET en raíz + motor en `motor-fea/` —
+  no está publicado**; vive solo en local, **sin ancestro común** con
+  `origin/main` (la línea .NET vieja del remoto; `git merge-base master
+  origin/main` → vacío). *(Ver §0: el alcance de "publicar el motor" es en
+  realidad publicar este monorepo.)*
 - **12 ramas**, solo 3 limpiamente mergeadas.
 
 **Dirección adoptada (decisión previa "A"):** el motor Python es el núcleo de
@@ -33,11 +57,11 @@ operaciones destructivas sobre un repo público.
 
 | # | Decisión | Valor elegido |
 |---|----------|---------------|
-| D1 | Modelo de publicación | Motor = nuevo `main`; .NET archivado en rama/tag (no monorepo aún; no repos separados) |
+| D1 | Modelo de publicación | **(revisado §0)** Publicar el **monorepo `master`** como `main` (motor en `motor-fea/` + suite .NET en raíz), con README de raíz engine-first. Se archiva además la línea .NET **del remoto** (`origin`) por tag/rama. |
 | D2 | Fuente del nuevo `main` | `master` **limpio** (la línea de integración del motor) — **sin** incluir aún `engine/incidencias-vr-mvp` |
 | D3 | Destino del trabajo de incidencias VR | Se preserva como rama remota `engine/incidencias-vr-mvp`; se mergea a `main` más tarde, tras su gate Quest + adaptador de interop |
 | D4 | Preservación .NET | Tag inmutable de cada tip remoto **antes** de borrar nada + rama viva `archive/dotnet-suite` ← `avalonia-linux` |
-| D5 | Fusión física monorepo | Diferida (YAGNI) hasta #5, cuando Avalonia se vuelva cliente del motor |
+| D5 | Fusión física monorepo | **(revisado §0) N/A — ya existe:** `master` es un monorepo (.NET en raíz + `motor-fea/`). No hay fusión que diferir. |
 
 ## 3. Hechos de ramas verificados (base de la política de poda)
 

@@ -25,6 +25,25 @@ Cada acción destructiva es reversible reconstruyendo desde los tags.
 
 ---
 
+## ⚠️ ACTUALIZACIÓN (2026-06-13) — monorepo + estado de ejecución
+
+**Corrección:** `master` es un **MONOREPO** (suite .NET en raíz + motor en
+`motor-fea/`), no la línea del motor pura. Por eso:
+
+- **Task 1** se ejecutó reescribiendo el **README de RAÍZ** en versión
+  engine-first/monorepo. El bloque de README dentro de Task 1 (titulado
+  "EstructurasRD · Motor FEA") era la versión *engine-only* previa al hallazgo y
+  quedó **superado**. README real: ver `README.md` en `master` (`3828c13`).
+- **Task 5** (force-push `master`→`main`) publica el **monorepo completo** + README nuevo.
+
+**Estado de ejecución (opción "solo lo seguro"):**
+- ✅ Task 0 (snapshot) · Task 1 (README raíz, commit `3828c13`, **no pusheado**) ·
+  Task 2 (11 tags) · Task 3 (push tags) · Task 4 (`archive/dotnet-suite`) — **HECHAS**.
+- ⏸️ Tasks 5–9 (force-push `main`, push incidencias, poda, workflows, limpieza local) —
+  **PENDIENTES**, requieren gate humano. `origin/main` **intacto**.
+
+---
+
 ### Task 0: Snapshot de seguridad (solo lectura)
 
 **Files:** ninguno (operación git de lectura).
