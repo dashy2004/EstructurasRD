@@ -5,6 +5,7 @@ import { crearShell } from './shell.js';
 import { diagramaSVG } from './diagramas2d.js';
 import { seccionSVG } from './seccion2d.js';
 import { descargarSVG, descargarPNG } from './svgutil.js';
+import { intersectarPlano, corteSVG, ORIENTACIONES } from './corte2d.js';
 
 const msg = document.getElementById('msg');
 const setMsg = (t) => { msg.textContent = t; };
@@ -54,6 +55,15 @@ let secActivo = false;
 let secElId = null;          // id del miembro seleccionado
 let secSvgActual = null;     // último SVGElement dibujado (para export)
 
+let planoCorte = null;       // marcador 3D del plano (quad semitransparente)
+let cruceMarkers = null;     // Group de marcadores 3D en los cruces
+let cruceActuales = [];      // últimos cruces calculados (para el pick del esquema)
+let corteActivo = false;
+let corteOrient = 'planta';  // clave en ORIENTACIONES
+let corteC = 0;              // posición del plano en el eje normal (m)
+let corteElId = null;        // miembro seleccionado en el esquema (para el detalle)
+let corteSvgActual = null;   // esquema SVG actual (para export)
+
 let losa = null;
 let losaMesh = null;
 let losaActiva = false;
@@ -89,12 +99,19 @@ const secHost = document.getElementById('sec-svg');
 const secSlider = document.getElementById('sec-s');
 const btnSecSvg = document.getElementById('sec-svg-dl');
 const btnSecPng = document.getElementById('sec-png-dl');
+const corteDiv = document.getElementById('corte');
+const corteOrientSel = document.getElementById('corte-orient');
+const corteSlider = document.getElementById('corte-pos');
+const corteHost = document.getElementById('corte-svg');
+const corteDetHost = document.getElementById('corte-det');
+const btnCorteSvg = document.getElementById('corte-svg-dl');
+const btnCortePng = document.getElementById('corte-png-dl');
 
 // --- Barras ---
 function addBarra(b) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(b.b, b.h, 1), MAT[b.tipo] || MAT.viga);
   scene.add(mesh);
-  barras.push({ mesh, i: b.i, j: b.j, id: b.id, b: b.b, h: b.h });
+  barras.push({ mesh, i: b.i, j: b.j, id: b.id, b: b.b, h: b.h, tipo: b.tipo });
 }
 
 function despNodo(id, fase) {
@@ -365,6 +382,7 @@ function resetOverlays() {
   disenoActivo = false;
   diagActivo = false;
   secActivo = false;
+  corteActivo = false;
   if (losaMesh) losaMesh.visible = false;
   if (armadoGroup) armadoGroup.visible = false;
   if (disenoGroup) disenoGroup.visible = false;
@@ -372,6 +390,9 @@ function resetOverlays() {
   disposeAnillo();
   if (secDiv) secDiv.style.display = 'none';
   secElId = null; secSvgActual = null;
+  disposePlanoCorte();
+  if (corteDiv) corteDiv.style.display = 'none';
+  corteElId = null; corteSvgActual = null; cruceActuales = [];
   fantasma(false);
   for (const bar of barras) bar.mesh.visible = true;
 }
@@ -441,7 +462,7 @@ function entrarSeccion() {
 }
 
 function setEstado(nuevo) {
-  const veniaEspecial = losaActiva || refuerzoActivo || disenoActivo || diagActivo || secActivo;
+  const veniaEspecial = losaActiva || refuerzoActivo || disenoActivo || diagActivo || secActivo || corteActivo;
   estado = nuevo;
   resetOverlays();
   if (nuevo.startsWith('losa-')) { entrarLosa(nuevo); return; }
@@ -449,6 +470,7 @@ function setEstado(nuevo) {
   if (nuevo === 'diseno') { entrarDiseno(); return; }
   if (nuevo === 'diagramas') { entrarDiagramas(); return; }
   if (nuevo === 'seccion') { entrarSeccion(); return; }
+  if (nuevo === 'corte') { entrarCorte(); return; }
   if (veniaEspecial && frameBbox) encuadrar(frameBbox.min, frameBbox.max);
   const fs = fsDe(estado);
   exagInput.min = 0; exagInput.max = fs * 5; exagInput.step = fs / 100;
@@ -476,6 +498,20 @@ selDiagComp.addEventListener('change', () => {
 secSlider.addEventListener('input', () => { if (secActivo) dibujarSeccion(); });
 btnSecSvg.addEventListener('click', () => descargarSVG(secSvgActual, 'seccion.svg'));
 btnSecPng.addEventListener('click', () => descargarPNG(secSvgActual, 'seccion.png'));
+corteOrientSel.addEventListener('change', () => {
+  corteOrient = corteOrientSel.value;
+  configurarSliderCorte();
+  reconstruirCorte();
+});
+corteSlider.addEventListener('input', () => { if (corteActivo) reconstruirCorte(); });
+corteHost.addEventListener('click', (ev) => {
+  if (!corteActivo) return;
+  const id = ev.target && ev.target.getAttribute ? ev.target.getAttribute('data-id') : null;
+  if (id == null) return;
+  dibujarDetalleCorte(id);
+});
+btnCorteSvg.addEventListener('click', () => descargarSVG(corteSvgActual, 'corte.svg'));
+btnCortePng.addEventListener('click', () => descargarPNG(corteSvgActual, 'corte.png'));
 btnPlay.addEventListener('click', () => {
   playing = !playing;
   btnPlay.textContent = playing ? '⏸' : '▶';
@@ -511,7 +547,7 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
     secSlider.min = 0; secSlider.max = L; secSlider.step = L / 100; secSlider.value = L / 2;
     construirAnilloSeccion(el);
     dibujarSeccion();
-  } else if (esfuerzos && !refuerzoActivo && !diagActivo && !secActivo) {   // panel 2D solo en modos no-overlay (spec §5.2/§7)
+  } else if (esfuerzos && !refuerzoActivo && !diagActivo && !secActivo && !corteActivo) {   // panel 2D solo en modos no-overlay (spec §5.2/§7)
     const hits = punteroRay.intersectObjects(barras.map((b) => b.mesh));
     if (!hits.length) return;
     const bar = barras.find((b) => b.mesh === hits[0].object);
@@ -642,6 +678,127 @@ function dibujarSeccion() {
   posicionarAnillo(s, el);
 }
 
+// --- Corte global (plano de sección) ---
+// segmentos para intersectarPlano desde el estado actual (barras + basePos + esfuerzos).
+function segmentosCorte() {
+  const segs = [];
+  for (const bar of barras) {
+    const vi = basePos[bar.i], vj = basePos[bar.j];
+    if (!vi || !vj) continue;
+    const el = esfuerzos && esfuerzos.elementos.find((e) => e.id === bar.id);
+    segs.push({
+      id: bar.id,
+      pi: [vi.x, vi.y, vi.z], pj: [vj.x, vj.y, vj.z],
+      longitud: el ? el.longitud : vi.distanceTo(vj),
+      b: bar.b, h: bar.h, tipo: bar.tipo,
+    });
+  }
+  return segs;
+}
+
+// Configura el slider de posición al rango del bbox en el eje normal de la orientación actual.
+function configurarSliderCorte() {
+  const k = ORIENTACIONES[corteOrient].k;
+  const lo = frameBbox ? frameBbox.min[k] : 0;
+  const hi = frameBbox ? frameBbox.max[k] : 1;
+  const span = (hi - lo) || 1;
+  corteSlider.min = lo; corteSlider.max = hi; corteSlider.step = span / 200;
+  corteSlider.value = (lo + hi) / 2;
+  corteC = parseFloat(corteSlider.value);
+}
+
+function reconstruirCorte() {
+  if (!corteActivo) return;
+  const orient = ORIENTACIONES[corteOrient];
+  corteC = parseFloat(corteSlider.value);
+  cruceActuales = intersectarPlano(segmentosCorte(), orient, corteC);
+  corteSvgActual = corteSVG(cruceActuales, { orientEtq: orient.etq, c: corteC });
+  corteHost.replaceChildren(corteSvgActual);
+  // si el miembro del detalle ya no cruza, limpiar el detalle
+  if (corteElId != null && !cruceActuales.some((cr) => cr.id === corteElId)) {
+    corteElId = null;
+    corteDetHost.replaceChildren();
+  }
+  construirPlanoCorte(orient, corteC, cruceActuales);
+  info.textContent = `${cruceActuales.length} cortes — ${orient.etq} @ ${corteC.toFixed(2)} m`;
+}
+
+function construirPlanoCorte(orient, c, cruces) {
+  disposePlanoCorte();
+  if (!frameBbox) return;
+  const k = orient.k;
+  const otros = [0, 1, 2].filter((a) => a !== k);
+  const min = frameBbox.min, max = frameBbox.max;
+  const w = (max[otros[0]] - min[otros[0]]) || 1;
+  const h = (max[otros[1]] - min[otros[1]]) || 1;
+  const mat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true,
+    opacity: 0.15, side: THREE.DoubleSide, depthWrite: false });
+  planoCorte = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+  const centro = [0, 0, 0];
+  centro[k] = c;
+  centro[otros[0]] = (min[otros[0]] + max[otros[0]]) / 2;
+  centro[otros[1]] = (min[otros[1]] + max[otros[1]]) / 2;
+  planoCorte.position.set(centro[0], centro[1], centro[2]);
+  const normal = new THREE.Vector3(0, 0, 0); normal.setComponent(k, 1);
+  planoCorte.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+  scene.add(planoCorte);
+
+  cruceMarkers = new THREE.Group();
+  for (const cr of cruces) {
+    const r = Math.max(cr.b, cr.h) * 0.35 || 0.08;
+    const m = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 8),
+      new THREE.MeshBasicMaterial({ color: cr.id === corteElId ? 0xffff00 : 0x00ff88 }));
+    m.position.set(cr.P[0], cr.P[1], cr.P[2]);
+    m.userData.id = cr.id;
+    cruceMarkers.add(m);
+  }
+  scene.add(cruceMarkers);
+}
+
+function disposePlanoCorte() {
+  if (planoCorte) {
+    scene.remove(planoCorte);
+    planoCorte.geometry.dispose(); planoCorte.material.dispose();
+    planoCorte = null;
+  }
+  if (cruceMarkers) {
+    scene.remove(cruceMarkers);
+    cruceMarkers.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+    cruceMarkers = null;
+  }
+}
+
+function dibujarDetalleCorte(idStr) {
+  const cr = cruceActuales.find((c) => String(c.id) === String(idStr));
+  if (!cr || !esfuerzos) return;
+  corteElId = cr.id;
+  const el = esfuerzos.elementos.find((e) => e.id === cr.id);
+  const L = el ? (el.longitud || 1) : 1;
+  const datos = datosSeccion(cr.id, cr.s, L);
+  if (!datos) return;
+  corteDetHost.replaceChildren(seccionSVG(datos));
+  if (cruceMarkers) {
+    for (const m of cruceMarkers.children) {
+      m.material.color.set(m.userData.id === cr.id ? 0xffff00 : 0x00ff88);
+    }
+  }
+}
+
+function entrarCorte() {
+  corteActivo = true;
+  corteElId = null;
+  corteSvgActual = null;
+  if (corteHost) corteHost.replaceChildren();
+  if (corteDetHost) corteDetHost.replaceChildren();
+  if (diagSvg) diagSvg.replaceChildren();   // evita el diagrama viejo encima del panel
+  if (corteDiv) corteDiv.style.display = 'flex';
+  corteOrient = 'planta';
+  corteOrientSel.value = 'planta';
+  configurarSliderCorte();
+  reconstruirCorte();
+  if (frameBbox) encuadrar(frameBbox.min, frameBbox.max);
+}
+
 // --- Teardown: limpiar la escena para cargar otro modelo ---
 function limpiarEscena() {
   for (const bar of barras) { scene.remove(bar.mesh); bar.mesh.geometry.dispose(); }
@@ -662,6 +819,12 @@ function limpiarEscena() {
   if (secHost) secHost.replaceChildren();
   if (secDiv) secDiv.style.display = 'none';
   secActivo = false; secElId = null; secSvgActual = null;
+  disposePlanoCorte();
+  if (corteHost) corteHost.replaceChildren();
+  if (corteDetHost) corteDetHost.replaceChildren();
+  if (corteDiv) corteDiv.style.display = 'none';
+  corteActivo = false; corteElId = null; corteSvgActual = null; cruceActuales = [];
+  corteOrient = 'planta';
 
   resultados = null; esfuerzos = null; frameBbox = null;
   losa = null; armado = null; diseno = null;
@@ -694,6 +857,7 @@ function renderEscena({ escena, resultados: res, esfuerzos: esf }) {
     esfuerzos = esf;
     selEstado.add(new Option('diagramas', 'diagramas'));
     selEstado.add(new Option('sección', 'seccion'));
+    selEstado.add(new Option('corte', 'corte'));
   }
 }
 
