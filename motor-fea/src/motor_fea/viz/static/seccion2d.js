@@ -28,19 +28,6 @@ export function seccionSVG(datos, opts = {}) {
   const total = Hsec + altoTexto;
   const svg = nodo('svg', { width: W, height: total, viewBox: `0 0 ${W} ${total}` });
 
-  // --- cue de cara en tracción (Mz → caras verticales; My → horizontales) ---
-  const My = fuerzas[4], Mz = fuerzas[5];
-  if (Math.abs(Mz) > 1e-6) {
-    const xc = Mz > 0 ? X(b / 2) : X(-b / 2);
-    svg.appendChild(nodo('line', { x1: xc, y1: Y(h / 2), x2: xc, y2: Y(-h / 2),
-      stroke: colTracc, 'stroke-width': 4 }));
-  }
-  if (Math.abs(My) > 1e-6) {
-    const yc = My > 0 ? Y(h / 2) : Y(-h / 2);
-    svg.appendChild(nodo('line', { x1: X(-b / 2), y1: yc, x2: X(b / 2), y2: yc,
-      stroke: colTracc, 'stroke-width': 4 }));
-  }
-
   // --- rectángulo b×h ---
   svg.appendChild(nodo('rect', { x: X(-b / 2), y: Y(h / 2), width: b * esc, height: h * esc,
     fill: 'none', stroke: '#aaa', 'stroke-width': 1.5 }));
@@ -59,6 +46,19 @@ export function seccionSVG(datos, opts = {}) {
       svg.appendChild(nodo('circle', {
         cx: X(bar.x), cy: Y(bar.y), r: Math.max(1.5, (bar.d / 2) * esc), fill: colBar }));
     }
+  }
+
+  // --- cue de cara en tracción, encima de todo (Mz → caras verticales; My → horizontales) ---
+  const My = fuerzas[4], Mz = fuerzas[5];
+  if (Math.abs(Mz) > 1e-6) {
+    const xc = Mz > 0 ? X(b / 2) : X(-b / 2);
+    svg.appendChild(nodo('line', { x1: xc, y1: Y(h / 2), x2: xc, y2: Y(-h / 2),
+      stroke: colTracc, 'stroke-width': 4 }));
+  }
+  if (Math.abs(My) > 1e-6) {
+    const yc = My > 0 ? Y(h / 2) : Y(-h / 2);
+    svg.appendChild(nodo('line', { x1: X(-b / 2), y1: yc, x2: X(b / 2), y2: yc,
+      stroke: colTracc, 'stroke-width': 4 }));
   }
 
   // --- bloque de texto ---
