@@ -180,3 +180,9 @@ def test_esfuerzos_a_dict_rechaza_n_menor_2():
     resultado = resolver(modelo)
     with pytest.raises(ValueError):
         contrato.esfuerzos_a_dict(modelo, resultado, n=1)
+
+
+def test_esfuerzos_modelo_dict_equivale_a_resolver_mas_serializar():
+    modelo = contrato.modelo_desde_dict(_voladizo_dict())
+    assert contrato.esfuerzos_modelo_dict(modelo, n=11) == \
+        contrato.esfuerzos_a_dict(modelo, resolver(modelo), n=11)
