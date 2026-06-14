@@ -1,7 +1,0 @@
-{
-  "name": "Excel · export resumen mínimo",
-  "author": "LosasPlus",
-  "version": "1.0.0",
-  "description": "Genera un sidecar XLSX con sólo ID/TIPO/Lx/Ly/Mfx/Mfy junto al export oficial. Demuestra el uso de ClosedXML desde un plugin.",
-  "hooks": ["custom-export"]
-}
