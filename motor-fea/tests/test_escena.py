@@ -60,3 +60,22 @@ def test_modelo_invalido_lanza_valueerror():
     m.elementos.append(ElementoFrame(1, 1, 2, 1, 1))  # refs inexistentes
     with pytest.raises(ValueError):
         exportar_escena(m)
+
+
+def test_exportar_escena_emite_losas():
+    from motor_fea.core.modelo import (
+        ModeloEstructural, Nodo, Material, Seccion, ElementoFrame, Apoyo, LosaViz,
+    )
+    from motor_fea.viz.escena import exportar_escena
+    m = ModeloEstructural()
+    m.nodos.extend([Nodo(1, 0.0, 0.0, 0.0), Nodo(2, 3.0, 0.0, 0.0)])
+    m.materiales.append(Material(1, 2.0e10, 0.2, 2400.0))
+    m.secciones.append(Seccion(1, 0.09, 0.000675, 0.000675, 0.00114))
+    m.elementos.append(ElementoFrame(1, 1, 2, 1, 1, (0.0, 0.0, 1.0)))
+    m.apoyos.append(Apoyo(1, True, True, True, True, True, True))
+    m.losas.append(LosaViz(1, [[0.0, 0.0, 0.0], [3.0, 0.0, 0.0], [3.0, 3.0, 0.0], [0.0, 3.0, 0.0]]))
+
+    esc = exportar_escena(m)
+    assert esc["losas"] == [
+        {"id": 1, "puntos": [[0.0, 0.0, 0.0], [3.0, 0.0, 0.0], [3.0, 3.0, 0.0], [0.0, 3.0, 0.0]]}
+    ]

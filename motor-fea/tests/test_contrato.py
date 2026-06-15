@@ -212,3 +212,15 @@ def test_visor_dict_estructura_y_coherencia():
 def test_visor_dict_rechaza_n_menor_2():
     with pytest.raises(ValueError):
         contrato.visor_dict(_voladizo_dict(), n=1)
+
+
+def test_modelo_desde_dict_parsea_losas():
+    from motor_fea.api.contrato import modelo_desde_dict
+    d = {
+        "nodos": [{"id": 1, "x": 0, "y": 0, "z": 0}],
+        "losas": [{"id": 7, "puntos": [[0, 0, 0], [3, 0, 0], [3, 3, 0], [0, 3, 0]]}],
+    }
+    m = modelo_desde_dict(d)
+    assert len(m.losas) == 1
+    assert m.losas[0].id == 7
+    assert m.losas[0].puntos[2] == [3.0, 3.0, 0.0]

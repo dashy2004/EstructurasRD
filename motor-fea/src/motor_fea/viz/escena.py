@@ -61,5 +61,5 @@ def exportar_escena(modelo: ModeloEstructural) -> dict:
         "bbox": bbox,
         "nodos": [{"id": n.id, "p": [n.x, n.y, n.z]} for n in modelo.nodos],
         "barras": barras,
-        "losas": [],
+        "losas": [{"id": l.id, "puntos": l.puntos} for l in modelo.losas],
     }
