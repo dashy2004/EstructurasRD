@@ -27,10 +27,67 @@ directamente.
 
 El código del motor vive en [`motor-fea/`](motor-fea/).
 
-> **Suite de escritorio .NET/Avalonia** (LosasPlus / MemoriaPlus, generación de memoria
-> `.docx`): se conserva en la rama [`archive/dotnet-suite`](../../tree/archive/dotnet-suite)
-> y en los tags `archive/dotnet/*`. Su rol futuro es reposicionarse como **cliente de
-> memoria** de este motor (Roadmap #5).
+El sistema tiene **dos formas de uso** que se complementan — el **visor web/VR** (que
+sirve el propio motor) y la **app de escritorio** de autoría (LosasPlus / MemoriaPlus).
+Ver **[Cómo acceder](#cómo-acceder)** para correr cada una.
+
+> **Suite de escritorio .NET/Avalonia** (LosasPlus / MemoriaPlus): app de autoría de
+> modelos + generación de memoria de cálculo `.docx`. Vive en la rama
+> [`archive/dotnet-suite`](../../tree/archive/dotnet-suite) (y los tags `archive/dotnet/*`).
+> Construye el edificio (niveles, losas, columnas, cargas) y lo **exporta al contrato JSON
+> del motor** para verlo en el visor; su dirección de roadmap es consolidarse como
+> **cliente de memoria** de este motor (#5).
+
+## Cómo acceder
+
+Hay dos piezas que puedes correr; lo normal es usar las dos juntas (autoría en la app →
+visualización en el visor).
+
+### 1) El visor web / VR (motor)
+
+Sirve el modelo 3D en el navegador (y en VR con WebXR). Es lo que muestra geometría,
+deformada, modos, mapas de calor de losa y armado. Requiere **Python 3.11+**.
+
+```bash
+git clone https://github.com/dashy2004/EstructurasRD.git
+cd EstructurasRD/motor-fea
+python -m venv .venv && . .venv/bin/activate
+pip install -e '.[api]'
+
+motor-fea --serve                 # abre en http://127.0.0.1:8000
+motor-fea --serve modelo.json     # carga tu propio modelo (contrato JSON del motor)
+```
+
+Luego abre **http://127.0.0.1:8000** en el navegador. Sin `modelo.json` sirve un pórtico
+de ejemplo. Para verlo desde el **celular o un visor Quest** en la misma red Wi-Fi, usa
+`motor-fea --serve --host 0.0.0.0` y entra desde el dispositivo a `http://<IP-de-tu-PC>:8000`
+(el botón **VR** aparece en visores con WebXR). Detalle de endpoints y modos en
+[Visor web + VR](#visor-web--vr).
+
+### 2) La aplicación de escritorio (LosasPlus / MemoriaPlus)
+
+App de autoría .NET 8 / Avalonia (Linux · Windows · macOS): construyes el edificio
+(niveles, losas, columnas, cargas), calculas, generas la **memoria `.docx`**, y exportas
+el modelo al **contrato JSON del motor** para abrirlo en el visor de arriba. Vive en la
+rama **[`archive/dotnet-suite`](../../tree/archive/dotnet-suite)**. Requiere el **SDK de .NET 8**.
+
+```bash
+git clone https://github.com/dashy2004/EstructurasRD.git
+cd EstructurasRD
+git checkout archive/dotnet-suite
+
+dotnet build LosasPlus.Linux.sln -c Debug          # compila la suite
+dotnet run --project src         -c Debug          # LosasPlus  (autoría de losas)
+dotnet run --project src.Memoria -c Debug          # MemoriaPlus (memoria .docx)
+```
+
+En Windows puedes generar ejecutables `.exe` self-contained (no requieren instalar .NET);
+los pasos de build/publish multiplataforma están en
+[`BUILD-Linux.md`](../../blob/archive/dotnet-suite/BUILD-Linux.md) de esa rama.
+
+> El flujo app → visor (exportar el modelo de la app al JSON que consume el motor) está en
+> **desarrollo activo** en la línea del editor de planta; el motor ya acepta ese contrato
+> (`motor-fea --serve modelo.json`).
 
 ## Arquitectura
 
