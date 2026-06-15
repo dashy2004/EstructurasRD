@@ -51,6 +51,13 @@
                     <TextBlock Margin="0,8,0,0" Foreground="{StaticResource OnSurfaceVariantBrush}"
                                FontSize="11" TextAlignment="Center"
                                Text="Se abrirá un diálogo para elegir dónde guardar."/>
+                    <Button Theme="{StaticResource SecondaryButtonStyle}"
+                            Content="🧊 Exportar modelo para visor (FEA)"
+                            HorizontalAlignment="Stretch" Height="40"
+                            Margin="0,8,0,0"
+                            Command="{Binding ExportarModeloMotorCommand}"/>
+                    <TextBlock Text="{Binding StatusExportacion}" TextWrapping="Wrap" Margin="0,4,0,0"
+                               FontSize="12" Foreground="{StaticResource OnSurfaceVariantBrush}"/>
                 </StackPanel>
             </Grid>
         </Border>

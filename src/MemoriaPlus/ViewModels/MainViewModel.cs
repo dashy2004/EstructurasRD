@@ -57,6 +57,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         QuitarTxtPerdomoCommand   = new RelayCommand(QuitarTxtPerdomo,   () => SistemaActivo?.TieneSalidaPerdomo == true);
         CalcularLosasConMotorCommand = new AsyncRelayCommand(CalcularLosasConMotor,
             () => SistemaActivo != null && SistemaActivo.Losas.Count > 0);
+        ExportarModeloMotorCommand = new AsyncRelayCommand(ExportarModeloMotor,
+            () => ProyectoActivo != null && ProyectoActivo.Edificios.Count > 0);
         GenerarMemoriaCommand     = new AsyncRelayCommand(GenerarMemoria);
         AbrirUltimaMemoriaCommand = new RelayCommand(AbrirUltimaMemoria, () => UltimoArchivoGenerado != null);
         AbrirProyectoRecienteCommand = new RelayCommand<string>(AbrirProyectoReciente);
@@ -322,6 +324,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public AsyncRelayCommand ImportarTxtPerdomoCommand { get; }
     public RelayCommand QuitarTxtPerdomoCommand   { get; }
     public AsyncRelayCommand CalcularLosasConMotorCommand { get; }
+    public AsyncRelayCommand ExportarModeloMotorCommand { get; }
     public AsyncRelayCommand GenerarMemoriaCommand     { get; }
     public RelayCommand AbrirUltimaMemoriaCommand { get; }
     public RelayCommand<string> AbrirProyectoRecienteCommand { get; }
@@ -1001,6 +1004,36 @@ public sealed class MainViewModel : INotifyPropertyChanged
         catch (Exception ex)
         {
             StatusMotor = $"Error ejecutando el motor: {ex.Message}";
+        }
+    }
+
+    private string _statusExportacion = "";
+    /// <summary>Mensaje de la última exportación del modelo para el visor.</summary>
+    public string StatusExportacion
+    {
+        get => _statusExportacion;
+        private set { _statusExportacion = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Exporta el modelo del edificio activo a JSON para el visor FEA.</summary>
+    private async Task ExportarModeloMotor()
+    {
+        if (ProyectoActivo is null) return;
+        var edificio = ProyectoActivo.Edificios.FirstOrDefault();
+        if (edificio is null) { StatusExportacion = "No hay edificio activo que exportar."; return; }
+        try
+        {
+            var ruta = await AppServices.Dialogs.SaveFileAsync(
+                "Exportar modelo para visor (FEA)", "modelo_motor", ".json",
+                new FileFilter("Modelo motor", new[] { "*.json" }));
+            if (string.IsNullOrEmpty(ruta)) return; // cancelado
+
+            var resumen = ExportadorModeloArchivo.Exportar(edificio, ruta);
+            StatusExportacion = $"Exportado: {resumen.Nodos} nodos, {resumen.Barras} barras → {resumen.Ruta}";
+        }
+        catch (Exception ex)
+        {
+            StatusExportacion = $"Error exportando el modelo: {ex.Message}";
         }
     }
 
