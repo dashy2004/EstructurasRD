@@ -26,7 +26,7 @@ public sealed class FranjaMotor
     [JsonPropertyName("as_requerido")] public double AsRequerido { get; set; }
     [JsonPropertyName("as_minimo")]    public double AsMinimo { get; set; }
     [JsonPropertyName("as_diseno")]    public double AsDiseno { get; set; }
-    [JsonPropertyName("numero_barra")] public string? NumeroBarra { get; set; }
+    [JsonPropertyName("numero_barra")] public int? NumeroBarra { get; set; }
     [JsonPropertyName("espaciamiento")] public double Espaciamiento { get; set; }
     [JsonPropertyName("as_provista")]  public double AsProvista { get; set; }
     [JsonPropertyName("cumple")]       public bool Cumple { get; set; }
