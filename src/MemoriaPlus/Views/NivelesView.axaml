@@ -280,10 +280,33 @@
                         HorizontalAlignment="Stretch"
                         Command="{Binding ImportarTxtPerdomoCommand}"/>
 
-                <TextBlock Grid.Row="2" Margin="0,12,0,8"
-                           Foreground="{StaticResource OnSurfaceVariantBrush}"
-                           FontSize="11" TextWrapping="Wrap"
-                           Text="El parser del .txt del software Losas v5.20 (F. Perdomo) extrae momentos flectores y armaduras por losa, y los inyecta en la sección 4.x.3 de la memoria."/>
+                <StackPanel Grid.Row="2" Margin="0,12,0,8">
+                    <TextBlock Foreground="{StaticResource OnSurfaceVariantBrush}"
+                               FontSize="11" TextWrapping="Wrap"
+                               Text="El parser del .txt del software Losas v5.20 (F. Perdomo) extrae momentos flectores y armaduras por losa, y los inyecta en la sección 4.x.3 de la memoria."/>
+
+                    <Border Margin="0,12,0,0" BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="0,1,0,0"/>
+                    <TextBlock Margin="0,12,0,0" Theme="{StaticResource LabelCapsStyle}" Text="⚙  MOTOR FEA (PYTHON)"/>
+                    <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap"
+                               Foreground="{StaticResource OnSurfaceVariantBrush}"
+                               Text="Diseña las losas del nivel con el motor Python (placa rectangular FEM). Perdomo sigue disponible; el motor sobrescribe los resultados mostrados (en memoria)."/>
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                        <TextBlock Text="Borde:" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{StaticResource OnSurfaceVariantBrush}"/>
+                        <ComboBox SelectedItem="{Binding BordeLosaMotor}" Width="130">
+                            <x:String>simple</x:String>
+                            <x:String>empotrado</x:String>
+                        </ComboBox>
+                    </StackPanel>
+                    <Button Margin="0,8,0,0"
+                            Theme="{StaticResource PrimaryButtonStyle}"
+                            Content="Calcular losas con el motor (FEA)"
+                            HorizontalAlignment="Stretch"
+                            Command="{Binding CalcularLosasConMotorCommand}"/>
+                    <TextBlock Margin="0,8,0,0" FontSize="11" TextWrapping="Wrap"
+                               Foreground="{StaticResource OnSurfaceVariantBrush}"
+                               Text="{Binding StatusMotor}"/>
+                </StackPanel>
 
                 <Grid Grid.Row="3">
                     <!-- SIN .txt -->
