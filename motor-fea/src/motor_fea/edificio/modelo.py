@@ -141,6 +141,8 @@ class Proyecto:
             errores.append("IDs de edificio duplicados.")
         for edi in self.edificios:
             errores.extend(_validar_niveles(edi))
+            errores.extend(_validar_verticales(edi))
+            errores.extend(_validar_losas(edi))
         return errores
 
     def es_valido(self) -> bool:
@@ -158,4 +160,57 @@ def _validar_niveles(edi: Edificio) -> list[str]:
     if len(set(cotas)) != len(cotas):
         errores.append(f"Edificio {edi.id}: cotas de nivel duplicadas "
                        "(deben ser únicas; el orden lo da niveles_ordenados).")
+    return errores
+
+
+def _validar_verticales(edi: Edificio) -> list[str]:
+    errores: list[str] = []
+    # NOTA: las cotas son literales del contrato (no aritmética); la comparación
+    # exacta de floats con ``in cotas_nivel`` es segura mientras eso se mantenga.
+    cotas_nivel = {n.cota for n in edi.niveles}
+    cota_min = edi.cota_minima()
+    if len({v.id for v in edi.elementos_verticales}) != len(edi.elementos_verticales):
+        errores.append(f"Edificio {edi.id}: IDs de vertical duplicados.")
+    for v in edi.elementos_verticales:
+        et = f"Edificio {edi.id} vertical {v.id}"
+        if v.cota_base >= v.cota_tope:
+            errores.append(f"{et}: cota_base ({v.cota_base}) debe ser menor que cota_tope ({v.cota_tope}).")
+        if v.cota_tope not in cotas_nivel:
+            errores.append(f"{et}: cota_tope ({v.cota_tope}) no alineada con ningún nivel.")
+        # La base puede ser fundación (≤ cota mínima); si no, debe alinear con un nivel.
+        if v.cota_base not in cotas_nivel and v.cota_base > cota_min:
+            errores.append(f"{et}: cota_base ({v.cota_base}) no alineada con ningún nivel ni con la fundación.")
+        for valor, etiq in _dimensiones_vertical(v):
+            if valor <= 0:
+                errores.append(f"{et}: {etiq} debe ser positivo.")
+        if v.zapata is not None:
+            for etiq, valor in (("ancho", v.zapata.ancho), ("largo", v.zapata.largo),
+                                ("peralte", v.zapata.peralte)):
+                if valor <= 0:
+                    errores.append(f"{et}: zapata.{etiq} debe ser positivo.")
+    return errores
+
+
+def _dimensiones_vertical(v: Columna | Muro) -> list[tuple[float, str]]:
+    """[(valor, etiqueta), ...] de las dimensiones de sección de una vertical."""
+    if isinstance(v, Columna):
+        return [(v.base, "base"), (v.peralte, "peralte")]
+    if isinstance(v, Muro):
+        return [(v.espesor, "espesor")]
+    return []
+
+
+def _validar_losas(edi: Edificio) -> list[str]:
+    errores: list[str] = []
+    for nivel in edi.niveles:
+        if len({losa.id for losa in nivel.losas}) != len(nivel.losas):
+            errores.append(f"Edificio {edi.id} nivel {nivel.id}: IDs de losa duplicados.")
+        for losa in nivel.losas:
+            et = f"Edificio {edi.id} nivel {nivel.id} losa {losa.id}"
+            if len(losa.puntos) < 3:
+                errores.append(f"{et}: el contorno necesita al menos 3 puntos.")
+            if losa.espesor <= 0:
+                errores.append(f"{et}: espesor debe ser positivo.")
+            if losa.tipo not in TIPOS_LOSA:
+                errores.append(f"{et}: tipo '{losa.tipo}' fuera del catálogo {sorted(TIPOS_LOSA)}.")
     return errores
