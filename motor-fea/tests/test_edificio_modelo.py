@@ -84,3 +84,32 @@ def test_columna_continua_atraviesa_los_tres_niveles():
     parcial = Columna(id=2, posicion=(1, 1), base=0.3, peralte=0.3,
                       cota_base=3.0, cota_tope=6.0, material="H210")
     assert [n.cota for n in edi.niveles_atravesados(parcial)] == [3.0, 6.0]
+
+
+def test_validacion_niveles_e_ids():
+    from motor_fea.edificio.modelo import Edificio, Nivel, Proyecto
+
+    # Caso válido mínimo
+    ok = Proyecto(edificios=[Edificio(id=1, nombre="A",
+                                      niveles=[Nivel(1, "N1", 0.0)])])
+    assert ok.validar() == []
+    assert ok.es_valido() is True
+
+    # Cotas duplicadas
+    dup = Proyecto(edificios=[Edificio(id=1, nombre="A", niveles=[
+        Nivel(1, "N1", 0.0), Nivel(2, "N2", 0.0)])])
+    assert any("cota" in e.lower() for e in dup.validar())
+
+    # Edificio sin niveles
+    vacio = Proyecto(edificios=[Edificio(id=1, nombre="A", niveles=[])])
+    assert any("al menos un nivel" in e.lower() for e in vacio.validar())
+
+    # IDs de nivel duplicados
+    ids = Proyecto(edificios=[Edificio(id=1, nombre="A", niveles=[
+        Nivel(1, "N1", 0.0), Nivel(1, "N2", 3.0)])])
+    assert any("id" in e.lower() and "nivel" in e.lower() for e in ids.validar())
+
+    # IDs de edificio duplicados
+    edis = Proyecto(edificios=[Edificio(id=1, nombre="A", niveles=[Nivel(1, "N", 0.0)]),
+                               Edificio(id=1, nombre="B", niveles=[Nivel(1, "N", 0.0)])])
+    assert any("edificio" in e.lower() for e in edis.validar())
