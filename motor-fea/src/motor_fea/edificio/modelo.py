@@ -29,3 +29,17 @@ class Losa:
     espesor: float            # m
     puntos: tuple[tuple[float, float], ...]   # contorno en planta, ≥3 puntos
     cargas: CargasLosa = CargasLosa()
+
+
+@dataclass(frozen=True)
+class Nivel:
+    """Planta del edificio (nivel = sistema unificado). ``cota`` es la única
+    fuente de la elevación; las losas la heredan vía ``puntos_losa_3d``."""
+    id: int
+    nombre: str               # libre, independiente del nombre de las losas
+    cota: float               # m, Z arriba
+    losas: tuple[Losa, ...] = ()
+
+    def puntos_losa_3d(self, losa: Losa) -> list[list[float]]:
+        """Contorno 3D de una losa de este nivel: su (x, y) en planta a ``cota``."""
+        return [[x, y, self.cota] for (x, y) in losa.puntos]
