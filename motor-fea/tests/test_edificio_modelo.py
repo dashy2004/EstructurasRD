@@ -113,3 +113,54 @@ def test_validacion_niveles_e_ids():
     edis = Proyecto(edificios=[Edificio(id=1, nombre="A", niveles=[Nivel(1, "N", 0.0)]),
                                Edificio(id=1, nombre="B", niveles=[Nivel(1, "N", 0.0)])])
     assert any("edificio" in e.lower() for e in edis.validar())
+
+
+def _edificio_base(verticales=(), losas=()):
+    from motor_fea.edificio.modelo import Edificio, Nivel
+    return Edificio(id=1, nombre="A",
+                    niveles=[Nivel(1, "N1", 0.0, tuple(losas)),
+                             Nivel(2, "N2", 3.0)],
+                    elementos_verticales=list(verticales))
+
+
+def test_validacion_verticales():
+    from motor_fea.edificio.modelo import Columna, Proyecto
+
+    # cota_base >= cota_tope
+    mala = Columna(id=1, posicion=(0, 0), base=0.3, peralte=0.3,
+                   cota_base=3.0, cota_tope=3.0, material="H210")
+    assert any("cota_base" in e for e in Proyecto(edificios=[_edificio_base([mala])]).validar())
+
+    # cota_tope no alineada con ningún nivel
+    desalineada = Columna(id=2, posicion=(0, 0), base=0.3, peralte=0.3,
+                          cota_base=0.0, cota_tope=2.5, material="H210")
+    assert any("alinead" in e.lower() for e in Proyecto(edificios=[_edificio_base([desalineada])]).validar())
+
+    # geometría no positiva
+    sin_seccion = Columna(id=3, posicion=(0, 0), base=0.0, peralte=0.3,
+                          cota_base=0.0, cota_tope=3.0, material="H210")
+    assert any("positiv" in e.lower() for e in Proyecto(edificios=[_edificio_base([sin_seccion])]).validar())
+
+    # válida: base = fundación (≤ cota mínima), tope alineado
+    buena = Columna(id=4, posicion=(0, 0), base=0.3, peralte=0.3,
+                    cota_base=-1.0, cota_tope=3.0, material="H210")
+    assert Proyecto(edificios=[_edificio_base([buena])]).validar() == []
+
+
+def test_validacion_losas():
+    from motor_fea.edificio.modelo import Losa, Proyecto
+
+    pocos = Losa(id=1, tipo="maciza", espesor=0.20, puntos=((0, 0), (1, 0)))
+    assert any("punto" in e.lower() for e in Proyecto(edificios=[_edificio_base(losas=[pocos])]).validar())
+
+    delgada = Losa(id=2, tipo="maciza", espesor=0.0, puntos=((0, 0), (1, 0), (1, 1)))
+    assert any("espesor" in e.lower() for e in Proyecto(edificios=[_edificio_base(losas=[delgada])]).validar())
+
+    rara = Losa(id=3, tipo="inventada", espesor=0.20, puntos=((0, 0), (1, 0), (1, 1)))
+    assert any("tipo" in e.lower() for e in Proyecto(edificios=[_edificio_base(losas=[rara])]).validar())
+
+    # IDs de losa duplicados dentro de un mismo nivel
+    a = Losa(id=5, tipo="maciza", espesor=0.20, puntos=((0, 0), (1, 0), (1, 1)))
+    b = Losa(id=5, tipo="maciza", espesor=0.20, puntos=((0, 0), (2, 0), (2, 2)))
+    assert any("losa" in e.lower() and "id" in e.lower()
+               for e in Proyecto(edificios=[_edificio_base(losas=[a, b])]).validar())
