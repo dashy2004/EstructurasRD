@@ -47,3 +47,21 @@ def test_columna_y_muro_continuos():
     muro = Muro(id=2, linea=((0, 0), (0, 5)), espesor=0.20,
                 cota_base=0.0, cota_tope=6.0, material="H210")
     assert muro.zapata is None                            # zapata opcional
+
+
+def test_proyecto_contenedores_y_orden_de_niveles():
+    from motor_fea.edificio.modelo import (
+        CargasGlobales, Edificio, Metadata, Nivel, Proyecto,
+    )
+
+    n1 = Nivel(id=1, nombre="N1", cota=0.0)
+    n2 = Nivel(id=2, nombre="N2", cota=3.0)
+    edi = Edificio(id=1, nombre="Bloque A", niveles=[n2, n1])   # desordenados a propósito
+    proy = Proyecto(metadata=Metadata(nombre="Demo"),
+                    cargas_globales=CargasGlobales(muerta_adicional=1.5, viva=2.0),
+                    combinaciones=["1.2D+1.6L"], edificios=[edi])
+
+    assert [n.cota for n in edi.niveles_ordenados()] == [0.0, 3.0]   # ordena por cota
+    assert edi.cota_minima() == 0.0
+    assert proy.metadata.nombre == "Demo"
+    assert proy.combinaciones == ["1.2D+1.6L"]
