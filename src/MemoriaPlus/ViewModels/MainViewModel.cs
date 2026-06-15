@@ -55,6 +55,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         ImportarCargasXlsCommand  = new AsyncRelayCommand(ImportarCargasXls);
         ImportarTxtPerdomoCommand = new AsyncRelayCommand(ImportarTxtPerdomo, () => SistemaActivo != null);
         QuitarTxtPerdomoCommand   = new RelayCommand(QuitarTxtPerdomo,   () => SistemaActivo?.TieneSalidaPerdomo == true);
+        CalcularLosasConMotorCommand = new AsyncRelayCommand(CalcularLosasConMotor,
+            () => SistemaActivo != null && SistemaActivo.Losas.Count > 0);
         GenerarMemoriaCommand     = new AsyncRelayCommand(GenerarMemoria);
         AbrirUltimaMemoriaCommand = new RelayCommand(AbrirUltimaMemoria, () => UltimoArchivoGenerado != null);
         AbrirProyectoRecienteCommand = new RelayCommand<string>(AbrirProyectoReciente);
@@ -262,6 +264,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             OnPropertyChanged();
             ImportarTxtPerdomoCommand?.RaiseCanExecuteChanged();
             QuitarTxtPerdomoCommand?.RaiseCanExecuteChanged();
+            CalcularLosasConMotorCommand?.RaiseCanExecuteChanged();
             AgregarLosaCommand?.RaiseCanExecuteChanged();
             EliminarSistemaCommand?.RaiseCanExecuteChanged();
             OnPropertyChanged(nameof(IssuesEnSistemaActivo));
@@ -318,6 +321,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public AsyncRelayCommand ImportarCargasXlsCommand  { get; }
     public AsyncRelayCommand ImportarTxtPerdomoCommand { get; }
     public RelayCommand QuitarTxtPerdomoCommand   { get; }
+    public AsyncRelayCommand CalcularLosasConMotorCommand { get; }
     public AsyncRelayCommand GenerarMemoriaCommand     { get; }
     public RelayCommand AbrirUltimaMemoriaCommand { get; }
     public RelayCommand<string> AbrirProyectoRecienteCommand { get; }
@@ -954,6 +958,50 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         get => _statusImportarTxt;
         private set { _statusImportarTxt = value; OnPropertyChanged(); }
+    }
+
+    private string _statusMotor = "";
+    /// <summary>Mensaje del último cálculo con el motor FEA del nivel activo.</summary>
+    public string StatusMotor
+    {
+        get => _statusMotor;
+        private set { _statusMotor = value; OnPropertyChanged(); }
+    }
+
+    private string _bordeLosaMotor = "simple";
+    /// <summary>Condición de borde para el motor: "simple" (apoyo simple, por defecto) o "empotrado".</summary>
+    public string BordeLosaMotor
+    {
+        get => _bordeLosaMotor;
+        set { _bordeLosaMotor = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Diseña todas las losas del nivel activo con el motor FEA y vuelca el resultado
+    /// en <see cref="Sistema.SalidaPerdomo"/> (en memoria; no toca ningún .txt en disco).</summary>
+    private async Task CalcularLosasConMotor()
+    {
+        if (SistemaActivo is null) return;
+        try
+        {
+            StatusMotor = "Calculando con el motor…";
+            var svc = new MotorFeaLosasService(new MotorFeaClient(new ProcesoRunner()));
+            var (salida, fallidas) = await svc.CalcularAsync(
+                SistemaActivo, BordeLosaMotor, System.Threading.CancellationToken.None);
+
+            SistemaActivo.SalidaPerdomo = salida;
+
+            StatusMotor = fallidas.Count == 0
+                ? $"Motor: {salida.Momentos.Count} losa(s) calculadas (borde {BordeLosaMotor})."
+                : $"Motor: {salida.Momentos.Count} calculadas, {fallidas.Count} fallida(s): " +
+                  string.Join(", ", fallidas.Select(id => $"L{id}"));
+
+            QuitarTxtPerdomoCommand.RaiseCanExecuteChanged();
+            OnPropertyChanged(nameof(SistemaActivo));
+        }
+        catch (Exception ex)
+        {
+            StatusMotor = $"Error ejecutando el motor: {ex.Message}";
+        }
     }
 
     /// <summary>
