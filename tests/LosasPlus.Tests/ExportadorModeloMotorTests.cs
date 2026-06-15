@@ -66,6 +66,30 @@ public class ExportadorModeloMotorTests
     }
 
     [Fact]
+    public void Exporta_losas_con_4_esquinas_a_la_cota()
+    {
+        var nivel = new Nivel { Cota = 3.0 };
+        var sis = new Sistema { Fc = 0.210, Fy = 4.200 };
+        sis.Losas.Add(new Losa { CoordenadaX = 1, CoordenadaY = 2, Lx = 4, Ly = 5, Espesor = 0.12 });
+        nivel.Sistemas.Add(sis);
+        // columnas con zapata → el modelo es válido (tiene apoyos) y exportable
+        foreach (var (x, y) in new[] { (0.0, 0.0), (4.0, 0.0) })
+            nivel.Columnas.Add(new Columna { CoordenadaX = x, CoordenadaY = y, Base = 0.30, Peralte = 0.30, Altura = 3.0, Zapata = new Zapata() });
+        var ed = new Edificio();
+        ed.Niveles.Add(nivel);
+
+        var m = ExportadorModeloMotor.Exportar(ed);
+
+        Assert.Single(m.Losas);
+        var p = m.Losas[0].Puntos;
+        Assert.Equal(4, p.Length);
+        Assert.Equal(new[] { 1.0, 2.0, 3.0 }, p[0]);   // (X, Y, cota)
+        Assert.Equal(new[] { 5.0, 2.0, 3.0 }, p[1]);   // (X+Lx, Y, cota)
+        Assert.Equal(new[] { 5.0, 7.0, 3.0 }, p[2]);   // (X+Lx, Y+Ly, cota)
+        Assert.Equal(new[] { 1.0, 7.0, 3.0 }, p[3]);   // (X, Y+Ly, cota)
+    }
+
+    [Fact]
     public void Modelo_sin_apoyos_lanza_excepcion()
     {
         var nivel = new Nivel { Cota = 0.0 };

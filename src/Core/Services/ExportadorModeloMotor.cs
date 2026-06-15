@@ -91,6 +91,24 @@ public static class ExportadorModeloMotor
                 "El modelo no tiene apoyos: ninguna base de columna de fundación quedó restringida " +
                 "(el análisis sería singular). Revisa que existan columnas con zapata en el nivel de fundación.");
 
+        int losaId = 1;
+        foreach (var nivel in edificio.Niveles)
+            foreach (var sistema in nivel.Sistemas)
+                foreach (var losa in sistema.Losas)
+                {
+                    double x0 = losa.CoordenadaX, y0 = losa.CoordenadaY, z = nivel.Cota;
+                    double x1 = x0 + losa.Lx, y1 = y0 + losa.Ly;
+                    modelo.Losas.Add(new LosaMotor
+                    {
+                        Id = losaId++,
+                        Puntos = new[]
+                        {
+                            new[] { x0, y0, z }, new[] { x1, y0, z },
+                            new[] { x1, y1, z }, new[] { x0, y1, z },
+                        },
+                    });
+                }
+
         // Cargas: vacío en Etapa 1a.
         return modelo;
     }

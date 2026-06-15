@@ -67,4 +67,33 @@ public class ExportadorIntegracionMotorTests
         Assert.True(p.ExitCode == 0, $"El motor falló (exit {p.ExitCode}): {err}");
         Assert.False(string.IsNullOrWhiteSpace(salida)); // produjo resultados → no singular
     }
+
+    [Fact]
+    public void El_motor_acepta_un_modelo_con_losas()
+    {
+        if (!File.Exists(PythonMotor)) return; // guardado
+
+        var ed = PorticoConZapatas();
+        var nivel = ed.Niveles[0];
+        Sistema sis = nivel.Sistemas.Count > 0 ? nivel.Sistemas[0] : null!;
+        if (sis is null) { sis = new Sistema { Fc = 0.210, Fy = 4.200 }; nivel.Sistemas.Add(sis); }
+        sis.Losas.Add(new Losa { CoordenadaX = 0, CoordenadaY = 0, Lx = 5, Ly = 5, Espesor = 0.12 });
+
+        string json = ExportadorModeloMotor.ToJson(ExportadorModeloMotor.Exportar(ed));
+        Assert.Contains("\"losas\"", json);
+        Assert.Contains("\"puntos\"", json);
+
+        var psi = new ProcessStartInfo(PythonMotor)
+        {
+            ArgumentList = { "-m", "motor_fea.api.cli", "--analyze", "-" },
+            RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true,
+            UseShellExecute = false, WorkingDirectory = DirMotor,
+        };
+        using var p = Process.Start(psi)!;
+        p.StandardInput.Write(json);
+        p.StandardInput.Close();
+        string err = p.StandardError.ReadToEnd();
+        p.WaitForExit(30000);
+        Assert.True(p.ExitCode == 0, $"El motor rechazó el modelo con losas (exit {p.ExitCode}): {err}");
+    }
 }

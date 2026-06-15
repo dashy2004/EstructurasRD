@@ -13,6 +13,13 @@ public sealed class ModeloMotorDto
     [JsonPropertyName("elementos")]  public List<ElementoMotor> Elementos { get; set; } = new();
     [JsonPropertyName("apoyos")]     public List<ApoyoMotor> Apoyos { get; set; } = new();
     [JsonPropertyName("cargas")]     public List<CargaMotor> Cargas { get; set; } = new();
+    [JsonPropertyName("losas")]      public List<LosaMotor> Losas { get; set; } = new();
+}
+
+public sealed class LosaMotor
+{
+    [JsonPropertyName("id")]     public int Id { get; set; }
+    [JsonPropertyName("puntos")] public double[][] Puntos { get; set; } = System.Array.Empty<double[]>();
 }
 
 public sealed class NodoMotor
