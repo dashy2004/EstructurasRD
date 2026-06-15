@@ -43,6 +43,7 @@ const MAT_FALLA = new THREE.MeshStandardMaterial({ color: 0xff3b30 });  // dise�
 // --- Estado ---
 const basePos = {};
 const barras = [];           // { mesh, i, j, id }
+const losasEscena = [];      // paneles de losa del edificio (1b); distinto del modo losaMesh
 let resultados = null;
 let esfuerzos = null;        // DTO de esfuerzos por elemento (para el pick readout)
 let cintasGroup = null;      // overlay de cintas 3D (Group de Meshes)
@@ -112,6 +113,24 @@ function addBarra(b) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(b.b, b.h, 1), MAT[b.tipo] || MAT.viga);
   scene.add(mesh);
   barras.push({ mesh, i: b.i, j: b.j, id: b.id, b: b.b, h: b.h, tipo: b.tipo });
+}
+
+function addLosaEscena(l) {
+  const p = l.puntos;
+  if (!p || p.length !== 4) return;
+  const geo = new THREE.BufferGeometry();
+  const v = new Float32Array([
+    p[0][0], p[0][1], p[0][2],  p[1][0], p[1][1], p[1][2],  p[2][0], p[2][1], p[2][2],
+    p[0][0], p[0][1], p[0][2],  p[2][0], p[2][1], p[2][2],  p[3][0], p[3][1], p[3][2],
+  ]);
+  geo.setAttribute('position', new THREE.BufferAttribute(v, 3));
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0x4488cc, transparent: true, opacity: 0.30, side: THREE.DoubleSide, depthWrite: false,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  scene.add(mesh);
+  losasEscena.push({ mesh, id: l.id });
 }
 
 function despNodo(id, fase) {
@@ -804,6 +823,8 @@ function entrarCorte() {
 function limpiarEscena() {
   for (const bar of barras) { scene.remove(bar.mesh); bar.mesh.geometry.dispose(); }
   barras.length = 0;
+  for (const l of losasEscena) { scene.remove(l.mesh); l.mesh.geometry.dispose(); l.mesh.material.dispose(); }
+  losasEscena.length = 0;
   for (const k of Object.keys(basePos)) delete basePos[k];
 
   if (losaMesh) { scene.remove(losaMesh); losaMesh.geometry.dispose(); losaMesh.material.dispose(); losaMesh = null; }
@@ -843,9 +864,10 @@ function renderEscena({ escena, resultados: res, esfuerzos: esf }) {
   for (const b of escena.barras) {
     if (basePos[b.i] && basePos[b.j]) addBarra(b);
   }
+  for (const l of (escena.losas || [])) addLosaEscena(l);
   frameBbox = escena.bbox;
   encuadrar(escena.bbox.min, escena.bbox.max);
-  setMsg(`${escena.barras.length} barras · ${escena.nodos.length} nodos`);
+  setMsg(`${escena.barras.length} barras · ${escena.nodos.length} nodos · ${(escena.losas || []).length} losas`);
 
   if (res) {
     resultados = res;
