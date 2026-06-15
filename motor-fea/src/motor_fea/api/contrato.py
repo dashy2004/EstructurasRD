@@ -34,6 +34,7 @@ from motor_fea.core.modelo import (
     Apoyo,
     CargaNodal,
     ElementoFrame,
+    LosaViz,
     Material,
     ModeloEstructural,
     Nodo,
@@ -68,6 +69,13 @@ def modelo_desde_dict(d: dict) -> ModeloEstructural:
         m.cargas.append(CargaNodal(int(c["nodo_id"]),
                                    float(c.get("fx", 0.0)), float(c.get("fy", 0.0)), float(c.get("fz", 0.0)),
                                    float(c.get("mx", 0.0)), float(c.get("my", 0.0)), float(c.get("mz", 0.0))))
+    for l in d.get("losas", []):
+        pts = l.get("puntos", [])
+        if len(pts) == 4:
+            m.losas.append(LosaViz(
+                int(l["id"]),
+                [[float(p[0]), float(p[1]), float(p[2])] for p in pts],
+            ))
     return m
 
 
