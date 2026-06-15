@@ -1,0 +1,32 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]: Cargando…
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - combobox "estado de visualización" [ref=e5]:
+        - option "sin deformar" [selected]
+      - button "pausar" [ref=e6]: ⏸
+    - generic [ref=e7]:
+      - generic [ref=e8]: exag
+      - slider "exag" [ref=e9]: "0"
+    - generic [ref=e10]:
+      - generic [ref=e11]: f'c
+      - spinbutton "f'c" [ref=e12]: "21"
+      - generic [ref=e13]: fy
+      - spinbutton "fy" [ref=e14]: "420"
+      - generic [ref=e15]: rec
+      - spinbutton "rec" [ref=e16]: "0.04"
+      - button "rediseñar" [ref=e17]
+    - generic [ref=e18]:
+      - generic [ref=e19]: cinta
+      - combobox "componente de cinta 3D" [ref=e20]:
+        - option "N" [selected]
+        - option "Vy"
+        - option "Vz"
+        - option "T"
+        - option "My"
+        - option "Mz"
+  - generic [ref=e22]:
+    - button "cargar modelo .json" [ref=e23]
+    - textbox "pega aquí el JSON del modelo" [ref=e24]
+    - button "analizar" [ref=e25]
+    - button "descargar .json" [disabled] [ref=e26]
