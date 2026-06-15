@@ -125,6 +125,19 @@ class CargaNodal:
 
 
 @dataclass
+class LosaViz:
+    """Geometría de losa para visualización (inerte: el FEA la ignora).
+
+    Dato puramente geométrico —no participa del ensamblaje de rigidez ni de la
+    validación de integridad— transportado para que la capa de visor pueda
+    dibujar la losa como un panel plano. ``puntos`` es una lista de 4 puntos
+    [x, y, z] en metros (convención SI, Z arriba).
+    """
+    id: int
+    puntos: list  # lista de 4 puntos [x, y, z]
+
+
+@dataclass
 class ModeloEstructural:
     """Contenedor del modelo analítico. Validación de integridad referencial."""
     nodos: list[Nodo] = field(default_factory=list)
@@ -133,6 +146,7 @@ class ModeloEstructural:
     elementos: list[ElementoFrame] = field(default_factory=list)
     apoyos: list[Apoyo] = field(default_factory=list)
     cargas: list[CargaNodal] = field(default_factory=list)
+    losas: list[LosaViz] = field(default_factory=list)  # inerte: el FEA las ignora
 
     @property
     def n_gdl(self) -> int:
