@@ -117,6 +117,14 @@ class Edificio:
         """Cota mínima del edificio (referencia de fundación). 0.0 si no hay niveles."""
         return min((n.cota for n in self.niveles), default=0.0)
 
+    def niveles_atravesados(self, vertical) -> list[Nivel]:
+        """Niveles cuya cota cae en ``[cota_base, cota_tope]`` de la vertical.
+
+        Base explícita para la futura bajada de cargas: una columna/muro continuo
+        queda conectado a todos los niveles que atraviesa."""
+        return [n for n in self.niveles_ordenados()
+                if vertical.cota_base <= n.cota <= vertical.cota_tope]
+
 
 @dataclass
 class Proyecto:

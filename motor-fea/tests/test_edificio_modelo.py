@@ -65,3 +65,22 @@ def test_proyecto_contenedores_y_orden_de_niveles():
     assert edi.cota_minima() == 0.0
     assert proy.metadata.nombre == "Demo"
     assert proy.combinaciones == ["1.2D+1.6L"]
+
+
+def test_columna_continua_atraviesa_los_tres_niveles():
+    from motor_fea.edificio.modelo import Columna, Edificio, Nivel
+
+    niveles = [Nivel(id=1, nombre="N1", cota=0.0),
+               Nivel(id=2, nombre="N2", cota=3.0),
+               Nivel(id=3, nombre="N3", cota=6.0)]
+    col = Columna(id=1, posicion=(0, 0), base=0.30, peralte=0.30,
+                  cota_base=0.0, cota_tope=6.0, material="H210")
+    edi = Edificio(id=1, nombre="Bloque A", niveles=niveles,
+                   elementos_verticales=[col])
+
+    atravesados = edi.niveles_atravesados(col)
+    assert [n.cota for n in atravesados] == [0.0, 3.0, 6.0]   # conectada a los 3
+
+    parcial = Columna(id=2, posicion=(1, 1), base=0.3, peralte=0.3,
+                      cota_base=3.0, cota_tope=6.0, material="H210")
+    assert [n.cota for n in edi.niveles_atravesados(parcial)] == [3.0, 6.0]
