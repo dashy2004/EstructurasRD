@@ -168,7 +168,7 @@ def _validar_verticales(edi: Edificio) -> list[str]:
     # NOTA: las cotas son literales del contrato (no aritmética); la comparación
     # exacta de floats con ``in cotas_nivel`` es segura mientras eso se mantenga.
     cotas_nivel = {n.cota for n in edi.niveles}
-    cota_min = edi.cota_minima()
+    cota_min = edi.cota_minima()  # siempre ∈ cotas_nivel cuando hay niveles (es min de ellas)
     if len({v.id for v in edi.elementos_verticales}) != len(edi.elementos_verticales):
         errores.append(f"Edificio {edi.id}: IDs de vertical duplicados.")
     for v in edi.elementos_verticales:
@@ -197,7 +197,8 @@ def _dimensiones_vertical(v: Columna | Muro) -> list[tuple[float, str]]:
         return [(v.base, "base"), (v.peralte, "peralte")]
     if isinstance(v, Muro):
         return [(v.espesor, "espesor")]
-    return []
+    # Simétrico con el contrato: un tipo desconocido falla en vez de saltarse la validación.
+    raise TypeError(f"Tipo de elemento vertical no soportado: {type(v).__name__!r}.")
 
 
 def _validar_losas(edi: Edificio) -> list[str]:
