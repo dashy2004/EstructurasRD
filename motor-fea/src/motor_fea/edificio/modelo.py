@@ -133,3 +133,29 @@ class Proyecto:
     cargas_globales: CargasGlobales = field(default_factory=CargasGlobales)
     combinaciones: list[str] = field(default_factory=list)
     edificios: list[Edificio] = field(default_factory=list)
+
+    def validar(self) -> list[str]:
+        """Lista de errores legibles (vacía si el modelo es válido)."""
+        errores: list[str] = []
+        if len({e.id for e in self.edificios}) != len(self.edificios):
+            errores.append("IDs de edificio duplicados.")
+        for edi in self.edificios:
+            errores.extend(_validar_niveles(edi))
+        return errores
+
+    def es_valido(self) -> bool:
+        return not self.validar()
+
+
+def _validar_niveles(edi: Edificio) -> list[str]:
+    errores: list[str] = []
+    if not edi.niveles:
+        errores.append(f"Edificio {edi.id}: debe tener al menos un nivel.")
+        return errores
+    if len({n.id for n in edi.niveles}) != len(edi.niveles):
+        errores.append(f"Edificio {edi.id}: IDs de nivel duplicados.")
+    cotas = [n.cota for n in edi.niveles]
+    if len(set(cotas)) != len(cotas):
+        errores.append(f"Edificio {edi.id}: cotas de nivel duplicadas "
+                       "(deben ser únicas; el orden lo da niveles_ordenados).")
+    return errores
