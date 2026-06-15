@@ -75,8 +75,7 @@ public class ExportadorIntegracionMotorTests
 
         var ed = PorticoConZapatas();
         var nivel = ed.Niveles[0];
-        Sistema sis = nivel.Sistemas.Count > 0 ? nivel.Sistemas[0] : null!;
-        if (sis is null) { sis = new Sistema { Fc = 0.210, Fy = 4.200 }; nivel.Sistemas.Add(sis); }
+        var sis = nivel.Sistemas[0];
         sis.Losas.Add(new Losa { CoordenadaX = 0, CoordenadaY = 0, Lx = 5, Ly = 5, Espesor = 0.12 });
 
         string json = ExportadorModeloMotor.ToJson(ExportadorModeloMotor.Exportar(ed));
@@ -92,6 +91,7 @@ public class ExportadorIntegracionMotorTests
         using var p = Process.Start(psi)!;
         p.StandardInput.Write(json);
         p.StandardInput.Close();
+        string salida = p.StandardOutput.ReadToEnd();
         string err = p.StandardError.ReadToEnd();
         p.WaitForExit(30000);
         Assert.True(p.ExitCode == 0, $"El motor rechazó el modelo con losas (exit {p.ExitCode}): {err}");
