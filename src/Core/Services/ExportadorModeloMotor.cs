@@ -86,6 +86,11 @@ public static class ExportadorModeloMotor
                 NodoId = nodoId, Ux = true, Uy = true, Uz = true, Rx = true, Ry = true, Rz = true,
             });
 
+        if (modelo.Apoyos.Count == 0)
+            throw new ExportadorModeloException(
+                "El modelo no tiene apoyos: ninguna base de columna de fundación quedó restringida " +
+                "(el análisis sería singular). Revisa que existan columnas con zapata en el nivel de fundación.");
+
         // Cargas: vacío en Etapa 1a.
         return modelo;
     }
@@ -101,8 +106,10 @@ public static class ExportadorModeloMotor
             if (!ids.Add(n.Id)) errores.Add($"Nodo duplicado: {n.Id}");
         var mat = m.Materiales.Select(x => x.Id).ToHashSet();
         var sec = m.Secciones.Select(x => x.Id).ToHashSet();
+        var elemIds = new HashSet<int>();
         foreach (var e in m.Elementos)
         {
+            if (!elemIds.Add(e.Id)) errores.Add($"Elemento duplicado: {e.Id}");
             if (!ids.Contains(e.NodoI)) errores.Add($"Elemento {e.Id}: nodo_i {e.NodoI} inexistente");
             if (!ids.Contains(e.NodoJ)) errores.Add($"Elemento {e.Id}: nodo_j {e.NodoJ} inexistente");
             if (e.NodoI == e.NodoJ) errores.Add($"Elemento {e.Id}: conecta un nodo consigo mismo");

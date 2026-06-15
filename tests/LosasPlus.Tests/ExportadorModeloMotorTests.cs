@@ -64,4 +64,18 @@ public class ExportadorModeloMotorTests
         Assert.Contains("\"constante_torsion\"", json);
         Assert.Contains("\"vector_referencia\"", json);
     }
+
+    [Fact]
+    public void Modelo_sin_apoyos_lanza_excepcion()
+    {
+        var nivel = new Nivel { Cota = 0.0 };
+        nivel.Sistemas.Add(new Sistema { Fc = 0.210, Fy = 4.200 });
+        var v = new Viga { OrigenX = 0, OrigenY = 0, AnguloGrados = 0 };
+        v.Tramos.Add(new TramoViga { Longitud = 5, Base = 0.30, Peralte = 0.50 });
+        nivel.Vigas.Add(v); // viga pero ninguna columna → sin apoyos
+        var ed = new Edificio();
+        ed.Niveles.Add(nivel);
+
+        Assert.Throws<ExportadorModeloException>(() => ExportadorModeloMotor.Exportar(ed));
+    }
 }
