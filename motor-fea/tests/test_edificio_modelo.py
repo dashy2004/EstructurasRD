@@ -33,3 +33,17 @@ def test_nombre_del_nivel_es_independiente_de_la_losa():
     nivel = Nivel(id=1, nombre="Mezzanine", cota=0.0, losas=(losa,))
     assert nivel.nombre == "Mezzanine"                # no derivado de la losa/sistema
     assert not hasattr(losa, "nombre")                # la losa no impone nombre al nivel
+
+
+def test_columna_y_muro_continuos():
+    from motor_fea.edificio.modelo import Columna, Muro, Zapata
+
+    col = Columna(id=1, posicion=(0, 0), base=0.30, peralte=0.30,
+                  cota_base=0.0, cota_tope=6.0, material="H210",
+                  zapata=Zapata(ancho=1.2, largo=1.2, peralte=0.4))
+    assert (col.cota_base, col.cota_tope) == (0.0, 6.0)   # rango vertical continuo
+    assert col.zapata.ancho == 1.2
+
+    muro = Muro(id=2, linea=((0, 0), (0, 5)), espesor=0.20,
+                cota_base=0.0, cota_tope=6.0, material="H210")
+    assert muro.zapata is None                            # zapata opcional
