@@ -43,3 +43,38 @@ class Nivel:
     def puntos_losa_3d(self, losa: Losa) -> list[list[float]]:
         """Contorno 3D de una losa de este nivel: su (x, y) en planta a ``cota``."""
         return [[x, y, self.cota] for (x, y) in losa.puntos]
+
+
+@dataclass(frozen=True)
+class Zapata:
+    """Fundación aislada en la base de una vertical. Dimensiones en m."""
+    ancho: float
+    largo: float
+    peralte: float
+
+
+@dataclass(frozen=True)
+class Columna:
+    """Columna continua. ``posicion`` = (x, y) en planta; atraviesa
+    ``cota_base → cota_tope`` (m)."""
+    id: int
+    posicion: tuple[float, float]
+    base: float               # m (sección)
+    peralte: float            # m (sección)
+    cota_base: float
+    cota_tope: float
+    material: str
+    zapata: Zapata | None = None
+
+
+@dataclass(frozen=True)
+class Muro:
+    """Muro continuo. ``linea`` = ((x1, y1), (x2, y2)) en planta; atraviesa
+    ``cota_base → cota_tope`` (m)."""
+    id: int
+    linea: tuple[tuple[float, float], tuple[float, float]]
+    espesor: float            # m (sección)
+    cota_base: float
+    cota_tope: float
+    material: str
+    zapata: Zapata | None = None
