@@ -99,3 +99,23 @@ def test_columnas_que_comparten_base_deduplican_nodo_y_apoyo():
     assert sorted(n.z for n in m.nodos) == [0.0, 3.0, 6.0]
     assert len(m.elementos) == 2
     assert len(m.apoyos) == 1                            # solo la columna inferior tiene zapata
+
+
+def test_losas_se_transportan_como_geometria_a_su_cota():
+    from motor_fea.edificio.modelo import Columna, Edificio, Losa, Nivel
+    from motor_fea.edificio.sintesis import sintetizar
+
+    losa = Losa(id=1, tipo="maciza", espesor=0.20,
+                puntos=((0, 0), (5, 0), (5, 5), (0, 5)))
+    edi = Edificio(id=1, nombre="A",
+                   niveles=[Nivel(1, "N1", 0.0),
+                            Nivel(2, "N2", 3.0, (losa,))],   # losa en el nivel z=3
+                   elementos_verticales=[
+                       Columna(id=1, posicion=(0, 0), base=0.3, peralte=0.3,
+                               cota_base=0.0, cota_tope=3.0, material="H210")])
+    m = sintetizar(edi)
+
+    assert len(m.losas) == 1
+    pts = m.losas[0].puntos
+    assert all(z == 3.0 for (_x, _y, z) in pts)          # elevada a la cota del nivel
+    assert pts[0] == [0, 0, 3.0]

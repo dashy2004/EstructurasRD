@@ -115,4 +115,9 @@ def sintetizar(edificio: Edificio) -> ModeloEstructural:
                 apoyos_nodos.add(base_nid)
                 modelo.apoyos.append(Apoyo.empotrado(base_nid))
 
+    for nivel in edificio.niveles_ordenados():
+        for losa in nivel.losas:
+            vid = len(modelo.losas) + 1
+            modelo.losas.append(LosaViz(vid, nivel.puntos_losa_3d(losa)))
+
     return modelo
