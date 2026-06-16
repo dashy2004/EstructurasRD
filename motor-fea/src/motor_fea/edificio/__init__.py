@@ -32,6 +32,7 @@ from motor_fea.edificio.cargas import (  # noqa: E402
     repartir_losa,
 )
 from motor_fea.edificio.sintesis import (  # noqa: E402
+    cargas_de_losas,
     material_a_E_pa,
     sintetizar,
 )

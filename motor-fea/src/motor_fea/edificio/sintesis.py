@@ -11,6 +11,7 @@ import math
 
 from motor_fea.core.modelo import (
     Apoyo,
+    CargaNodal,
     ElementoFrame,
     LosaViz,
     Material,
@@ -18,9 +19,11 @@ from motor_fea.core.modelo import (
     Nodo,
     Seccion,
 )
+from motor_fea.edificio.cargas import repartir_losa
 from motor_fea.edificio.modelo import Columna, Edificio
 
 _TOL = 6  # decimales de cuantización de coordenadas (≈ mm)
+_KN_A_N = 1000.0  # CargasLosa/reparto en kN; el core FEA es SI en newtons (E en Pa)
 
 FACTOR_E_ACI = 15100.0     # E[kg/cm²] = 15100·√(f'c[kg/cm²])  (ACI 318, concreto)
 KGF_CM2_A_PA = 98066.5     # 1 kgf/cm² en pascales
@@ -121,3 +124,51 @@ def sintetizar(edificio: Edificio) -> ModeloEstructural:
             modelo.losas.append(LosaViz(vid, nivel.puntos_losa_3d(losa)))
 
     return modelo
+
+
+def cargas_de_losas(edificio: Edificio, modelo: ModeloEstructural) -> list[CargaNodal]:
+    """Cargas nodales equivalentes del peso de las losas sobre la malla (Rebanada C2).
+
+    Reparte cada paño a sus bordes (``repartir_losa``) y convierte cada borde en
+    fuerzas nodales sobre sus dos nodos extremo: las distribuciones triangular/
+    trapezoidal/uniforme son **simétricas respecto al centro del borde**, así que
+    su resultante cae en el punto medio → mitad de ``fuerza_total`` a cada extremo.
+    Gravedad → ``fz < 0``; ``kN → N`` (×1000, el core es SI en newtons). Muerta →
+    caso ``"D"``, viva → caso ``"L"``.
+
+    No muta ``modelo``; devuelve la lista para ``modelo.cargas.extend(...)``. Una
+    esquina de losa sin nodo de columna a su cota → ``ValueError`` (en B0, sin
+    vigas, esa carga no tiene cómo bajar).
+    """
+    nodo_por_coord = {
+        (round(n.x, _TOL), round(n.y, _TOL), round(n.z, _TOL)): n.id
+        for n in modelo.nodos
+    }
+
+    def _nid(x: float, y: float, z: float, losa_id: int) -> int:
+        key = (round(x, _TOL), round(y, _TOL), round(z, _TOL))
+        if key not in nodo_por_coord:
+            raise ValueError(
+                f"losa {losa_id}: la esquina ({x}, {y}) no tiene columna a la cota "
+                f"{z}; no hay nodo donde aplicar su carga."
+            )
+        return nodo_por_coord[key]
+
+    acum: dict[tuple[int, str], float] = {}
+    for nivel in edificio.niveles_ordenados():
+        for losa in nivel.losas:
+            rep = repartir_losa(losa)
+            puntos = losa.puntos
+            n = len(puntos)
+            for caso, direccion in (("D", rep.muerta), ("L", rep.viva)):
+                for borde in direccion.bordes:
+                    i = borde.indice_borde
+                    media = borde.fuerza_total / 2.0 * _KN_A_N
+                    for (x, y) in (puntos[i], puntos[(i + 1) % n]):
+                        nid = _nid(x, y, nivel.cota, losa.id)
+                        acum[(nid, caso)] = acum.get((nid, caso), 0.0) - media
+
+    return [
+        CargaNodal(nodo_id=nid, fz=fz, caso=caso)
+        for (nid, caso), fz in sorted(acum.items())
+    ]
