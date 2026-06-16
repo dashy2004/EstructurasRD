@@ -119,3 +119,46 @@ def test_losas_se_transportan_como_geometria_a_su_cota():
     pts = m.losas[0].puntos
     assert all(z == 3.0 for (_x, _y, z) in pts)          # elevada a la cota del nivel
     assert pts[0] == [0, 0, 3.0]
+
+
+def _edificio_demo():
+    from motor_fea.edificio.modelo import (
+        CargasLosa, Columna, Edificio, Losa, Nivel, Zapata,
+    )
+    losa = Losa(id=1, tipo="maciza", espesor=0.20,
+                puntos=((0, 0), (5, 0), (5, 5), (0, 5)),
+                cargas=CargasLosa(1.5, 2.0))
+    return Edificio(
+        id=1, nombre="Bloque A",
+        niveles=[Nivel(1, "N1", 0.0, (losa,)), Nivel(2, "N2", 3.0), Nivel(3, "N3", 6.0)],
+        elementos_verticales=[
+            Columna(id=1, posicion=(0, 0), base=0.30, peralte=0.30,
+                    cota_base=0.0, cota_tope=6.0, material="H210",
+                    zapata=Zapata(1.2, 1.2, 0.4)),
+            Columna(id=2, posicion=(5, 0), base=0.30, peralte=0.30,
+                    cota_base=0.0, cota_tope=6.0, material="H280",
+                    zapata=Zapata(1.2, 1.2, 0.4)),
+        ])
+
+
+def test_salida_pasa_validacion_de_integridad():
+    from motor_fea.edificio.sintesis import sintetizar
+
+    m = sintetizar(_edificio_demo())
+    assert m.validar() == []
+    assert m.es_valido() is True
+
+
+def test_sintesis_es_determinista():
+    from motor_fea.edificio.sintesis import sintetizar
+
+    edi = _edificio_demo()
+    a, b = sintetizar(edi), sintetizar(edi)
+    assert [(n.id, n.x, n.y, n.z) for n in a.nodos] == [(n.id, n.x, n.y, n.z) for n in b.nodos]
+    assert [(e.id, e.nodo_i, e.nodo_j) for e in a.elementos] == \
+           [(e.id, e.nodo_i, e.nodo_j) for e in b.elementos]
+
+
+def test_reexport_publico_desde_paquete_edificio():
+    from motor_fea.edificio import material_a_E_pa, sintetizar  # noqa: F401
+    assert callable(sintetizar) and callable(material_a_E_pa)
