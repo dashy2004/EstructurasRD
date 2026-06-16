@@ -16,7 +16,9 @@ from pathlib import Path
 from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 
-from motor_fea.api.contrato import analizar_completo_dict, esfuerzos_modelo_dict, modelo_desde_dict, visor_dict
+from motor_fea.api.contrato import (
+    analizar_completo_dict, esfuerzos_modelo_dict, modelo_desde_dict, visor_dict, visor_edificio_dict,
+)
 from motor_fea.core.modelo import (
     Apoyo, CargaNodal, ElementoFrame, Material, ModeloEstructural, Nodo, Seccion,
 )
@@ -124,6 +126,13 @@ def crear_app(modelo: ModeloEstructural) -> FastAPI:
             return visor_dict(modelo_dict, n)
         except (ValueError, KeyError, TypeError) as ex:
             raise HTTPException(status_code=400, detail=f"Modelo inválido: {ex}")
+
+    @app.post("/visor-edificio")
+    def visor_edificio(proyecto_dict: dict = Body(...), n: int = Query(11, ge=2)):
+        try:
+            return visor_edificio_dict(proyecto_dict, n)
+        except (ValueError, KeyError, TypeError) as ex:
+            raise HTTPException(status_code=400, detail=f"Proyecto inválido: {ex}")
 
     # Montar al final: las rutas de API registradas arriba tienen prioridad.
     app.mount("/", StaticFiles(directory=str(_STATIC), html=True), name="static")

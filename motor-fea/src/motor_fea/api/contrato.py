@@ -41,6 +41,8 @@ from motor_fea.core.modelo import (
     Seccion,
 )
 from motor_fea.core.solver import ResultadoAnalisis, esfuerzos_elementos, resolver
+from motor_fea.edificio.contrato import proyecto_desde_dict
+from motor_fea.edificio.sintesis import cargas_de_losas, sintetizar
 from motor_fea.viz.escena import exportar_escena
 from motor_fea.viz.resultados import calcular_resultados
 
@@ -143,6 +145,28 @@ def visor_dict(modelo_dict: dict, n: int = 11) -> dict:
     pequeños). Compartir un único solve es optimización futura.
     """
     modelo = modelo_desde_dict(modelo_dict)
+    return {
+        "escena": exportar_escena(modelo),
+        "resultados": calcular_resultados(modelo),
+        "esfuerzos": esfuerzos_modelo_dict(modelo, n),
+    }
+
+
+def visor_edificio_dict(proyecto_dict: dict, n: int = 11) -> dict:
+    """Puente autoría → visor: un Proyecto autorado (JSON de contrato de autoría)
+    se sintetiza a malla FEA, se le cuelgan las cargas de losa, y se componen los
+    mismos DTOs que ``visor_dict`` (escena + deformada/modos + esfuerzos).
+
+    Multi-edificio = fusión futura: usa el primer edificio; proyecto sin edificios
+    → ``ValueError``. El modelo debe quedar apoyado (zapatas) para que la deformada
+    resuelva; si no, ``calcular_resultados`` lanza (matriz singular).
+    """
+    proyecto = proyecto_desde_dict(proyecto_dict)
+    if not proyecto.edificios:
+        raise ValueError("El proyecto no tiene edificios para visualizar.")
+    edificio = proyecto.edificios[0]
+    modelo = sintetizar(edificio)
+    modelo.cargas.extend(cargas_de_losas(edificio, modelo))
     return {
         "escena": exportar_escena(modelo),
         "resultados": calcular_resultados(modelo),
