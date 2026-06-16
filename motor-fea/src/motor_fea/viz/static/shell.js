@@ -1,21 +1,30 @@
-// shell.js — UI de carga de un modelo propio. POST /visor → onModelo(bundle, modeloJson).
-// No conoce three.js: solo DOM + fetch. El render lo hace el callback onModelo.
+// shell.js — UI de carga de un modelo propio. Según el selector de origen, POST a
+// ./visor (modelo FEA de bajo nivel) o ./visor-edificio (Proyecto autorado:
+// columnas/muros/losas+cargas). Ambos devuelven el mismo bundle {escena,
+// resultados, esfuerzos} → onModelo(bundle, json). No conoce three.js: solo DOM + fetch.
 export function crearShell({ onModelo }) {
   const cont = document.getElementById('shell');
+
+  const origen = document.createElement('select');
+  origen.setAttribute('aria-label', 'origen del JSON');
+  origen.append(
+    new Option('modelo FEA', './visor'),
+    new Option('edificio autorado', './visor-edificio'),
+  );
 
   const file = document.createElement('input');
   file.type = 'file';
   file.accept = '.json,application/json';
-  file.setAttribute('aria-label', 'cargar modelo .json');
+  file.setAttribute('aria-label', 'cargar JSON');
 
   const textarea = document.createElement('textarea');
-  textarea.placeholder = 'pega aquí el JSON del modelo';
+  textarea.placeholder = 'pega aquí el JSON (modelo FEA o edificio, según el selector)';
   textarea.rows = 4;
   textarea.style.width = '16em';
 
   const btnAnalizar = document.createElement('button');
   btnAnalizar.type = 'button';
-  btnAnalizar.textContent = 'analizar';
+  btnAnalizar.textContent = 'cargar';
 
   const btnDescargar = document.createElement('button');
   btnDescargar.type = 'button';
@@ -25,24 +34,25 @@ export function crearShell({ onModelo }) {
   const estado = document.createElement('span');
   estado.id = 'shell-estado';
 
-  cont.append(file, textarea, btnAnalizar, btnDescargar, estado);
+  cont.append(origen, file, textarea, btnAnalizar, btnDescargar, estado);
 
   let ultimoModelo = null;   // el último JSON cargado con éxito (para descargar)
 
   async function analizar(texto) {
-    let modeloJson;
+    let json;
     try {
-      modeloJson = JSON.parse(texto);
+      json = JSON.parse(texto);
     } catch (e) {
       estado.textContent = 'JSON inválido: ' + e.message;
       return;   // no postea, no toca la escena
     }
+    const ruta = origen.value;
     let bundle;
     try {
-      const r = await fetch('./visor', {
+      const r = await fetch(ruta, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(modeloJson),
+        body: JSON.stringify(json),
       });
       if (!r.ok) {
         const d = await r.json().catch(() => ({}));
@@ -53,10 +63,10 @@ export function crearShell({ onModelo }) {
       estado.textContent = 'Error: ' + e.message;
       return;   // conserva la escena actual
     }
-    ultimoModelo = modeloJson;
+    ultimoModelo = json;
     btnDescargar.disabled = false;
-    estado.textContent = 'modelo cargado';
-    onModelo(bundle, modeloJson);
+    estado.textContent = (ruta === './visor-edificio' ? 'edificio' : 'modelo') + ' cargado';
+    onModelo(bundle, json);
   }
 
   file.addEventListener('change', () => {
@@ -76,7 +86,7 @@ export function crearShell({ onModelo }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'modelo.json';
+    a.download = (origen.value === './visor-edificio' ? 'edificio' : 'modelo') + '.json';
     a.click();
     URL.revokeObjectURL(url);
   });
