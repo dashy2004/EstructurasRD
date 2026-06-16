@@ -24,6 +24,13 @@ from motor_fea.edificio.modelo import (
     TIPOS_LOSA,
     Zapata,
 )
+from motor_fea.edificio.cargas import (  # noqa: E402
+    CargaBorde,
+    FormaCarga,
+    RepartoDireccion,
+    RepartoLosa,
+    repartir_losa,
+)
 from motor_fea.edificio.sintesis import (  # noqa: E402
     material_a_E_pa,
     sintetizar,
