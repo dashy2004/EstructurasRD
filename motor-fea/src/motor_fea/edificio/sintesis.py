@@ -72,6 +72,7 @@ def sintetizar(edificio: Edificio) -> ModeloEstructural:
     nodos_por_coord: dict[tuple, int] = {}
     material_por_str: dict[str, int] = {}
     seccion_por_dim: dict[tuple, int] = {}
+    apoyos_nodos: set[int] = set()
 
     def _nodo(x: float, y: float, z: float) -> int:
         key = (round(x, _TOL), round(y, _TOL), round(z, _TOL))
@@ -108,5 +109,10 @@ def sintetizar(edificio: Edificio) -> ModeloEstructural:
         for ni, nj in zip(nodos_col, nodos_col[1:]):
             eid = len(modelo.elementos) + 1
             modelo.elementos.append(ElementoFrame(eid, ni, nj, mat_id, sec_id))
+        if col.zapata is not None:
+            base_nid = nodos_col[0]   # quiebre más bajo = cota_base
+            if base_nid not in apoyos_nodos:
+                apoyos_nodos.add(base_nid)
+                modelo.apoyos.append(Apoyo.empotrado(base_nid))
 
     return modelo

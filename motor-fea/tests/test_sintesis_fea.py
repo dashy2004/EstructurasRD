@@ -67,3 +67,35 @@ def test_seccion_cuadrada_propiedades():
     # un solo material, con el E de H210
     assert len(m.materiales) == 1
     assert m.materiales[0].E == pytest.approx(15100.0 * math.sqrt(210.0) * 98066.5)
+
+
+def test_zapata_genera_empotramiento_en_base():
+    from motor_fea.edificio.sintesis import sintetizar
+
+    m = sintetizar(_columna_3niveles(con_zapata=True))
+    assert len(m.apoyos) == 1
+    z = {n.id: n.z for n in m.nodos}
+    apoyo = m.apoyos[0]
+    assert z[apoyo.nodo_id] == 0.0                       # apoyo en la base (cota_base)
+    assert apoyo.restricciones() == (True,) * 6          # empotrado
+
+
+def test_columnas_que_comparten_base_deduplican_nodo_y_apoyo():
+    from motor_fea.edificio.modelo import Columna, Edificio, Nivel, Zapata
+    from motor_fea.edificio.sintesis import sintetizar
+
+    # dos columnas distintas con MISMA posición de base (apiladas en niveles distintos)
+    inf = Columna(id=1, posicion=(2.0, 2.0), base=0.30, peralte=0.30,
+                  cota_base=0.0, cota_tope=3.0, material="H210",
+                  zapata=Zapata(1.0, 1.0, 0.4))
+    sup = Columna(id=2, posicion=(2.0, 2.0), base=0.30, peralte=0.30,
+                  cota_base=3.0, cota_tope=6.0, material="H210")
+    edi = Edificio(id=1, nombre="A",
+                   niveles=[Nivel(1, "N1", 0.0), Nivel(2, "N2", 3.0), Nivel(3, "N3", 6.0)],
+                   elementos_verticales=[inf, sup])
+    m = sintetizar(edi)
+
+    # nodos en z=0,3,6 todos en (2,2): el nodo z=3 lo comparten ambas columnas
+    assert sorted(n.z for n in m.nodos) == [0.0, 3.0, 6.0]
+    assert len(m.elementos) == 2
+    assert len(m.apoyos) == 1                            # solo la columna inferior tiene zapata
