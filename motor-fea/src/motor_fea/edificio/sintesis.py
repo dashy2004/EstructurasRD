@@ -20,7 +20,7 @@ from motor_fea.core.modelo import (
     Seccion,
 )
 from motor_fea.edificio.cargas import repartir_losa
-from motor_fea.edificio.modelo import Columna, Edificio
+from motor_fea.edificio.modelo import Columna, Edificio, Muro
 
 _TOL = 6  # decimales de cuantización de coordenadas (≈ mm)
 _KN_A_N = 1000.0  # CargasLosa/reparto en kN; el core FEA es SI en newtons (E en Pa)
@@ -58,6 +58,21 @@ def _propiedades_seccion(col: "Columna") -> tuple:
     return (b * h, h * b**3 / 12.0, b * h**3 / 12.0, _torsion_rectangular(b, h))
 
 
+def _longitud_muro(muro: "Muro") -> float:
+    (x1, y1), (x2, y2) = muro.linea
+    return math.hypot(x2 - x1, y2 - y1)
+
+
+def _propiedades_seccion_muro(muro: "Muro") -> tuple:
+    """(area, inercia_y, inercia_z, J) del muro como sección rectangular t×L.
+
+    ``inercia_z`` (eje fuerte) queda en el plano del muro; el ``vector_referencia``
+    del elemento lo orienta para que gobierne la flexión en ese plano.
+    """
+    t, L = muro.espesor, _longitud_muro(muro)
+    return (t * L, L * t**3 / 12.0, t * L**3 / 12.0, _torsion_rectangular(t, L))
+
+
 def _quiebres(col: "Columna", cotas_nivel: list) -> list:
     """Cotas Z donde la columna necesita un nodo: extremos + niveles intermedios."""
     qs = {round(col.cota_base, _TOL), round(col.cota_tope, _TOL)}
@@ -92,28 +107,39 @@ def sintetizar(edificio: Edificio) -> ModeloEstructural:
             modelo.materiales.append(Material(mid, E=material_a_E_pa(s)))
         return material_por_str[s]
 
-    def _seccion(col: Columna) -> int:
-        key = (round(col.base, _TOL), round(col.peralte, _TOL))
+    def _seccion(key: tuple, propiedades: tuple) -> int:
         if key not in seccion_por_dim:
             sid = len(seccion_por_dim) + 1
             seccion_por_dim[key] = sid
-            area, iy, iz, j = _propiedades_seccion(col)
+            area, iy, iz, j = propiedades
             modelo.secciones.append(
                 Seccion(sid, area=area, inercia_y=iy, inercia_z=iz, constante_torsion=j))
         return seccion_por_dim[key]
 
-    for col in edificio.elementos_verticales:
-        if not isinstance(col, Columna):
-            continue  # muros fuera de alcance (B0)
-        x, y = col.posicion
-        mat_id = _material(col.material)
-        sec_id = _seccion(col)
-        nodos_col = [_nodo(x, y, z) for z in _quiebres(col, cotas_nivel)]
-        for ni, nj in zip(nodos_col, nodos_col[1:]):
+    for vertical in edificio.elementos_verticales:
+        if isinstance(vertical, Columna):
+            x, y = vertical.posicion
+            sec_id = _seccion(
+                (round(vertical.base, _TOL), round(vertical.peralte, _TOL)),
+                _propiedades_seccion(vertical))
+            v_ref = (0.0, 0.0, 1.0)   # vertical; el solver maneja la barra vertical
+        elif isinstance(vertical, Muro):
+            (x1, y1), (x2, y2) = vertical.linea
+            x, y = (x1 + x2) / 2.0, (y1 + y2) / 2.0          # centroide de la línea
+            sec_id = _seccion(
+                ("muro", round(vertical.espesor, _TOL), round(_longitud_muro(vertical), _TOL)),
+                _propiedades_seccion_muro(vertical))
+            v_ref = (-(y2 - y1), x2 - x1, 0.0)               # ey ∥ línea → eje fuerte en el plano
+        else:
+            continue
+
+        mat_id = _material(vertical.material)
+        nodos_v = [_nodo(x, y, z) for z in _quiebres(vertical, cotas_nivel)]
+        for ni, nj in zip(nodos_v, nodos_v[1:]):
             eid = len(modelo.elementos) + 1
-            modelo.elementos.append(ElementoFrame(eid, ni, nj, mat_id, sec_id))
-        if col.zapata is not None:
-            base_nid = nodos_col[0]   # quiebre más bajo = cota_base
+            modelo.elementos.append(ElementoFrame(eid, ni, nj, mat_id, sec_id, v_ref))
+        if vertical.zapata is not None:
+            base_nid = nodos_v[0]   # quiebre más bajo = cota_base
             if base_nid not in apoyos_nodos:
                 apoyos_nodos.add(base_nid)
                 modelo.apoyos.append(Apoyo.empotrado(base_nid))
