@@ -115,3 +115,23 @@ def test_traccion_uniaxial_resuelta():
     assert txy == pytest.approx(0.0, abs=P / (L * _T) * 1e-6)
     # Alargamiento del borde derecho: εxx·L = (σxx/E)·L.
     assert u[2] == pytest.approx((P / (L * _T)) / _E * L, rel=1e-6)
+
+
+def test_cuadrilatero_no_rectangular_patch():
+    # Trapecio (jacobiano variable). K simétrica + patch de esfuerzo constante.
+    trapecio = [(0.0, 0.0), (2.0, 0.0), (1.5, 1.0), (0.2, 1.0)]
+    K = rigidez_membrana(trapecio, _E, _NU, _T)
+    for i in range(8):
+        for j in range(8):
+            assert K[i][j] == pytest.approx(K[j][i], rel=1e-9, abs=1.0)
+    b, c, e, f = 1e-4, 2e-5, -3e-5, 4e-5
+    d_elem = []
+    for (x, y) in trapecio:
+        d_elem.extend([0.001 + b * x + c * y, -0.002 + e * x + f * y])
+    eps = [b, f, c + e]
+    D = constitutiva_plana(_E, _NU)
+    esperado = [sum(D[r][k] * eps[k] for k in range(3)) for r in range(3)]
+    sxx, syy, txy = esfuerzos_elemento(trapecio, _E, _NU, d_elem, 0.0, 0.0)
+    assert sxx == pytest.approx(esperado[0], rel=1e-6)
+    assert syy == pytest.approx(esperado[1], rel=1e-6)
+    assert txy == pytest.approx(esperado[2], rel=1e-6)
