@@ -42,3 +42,48 @@ def test_drilling_diferencial_energia_positiva():
     d[2] = 1.0                          # θz del nodo 0
     Kd = shell._rigidez_drilling(NODOS_RECT, E, T, gamma=E * T)
     assert _energia(Kd, d) > 0.0
+
+
+def _subbloque(K, dofs):
+    """Submatriz de K en los índices globales de shell `dofs` (en orden)."""
+    return [[K[i][j] for j in dofs] for i in dofs]
+
+
+def test_shell_forma_y_simetria():
+    K = shell.rigidez_shell(NODOS_RECT, E, NU, T)
+    assert len(K) == 24 and all(len(fila) == 24 for fila in K)
+    for i in range(24):
+        for j in range(24):
+            assert math.isclose(K[i][j], K[j][i], rel_tol=1e-9, abs_tol=1e-3)
+
+
+def test_shell_bloques_desacoplados_membrana_placa():
+    K = shell.rigidez_shell(NODOS_RECT, E, NU, T)
+    dofs_mem = [6 * a + d for a in range(4) for d in (0, 1)]        # ux,uy
+    dofs_placa = [6 * a + d for a in range(4) for d in (2, 3, 4)]   # uz,θx,θy
+    for i in dofs_mem:
+        for j in dofs_placa:
+            assert K[i][j] == 0.0
+            assert K[j][i] == 0.0
+
+
+def test_shell_reduce_a_membrana():
+    # Con drilling apagado (gamma=0), el sub-bloque (ux,uy)×4 = rigidez_membrana.
+    K = shell.rigidez_shell(NODOS_RECT, E, NU, T, gamma=0.0)
+    dofs_mem = [6 * a + d for a in range(4) for d in (0, 1)]
+    sub = _subbloque(K, dofs_mem)
+    Km = membrana.rigidez_membrana(NODOS_RECT, E, NU, T)
+    for i in range(8):
+        for j in range(8):
+            assert math.isclose(sub[i][j], Km[i][j], rel_tol=1e-9, abs_tol=1e-3)
+
+
+def test_shell_reduce_a_placa():
+    K = shell.rigidez_shell(NODOS_RECT, E, NU, T)
+    dofs_placa = [6 * a + d for a in range(4) for d in (2, 3, 4)]
+    sub = _subbloque(K, dofs_placa)
+    lx, ly = shell._dims_rectangulo(NODOS_RECT)
+    Kp = placa.rigidez_placa(lx, ly, E, NU, T)
+    for i in range(12):
+        for j in range(12):
+            assert math.isclose(sub[i][j], Kp[i][j], rel_tol=1e-9, abs_tol=1e-3)

@@ -53,3 +53,56 @@ def _rigidez_drilling(nodos_xy: list[tuple[float, float]],
                 for j in range(12):
                     fila[j] += gi * g[j]
     return K
+
+
+def _dims_rectangulo(nodos_xy: list[tuple[float, float]]) -> tuple[float, float]:
+    """Lados (lx, ly) rectangulares equivalentes: |n1−n0| y |n2−n1|.
+
+    Alimenta a la placa ACM (rectangular). Para muros llenos mallados en
+    rectángulos (M3) coincide con la geometría real del elemento.
+    """
+    (x0, y0), (x1, y1), (x2, y2), _ = nodos_xy
+    lx = math.hypot(x1 - x0, y1 - y0)
+    ly = math.hypot(x2 - x1, y2 - y1)
+    return lx, ly
+
+
+def rigidez_shell(nodos_xy: list[tuple[float, float]],
+                  E: float, nu: float, t: float,
+                  gamma: float | None = None) -> list[list[float]]:
+    """Rigidez local 24×24 del shell plano cuadrilátero de 4 nodos.
+
+    ``nodos_xy`` = 4 pares (x, y) en el plano local, orden antihorario. 6 GDL/nodo
+    en orden ``[ux, uy, uz, θx, θy, θz]``; índice global ``6·a + d``. ``gamma`` =
+    factor de drilling; si ``None`` usa ``E·t``. Devuelve K simétrica (24×24).
+    """
+    if gamma is None:
+        gamma = E * t
+
+    Km = membrana.rigidez_membrana(nodos_xy, E, nu, t)         # 8×8  [ux,uy]×4
+    lx, ly = _dims_rectangulo(nodos_xy)
+    Kp = placa.rigidez_placa(lx, ly, E, nu, t)                 # 12×12 [w,θx,θy]×4
+    Kd = _rigidez_drilling(nodos_xy, E, t, gamma)              # 12×12 [ux,uy,θz]×4
+
+    K = [[0.0] * 24 for _ in range(24)]
+
+    # Bloque membrana+drilling → GDL shell (ux,uy,θz) = 6a+{0,1,5}.
+    idx_md = [6 * a + d for a in range(4) for d in (0, 1, 5)]
+    # Embeber membrana (orden [ux,uy]×4, índice 2a+c) en el bloque md (3a+c).
+    for a in range(4):
+        for c in range(2):
+            for b in range(4):
+                for e in range(2):
+                    K[idx_md[3 * a + c]][idx_md[3 * b + e]] += Km[2 * a + c][2 * b + e]
+    # Sumar el drilling (ya en GDL (ux,uy,θz)×4 = orden del bloque md).
+    for i in range(12):
+        for j in range(12):
+            K[idx_md[i]][idx_md[j]] += Kd[i][j]
+
+    # Bloque placa → GDL shell (uz,θx,θy) = 6a+{2,3,4}.
+    idx_p = [6 * a + d for a in range(4) for d in (2, 3, 4)]
+    for i in range(12):
+        for j in range(12):
+            K[idx_p[i]][idx_p[j]] += Kp[i][j]
+
+    return K
