@@ -56,14 +56,44 @@ def _rigidez_drilling(nodos_xy: list[tuple[float, float]],
 
 
 def _dims_rectangulo(nodos_xy: list[tuple[float, float]]) -> tuple[float, float]:
-    """Lados (lx, ly) rectangulares equivalentes: |n1−n0| y |n2−n1|.
+    """Lados (lx, ly) de un rectángulo eje-alineado: |n1−n0| y |n2−n1|.
 
-    Alimenta a la placa ACM (rectangular). Para muros llenos mallados en
-    rectángulos (M3) coincide con la geometría real del elemento.
+    Precondición: ``nodos_xy`` debe ser un rectángulo eje-alineado con nodos en
+    orden antihorario ``[(x0,y0),(x0+lx,y0),(x0+lx,y0+ly),(x0,y0+ly)]``.
+    Lanza ``ValueError`` si no se cumple esta condición, si ``lx≤0`` o ``ly≤0``
+    (elemento degenerado/colineal). M2b debe suministrar coordenadas locales
+    rectangulares eje-alineadas; el bloque de placa ACM no soporta quads generales.
+
+    Alimenta a la placa ACM (rectangular). Para muros mallados en rectángulos (M3)
+    coincide con la geometría real del elemento.
     """
-    (x0, y0), (x1, y1), (x2, y2), _ = nodos_xy
+    (x0, y0), (x1, y1), (x2, y2), (x3, y3) = nodos_xy
     lx = math.hypot(x1 - x0, y1 - y0)
     ly = math.hypot(x2 - x1, y2 - y1)
+
+    if lx <= 0.0 or ly <= 0.0:
+        raise ValueError(
+            f"Shell M2a: elemento degenerado — lx={lx}, ly={ly} deben ser > 0. "
+            "Verifique que los nodos no sean colineales."
+        )
+
+    tol = 1e-9 * max(lx, ly)
+
+    # Nodo 0 en (x0,y0), nodo 1 en (x0+lx, y0), nodo 2 en (x0+lx, y0+ly),
+    # nodo 3 en (x0, y0+ly): rectángulo eje-alineado exacto.
+    if (abs(y1 - y0) > tol          # n1 debe tener misma y que n0
+            or abs(x2 - x1) > tol   # n2 debe tener misma x que n1
+            or abs(x3 - x0) > tol   # n3 debe tener misma x que n0
+            or abs(y3 - y2) > tol   # n3 debe tener misma y que n2
+            or abs((x1 - x0) - lx) > tol
+            or abs((y2 - y1) - ly) > tol):
+        raise ValueError(
+            "Shell M2a: el bloque de placa ACM requiere un rectángulo eje-alineado. "
+            f"Nodos recibidos: {nodos_xy}. "
+            "M2b debe suministrar coordenadas locales rectangulares eje-alineadas; "
+            "quads generales (trapecios, rombos, etc.) no son soportados en M2a."
+        )
+
     return lx, ly
 
 

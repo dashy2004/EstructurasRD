@@ -166,3 +166,23 @@ def test_shell_rango_18():
     Kred = [[K[i][j] for j in libres] for i in libres]
     assert len(Kred) == 18
     assert _pivotes_positivos(Kred)
+
+
+def test_shell_rechaza_quad_no_rectangular():
+    """Fix C1: _dims_rectangulo debe lanzar ValueError para quads no rectangulares."""
+    # Trapezoide: nodo 2 desplazado 0.5 m en x — no es rectángulo eje-alineado.
+    nodos_trap = [(0.0, 0.0), (2.0, 0.0), (2.5, 3.0), (0.0, 3.0)]
+    with pytest.raises(ValueError):
+        shell.rigidez_shell(nodos_trap, E, NU, T)
+
+
+def test_shell_acopla_membrana_drilling():
+    """Fix I1: con gamma>0, K[ux_0, θz_0] != 0 (acoplamiento drilling real)."""
+    K = shell.rigidez_shell(NODOS_RECT, E, NU, T)
+    # GDL 0 = ux nodo 0, GDL 5 = θz nodo 0.
+    assert abs(K[0][5]) > 0.0, "K[ux_0, θz_0] debe ser no nulo con gamma > 0"
+    assert abs(K[5][0]) > 0.0, "K[θz_0, ux_0] debe ser no nulo (simetría)"
+    # Con gamma=0 el drilling no escribe en θz, por lo que ese acoplamiento es 0.
+    K0 = shell.rigidez_shell(NODOS_RECT, E, NU, T, gamma=0.0)
+    assert K0[0][5] == 0.0, "Con gamma=0, K[ux_0, θz_0] debe ser exactamente 0"
+    assert K0[5][0] == 0.0, "Con gamma=0, K[θz_0, ux_0] debe ser exactamente 0"
