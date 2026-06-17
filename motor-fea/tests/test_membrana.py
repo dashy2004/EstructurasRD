@@ -4,9 +4,11 @@ import pytest
 
 from motor_fea.core.membrana import (
     constitutiva_plana,
+    esfuerzos_elemento,
     matvec,
     rigidez_membrana,
 )
+from motor_fea.core.solver import resolver_lineal
 
 
 # Cuadrado unitario de referencia para varios tests.
@@ -58,3 +60,58 @@ def test_rigidez_degenerada_lanza():
     horario = [(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)]  # orden horario
     with pytest.raises(ValueError):
         rigidez_membrana(horario, _E, _NU, _T)
+
+
+def test_patch_esfuerzo_constante():
+    # Campo de desplazamiento lineal u=a+b·x+c·y, v=d+e·x+f·y → deformación
+    # constante → esfuerzo constante exacto en el centro.
+    b, c, e, f = 1e-4, 2e-5, -3e-5, 4e-5
+    d_elem = []
+    for (x, y) in _CUADRADO:
+        d_elem.extend([0.001 + b * x + c * y, -0.002 + e * x + f * y])
+    eps = [b, f, c + e]                      # [εxx, εyy, γxy]
+    D = constitutiva_plana(_E, _NU)
+    esperado = [sum(D[r][k] * eps[k] for k in range(3)) for r in range(3)]
+    sxx, syy, txy = esfuerzos_elemento(_CUADRADO, _E, _NU, d_elem, 0.0, 0.0)
+    assert sxx == pytest.approx(esperado[0], rel=1e-6)
+    assert syy == pytest.approx(esperado[1], rel=1e-6)
+    assert txy == pytest.approx(esperado[2], rel=1e-6)
+
+
+def test_cortante_puro():
+    # u = gamma·y, v = 0 → γxy = gamma, εxx = εyy = 0 → τxy = G·gamma.
+    gamma = 1e-4
+    d_elem = []
+    for (x, y) in _CUADRADO:
+        d_elem.extend([gamma * y, 0.0])
+    G = _E / (2.0 * (1.0 + _NU))
+    sxx, syy, txy = esfuerzos_elemento(_CUADRADO, _E, _NU, d_elem, 0.0, 0.0)
+    assert sxx == pytest.approx(0.0, abs=1.0)
+    assert syy == pytest.approx(0.0, abs=1.0)
+    assert txy == pytest.approx(G * gamma, rel=1e-6)
+
+
+def test_traccion_uniaxial_resuelta():
+    # Cuadrado L×L×t. Apoyos: nodo0 (ux,uy)=0, nodo3 ux=0 (permite Poisson).
+    # Carga P/2 en +x sobre los nodos 1 y 2 (borde derecho).
+    # Q4 reproduce exacto el estado de esfuerzo constante: σxx = P/(L·t).
+    L, P = 1.0, 1.0e6
+    K = rigidez_membrana(_CUADRADO, _E, _NU, _T)
+    # GDL globales = locales (un solo elemento). Índices: nodo n → 2n (ux), 2n+1 (uy).
+    fijos = {0, 1, 6}                        # ux0, uy0, ux3
+    libres = [d for d in range(8) if d not in fijos]
+    F = [0.0] * 8
+    F[2] += P / 2.0                          # ux nodo1
+    F[4] += P / 2.0                          # ux nodo2
+    Kff = [[K[i][j] for j in libres] for i in libres]
+    Ff = [F[i] for i in libres]
+    uf = resolver_lineal(Kff, Ff)
+    u = [0.0] * 8
+    for pos, dgl in enumerate(libres):
+        u[dgl] = uf[pos]
+    sxx, syy, txy = esfuerzos_elemento(_CUADRADO, _E, _NU, u, 0.0, 0.0)
+    assert sxx == pytest.approx(P / (L * _T), rel=1e-6)
+    assert syy == pytest.approx(0.0, abs=P / (L * _T) * 1e-6)
+    assert txy == pytest.approx(0.0, abs=P / (L * _T) * 1e-6)
+    # Alargamiento del borde derecho: εxx·L = (σxx/E)·L.
+    assert u[2] == pytest.approx((P / (L * _T)) / _E * L, rel=1e-6)

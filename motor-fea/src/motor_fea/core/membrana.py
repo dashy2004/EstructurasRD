@@ -95,3 +95,19 @@ def rigidez_membrana(nodos_xy: list[tuple[float, float]],
                         s += B[r][a] * DB[r][b]
                     K[a][b] += peso * s
     return K
+
+
+def esfuerzos_elemento(nodos_xy: list[tuple[float, float]],
+                       E: float, nu: float, d_elem: list[float],
+                       xi: float = 0.0, eta: float = 0.0
+                       ) -> tuple[float, float, float]:
+    """Esfuerzos (σxx, σyy, τxy) en Pa en el punto natural (ξ, η).
+
+    ``d_elem`` = 8 GDL nodales [ux,uy ×4]. σ = D·B·d_elem. El centro (0,0) es el
+    punto de superconvergencia del Q4 (mejor precisión).
+    """
+    B, _ = _matriz_B(nodos_xy, xi, eta)
+    D = constitutiva_plana(E, nu)
+    eps = [sum(B[r][k] * d_elem[k] for k in range(8)) for r in range(3)]
+    sig = [sum(D[r][k] * eps[k] for k in range(3)) for r in range(3)]
+    return (sig[0], sig[1], sig[2])
