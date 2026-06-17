@@ -87,3 +87,56 @@ def test_shell_reduce_a_placa():
     for i in range(12):
         for j in range(12):
             assert math.isclose(sub[i][j], Kp[i][j], rel_tol=1e-9, abs_tol=1e-3)
+
+
+def _modos_rigidos(nodos_xy):
+    """Los 6 modos de cuerpo rígido del shell plano, como vectores de 24 GDL.
+
+    GDL/nodo: [ux,uy,uz,θx,θy,θz]. Placa: θx=∂w/∂y, θy=−∂w/∂x.
+    """
+    n = len(nodos_xy)
+    modos = []
+    # 3 traslaciones.
+    for comp in (0, 1, 2):                       # ux, uy, uz
+        d = [0.0] * (6 * n)
+        for a in range(n):
+            d[6 * a + comp] = 1.0
+        modos.append(d)
+    # Rotación fuera del plano θx (w = y → θx=1, θy=0).
+    d = [0.0] * (6 * n)
+    for a, (x, y) in enumerate(nodos_xy):
+        d[6 * a + 2] = y         # uz = w = y
+        d[6 * a + 3] = 1.0       # θx
+    modos.append(d)
+    # Rotación fuera del plano θy (w = x → θx=0, θy=−1).
+    d = [0.0] * (6 * n)
+    for a, (x, y) in enumerate(nodos_xy):
+        d[6 * a + 2] = x         # uz = w = x
+        d[6 * a + 4] = -1.0      # θy
+    modos.append(d)
+    # Rotación en el plano θz (ux=-y, uy=x, θz=1).
+    d = [0.0] * (6 * n)
+    for a, (x, y) in enumerate(nodos_xy):
+        d[6 * a + 0] = -y
+        d[6 * a + 1] = x
+        d[6 * a + 5] = 1.0
+    modos.append(d)
+    return modos
+
+
+def test_shell_seis_modos_rigidos_energia_cero():
+    K = shell.rigidez_shell(NODOS_RECT, E, NU, T)
+    ref = max(abs(K[i][i]) for i in range(24))
+    modos = _modos_rigidos(NODOS_RECT)
+    assert len(modos) == 6
+    for d in modos:
+        dscale = max(abs(v) for v in d) or 1.0
+        assert abs(_energia(K, d)) < 1e-6 * ref * dscale * dscale
+
+
+def test_shell_drilling_no_nulo():
+    # Con gamma>0, θz diferencial (membrana/placa fijas) da energía positiva.
+    K = shell.rigidez_shell(NODOS_RECT, E, NU, T, gamma=E * T)
+    d = [0.0] * 24
+    d[5] = 1.0                  # θz del nodo 0
+    assert _energia(K, d) > 0.0
