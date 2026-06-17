@@ -106,6 +106,10 @@ def esfuerzos_elemento(nodos_xy: list[tuple[float, float]],
     ``d_elem`` = 8 GDL nodales [ux,uy ×4]. σ = D·B·d_elem. El centro (0,0) es el
     punto de superconvergencia del Q4 (mejor precisión).
     """
+    if len(d_elem) != 8:
+        raise ValueError(
+            f"d_elem debe tener exactamente 8 componentes [ux,uy ×4 nodos]; "
+            f"se recibieron {len(d_elem)}.")
     B, _ = _matriz_B(nodos_xy, xi, eta)
     D = constitutiva_plana(E, nu)
     eps = [sum(B[r][k] * d_elem[k] for k in range(8)) for r in range(3)]

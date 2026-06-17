@@ -117,6 +117,90 @@ def test_traccion_uniaxial_resuelta():
     assert u[2] == pytest.approx((P / (L * _T)) / _E * L, rel=1e-6)
 
 
+def test_rango_sin_modos_espurios():
+    """K tiene exactamente 3 modos de cuerpo rígido (espacio nulo de dim=3).
+
+    Estrategia: fijar los 3 GDL que eliminan los modos rígidos (ux0, uy0, ux3),
+    reducir a la submatriz 5×5 Kff y verificar que sea definida positiva mediante
+    eliminación de Gauss (todos los pivotes > umbral).  Un modo espurio (hourglass,
+    etc.) haría que Kff fuese singular (pivote ≈ 0).
+    También se confirma que los 3 modos rígidos conocidos dan energía ≈ 0.
+    """
+    K = rigidez_membrana(_CUADRADO, _E, _NU, _T)
+
+    # --- 1. Energía de los 3 modos rígidos debe ser ≈ 0 ---
+    trans_x = [1.0, 0.0] * 4
+    trans_y = [0.0, 1.0] * 4
+    u_rot = []
+    for (x, y) in _CUADRADO:
+        u_rot.extend([-y, x])
+    for u in (trans_x, trans_y, u_rot):
+        Ku = matvec(K, u)
+        energia = sum(u[i] * Ku[i] for i in range(8))
+        assert abs(energia) < 1e-3, f"Modo rígido con energía no nula: {energia}"
+
+    # --- 2. Kff 5×5 definida positiva → cero modos espurios ---
+    fijos = {0, 1, 6}           # ux0, uy0, ux3 (GDL que fijan los 3 modos rígidos)
+    libres = [d for d in range(8) if d not in fijos]  # [2,3,4,5,7]
+    n = len(libres)             # 5
+    Kff = [[K[libres[i]][libres[j]] for j in range(n)] for i in range(n)]
+
+    def _cholesky_pivots(A: list[list[float]]) -> list[float]:
+        """Devuelve los pivotes de la eliminación de Gauss con pivoteo parcial."""
+        import copy
+        M = [row[:] for row in A]  # copia
+        pivots = []
+        for col in range(len(M)):
+            # Pivoteo parcial (mayor valor absoluto en la columna)
+            max_row = max(range(col, len(M)), key=lambda r: abs(M[r][col]))
+            M[col], M[max_row] = M[max_row], M[col]
+            pivot = M[col][col]
+            pivots.append(pivot)
+            if abs(pivot) < 1e-20:
+                continue  # singularidad, no dividir entre cero
+            for row in range(col + 1, len(M)):
+                factor = M[row][col] / pivot
+                for k in range(col, len(M)):
+                    M[row][k] -= factor * M[col][k]
+        return pivots
+
+    pivots = _cholesky_pivots(Kff)
+    diag_max = max(K[i][i] for i in range(8))
+    umbral = diag_max * 1e-8     # umbral relativo holgado
+
+    for idx, piv in enumerate(pivots):
+        assert piv > umbral, (
+            f"Pivote {idx} = {piv:.3e} <= umbral {umbral:.3e}: "
+            f"Kff singular → posible modo espurio")
+
+
+def test_esfuerzos_fuera_del_centro():
+    """El campo de deformación constante reproduce el mismo esfuerzo en CUALQUIER (ξ,η).
+
+    Reutiliza el campo del patch test con (ξ,η)=(0.6, -0.3) en lugar del centro.
+    Para un campo lineal (deformación constante), el Q4 bilineal debe recuperar
+    exactamente σ = D·ε independientemente del punto de muestreo.
+    """
+    b, c, e, f = 1e-4, 2e-5, -3e-5, 4e-5
+    d_elem = []
+    for (x, y) in _CUADRADO:
+        d_elem.extend([0.001 + b * x + c * y, -0.002 + e * x + f * y])
+    eps = [b, f, c + e]
+    D = constitutiva_plana(_E, _NU)
+    esperado = [sum(D[r][k] * eps[k] for k in range(3)) for r in range(3)]
+    sxx, syy, txy = esfuerzos_elemento(_CUADRADO, _E, _NU, d_elem, 0.6, -0.3)
+    assert sxx == pytest.approx(esperado[0], rel=1e-6)
+    assert syy == pytest.approx(esperado[1], rel=1e-6)
+    assert txy == pytest.approx(esperado[2], rel=1e-6)
+
+
+def test_esfuerzos_longitud_invalida():
+    """esfuerzos_elemento lanza ValueError si d_elem no tiene exactamente 8 GDL."""
+    d_corto = [0.0] * 6
+    with pytest.raises(ValueError):
+        esfuerzos_elemento(_CUADRADO, _E, _NU, d_corto)
+
+
 def test_cuadrilatero_no_rectangular_patch():
     # Trapecio (jacobiano variable). K simétrica + patch de esfuerzo constante.
     trapecio = [(0.0, 0.0), (2.0, 0.0), (1.5, 1.0), (0.2, 1.0)]
