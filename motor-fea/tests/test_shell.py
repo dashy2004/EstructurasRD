@@ -140,3 +140,29 @@ def test_shell_drilling_no_nulo():
     d = [0.0] * 24
     d[5] = 1.0                  # θz del nodo 0
     assert _energia(K, d) > 0.0
+
+
+def _pivotes_positivos(M):
+    """True si la eliminación gaussiana simétrica de M (n×n) tiene todos los
+    pivotes > 0 (≈ definida positiva). M se copia; no se modifica el original."""
+    n = len(M)
+    A = [list(fila) for fila in M]
+    umbral = 1e-6 * max(abs(A[i][i]) for i in range(n))
+    for k in range(n):
+        piv = A[k][k]
+        if piv <= umbral:
+            return False
+        for i in range(k + 1, n):
+            f = A[i][k] / piv
+            for j in range(k, n):
+                A[i][j] -= f * A[k][j]
+    return True
+
+
+def test_shell_rango_18():
+    # Fijar los 6 GDL del nodo 0 (en el origen) elimina los 6 modos rígidos.
+    K = shell.rigidez_shell(NODOS_RECT, E, NU, T, gamma=E * T)
+    libres = list(range(6, 24))                  # GDL del nodo 0 = 0..5 fijos
+    Kred = [[K[i][j] for j in libres] for i in libres]
+    assert len(Kred) == 18
+    assert _pivotes_positivos(Kred)
