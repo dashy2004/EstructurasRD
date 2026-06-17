@@ -26,3 +26,72 @@ def constitutiva_plana(E: float, nu: float) -> list[list[float]]:
     return [[f, f * nu, 0.0],
             [f * nu, f, 0.0],
             [0.0, 0.0, f * (1.0 - nu) / 2.0]]
+
+
+# Esquinas en coordenadas naturales, orden antihorario.
+_ESQUINAS = ((-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0))
+# Puntos y pesos de Gauss 2×2.
+_G = 1.0 / math.sqrt(3.0)
+_GAUSS2 = ((-_G, 1.0), (_G, 1.0))
+
+
+def matvec(K: list[list[float]], x: list[float]) -> list[float]:
+    """Producto matriz·vector."""
+    return [sum(K[i][j] * x[j] for j in range(len(x))) for i in range(len(K))]
+
+
+def _derivadas_forma(xi: float, eta: float) -> list[tuple[float, float]]:
+    """(∂N/∂ξ, ∂N/∂η) de las 4 funciones bilineales en (ξ, η)."""
+    out = []
+    for (xa, ea) in _ESQUINAS:
+        dndxi = 0.25 * xa * (1.0 + ea * eta)
+        dndeta = 0.25 * ea * (1.0 + xa * xi)
+        out.append((dndxi, dndeta))
+    return out
+
+
+def _matriz_B(nodos_xy: list[tuple[float, float]], xi: float, eta: float
+              ) -> tuple[list[list[float]], float]:
+    """Matriz B (3×8) y detJ en (ξ, η). Lanza ValueError si detJ ≤ 0."""
+    d = _derivadas_forma(xi, eta)
+    j00 = sum(d[a][0] * nodos_xy[a][0] for a in range(4))
+    j01 = sum(d[a][0] * nodos_xy[a][1] for a in range(4))
+    j10 = sum(d[a][1] * nodos_xy[a][0] for a in range(4))
+    j11 = sum(d[a][1] * nodos_xy[a][1] for a in range(4))
+    detJ = j00 * j11 - j01 * j10
+    if detJ <= 0.0:
+        raise ValueError(
+            f"Jacobiano no positivo (detJ={detJ:.3e}): nodos colineales o en "
+            f"orden horario. Se esperan 4 nodos en orden antihorario.")
+    # Inversa del jacobiano.
+    i00, i01 = j11 / detJ, -j01 / detJ
+    i10, i11 = -j10 / detJ, j00 / detJ
+    B = [[0.0] * 8 for _ in range(3)]
+    for a in range(4):
+        dndx = i00 * d[a][0] + i01 * d[a][1]
+        dndy = i10 * d[a][0] + i11 * d[a][1]
+        B[0][2 * a] = dndx
+        B[1][2 * a + 1] = dndy
+        B[2][2 * a] = dndy
+        B[2][2 * a + 1] = dndx
+    return B, detJ
+
+
+def rigidez_membrana(nodos_xy: list[tuple[float, float]],
+                     E: float, nu: float, t: float) -> list[list[float]]:
+    """Matriz de rigidez 8×8 del elemento Q4 de tensión plana de espesor t."""
+    D = constitutiva_plana(E, nu)
+    K = [[0.0] * 8 for _ in range(8)]
+    for xi, wxi in _GAUSS2:
+        for eta, weta in _GAUSS2:
+            B, detJ = _matriz_B(nodos_xy, xi, eta)
+            peso = wxi * weta * detJ * t
+            DB = [[sum(D[r][k] * B[k][c] for k in range(3)) for c in range(8)]
+                  for r in range(3)]
+            for a in range(8):
+                for b in range(8):
+                    s = 0.0
+                    for r in range(3):
+                        s += B[r][a] * DB[r][b]
+                    K[a][b] += peso * s
+    return K
