@@ -111,10 +111,20 @@ public partial class Planta2DEditorView : UserControl
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
-        // Pressing S toggles snapping when focus is NOT inside a TextBox
-        if (e.Key == Key.S && e.Source is not TextBox)
+
+        // No interceptar atajos mientras se escribe en un campo de propiedades.
+        if (e.Source is TextBox) return;
+
+        // S alterna el snapping.
+        if (e.Key == Key.S)
         {
             ChkSnap.IsChecked = ChkSnap.IsChecked != true;
+            e.Handled = true;
+        }
+        // Supr/Delete elimina la(s) losa(s) (u otros elementos) seleccionados.
+        else if (e.Key == Key.Delete)
+        {
+            EliminarSeleccionados();
             e.Handled = true;
         }
     }
@@ -353,35 +363,52 @@ public partial class Planta2DEditorView : UserControl
         EditorCanvas.InvalidateVisual();
     }
 
-    private void OnEliminarClick(object? sender, RoutedEventArgs e)
-    {
-        var selected = EditorCanvas.SelectedElement;
-        var nivel = EditorCanvas.Nivel;
-        if (selected == null || nivel == null) return;
+    private void OnEliminarClick(object? sender, RoutedEventArgs e) => EliminarSeleccionados();
 
-        if (selected is Losa l)
+    // Elimina TODOS los elementos seleccionados (una o varias losas, vigas o columnas).
+    // Lo usan tanto el botón "Eliminar" como la tecla Supr/Delete.
+    private void EliminarSeleccionados()
+    {
+        var nivel = EditorCanvas.Nivel;
+        if (nivel == null) return;
+
+        var seleccion = EditorCanvas.Seleccion.ToList();
+        if (seleccion.Count == 0) return;
+
+        Vm?.PushUndoSnapshot();
+
+        int losas = 0, otros = 0;
+        foreach (var sel in seleccion)
         {
-            foreach (var sys in nivel.Sistemas)
+            if (sel is Losa l)
             {
-                if (sys.Losas.Contains(l))
+                foreach (var sys in nivel.Sistemas)
                 {
-                    sys.Losas.Remove(l);
-                    break;
+                    if (sys.Losas.Remove(l)) { losas++; break; }
                 }
             }
-        }
-        else if (selected is Viga v)
-        {
-            nivel.Vigas.Remove(v);
-        }
-        else if (selected is Columna c)
-        {
-            nivel.Columnas.Remove(c);
+            else if (sel is Viga v)
+            {
+                if (nivel.Vigas.Remove(v)) otros++;
+            }
+            else if (sel is Columna c)
+            {
+                if (nivel.Columnas.Remove(c)) otros++;
+            }
         }
 
         EditorCanvas.SelectedElement = null;
         EditorCanvas.InvalidateVisual();
-        TxtStatus.Text = "Elemento eliminado.";
+
+        int total = losas + otros;
+        if (total == 0)
+            TxtStatus.Text = "No se eliminó ningún elemento.";
+        else if (total == 1)
+            TxtStatus.Text = "Elemento eliminado.";
+        else if (losas == total)
+            TxtStatus.Text = $"{losas} losas eliminadas.";
+        else
+            TxtStatus.Text = $"{total} elementos eliminados.";
     }
 
     private void OnRecalcularClick(object? sender, RoutedEventArgs e)

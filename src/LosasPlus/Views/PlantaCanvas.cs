@@ -25,6 +25,11 @@ public class PlantaCanvas : Control
     private double _dragStartElementY;
     private Point? _mousePosForSnap;
 
+    // Selección por caja (rubber-band)
+    private bool _isRubberBand;
+    private Point _rubberStartM;
+    private Point _rubberEndM;
+
     // Snapping configuration
     public bool IsSnappingEnabled { get; set; } = true;
     public double StepGrid { get; set; } = 0.5;
@@ -62,19 +67,48 @@ public class PlantaCanvas : Control
 
     public event Action<object?>? SelectionChanged;
 
-    private object? _selectedElement;
+    // Multi-selección. La lista es la fuente única de verdad; SelectedElement expone el
+    // elemento "primario" (el último seleccionado) para el panel de propiedades y el
+    // arrastre, manteniendo compatible todo el código que ya hacía SelectedElement = x / null.
+    private readonly List<object> _seleccion = new();
+    public IReadOnlyList<object> Seleccion => _seleccion;
+
     public object? SelectedElement
     {
-        get => _selectedElement;
+        get => _seleccion.Count > 0 ? _seleccion[_seleccion.Count - 1] : null;
         set
         {
-            if (_selectedElement != value)
-            {
-                _selectedElement = value;
-                SelectionChanged?.Invoke(value);
-                InvalidateVisual();
-            }
+            bool yaIgual = _seleccion.Count == (value == null ? 0 : 1)
+                           && (value == null || ReferenceEquals(_seleccion[0], value));
+            if (yaIgual) return;
+
+            _seleccion.Clear();
+            if (value != null) _seleccion.Add(value);
+            SelectionChanged?.Invoke(SelectedElement);
+            InvalidateVisual();
         }
+    }
+
+    private bool EstaSeleccionado(object elemento) =>
+        _seleccion.Any(o => ReferenceEquals(o, elemento));
+
+    /// <summary>Agrega o quita un elemento de la selección múltiple (Ctrl+Click).</summary>
+    public void AlternarEnSeleccion(object elemento)
+    {
+        int idx = _seleccion.FindIndex(o => ReferenceEquals(o, elemento));
+        if (idx >= 0) _seleccion.RemoveAt(idx);
+        else _seleccion.Add(elemento);
+        SelectionChanged?.Invoke(SelectedElement);
+        InvalidateVisual();
+    }
+
+    /// <summary>Reemplaza la selección completa (selección por caja / rubber-band).</summary>
+    public void EstablecerSeleccion(IEnumerable<object> elementos)
+    {
+        _seleccion.Clear();
+        _seleccion.AddRange(elementos);
+        SelectionChanged?.Invoke(SelectedElement);
+        InvalidateVisual();
     }
 
     public string ActiveTool { get; set; } = "Puntero";
@@ -132,10 +166,20 @@ public class PlantaCanvas : Control
             {
                 // Hit test using raw mouse coords
                 object? hit = HitTest(pM);
-                SelectedElement = hit;
+                bool ctrl = (e.KeyModifiers & KeyModifiers.Control) != 0;
+
+                if (ctrl)
+                {
+                    // Ctrl+Click: agrega o quita el elemento de la selección múltiple.
+                    if (hit != null) AlternarEnSeleccion(hit);
+                    e.Handled = true;
+                    return;
+                }
 
                 if (hit != null)
                 {
+                    // Click simple: selecciona sólo este elemento y permite arrastrarlo.
+                    SelectedElement = hit;
                     _isDragging = true;
                     _dragStartPos = pM;
                     if (hit is Losa l)
@@ -157,7 +201,12 @@ public class PlantaCanvas : Control
                 }
                 else
                 {
+                    // Click en vacío: inicia selección por caja (rubber-band) de losas.
                     SelectedElement = null;
+                    _isRubberBand = true;
+                    _rubberStartM = pM;
+                    _rubberEndM = pM;
+                    e.Pointer.Capture(this);
                 }
                 e.Handled = true;
             }
@@ -251,6 +300,11 @@ public class PlantaCanvas : Control
             _lastMousePos = mpos;
             InvalidateVisual();
         }
+        else if (_isRubberBand)
+        {
+            _rubberEndM = pM;
+            InvalidateVisual();
+        }
         else if (_isDragging && SelectedElement != null)
         {
             double dx = pM.X - _dragStartPos.X;
@@ -293,9 +347,51 @@ public class PlantaCanvas : Control
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);
+
+        if (_isRubberBand)
+        {
+            FinalizarSeleccionPorCaja();
+            _isRubberBand = false;
+        }
+
         _isPanning = false;
         _isDragging = false;
         e.Pointer.Capture(null);
+    }
+
+    // Selecciona todas las losas que la caja (rubber-band) toca. Un arrastre mínimo
+    // equivale a un click en vacío y limpia la selección.
+    private void FinalizarSeleccionPorCaja()
+    {
+        if (Nivel == null) return;
+
+        double anchoPx = Math.Abs(_rubberEndM.X - _rubberStartM.X) * _scale;
+        double altoPx = Math.Abs(_rubberEndM.Y - _rubberStartM.Y) * _scale;
+        if (anchoPx < 4 && altoPx < 4)
+        {
+            EstablecerSeleccion(Array.Empty<object>());
+            return;
+        }
+
+        double rx0 = Math.Min(_rubberStartM.X, _rubberEndM.X);
+        double ry0 = Math.Min(_rubberStartM.Y, _rubberEndM.Y);
+        double rx1 = Math.Max(_rubberStartM.X, _rubberEndM.X);
+        double ry1 = Math.Max(_rubberStartM.Y, _rubberEndM.Y);
+
+        var seleccionados = new List<object>();
+        foreach (var sistema in Nivel.Sistemas)
+        {
+            foreach (var losa in sistema.Losas)
+            {
+                double lx0 = losa.CoordenadaX;
+                double ly0 = losa.CoordenadaY;
+                double lx1 = lx0 + losa.Lx;
+                double ly1 = ly0 + losa.Ly;
+                bool intersecta = lx0 <= rx1 && lx1 >= rx0 && ly0 <= ry1 && ly1 >= ry0;
+                if (intersecta) seleccionados.Add(losa);
+            }
+        }
+        EstablecerSeleccion(seleccionados);
     }
 
     protected override void OnPointerExited(PointerEventArgs e)
@@ -416,7 +512,7 @@ public class PlantaCanvas : Control
                 double sh = losa.Ly * _scale;
                 var rect = new Rect(pTopLeft.X, pTopLeft.Y, sw, sh);
 
-                bool isSelected = ReferenceEquals(SelectedElement, losa);
+                bool isSelected = EstaSeleccionado(losa);
                 context.DrawRectangle(slabFill, isSelected ? selectPen : slabPen, rect);
 
                 // Label
@@ -441,7 +537,7 @@ public class PlantaCanvas : Control
             var pStart = MetrosAPixel(viga.OrigenX, viga.OrigenY);
             var pEnd = MetrosAPixel(viga.ExtremoX, viga.ExtremoY);
 
-            bool isSelected = ReferenceEquals(SelectedElement, viga);
+            bool isSelected = EstaSeleccionado(viga);
             context.DrawLine(isSelected ? beamSelectPen : beamPen, pStart, pEnd);
 
             // Label
@@ -463,7 +559,7 @@ public class PlantaCanvas : Control
             double ch = col.Peralte * _scale;
             var rect = new Rect(pTopLeft.X, pTopLeft.Y, cw, ch);
 
-            bool isSelected = ReferenceEquals(SelectedElement, col);
+            bool isSelected = EstaSeleccionado(col);
             context.DrawRectangle(colFill, isSelected ? selectPen : colPen, rect);
 
             // Label
@@ -495,6 +591,20 @@ public class PlantaCanvas : Control
             var tooltipRect = new Rect(snapPx.X + 12, snapPx.Y - 22, ft.Width + 8, ft.Height + 4);
             context.DrawRectangle(new SolidColorBrush(Color.FromArgb(220, 255, 255, 240)), new Pen(Brushes.OrangeRed, 1.0), tooltipRect);
             context.DrawText(ft, new Point(tooltipRect.X + 4, tooltipRect.Y + 2));
+        }
+
+        // 5. Draw rubber-band selection rectangle
+        if (_isRubberBand)
+        {
+            var bp0 = MetrosAPixel(Math.Min(_rubberStartM.X, _rubberEndM.X), Math.Min(_rubberStartM.Y, _rubberEndM.Y));
+            var bp1 = MetrosAPixel(Math.Max(_rubberStartM.X, _rubberEndM.X), Math.Max(_rubberStartM.Y, _rubberEndM.Y));
+            var bandRect = new Rect(bp0.X, bp0.Y, bp1.X - bp0.X, bp1.Y - bp0.Y);
+            var bandFill = new SolidColorBrush(Color.FromArgb(40, 0xFF, 0x98, 0x00));
+            var bandPen = new Pen(new SolidColorBrush(Color.FromRgb(0xFF, 0x98, 0x00)), 1.5)
+            {
+                DashStyle = DashStyle.Dash
+            };
+            context.DrawRectangle(bandFill, bandPen, bandRect);
         }
     }
 }

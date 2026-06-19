@@ -53,7 +53,7 @@
                     <Button x:Name="BtnRecalcular" Content="⚡ Recalcular Descenso" Classes="accent"
                             ToolTip.Tip="Calcula el descenso topológico real losa->viga->columna->zapata en este nivel."/>
                     <Button x:Name="BtnEliminar" Content="🗑 Eliminar" Background="#D32F2F" Foreground="White"
-                            ToolTip.Tip="Elimina el elemento seleccionado."/>
+                            ToolTip.Tip="Elimina los elementos seleccionados (una o varias losas). Atajo: Supr/Delete."/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -64,7 +64,7 @@
                 BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
             <Grid ColumnDefinitions="*,Auto">
                 <TextBlock x:Name="TxtStatus" Grid.Column="0" Foreground="{DynamicResource FgMuted}" FontSize="12"
-                           Text="Rueda = zoom · Arr. Botón Central/Derecho = pan · Click = seleccionar · Arr. Izquierdo = mover."/>
+                           Text="Rueda = zoom · Botón Central/Derecho = pan · Click = seleccionar · Ctrl+Click o arrastrar una caja = seleccionar varias losas · Supr = eliminar · Arr. Izquierdo = mover."/>
                 <TextBlock Grid.Column="1" Foreground="{DynamicResource FgMuted}" FontSize="12" FontWeight="SemiBold"
                            Text="Editor 2D de Planta"/>
             </Grid>
