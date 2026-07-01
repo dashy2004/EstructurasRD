@@ -83,6 +83,20 @@ class ElementoFrame:
 
 
 @dataclass(frozen=True)
+class ElementoShell:
+    """Panel shell plano de 4 nodos / 24 GDL (membrana + placa + drilling).
+
+    ``nodos`` = ``(n0, n1, n2, n3)`` en orden antihorario en el plano del panel.
+    El shell no usa ``Seccion`` (propiedades de barra); lleva su propio
+    ``espesor`` en metros. La rigidez la aporta ``core/shell.py`` (M2a/M2b).
+    """
+    id: int
+    nodos: tuple[int, int, int, int]
+    material_id: int
+    espesor: float
+
+
+@dataclass(frozen=True)
 class Apoyo:
     """Restricción nodal: True = GDL restringido (fijo). Orden: ux,uy,uz,rx,ry,rz."""
     nodo_id: int
@@ -144,6 +158,7 @@ class ModeloEstructural:
     materiales: list[Material] = field(default_factory=list)
     secciones: list[Seccion] = field(default_factory=list)
     elementos: list[ElementoFrame] = field(default_factory=list)
+    elementos_shell: list[ElementoShell] = field(default_factory=list)
     apoyos: list[Apoyo] = field(default_factory=list)
     cargas: list[CargaNodal] = field(default_factory=list)
     losas: list[LosaViz] = field(default_factory=list)  # inerte: el FEA las ignora
@@ -178,6 +193,15 @@ class ModeloEstructural:
                     errores.append(f"Elemento {e.id}: {etiq}={ref} no existe.")
             if e.nodo_i == e.nodo_j:
                 errores.append(f"Elemento {e.id}: nodo_i y nodo_j son el mismo.")
+
+        for s in self.elementos_shell:
+            if s.material_id not in ids_mat:
+                errores.append(f"Shell {s.id}: material_id={s.material_id} no existe.")
+            for nid in s.nodos:
+                if nid not in ids_nodo:
+                    errores.append(f"Shell {s.id}: nodo {nid} no existe.")
+            if len(set(s.nodos)) != 4:
+                errores.append(f"Shell {s.id}: requiere 4 nodos distintos.")
 
         for a in self.apoyos:
             if a.nodo_id not in ids_nodo:

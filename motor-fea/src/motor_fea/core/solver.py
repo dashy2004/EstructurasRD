@@ -184,6 +184,20 @@ def ensamblar_global(modelo: ModeloEstructural) -> Matriz:
         for a in range(12):
             for b in range(12):
                 K[mapa[a]][mapa[b]] += kg[a][b]
+
+    # Elementos shell (24×24): rigidez global via triada local + Tᵀ·K·T (M2b).
+    # Import diferido: placa→solver crea un ciclo si se importa shell arriba.
+    from motor_fea.core import shell
+
+    for s in modelo.elementos_shell:
+        mat = mats[s.material_id]
+        p = [(nodos[nid].x, nodos[nid].y, nodos[nid].z) for nid in s.nodos]
+        ks = shell.rigidez_shell_global(p, mat.E, mat.nu, s.espesor)
+        base_s = [idx[nid] * GDL_POR_NODO for nid in s.nodos]
+        mapa_s = [b + d for b in base_s for d in range(6)]
+        for a in range(24):
+            for b in range(24):
+                K[mapa_s[a]][mapa_s[b]] += ks[a][b]
     return K
 
 
