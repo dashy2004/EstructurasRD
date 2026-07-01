@@ -136,3 +136,101 @@ def rigidez_shell(nodos_xy: list[tuple[float, float]],
             K[idx_p[i]][idx_p[j]] += Kp[i][j]
 
     return K
+
+
+# --------------------------------------------------------------------------- #
+# Capa global (M2b): el shell plano ubicado en 3D. La rigidez local 24×24 se
+# expresa en el marco global mediante K_global = Tᵀ·K_local·T con T ortogonal
+# (rotación pura → preserva la energía de deformación).
+# --------------------------------------------------------------------------- #
+Vec3 = tuple[float, float, float]
+
+
+def _resta(a: Vec3, b: Vec3) -> Vec3:
+    return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
+
+
+def _cruz(a: Vec3, b: Vec3) -> Vec3:
+    return (a[1] * b[2] - a[2] * b[1],
+            a[2] * b[0] - a[0] * b[2],
+            a[0] * b[1] - a[1] * b[0])
+
+
+def _dot3(a: Vec3, b: Vec3) -> float:
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def _norm3(v: Vec3) -> Vec3:
+    n = math.sqrt(_dot3(v, v))
+    if n < 1e-300:
+        raise ValueError("Vector nulo al normalizar la tríada del shell.")
+    return (v[0] / n, v[1] / n, v[2] / n)
+
+
+def _marco_shell(nodos3d: list[Vec3]) -> tuple[Vec3, Vec3, Vec3]:
+    """Tríada local ortonormal (ex, ey, ez) del cuadrilátero 3D.
+
+    ``ex`` = primer lado ``p1−p0`` normalizado; ``ez`` = normal al plano
+    (``(p1−p0)×(p2−p0)`` normalizada); ``ey = ez×ex`` cierra la base dextrógira.
+    ``ey`` sale unitario por ser producto de dos unitarios ortogonales.
+    """
+    p0, p1, p2, _ = nodos3d
+    v01 = _resta(p1, p0)
+    v02 = _resta(p2, p0)
+    ex = _norm3(v01)
+    ez = _norm3(_cruz(v01, v02))
+    ey = _cruz(ez, ex)
+    return ex, ey, ez
+
+
+def _proyectar_2d(nodos3d: list[Vec3], ex: Vec3, ey: Vec3) -> list[tuple[float, float]]:
+    """Proyecta los 4 nodos 3D al plano local (origen en ``p0``): ``(v·ex, v·ey)``.
+
+    Una rotación rígida preserva distancias, y ``ex`` se ancla al lado ``p0→p1``:
+    la proyección deshace la orientación 3D y recupera el rectángulo local, que es
+    lo que ``rigidez_shell`` (placa ACM rectangular) espera.
+    """
+    p0 = nodos3d[0]
+    out = []
+    for p in nodos3d:
+        v = _resta(p, p0)
+        out.append((_dot3(v, ex), _dot3(v, ey)))
+    return out
+
+
+def _transformacion_24(ex: Vec3, ey: Vec3, ez: Vec3) -> list[list[float]]:
+    """T (24×24) global→local: 8 bloques diagonales de R=[ex,ey,ez] (filas=ejes
+    locales), uno por cada terna de traslación y de rotación de los 4 nodos."""
+    R = [list(ex), list(ey), list(ez)]
+    T = [[0.0] * 24 for _ in range(24)]
+    for blk in range(8):
+        o = blk * 3
+        for i in range(3):
+            for j in range(3):
+                T[o + i][o + j] = R[i][j]
+    return T
+
+
+def _congruencia(T: list[list[float]], K: list[list[float]]) -> list[list[float]]:
+    """Producto de congruencia Tᵀ·K·T (24×24)."""
+    TtK = [[sum(T[k][i] * K[k][j] for k in range(24)) for j in range(24)]
+           for i in range(24)]
+    return [[sum(TtK[i][k] * T[k][j] for k in range(24)) for j in range(24)]
+            for i in range(24)]
+
+
+def rigidez_shell_global(nodos3d: list[Vec3],
+                         E: float, nu: float, t: float,
+                         gamma: float | None = None) -> list[list[float]]:
+    """Rigidez 24×24 del shell en coordenadas globales.
+
+    ``nodos3d`` = 4 nodos ``(x, y, z)`` en orden antihorario. Deriva la tríada
+    local, proyecta al plano para alimentar ``rigidez_shell`` (M2a) y rota el
+    resultado al marco global con ``Tᵀ·K·T``. GDL/nodo ``[ux,uy,uz,θx,θy,θz]``,
+    índice global ``6·a + d``.
+    """
+    ex, ey, ez = _marco_shell(nodos3d)
+    nodos_xy = _proyectar_2d(nodos3d, ex, ey)
+    Kl = rigidez_shell(nodos_xy, E, nu, t, gamma)
+    T = _transformacion_24(ex, ey, ez)
+    return _congruencia(T, Kl)
