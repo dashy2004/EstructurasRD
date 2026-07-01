@@ -14,6 +14,7 @@ import json
 from pathlib import Path
 
 from fastapi import Body, FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from motor_fea.api.contrato import (
@@ -66,6 +67,16 @@ def cargar_modelo(ruta: str | None) -> ModeloEstructural:
 def crear_app(modelo: ModeloEstructural) -> FastAPI:
     """Construye la app FastAPI que sirve `modelo` como escena 3D."""
     app = FastAPI(title="motor-fea · visor estructural")
+    # CORS acotado a desarrollo local: el visor (SPA en un puerto de dev distinto)
+    # necesita fetch cross-origin, pero se restringe a localhost/127.0.0.1 en
+    # cualquier puerto —no wildcard— para no exponer el modelo a orígenes de
+    # internet. Sin credenciales; solo los métodos que la API expone.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
+        allow_methods=["GET", "POST"],
+        allow_headers=["*"],
+    )
 
     @app.get("/escena")
     def escena():
