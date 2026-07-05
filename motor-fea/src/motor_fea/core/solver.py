@@ -307,3 +307,34 @@ def esfuerzos_elementos(modelo: ModeloEstructural,
         f_local = _matvec(kl, _matvec(T, u_g))
         salida[e.id] = EsfuerzosElemento(e.id, L, tuple(f_local[0:6]), tuple(f_local[6:12]))
     return salida
+
+
+@dataclass
+class EsfuerzosShell:
+    """Esfuerzos del panel shell en coordenadas locales, evaluados en el centro (M2c)."""
+    elemento_id: int
+    membrana: tuple[float, float, float]   # (σxx, σyy, τxy) en Pa
+    momentos: tuple[float, float, float]   # (Mx, My, Mxy) en N·m/m
+
+
+def esfuerzos_shells(modelo: ModeloEstructural,
+                     resultado: ResultadoAnalisis) -> dict[int, EsfuerzosShell]:
+    """Esfuerzos de membrana y momentos de placa por elemento shell del resultado.
+
+    Post-procesamiento puro (espejo de :func:`esfuerzos_elementos` para frames):
+    junta los 24 GDL globales de los 4 nodos del panel y delega en
+    ``shell.esfuerzos_shell_global``. Import diferido: mismo ciclo placa→solver
+    que en ``ensamblar_global`` (M2b).
+    """
+    from motor_fea.core import shell
+
+    nodos = {n.id: n for n in modelo.nodos}
+    mats = {m.id: m for m in modelo.materiales}
+    salida: dict[int, EsfuerzosShell] = {}
+    for s in modelo.elementos_shell:
+        mat = mats[s.material_id]
+        p = [(nodos[nid].x, nodos[nid].y, nodos[nid].z) for nid in s.nodos]
+        d24 = [v for nid in s.nodos for v in resultado.desplazamientos[nid]]
+        sig, mom = shell.esfuerzos_shell_global(p, mat.E, mat.nu, s.espesor, d24)
+        salida[s.id] = EsfuerzosShell(s.id, sig, mom)
+    return salida

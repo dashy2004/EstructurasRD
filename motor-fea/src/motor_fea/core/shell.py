@@ -234,3 +234,35 @@ def rigidez_shell_global(nodos3d: list[Vec3],
     Kl = rigidez_shell(nodos_xy, E, nu, t, gamma)
     T = _transformacion_24(ex, ey, ez)
     return _congruencia(T, Kl)
+
+
+def esfuerzos_shell_global(nodos3d: list[Vec3],
+                           E: float, nu: float, t: float,
+                           d24: list[float]
+                           ) -> tuple[tuple[float, float, float],
+                                      tuple[float, float, float]]:
+    """((σxx, σyy, τxy) Pa, (Mx, My, Mxy) N·m/m) locales en el centro del panel.
+
+    ``d24`` = 24 desplazamientos GLOBALES ``[ux,uy,uz,θx,θy,θz ×4]`` en el orden
+    de :func:`rigidez_shell_global`. Camino espejo de la rigidez (M2c): rotar al
+    marco local con ``u_local = T·d24`` y separar bloques — membrana ``(ux,uy)``
+    → :func:`membrana.esfuerzos_elemento`; placa ``(uz,θx,θy)`` →
+    :func:`placa.momentos_elemento`. El drilling ``θz`` no produce esfuerzo
+    físico (es estabilización). Centro = superconvergencia del Q4.
+    """
+    if len(d24) != 24:
+        raise ValueError(
+            f"d24 debe tener exactamente 24 componentes [ux,uy,uz,θx,θy,θz ×4 "
+            f"nodos]; se recibieron {len(d24)}.")
+    ex, ey, ez = _marco_shell(nodos3d)
+    nodos_xy = _proyectar_2d(nodos3d, ex, ey)
+    T = _transformacion_24(ex, ey, ez)
+    u_loc = [sum(T[i][j] * d24[j] for j in range(24)) for i in range(24)]
+
+    d_membrana = [u_loc[6 * a + c] for a in range(4) for c in (0, 1)]
+    sig = membrana.esfuerzos_elemento(nodos_xy, E, nu, d_membrana)
+
+    d_placa = [u_loc[6 * a + c] for a in range(4) for c in (2, 3, 4)]
+    lx, ly = _dims_rectangulo(nodos_xy)
+    mom = placa.momentos_elemento(lx, ly, E, nu, t, d_placa)
+    return sig, mom
