@@ -72,6 +72,37 @@
 `lat`, `lon`, `reporte_id`) · `GET /reconstrucciones/{id}/nube.ply`. El visor solo
 necesita la `nube_url` y, para XR, la escala métrica (mejora con Quest, §v1 5.3).
 
+### 2.5 Cómo cada reporte obtiene su nube — feature **video/foto → point cloud** (ya existe)
+El visor por-reporte (§2.1) no crea nubes: **consume** las que produce la cadena de
+reconstrucción de VisionRD, que ya está construida. Tres formas de que un reporte tenga nube:
+
+- **Puente automático IncidenciasRD → nubes** (`visionrd/app/puente.py`, `BRIDGE_MODE=poll`,
+  **verificado**): lee `GET /api/reports` (GeoJSON público, sin auth), toma las **fotos del
+  reporte** (`properties.images` servidas en `/storage`), **dedup por `reporte_id`**, y crea
+  **una `Reconstruccion{reporte_id=...}` por reporte** vía `procesar_reconstruccion`. Acotado
+  por `BRIDGE_MAX_POR_CORRIDA` (la GPU en modo profundidad es el recurso caro). Manual:
+  `POST /puente/correr`. → **Este es el feature "reporte → point cloud" para el mapa.**
+- **Reconstrucción directa** (`POST /reconstrucciones`, fotos; o `POST /trabajos/{id}/reconstruir`,
+  fotogramas de una pasada de `/ingest`): la ruta **video → point cloud** propiamente dicha —
+  el video entra por `/ingest`, se extraen fotogramas, y de ahí sale la nube (§v1 5.2).
+- **Import ya-en-3D** (`POST /reconstrucciones/importar`, §4): para `.ply/.las/.laz`.
+
+**Enlace visor↔reporte (la clave para "este mapa"):** la `Reconstruccion` guarda
+`reporte_id`, y el visor ya soporta `visor3d.html?reporte={id}` con **enlace de vuelta a
+`/incidencia/{id}`**. Entonces el **tercer modo 3D por reporte** (§2.1) es exactamente:
+*desde un pin del mapa 2D → abrir el visor con la nube cuyo `reporte_id` coincide*. No hay
+que inventar el vínculo: `reporte_id` + `?reporte=` ya existen.
+
+**Estado hoy vs. objetivo:**
+- El puente reconstruye desde **fotos** del reporte. El objetivo v1/v2 es que la fuente sea
+  **video** (teléfono o Quest) → nube más densa (§v1: la foto única no basta). Cuando el
+  reporte lleve video, el puente/`/ingest` alimentan la misma `Reconstruccion{reporte_id}` →
+  **el visor no cambia**; solo mejora la nube que carga.
+- **[VERIFICAR en IncidenciasRD]** hoy `POST /api/reports` acepta `images: List[UploadFile]`
+  (fotos). Para el flujo video-nativo por reporte hay que confirmar/añadir soporte de
+  **adjunto de video** en el reporte (o mantener el video del lado VisionRD vía `/ingest`,
+  asociándolo por `reporte_id`), decisión que toca IncidenciasRD → ver §8.5.
+
 ---
 
 ## 3. Capa 2 — Contrato de ingesta multi-fuente (decisión central)
@@ -217,6 +248,11 @@ Convierte la fuente al **PLY canónico** sin re-derivar geometría:
    quien implemente §6 los tenga junto al código; decisión tuya.
 4. **"Mapa arriba" (todos los reportes en una escena):** confirmar que sigue fuera de alcance
    (es Fase M del `VISION_ROADMAP`, 3D Tiles/Cesium), no parte de este visor por-reporte.
+5. **Video en el reporte de IncidenciasRD (§2.5):** hoy `POST /api/reports` acepta solo
+   fotos (`images`). Decidir si el reporte gana un **adjunto de video** (toca IncidenciasRD)
+   o si el video vive del lado VisionRD (entra por `/ingest`, se asocia por `reporte_id`) y
+   IncidenciasRD solo guarda un fotograma/portada. Afecta cómo el puente pasa de fotos a
+   video como fuente de la nube.
 
 ---
 
