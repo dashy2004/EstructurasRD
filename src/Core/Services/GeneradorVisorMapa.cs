@@ -131,6 +131,15 @@ public static class GeneradorVisorMapa
             """;
     }
 
+    /// <summary>Rutas de los dos visores junto al .geojson (mismo directorio y base).</summary>
+    public static (string MapLibre, string Cesium) RutasVisores(string rutaGeojson)
+    {
+        string dir = System.IO.Path.GetDirectoryName(rutaGeojson) ?? "";
+        string baseNombre = System.IO.Path.GetFileNameWithoutExtension(rutaGeojson);
+        return (System.IO.Path.Combine(dir, baseNombre + "-visor-maplibre.html"),
+                System.IO.Path.Combine(dir, baseNombre + "-visor-cesium.html"));
+    }
+
     /// <summary>Escapa <c>&lt;/</c> para que ningún texto del GeoJSON pueda cerrar el script.</summary>
     private static string Empotrar(string geojson) => geojson.Replace("</", "<\\/");
 

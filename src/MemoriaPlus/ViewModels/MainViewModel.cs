@@ -1095,9 +1095,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 new FileFilter("GeoJSON", new[] { "*.geojson" }));
             if (string.IsNullOrEmpty(ruta)) return; // cancelado
 
-            System.IO.File.WriteAllText(ruta,
-                ExportadorGeoJson.Exportar(edificio, ProyectoActivo.Georreferencia));
-            StatusExportacion = $"GeoJSON exportado → {ruta}";
+            var geojson = ExportadorGeoJson.Exportar(edificio, ProyectoActivo.Georreferencia);
+            System.IO.File.WriteAllText(ruta, geojson);
+
+            // M.2b: visores 3D autocontenidos junto al .geojson (doble click y abre).
+            var (rutaMapLibre, rutaCesium) = GeneradorVisorMapa.RutasVisores(ruta);
+            System.IO.File.WriteAllText(rutaMapLibre, GeneradorVisorMapa.GenerarMapLibre(geojson));
+            System.IO.File.WriteAllText(rutaCesium, GeneradorVisorMapa.GenerarCesium(geojson));
+
+            StatusExportacion = $"GeoJSON + visores 3D exportados → {ruta}";
         }
         catch (Exception ex)
         {

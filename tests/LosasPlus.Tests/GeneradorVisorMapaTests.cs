@@ -83,4 +83,15 @@ public class GeneradorVisorMapaTests
 
         Assert.Throws<ExportadorModeloException>(() => GeneradorVisorMapa.GenerarCesium(""));
     }
+
+    [Fact]
+    public void Rutas_de_visores_derivan_del_geojson()
+    {
+        string ruta = System.IO.Path.Combine("salida", "edificio.geojson");
+
+        var (mapLibre, cesium) = GeneradorVisorMapa.RutasVisores(ruta);
+
+        Assert.Equal(System.IO.Path.Combine("salida", "edificio-visor-maplibre.html"), mapLibre);
+        Assert.Equal(System.IO.Path.Combine("salida", "edificio-visor-cesium.html"), cesium);
+    }
 }
