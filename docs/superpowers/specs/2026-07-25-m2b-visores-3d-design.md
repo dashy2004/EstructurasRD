@@ -28,11 +28,15 @@ y sin token. Cierra el ciclo edificio→ciudad en 3D iniciado en M.1.
 3. **Cámara automática en el edificio**: ambos motores la resuelven en
    runtime (`map.fitBounds` calculado del GeoJSON en JS / `flyTo(dataSource)`)
    — cero geometría nueva en C#.
-4. **Generador puro, sin I/O**: `GeneradorVisorMapa` (estático, en
+4. **CDN con SRI**: los `<script>`/`<link>` llevan versión exacta (MapLibre
+   4.7.1, Cesium 1.119) + `integrity="sha384-..."` + `crossorigin="anonymous"`
+   — un CDN comprometido no puede inyectar código en el visor. Hashes
+   verificados contra los CDN el 2026-07-25 (ver plan).
+5. **Generador puro, sin I/O**: `GeneradorVisorMapa` (estático, en
    `src/Core/Services`, patrón `ExportadorGeoJson`) con
    `GenerarMapLibre(string geojson)` y `GenerarCesium(string geojson)` →
    HTML completo como string. Plantillas como raw string literals de C#.
-5. **UI sin botón nuevo**: el botón existente "🌍 Exportar GeoJSON (mapa)"
+6. **UI sin botón nuevo**: el botón existente "🌍 Exportar GeoJSON (mapa)"
    escribe, junto al `.geojson`, `<base>-visor-maplibre.html` y
    `<base>-visor-cesium.html`. El status lista los tres archivos.
 
