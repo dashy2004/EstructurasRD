@@ -63,12 +63,29 @@ public static class ImportadorReportesGeoJson
             var reportes = new List<ReporteEnPlanta>();
             foreach (var f in features.EnumerateArray())
             {
-                if (!f.TryGetProperty("geometry", out var g)
+                // El GeoJSON puede venir de un servidor remoto (modo http):
+                // cualquier malformación estructural sale como
+                // ImportadorReportesException, nunca como KeyNotFound/Invalid-
+                // Operation que crashearía el handler async void de la UI.
+                if (f.ValueKind != JsonValueKind.Object
+                    || !f.TryGetProperty("geometry", out var g)
                     || g.ValueKind != JsonValueKind.Object
-                    || g.GetProperty("type").GetString() != "Point")
-                    continue;   // polígonos, líneas, geometrías nulas: no son reportes puntuales
+                    || !g.TryGetProperty("type", out var gt)
+                    || gt.ValueKind != JsonValueKind.String)
+                    throw new ImportadorReportesException(
+                        "GeoJSON malformado: cada feature necesita geometry.type.");
 
-                var coords = g.GetProperty("coordinates");
+                if (gt.GetString() != "Point")
+                    continue;   // polígonos, líneas: no son reportes puntuales
+
+                if (!g.TryGetProperty("coordinates", out var coords)
+                    || coords.ValueKind != JsonValueKind.Array
+                    || coords.GetArrayLength() < 2
+                    || coords[0].ValueKind != JsonValueKind.Number
+                    || coords[1].ValueKind != JsonValueKind.Number)
+                    throw new ImportadorReportesException(
+                        "GeoJSON malformado: un Point necesita coordinates [lon, lat] numéricas.");
+
                 double lon = coords[0].GetDouble();
                 double lat = coords[1].GetDouble();
 

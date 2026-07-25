@@ -127,4 +127,25 @@ public class ImportadorReportesGeoJsonTests
         Assert.Throws<ImportadorReportesException>(
             () => ImportadorReportesGeoJson.Importar("esto no es json", Origen()));
     }
+
+    [Fact]
+    public void Geojson_malformado_lanza_la_excepcion_del_importador_no_un_crash()
+    {
+        // Hallazgo del security-review: en modo http el cuerpo de la respuesta
+        // es input no confiable. Una geometry sin "type", coordenadas no
+        // numéricas o incompletas deben salir como ImportadorReportesException
+        // (que la UI atrapa), nunca como KeyNotFound/InvalidOperation.
+        string[] malformados =
+        {
+            Coleccion("{ \"type\": \"Feature\", \"geometry\": { \"coordinates\": [1, 2] }, \"properties\": {} }"),
+            Coleccion("{ \"type\": \"Feature\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [\"x\", \"y\"] }, \"properties\": {} }"),
+            Coleccion("{ \"type\": \"Feature\", \"geometry\": { \"type\": \"Point\", \"coordinates\": [1] }, \"properties\": {} }"),
+            Coleccion("{ \"type\": \"Feature\", \"geometry\": { \"type\": \"Point\" }, \"properties\": {} }"),
+            "{ \"type\": \"FeatureCollection\", \"features\": [42] }",
+        };
+
+        foreach (var json in malformados)
+            Assert.Throws<ImportadorReportesException>(
+                () => ImportadorReportesGeoJson.Importar(json, Origen()));
+    }
 }
