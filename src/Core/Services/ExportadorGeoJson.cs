@@ -20,6 +20,9 @@ namespace LosasPlus.Services;
 /// </summary>
 public static class ExportadorGeoJson
 {
+    /// <summary>Altura de entrepiso cuando no hay nivel de referencia (típica residencial RD).</summary>
+    public const double AlturaEntrepisoDefecto = 3.0;
+
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
     public static string Exportar(Edificio edificio, Georreferencia georreferencia)
@@ -27,6 +30,19 @@ public static class ExportadorGeoJson
         if (georreferencia is null)
             throw new ExportadorModeloException(
                 "El proyecto no está georreferenciado: ubícalo en Datos generales antes de exportar GeoJSON.");
+
+        // Altura de extrusión por nivel (M.2a): del piso a la cota del nivel
+        // siguiente; el tope hereda la altura del piso anterior (3.0 m si no hay).
+        var niveles = new List<Nivel>(edificio.Niveles);
+        niveles.Sort((a, b) => a.Cota.CompareTo(b.Cota));
+        var alturaPorNivel = new Dictionary<Nivel, double>();
+        for (int i = 0; i < niveles.Count; i++)
+        {
+            double altura = i + 1 < niveles.Count
+                ? niveles[i + 1].Cota - niveles[i].Cota
+                : (i > 0 ? alturaPorNivel[niveles[i - 1]] : AlturaEntrepisoDefecto);
+            alturaPorNivel[niveles[i]] = altura > 0 ? altura : AlturaEntrepisoDefecto;
+        }
 
         var features = new List<FeatureGeoJson>();
         foreach (var nivel in edificio.Niveles)
@@ -55,6 +71,8 @@ public static class ExportadorGeoJson
                             Tipo = "losa",
                             Nivel = nivel.Nombre,
                             Cota = nivel.Cota,
+                            BaseHeight = nivel.Cota,
+                            Height = nivel.Cota + alturaPorNivel[nivel],
                         },
                     });
                 }
@@ -98,4 +116,9 @@ public sealed class PropiedadesGeoJson
     [JsonPropertyName("tipo")] public string Tipo { get; set; } = "";
     [JsonPropertyName("nivel")] public string Nivel { get; set; } = "";
     [JsonPropertyName("cota")] public double Cota { get; set; }
+
+    /// <summary>Base y tope del volumen del piso en metros sobre el terreno —
+    /// la convención de extrusión que leen Cesium, Mapbox GL y deck.gl (M.2a).</summary>
+    [JsonPropertyName("base_height")] public double BaseHeight { get; set; }
+    [JsonPropertyName("height")] public double Height { get; set; }
 }

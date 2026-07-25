@@ -114,4 +114,60 @@ public class ExportadorGeoJsonTests
         Assert.Equal("Nivel 2", props.GetProperty("nivel").GetString());
         Assert.Equal(3.0, props.GetProperty("cota").GetDouble(), 9);
     }
+
+    private static Edificio EdificioDosNiveles()
+    {
+        var ed = new Edificio();
+        foreach (var (nombre, cota) in new[] { ("Nivel 1", 0.0), ("Nivel 2", 3.2) })
+        {
+            var nivel = new Nivel { Nombre = nombre, Cota = cota };
+            var sistema = new Sistema();
+            sistema.Losas.Add(new Losa { CoordenadaX = 0, CoordenadaY = 0, Lx = 5, Ly = 4 });
+            nivel.Sistemas.Add(sistema);
+            ed.Niveles.Add(nivel);
+        }
+        return ed;
+    }
+
+    [Fact]
+    public void Cada_losa_lleva_base_height_y_height_para_extrusion()
+    {
+        // M.2a: convención de extrusión de Cesium/Mapbox/deck.gl — el volumen
+        // del piso va de base_height a height (metros sobre el terreno).
+        string json = ExportadorGeoJson.Exportar(EdificioDosNiveles(), Origen());
+
+        using var doc = JsonDocument.Parse(json);
+        var features = doc.RootElement.GetProperty("features");
+        Assert.Equal(2, features.GetArrayLength());
+
+        var p1 = features[0].GetProperty("properties");
+        Assert.Equal(0.0, p1.GetProperty("base_height").GetDouble(), 9);
+        Assert.Equal(3.2, p1.GetProperty("height").GetDouble(), 9);
+    }
+
+    [Fact]
+    public void El_ultimo_nivel_se_extruye_con_la_altura_del_piso_anterior()
+    {
+        string json = ExportadorGeoJson.Exportar(EdificioDosNiveles(), Origen());
+
+        using var doc = JsonDocument.Parse(json);
+        var pTope = doc.RootElement.GetProperty("features")[1].GetProperty("properties");
+
+        Assert.Equal(3.2, pTope.GetProperty("base_height").GetDouble(), 9);
+        Assert.Equal(6.4, pTope.GetProperty("height").GetDouble(), 9);
+    }
+
+    [Fact]
+    public void Un_edificio_de_un_solo_nivel_se_extruye_con_altura_por_defecto()
+    {
+        // Sin piso anterior de referencia: 3.0 m — la altura de entrepiso
+        // típica residencial RD.
+        string json = ExportadorGeoJson.Exportar(EdificioConLosa(), Origen());
+
+        using var doc = JsonDocument.Parse(json);
+        var props = doc.RootElement.GetProperty("features")[0].GetProperty("properties");
+
+        Assert.Equal(3.0, props.GetProperty("base_height").GetDouble(), 9);
+        Assert.Equal(6.0, props.GetProperty("height").GetDouble(), 9);
+    }
 }
