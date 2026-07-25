@@ -52,6 +52,47 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Georreferenciación (K.6): ancla el origen local a WGS84 -->
+                <Border Theme="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="🌍  GEORREFERENCIACIÓN (WGS84)"/>
+
+                        <!-- Proyecto sin ubicar: invitación + botón -->
+                        <StackPanel Margin="0,12,0,0"
+                                    IsVisible="{Binding ProyectoActivo.Georreferencia, Converter={x:Static ObjectConverters.IsNull}}">
+                            <TextBlock TextWrapping="Wrap" FontSize="12"
+                                       Foreground="{StaticResource OnSurfaceBrush}"
+                                       Text="El proyecto no está ubicado en el mapa. Al ubicarlo, el modelo se exporta con coordenadas geográficas (visor FEA, mapa 3D urbano, IncidenciasRD)."/>
+                            <Button Margin="0,8,0,0" Content="📍  Ubicar proyecto"
+                                    Command="{Binding UbicarProyectoCommand}"/>
+                        </StackPanel>
+
+                        <!-- Proyecto ubicado: campos + quitar -->
+                        <StackPanel IsVisible="{Binding ProyectoActivo.Georreferencia, Converter={x:Static ObjectConverters.IsNotNull}}">
+                            <Grid Margin="0,12,0,0" RowDefinitions="Auto,8,Auto" ColumnDefinitions="*,12,*">
+                                <StackPanel Grid.Row="0" Grid.Column="0">
+                                    <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Latitud (°, +N)"/>
+                                    <TextBox Text="{Binding ProyectoActivo.Georreferencia.Latitud}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="0" Grid.Column="2">
+                                    <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Longitud (°, +E)"/>
+                                    <TextBox Text="{Binding ProyectoActivo.Georreferencia.Longitud}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="2" Grid.Column="0">
+                                    <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Elevación (m s.n.m.)"/>
+                                    <TextBox Text="{Binding ProyectoActivo.Georreferencia.Elevacion}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="2" Grid.Column="2">
+                                    <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Rotación al Norte (°, horario)"/>
+                                    <TextBox Text="{Binding ProyectoActivo.Georreferencia.RotacionNorte}"/>
+                                </StackPanel>
+                            </Grid>
+                            <Button Margin="0,8,0,0" Content="Quitar ubicación"
+                                    Command="{Binding QuitarGeorreferenciaCommand}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- Ingeniero responsable -->
                 <Border Theme="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
                     <StackPanel>

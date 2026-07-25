@@ -66,6 +66,35 @@ public class ExportadorModeloMotorTests
     }
 
     [Fact]
+    public void Exporta_la_georreferencia_cuando_el_proyecto_esta_ubicado()
+    {
+        // El motor ignora claves desconocidas (contrato.py usa d.get), así que
+        // el bloque viaja como metadata para los consumidores geo (fases M/N).
+        var geo = new Georreferencia
+        {
+            Latitud = 18.47, Longitud = -69.94, Elevacion = 25.0, RotacionNorte = 15.0,
+        };
+
+        string json = ExportadorModeloMotor.ToJson(
+            ExportadorModeloMotor.Exportar(PorticoConZapatas(), geo));
+
+        Assert.Contains("\"georreferencia\"", json);
+        Assert.Contains("\"latitud\": 18.47", json);
+        Assert.Contains("\"longitud\": -69.94", json);
+        Assert.Contains("\"rotacion_norte\": 15", json);
+        Assert.Contains("\"epsg\": 4326", json);
+    }
+
+    [Fact]
+    public void Sin_georreferencia_el_json_no_lleva_la_clave()
+    {
+        // Retrocompatibilidad: el JSON de un proyecto no ubicado es idéntico
+        // al de antes de la K.6.
+        string json = ExportadorModeloMotor.ToJson(ExportadorModeloMotor.Exportar(PorticoConZapatas()));
+        Assert.DoesNotContain("georreferencia", json);
+    }
+
+    [Fact]
     public void Exporta_losas_con_4_esquinas_a_la_cota()
     {
         var nivel = new Nivel { Cota = 3.0 };

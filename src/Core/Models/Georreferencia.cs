@@ -103,6 +103,29 @@ public sealed class Georreferencia : INotifyPropertyChanged
         return (latitud, longitud);
     }
 
+    /// <summary>
+    /// Convierte coordenadas geográficas WGS84 al plano local (metros). Es la
+    /// inversa exacta de <see cref="AGeografico"/>: la puerta de entrada para
+    /// traer datos externos georreferenciados (reportes de IncidenciasRD,
+    /// nubes de VisionRD) al sistema de coordenadas de la planta.
+    /// </summary>
+    /// <param name="latitud">Latitud en grados decimales WGS84 (+N).</param>
+    /// <param name="longitud">Longitud en grados decimales WGS84 (+E).</param>
+    /// <returns>Coordenadas locales en metros desde el origen.</returns>
+    public (double XLocal, double YLocal) ALocal(double latitud, double longitud)
+    {
+        double metrosNorte = (latitud - Latitud) * MetrosPorGrado;
+        double metrosEste = (longitud - Longitud)
+            * MetrosPorGrado * Math.Cos(Latitud * Math.PI / 180.0);
+
+        // Rotación inversa a la de AGeografico (transpuesta: son ortogonales).
+        double azimut = RotacionNorte * Math.PI / 180.0;
+        double xLocal = metrosEste * Math.Cos(azimut) - metrosNorte * Math.Sin(azimut);
+        double yLocal = metrosEste * Math.Sin(azimut) + metrosNorte * Math.Cos(azimut);
+
+        return (xLocal, yLocal);
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private void OnPropertyChanged([CallerMemberName] string? name = null)

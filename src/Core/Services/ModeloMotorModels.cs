@@ -14,6 +14,24 @@ public sealed class ModeloMotorDto
     [JsonPropertyName("apoyos")]     public List<ApoyoMotor> Apoyos { get; set; } = new();
     [JsonPropertyName("cargas")]     public List<CargaMotor> Cargas { get; set; } = new();
     [JsonPropertyName("losas")]      public List<LosaMotor> Losas { get; set; } = new();
+
+    /// <summary>Anclaje geográfico del modelo (K.6). El motor lo ignora
+    /// (contrato.py lee con d.get); viaja como metadata para los consumidores
+    /// geo — mapa 3D urbano (fase M) e IncidenciasRD (fase N). Null → la clave
+    /// no se emite y el JSON queda idéntico al de antes de la K.6.</summary>
+    [JsonPropertyName("georreferencia")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public GeorreferenciaMotor? Georreferencia { get; set; }
+}
+
+/// <summary>Bloque de georreferenciación del contrato (origen local en WGS84).</summary>
+public sealed class GeorreferenciaMotor
+{
+    [JsonPropertyName("latitud")]        public double Latitud { get; set; }
+    [JsonPropertyName("longitud")]       public double Longitud { get; set; }
+    [JsonPropertyName("elevacion")]      public double Elevacion { get; set; }
+    [JsonPropertyName("rotacion_norte")] public double RotacionNorte { get; set; }
+    [JsonPropertyName("epsg")]           public int Epsg { get; set; } = 4326;
 }
 
 public sealed class LosaMotor

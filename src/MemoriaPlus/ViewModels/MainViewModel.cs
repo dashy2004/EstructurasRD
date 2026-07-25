@@ -69,6 +69,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
             () => ProyectoRecienteSeleccionado != null
                   && !string.IsNullOrEmpty(ProyectoRecienteSeleccionado.Path));
         IrABusquedaCommand = new RelayCommand(() => ModoActivo = ModoSidebar.Busqueda);
+        UbicarProyectoCommand = new RelayCommand(UbicarProyecto,
+            () => ProyectoActivo != null && ProyectoActivo.Georreferencia is null);
+        QuitarGeorreferenciaCommand = new RelayCommand(QuitarGeorreferencia,
+            () => ProyectoActivo?.Georreferencia is not null);
 
         // ---- Validación normativa (commit 21) ----
         Validacion = new ValidacionViewModel();
@@ -333,6 +337,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public AsyncRelayCommand EliminarSistemaCommand { get; }
     public RelayCommand AbrirEnCalculosCommand { get; }
     public RelayCommand IrABusquedaCommand    { get; }
+    public RelayCommand UbicarProyectoCommand { get; }
+    public RelayCommand QuitarGeorreferenciaCommand { get; }
 
     /// <summary>
     /// Sub-VM que mantiene el reporte de validación normativa y los conteos
@@ -1028,13 +1034,38 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 new FileFilter("Modelo motor", new[] { "*.json" }));
             if (string.IsNullOrEmpty(ruta)) return; // cancelado
 
-            var resumen = ExportadorModeloArchivo.Exportar(edificio, ruta);
+            var resumen = ExportadorModeloArchivo.Exportar(edificio, ruta, ProyectoActivo.Georreferencia);
             StatusExportacion = $"Exportado: {resumen.Nodos} nodos, {resumen.Barras} barras → {resumen.Ruta}";
         }
         catch (Exception ex)
         {
             StatusExportacion = $"Error exportando el modelo: {ex.Message}";
         }
+    }
+
+    /// <summary>
+    /// Ubica el proyecto en el mapa: crea la <see cref="Georreferencia"/> con el
+    /// origen por defecto (Santo Domingo) para que el usuario la ajuste (K.6).
+    /// </summary>
+    private void UbicarProyecto()
+    {
+        if (ProyectoActivo is null || ProyectoActivo.Georreferencia is not null) return;
+        ProyectoActivo.Georreferencia = new Georreferencia
+        {
+            Latitud = 18.4700,
+            Longitud = -69.9400,
+        };
+        UbicarProyectoCommand.RaiseCanExecuteChanged();
+        QuitarGeorreferenciaCommand.RaiseCanExecuteChanged();
+    }
+
+    /// <summary>Quita la georreferencia del proyecto (vuelve a "no ubicado").</summary>
+    private void QuitarGeorreferencia()
+    {
+        if (ProyectoActivo is null) return;
+        ProyectoActivo.Georreferencia = null;
+        UbicarProyectoCommand.RaiseCanExecuteChanged();
+        QuitarGeorreferenciaCommand.RaiseCanExecuteChanged();
     }
 
     /// <summary>

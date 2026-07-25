@@ -20,7 +20,7 @@ public static class ExportadorModeloMotor
 
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
-    public static ModeloMotorDto Exportar(Edificio edificio)
+    public static ModeloMotorDto Exportar(Edificio edificio, Georreferencia? georreferencia = null)
     {
         var (nodos, elementos) = SintetizadorFrame.Sintetizar(edificio);
         if (elementos.Count == 0)
@@ -108,6 +108,16 @@ public static class ExportadorModeloMotor
                         },
                     });
                 }
+
+        if (georreferencia is not null)
+            modelo.Georreferencia = new GeorreferenciaMotor
+            {
+                Latitud = georreferencia.Latitud,
+                Longitud = georreferencia.Longitud,
+                Elevacion = georreferencia.Elevacion,
+                RotacionNorte = georreferencia.RotacionNorte,
+                Epsg = georreferencia.Epsg,
+            };
 
         // Cargas: vacío en Etapa 1a.
         return modelo;
