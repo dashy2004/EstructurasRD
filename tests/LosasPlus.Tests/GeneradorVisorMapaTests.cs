@@ -49,4 +49,38 @@ public class GeneradorVisorMapaTests
         Assert.Throws<ExportadorModeloException>(() => GeneradorVisorMapa.GenerarMapLibre(null!));
         Assert.Throws<ExportadorModeloException>(() => GeneradorVisorMapa.GenerarMapLibre("  "));
     }
+
+    [Fact]
+    public void Cesium_contiene_datasource_extrusion_y_geojson_embebido()
+    {
+        string html = GeneradorVisorMapa.GenerarCesium(GeojsonDemo);
+
+        Assert.Contains("Cesium.js", html);                 // CDN de la librería
+        Assert.Contains("GeoJsonDataSource", html);
+        Assert.Contains("extrudedHeight", html);            // extrusión por entidad
+        Assert.Contains("OpenStreetMapImageryProvider", html); // imagery sin token
+        Assert.Contains("const GEOJSON", html);
+        Assert.Contains("-69.94", html);
+        Assert.Contains("integrity=\"sha384-", html);       // SRI en el CDN
+        Assert.Contains("crossorigin=\"anonymous\"", html);
+    }
+
+    [Fact]
+    public void Cesium_no_lleva_token_hardcodeado()
+    {
+        string html = GeneradorVisorMapa.GenerarCesium(GeojsonDemo);
+
+        // Los tokens ion son JWT ("eyJ..."); el HTML solo puede leerlo del input.
+        Assert.DoesNotContain("eyJ", html);
+        Assert.DoesNotContain("defaultAccessToken = \"", html);
+    }
+
+    [Fact]
+    public void Cesium_escapa_cierre_de_script_y_valida_vacio()
+    {
+        string malicioso = GeojsonDemo.Replace("Nivel 1", "a</script>b");
+        Assert.Contains("a<\\/script>b", GeneradorVisorMapa.GenerarCesium(malicioso));
+
+        Assert.Throws<ExportadorModeloException>(() => GeneradorVisorMapa.GenerarCesium(""));
+    }
 }
