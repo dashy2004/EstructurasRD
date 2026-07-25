@@ -30,6 +30,8 @@ public class GeneradorVisorMapaTests
         Assert.Contains("openstreetmap.org", html);        // fondo OSM sin token
         Assert.Contains("integrity=\"sha384-", html);      // SRI en el CDN
         Assert.Contains("crossorigin=\"anonymous\"", html);
+        Assert.Contains("maxzoom: 19", html);              // tiles OSM no existen más allá de z19
+        Assert.Contains("maxZoom: 17.5", html);            // fitBounds no puede pasarse del tope
     }
 
     [Fact]

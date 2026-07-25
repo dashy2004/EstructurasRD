@@ -40,11 +40,12 @@ public static class GeneradorVisorMapa
                 version: 8,
                 sources: { osm: { type: 'raster',
                   tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-                  tileSize: 256, attribution: '© OpenStreetMap' } },
+                  tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap' } },
                 layers: [{ id: 'osm', type: 'raster', source: 'osm' }]
               },
               bounds: [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
-              fitBoundsOptions: { padding: 120 },
+              fitBoundsOptions: { padding: 120, maxZoom: 17.5 },
+              maxZoom: 19,
               pitch: 60, bearing: -20
             });
             map.on('load', () => {
