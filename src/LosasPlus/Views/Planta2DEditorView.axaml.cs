@@ -49,6 +49,69 @@ public partial class Planta2DEditorView : UserControl
         // Wire buttons
         BtnRecalcular.Click += OnRecalcularClick;
         BtnEliminar.Click += OnEliminarClick;
+        BtnReportes.Click += OnCargarReportesClick;
+    }
+
+    /// <summary>
+    /// Carga un GeoJSON de reportes de IncidenciasRD y los pinta sobre la
+    /// planta (Fase N.1). Requiere el proyecto georreferenciado. Si la capa ya
+    /// está cargada, el click la quita.
+    /// </summary>
+    private async void OnCargarReportesClick(object? sender, RoutedEventArgs e)
+    {
+        if (EditorCanvas.Reportes is { Count: > 0 })
+        {
+            EditorCanvas.Reportes = null;
+            TxtStatus.Text = "Capa de reportes quitada.";
+            return;
+        }
+
+        var geo = Vm?.Proyecto?.Georreferencia;
+        if (geo is null)
+        {
+            TxtStatus.Text = "⚠ Ubica el proyecto (Datos generales → Georreferenciación) antes de cargar reportes.";
+            return;
+        }
+
+        var top = TopLevel.GetTopLevel(this);
+        if (top is null) return;
+
+        var archivos = await top.StorageProvider.OpenFilePickerAsync(
+            new Avalonia.Platform.Storage.FilePickerOpenOptions
+            {
+                Title = "Cargar reportes de IncidenciasRD (GeoJSON)",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new Avalonia.Platform.Storage.FilePickerFileType("GeoJSON")
+                    {
+                        Patterns = new[] { "*.geojson", "*.json" },
+                    },
+                },
+            });
+        if (archivos.Count == 0) return;   // cancelado
+
+        try
+        {
+            string json = System.IO.File.ReadAllText(archivos[0].Path.LocalPath);
+
+            // 1 km alrededor del origen del proyecto: suficiente para la
+            // parcela y su entorno inmediato sin traer la ciudad entera.
+            var reportes = Services.ImportadorReportesGeoJson.Importar(json, geo, radioMetros: 1000.0);
+
+            EditorCanvas.Reportes = reportes;
+            TxtStatus.Text = reportes.Count == 0
+                ? "El archivo no tiene reportes a menos de 1 km del origen del proyecto."
+                : $"🚩 {reportes.Count} reporte(s) de IncidenciasRD sobre la planta (radio 1 km).";
+        }
+        catch (Services.ImportadorReportesException ex)
+        {
+            TxtStatus.Text = "⚠ " + ex.Message;
+        }
+        catch (System.IO.IOException ex)
+        {
+            TxtStatus.Text = "⚠ No se pudo leer el archivo: " + ex.Message;
+        }
     }
 
     protected override void OnDataContextChanged(EventArgs e)

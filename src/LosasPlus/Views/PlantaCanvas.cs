@@ -113,6 +113,17 @@ public class PlantaCanvas : Control
 
     public string ActiveTool { get; set; } = "Puntero";
 
+    private IReadOnlyList<Services.ReporteEnPlanta>? _reportes;
+    /// <summary>
+    /// Reportes de IncidenciasRD proyectados al plano local (Fase N.1).
+    /// Null o vacío = no se dibuja la capa.
+    /// </summary>
+    public IReadOnlyList<Services.ReporteEnPlanta>? Reportes
+    {
+        get => _reportes;
+        set { _reportes = value; InvalidateVisual(); }
+    }
+
     public PlantaCanvas()
     {
         ClipToBounds = true;
@@ -565,6 +576,30 @@ public class PlantaCanvas : Control
             // Label
             var ft = new FormattedText(col.Nombre, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, boldTypeface, 11.0, Brushes.Black);
             context.DrawText(ft, new Point(rect.Right + 4.0, rect.Y - 4.0));
+        }
+
+        // 3b. Reportes de IncidenciasRD (Fase N.1): pin rojo + título
+        if (_reportes is { Count: > 0 })
+        {
+            var pinFill = new SolidColorBrush(Color.FromArgb(220, 0xD3, 0x2F, 0x2F));
+            var pinPen = new Pen(Brushes.White, 1.5);
+            var resueltoFill = new SolidColorBrush(Color.FromArgb(220, 0x2E, 0x7D, 0x32));
+
+            foreach (var rep in _reportes)
+            {
+                var px = MetrosAPixel(rep.XLocal, rep.YLocal);
+                var fill = rep.Estado == "resolved" ? resueltoFill : pinFill;
+
+                context.DrawEllipse(fill, pinPen, px, 7.0, 7.0);
+                context.DrawEllipse(Brushes.White, null, px, 2.5, 2.5);
+
+                if (!string.IsNullOrEmpty(rep.Titulo))
+                {
+                    var ftRep = new FormattedText(rep.Titulo, CultureInfo.InvariantCulture,
+                        FlowDirection.LeftToRight, normalTypeface, 10.0, Brushes.Firebrick);
+                    context.DrawText(ftRep, new Point(px.X + 10.0, px.Y - 6.0));
+                }
+            }
         }
 
         // 4. Draw active snap indicator

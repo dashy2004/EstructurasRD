@@ -50,6 +50,8 @@
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
                     <TextBlock Text="q adm (t/m²):" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource FgSecondary}"/>
                     <TextBox x:Name="TxtQAdm" Text="15.0" Width="50" VerticalAlignment="Center"/>
+                    <Button x:Name="BtnReportes" Content="🚩 Reportes"
+                            ToolTip.Tip="Carga reportes de IncidenciasRD (GeoJSON) y los pinta sobre la planta usando la georreferencia del proyecto. Click de nuevo para quitar la capa."/>
                     <Button x:Name="BtnRecalcular" Content="⚡ Recalcular Descenso" Classes="accent"
                             ToolTip.Tip="Calcula el descenso topológico real losa->viga->columna->zapata en este nivel."/>
                     <Button x:Name="BtnEliminar" Content="🗑 Eliminar" Background="#D32F2F" Foreground="White"
