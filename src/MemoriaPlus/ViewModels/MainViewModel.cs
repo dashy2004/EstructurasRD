@@ -59,6 +59,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
             () => SistemaActivo != null && SistemaActivo.Losas.Count > 0);
         ExportarModeloMotorCommand = new AsyncRelayCommand(ExportarModeloMotor,
             () => ProyectoActivo != null && ProyectoActivo.Edificios.Count > 0);
+        ExportarGeoJsonCommand = new AsyncRelayCommand(ExportarGeoJson,
+            () => ProyectoActivo != null && ProyectoActivo.Edificios.Count > 0
+                  && ProyectoActivo.Georreferencia != null);
         GenerarMemoriaCommand     = new AsyncRelayCommand(GenerarMemoria);
         AbrirUltimaMemoriaCommand = new RelayCommand(AbrirUltimaMemoria, () => UltimoArchivoGenerado != null);
         AbrirProyectoRecienteCommand = new RelayCommand<string>(AbrirProyectoReciente);
@@ -339,6 +342,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand IrABusquedaCommand    { get; }
     public RelayCommand UbicarProyectoCommand { get; }
     public RelayCommand QuitarGeorreferenciaCommand { get; }
+    public AsyncRelayCommand ExportarGeoJsonCommand { get; }
 
     /// <summary>
     /// Sub-VM que mantiene el reporte de validación normativa y los conteos
@@ -1057,6 +1061,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         };
         UbicarProyectoCommand.RaiseCanExecuteChanged();
         QuitarGeorreferenciaCommand.RaiseCanExecuteChanged();
+        ExportarGeoJsonCommand.RaiseCanExecuteChanged();
     }
 
     /// <summary>Quita la georreferencia del proyecto (vuelve a "no ubicado").</summary>
@@ -1066,6 +1071,38 @@ public sealed class MainViewModel : INotifyPropertyChanged
         ProyectoActivo.Georreferencia = null;
         UbicarProyectoCommand.RaiseCanExecuteChanged();
         QuitarGeorreferenciaCommand.RaiseCanExecuteChanged();
+        ExportarGeoJsonCommand.RaiseCanExecuteChanged();
+    }
+
+    /// <summary>
+    /// Exporta las losas del edificio activo como GeoJSON WGS84 (fase M.1) —
+    /// consumible por Leaflet (IncidenciasRD), QGIS y CesiumJS.
+    /// </summary>
+    private async Task ExportarGeoJson()
+    {
+        if (ProyectoActivo is null) return;
+        var edificio = ProyectoActivo.Edificios.FirstOrDefault();
+        if (edificio is null) { StatusExportacion = "No hay edificio activo que exportar."; return; }
+        if (ProyectoActivo.Georreferencia is null)
+        {
+            StatusExportacion = "Ubica el proyecto (Datos generales → Georreferenciación) antes de exportar GeoJSON.";
+            return;
+        }
+        try
+        {
+            var ruta = await AppServices.Dialogs.SaveFileAsync(
+                "Exportar edificio como GeoJSON", "edificio", ".geojson",
+                new FileFilter("GeoJSON", new[] { "*.geojson" }));
+            if (string.IsNullOrEmpty(ruta)) return; // cancelado
+
+            System.IO.File.WriteAllText(ruta,
+                ExportadorGeoJson.Exportar(edificio, ProyectoActivo.Georreferencia));
+            StatusExportacion = $"GeoJSON exportado → {ruta}";
+        }
+        catch (Exception ex)
+        {
+            StatusExportacion = $"Error exportando GeoJSON: {ex.Message}";
+        }
     }
 
     /// <summary>

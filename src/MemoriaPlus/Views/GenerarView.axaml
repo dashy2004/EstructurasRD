@@ -56,6 +56,11 @@
                             HorizontalAlignment="Stretch" Height="40"
                             Margin="0,8,0,0"
                             Command="{Binding ExportarModeloMotorCommand}"/>
+                    <Button Theme="{StaticResource SecondaryButtonStyle}"
+                            Content="🌍 Exportar GeoJSON (mapa)"
+                            HorizontalAlignment="Stretch" Height="40"
+                            Margin="0,8,0,0"
+                            Command="{Binding ExportarGeoJsonCommand}"/>
                     <TextBlock Text="{Binding StatusExportacion}" TextWrapping="Wrap" Margin="0,4,0,0"
                                FontSize="12" Foreground="{StaticResource OnSurfaceVariantBrush}"/>
                 </StackPanel>
