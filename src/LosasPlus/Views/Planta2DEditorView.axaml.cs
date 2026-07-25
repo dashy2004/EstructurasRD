@@ -50,6 +50,39 @@ public partial class Planta2DEditorView : UserControl
         BtnRecalcular.Click += OnRecalcularClick;
         BtnEliminar.Click += OnEliminarClick;
         BtnReportes.Click += OnCargarReportesClick;
+        BtnReportesApi.Click += OnCargarReportesApiClick;
+    }
+
+    /// <summary>
+    /// Trae los reportes directo de IncidenciasRD (Fase N.2, mock-first:
+    /// REPORTES_MODE=mock|http) y los pinta sobre la planta.
+    /// </summary>
+    private async void OnCargarReportesApiClick(object? sender, RoutedEventArgs e)
+    {
+        var geo = Vm?.Proyecto?.Georreferencia;
+        if (geo is null)
+        {
+            TxtStatus.Text = "⚠ Ubica el proyecto (Datos generales → Georreferenciación) antes de traer reportes.";
+            return;
+        }
+
+        try
+        {
+            var fuente = Services.FuenteReportesFactory.Crear(geo);
+            TxtStatus.Text = $"Consultando reportes de IncidenciasRD ({fuente.Descripcion})…";
+
+            string json = await fuente.ObtenerGeoJsonAsync();
+            var reportes = Services.ImportadorReportesGeoJson.Importar(json, geo, radioMetros: 1000.0);
+
+            EditorCanvas.Reportes = reportes;
+            TxtStatus.Text = reportes.Count == 0
+                ? $"IncidenciasRD ({fuente.Descripcion}) no tiene reportes a menos de 1 km del proyecto."
+                : $"🚩 {reportes.Count} reporte(s) de IncidenciasRD ({fuente.Descripcion}) sobre la planta.";
+        }
+        catch (Services.ImportadorReportesException ex)
+        {
+            TxtStatus.Text = "⚠ " + ex.Message;
+        }
     }
 
     /// <summary>

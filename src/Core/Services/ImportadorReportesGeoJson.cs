@@ -79,7 +79,7 @@ public static class ImportadorReportesGeoJson
                 f.TryGetProperty("properties", out var props);
                 reportes.Add(new ReporteEnPlanta(
                     x, y, lat, lon,
-                    Prop(props, "title", "titulo", "nombre"),
+                    Prop(props, "title", "titulo", "nombre", "description", "descripcion"),
                     Prop(props, "category", "categoria"),
                     Prop(props, "status", "estado")));
             }

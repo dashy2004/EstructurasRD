@@ -78,6 +78,18 @@ public class ImportadorReportesGeoJsonTests
     }
 
     [Fact]
+    public void Usa_description_como_titulo_cuando_no_hay_title()
+    {
+        // El export real de IncidenciasRD (/api/export/geojson) no trae
+        // 'title': el texto visible del reporte viaja en 'description'.
+        string props = "{ \"description\": \"Bache frente al colmado\", \"category\": \"bache\" }";
+
+        var r = ImportadorReportesGeoJson.Importar(ReporteEn(0, 0, props), Origen()).Single();
+
+        Assert.Equal("Bache frente al colmado", r.Titulo);
+    }
+
+    [Fact]
     public void Filtra_por_radio_desde_el_origen_local()
     {
         var (latLejos, lonLejos) = Origen().AGeografico(5000.0, 0.0);

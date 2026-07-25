@@ -52,6 +52,8 @@
                     <TextBox x:Name="TxtQAdm" Text="15.0" Width="50" VerticalAlignment="Center"/>
                     <Button x:Name="BtnReportes" Content="🚩 Reportes"
                             ToolTip.Tip="Carga reportes de IncidenciasRD (GeoJSON) y los pinta sobre la planta usando la georreferencia del proyecto. Click de nuevo para quitar la capa."/>
+                    <Button x:Name="BtnReportesApi" Content="🌐 API"
+                            ToolTip.Tip="Trae los reportes directo de IncidenciasRD (REPORTES_MODE=mock|http; en http usa INCIDENCIAS_API_URL) y los pinta sobre la planta."/>
                     <Button x:Name="BtnRecalcular" Content="⚡ Recalcular Descenso" Classes="accent"
                             ToolTip.Tip="Calcula el descenso topológico real losa->viga->columna->zapata en este nivel."/>
                     <Button x:Name="BtnEliminar" Content="🗑 Eliminar" Background="#D32F2F" Foreground="White"
