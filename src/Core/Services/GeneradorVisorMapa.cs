@@ -60,17 +60,9 @@ public static class GeneradorVisorMapa
             });
             map.on('load', () => {
               map.addSource('edificio', { type: 'geojson', data: GEOJSON });
-              map.addLayer({
-                id: 'contexto', type: 'fill-extrusion',
-                source: 'openfreemap', 'source-layer': 'building',
-                filter: ['!', ['within', huella]],
-                paint: {
-                  'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
-                  'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 8],
-                  'fill-extrusion-color': '#c9c4bc',
-                  'fill-extrusion-opacity': 0.85
-                }
-              });
+              // Capa propia primero: un fallo de contexto (fuente caída, filtro mal evaluado)
+              // nunca debe impedir que se vea el entregable principal. Ambas son
+              // fill-extrusion con depth test — el orden de adición no afecta lo visual.
               map.addLayer({
                 id: 'extrusion', type: 'fill-extrusion', source: 'edificio',
                 paint: {
@@ -78,6 +70,24 @@ public static class GeneradorVisorMapa
                   'fill-extrusion-height': ['get', 'height'],
                   'fill-extrusion-color': '#e07b39',
                   'fill-extrusion-opacity': 0.9
+                }
+              });
+              map.addLayer({
+                id: 'contexto', type: 'fill-extrusion',
+                source: 'openfreemap', 'source-layer': 'building',
+                // 'within' de MapLibre solo evalúa Point/LineString — en polígonos de 'building'
+                // siempre devuelve false, así que ['!', ['within', huella]] nunca ocultaba nada.
+                // 'distance' sí soporta polígonos: da la distancia en metros a 'huella', así que
+                // > 0 oculta cualquier vecino que toque o se solape con la huella propia (mejora
+                // sobre 'within': antes un vecino parcialmente contenido no se ocultaba).
+                // hide_3d excluye el envolvente 2D duplicado de edificios con building:part
+                // (si no, hay z-fighting entre el envolvente y sus partes).
+                filter: ['all', ['>', ['distance', huella], 0], ['!=', ['get', 'hide_3d'], true]],
+                paint: {
+                  'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
+                  'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 8],
+                  'fill-extrusion-color': '#c9c4bc',
+                  'fill-extrusion-opacity': 0.85
                 }
               });
             });
@@ -142,10 +152,12 @@ public static class GeneradorVisorMapa
               visor.dataSources.add(ds);
               visor.flyTo(ds);
             });
+            let contextoActivo = false;
             async function activarContexto() {
+              if (contextoActivo) return; // evita apilar otro tileset OSM Buildings en clicks repetidos
               const t = document.getElementById('token').value.trim();
               const estado = document.getElementById('estado');
-              if (!t) return;
+              if (!t) { estado.textContent = ' pega un token ion primero'; return; }
               estado.textContent = ' cargando...';
               try {
                 Cesium.Ion.defaultAccessToken = t;
@@ -156,12 +168,13 @@ public static class GeneradorVisorMapa
                 const lons = coords.map(c => c[0]), lats = coords.map(c => c[1]);
                 const M = 0.000045;
                 const enHuella =
-                  "(${feature['cesium#latitude']} >= "  + (Math.min(...lats) - M) +
+                  "(${feature['cesium#latitude']} >= " + (Math.min(...lats) - M) +
                   " && ${feature['cesium#latitude']} <= " + (Math.max(...lats) + M) +
                   " && ${feature['cesium#longitude']} >= " + (Math.min(...lons) - M) +
                   " && ${feature['cesium#longitude']} <= " + (Math.max(...lons) + M) + ")";
                 edificiosOsm.style = new Cesium.Cesium3DTileStyle({ show: "!" + enHuella });
                 visor.scene.primitives.add(edificiosOsm);
+                contextoActivo = true;
                 estado.textContent = ' contexto activo ✓';
               } catch (e) {
                 estado.textContent = ' error: ' + (e.message || e);

@@ -46,16 +46,30 @@ consumidos por el MapLibre JS ya cargado → no hay SRI nuevo que verificar.
   `{ type: 'vector', url: 'https://tiles.openfreemap.org/planet' }`
   (TileJSON de OpenFreeMap; sin token ni registro; el TileJSON declara su
   propio `maxzoom` → no repite el bug del cap de zoom de `0172b27`).
-- Capa `contexto` (`fill-extrusion`, `source-layer: 'building'`) **debajo** de
-  la capa `extrusion` propia: color gris neutro `#c9c4bc`, opacidad 0.85,
+- Capa `contexto` (`fill-extrusion`, `source-layer: 'building'`): color gris
+  neutro `#c9c4bc`, opacidad 0.85. Se añade **después** de la capa `extrusion`
+  propia en `map.on('load')` — ambas son `fill-extrusion` con depth test, así
+  que el orden de `addLayer` no tiene efecto visual; se prioriza que un fallo
+  del contexto (fuente caída, filtro mal evaluado) nunca impida que se vea el
+  entregable principal,
   `base`/`height` desde `render_min_height`/`render_height` con
   `['coalesce', …, 0]` / `['coalesce', …, 8]` para edificios OSM sin altura
   (frecuente en RD).
-- **Filtro de huella**: expresión `within` de MapLibre — se construye en JS un
-  polígono bbox del edificio (de los `lons/lats` ya calculados, margen ~5 m,
-  ≈0.000045°) y la capa contexto lleva `filter: ['!', ['within', bboxPoligono]]`.
-  Limitación asumida: un edificio OSM *parcialmente* dentro del bbox no se
-  oculta (solo los totalmente contenidos).
+- **Filtro de huella**: se construye en JS un polígono bbox del edificio (de
+  los `lons/lats` ya calculados, margen ~5 m, ≈0.000045°). **Trampa no obvia
+  de MapLibre**: la expresión `within` solo evalúa geometrías `Point`/
+  `LineString` — sobre los `Polygon` de la `source-layer: 'building'` siempre
+  devuelve `false`, así que un filtro `['!', ['within', bboxPoligono]]` es un
+  no-op total (nunca oculta nada). La expresión correcta es `distance`, que sí
+  soporta polígonos y da la distancia en metros al bbox: la capa `contexto`
+  lleva
+  `filter: ['all', ['>', ['distance', huella], 0], ['!=', ['get', 'hide_3d'], true]]`.
+  La cláusula `hide_3d` excluye el envolvente 2D duplicado que OpenMapTiles
+  genera para edificios que también tienen `building:part` (si no, hay
+  z-fighting entre el envolvente y sus partes). Con `distance` ya no aplica la
+  limitación anterior: cualquier vecino que solo esté *parcialmente* dentro
+  del bbox también queda oculto (antes, con `within`, habría escapado del
+  filtro aun si este hubiese funcionado).
 
 ### Visor Cesium — OSM Buildings con el token existente
 
@@ -78,8 +92,8 @@ consumidos por el MapLibre JS ya cargado → no hay SRI nuevo que verificar.
 ### Testing
 
 - Aserciones estáticas nuevas en `GeneradorVisorMapaTests` (patrón M.2b):
-  - MapLibre: contiene `openfreemap`, `source-layer`, filtro `within`,
-    `coalesce`, color de contexto.
+  - MapLibre: contiene `openfreemap`, `source-layer`, filtro `distance` +
+    exclusión `hide_3d`, `coalesce`, color de contexto.
   - Cesium: contiene `createOsmBuildingsAsync`, `Cesium3DTileStyle`,
     `cesium#latitude`, etiqueta nueva del panel.
   - Ambos: sin `</` sin escapar dentro del bloque GeoJSON (regresión M.2b).

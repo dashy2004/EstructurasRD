@@ -41,7 +41,9 @@ public class GeneradorVisorMapaTests
 
         Assert.Contains("tiles.openfreemap.org/planet", html);   // fuente vectorial sin token
         Assert.Contains("'source-layer': 'building'", html);     // capa building del esquema OpenMapTiles
-        Assert.Contains("within", html);                          // filtro de huella
+        // 'within' de MapLibre solo evalúa Point/LineString: en Polygon de 'building' siempre da
+        // false, así que el filtro real es 'distance' (sí soporta polígonos) + exclusión hide_3d.
+        Assert.Contains("['all', ['>', ['distance', huella], 0], ['!=', ['get', 'hide_3d'], true]]", html);
         Assert.Contains("coalesce", html);                        // alturas OSM ausentes → default
         Assert.Contains("render_height", html);
         Assert.Contains("#c9c4bc", html);                         // contexto gris neutro
@@ -104,6 +106,10 @@ public class GeneradorVisorMapaTests
         Assert.Contains("terreno + edificios OSM", html);        // etiqueta nueva del panel
         Assert.Contains("id=\"estado\"", html);                  // errores al panel, sin alert
         Assert.DoesNotContain("alert(", html);                   // alert bloquearía el visor
+        Assert.Contains("show: \"!\" + enHuella", html);         // polaridad: oculta DENTRO de la huella
+        Assert.Contains("onclick=\"activarContexto()\"", html);  // botón llama la función correcta
+        Assert.Contains("async function activarContexto", html);
+        Assert.DoesNotContain("activarTerreno", html);           // nombre viejo de la función (spec desactualizada)
     }
 
     [Fact]
