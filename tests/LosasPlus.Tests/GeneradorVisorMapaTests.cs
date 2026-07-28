@@ -92,6 +92,20 @@ public class GeneradorVisorMapaTests
     }
 
     [Fact]
+    public void Cesium_activa_osm_buildings_con_filtro_de_huella()
+    {
+        string html = GeneradorVisorMapa.GenerarCesium(GeojsonDemo);
+
+        Assert.Contains("createOsmBuildingsAsync", html);        // malla urbana de Cesium ion
+        Assert.Contains("Cesium3DTileStyle", html);              // estilo con condición show
+        Assert.Contains("cesium#latitude", html);                // filtro por centro del feature
+        Assert.Contains("cesium#longitude", html);
+        Assert.Contains("terreno + edificios OSM", html);        // etiqueta nueva del panel
+        Assert.Contains("id=\"estado\"", html);                  // errores al panel, sin alert
+        Assert.DoesNotContain("alert(", html);                   // alert bloquearía el visor
+    }
+
+    [Fact]
     public void Cesium_escapa_cierre_de_script_y_valida_vacio()
     {
         string malicioso = GeojsonDemo.Replace("Nivel 1", "a</script>b");

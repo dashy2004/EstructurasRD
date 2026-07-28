@@ -89,9 +89,9 @@ public static class GeneradorVisorMapa
 
     /// <summary>
     /// Visor CesiumJS: globo con imagery OSM <b>sin token</b>. El campo de token
-    /// de Cesium ion es opcional y solo activa el terreno con relieve (World
-    /// Terrain) — puerta a 3D Tiles en M.3. La librería CesiumJS es open source
-    /// y no lo necesita.
+    /// de Cesium ion es opcional y activa el terreno con relieve (World Terrain)
+    /// más edificios OSM con filtro de huella (M.3 completada). La librería
+    /// CesiumJS es open source y no lo necesita.
     /// </summary>
     public static string GenerarCesium(string geojson)
     {
@@ -117,9 +117,10 @@ public static class GeneradorVisorMapa
             <body>
             <div id="globo"></div>
             <div id="panelToken">
-              Token Cesium ion (opcional, activa terreno):
+              Token Cesium ion (opcional, activa terreno + edificios OSM):
               <input id="token" size="32" placeholder="pegar token...">
-              <button onclick="activarTerreno()">Activar</button>
+              <button onclick="activarContexto()">Activar</button>
+              <span id="estado"></span>
             </div>
             <script>
             const GEOJSON = {{Empotrar(geojson)}};
@@ -141,11 +142,30 @@ public static class GeneradorVisorMapa
               visor.dataSources.add(ds);
               visor.flyTo(ds);
             });
-            async function activarTerreno() {
+            async function activarContexto() {
               const t = document.getElementById('token').value.trim();
+              const estado = document.getElementById('estado');
               if (!t) return;
-              Cesium.Ion.defaultAccessToken = t;
-              visor.terrainProvider = await Cesium.createWorldTerrainAsync();
+              estado.textContent = ' cargando...';
+              try {
+                Cesium.Ion.defaultAccessToken = t;
+                visor.terrainProvider = await Cesium.createWorldTerrainAsync();
+                const edificiosOsm = await Cesium.createOsmBuildingsAsync();
+                // huella del edificio propio (bbox + margen ~5 m): el contexto se oculta ahí
+                const coords = GEOJSON.features.flatMap(f => f.geometry.coordinates[0]);
+                const lons = coords.map(c => c[0]), lats = coords.map(c => c[1]);
+                const M = 0.000045;
+                const enHuella =
+                  "(${feature['cesium#latitude']} >= "  + (Math.min(...lats) - M) +
+                  " && ${feature['cesium#latitude']} <= " + (Math.max(...lats) + M) +
+                  " && ${feature['cesium#longitude']} >= " + (Math.min(...lons) - M) +
+                  " && ${feature['cesium#longitude']} <= " + (Math.max(...lons) + M) + ")";
+                edificiosOsm.style = new Cesium.Cesium3DTileStyle({ show: "!" + enHuella });
+                visor.scene.primitives.add(edificiosOsm);
+                estado.textContent = ' contexto activo ✓';
+              } catch (e) {
+                estado.textContent = ' error: ' + (e.message || e);
+              }
             }
             </script>
             </body>
