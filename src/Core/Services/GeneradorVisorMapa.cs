@@ -126,7 +126,7 @@ public static class GeneradorVisorMapa
             const GEOJSON = {{Empotrar(geojson)}};
             const visor = new Cesium.Viewer('globo', {
               baseLayer: new Cesium.ImageryLayer(new Cesium.OpenStreetMapImageryProvider(
-                { url: 'https://tile.openstreetmap.org/' })),
+                { url: 'https://tile.openstreetmap.org/', maximumLevel: 19 })),
               baseLayerPicker: false, geocoder: false, animation: false,
               timeline: false, sceneModePicker: false
             });

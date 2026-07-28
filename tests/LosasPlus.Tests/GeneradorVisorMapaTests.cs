@@ -79,6 +79,7 @@ public class GeneradorVisorMapaTests
         Assert.Contains("-69.94", html);
         Assert.Contains("integrity=\"sha384-", html);       // SRI en el CDN
         Assert.Contains("crossorigin=\"anonymous\"", html);
+        Assert.Contains("maximumLevel: 19", html);          // tiles OSM no existen más allá de z19
     }
 
     [Fact]
