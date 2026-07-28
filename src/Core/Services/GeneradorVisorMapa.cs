@@ -5,7 +5,8 @@ namespace LosasPlus.Services;
 /// el GeoJSON de <see cref="ExportadorGeoJson"/> va embebido inline (con
 /// <c>file://</c> un fetch muere por CORS; inline abre con doble click).
 /// MapLibre extruye directo con <c>fill-extrusion</c> desde
-/// <c>base_height</c>/<c>height</c> (convención M.2a).
+/// <c>base_height</c>/<c>height</c> (convención M.2a), y añade contexto urbano
+/// OpenFreeMap (M.3) con filtro de huella (bbox propio + margen ≈ 5 m).
 ///
 /// <para>Función pura, sin I/O — mismo patrón que <see cref="ExportadorGeoJson"/>.</para>
 /// </summary>
@@ -34,13 +35,22 @@ public static class GeneradorVisorMapa
             const GEOJSON = {{Empotrar(geojson)}};
             const coords = GEOJSON.features.flatMap(f => f.geometry.coordinates[0]);
             const lons = coords.map(c => c[0]), lats = coords.map(c => c[1]);
+            const M = 0.000045; // margen ~5 m alrededor del edificio propio
+            const huella = { type: 'Polygon', coordinates: [[
+              [Math.min(...lons) - M, Math.min(...lats) - M],
+              [Math.max(...lons) + M, Math.min(...lats) - M],
+              [Math.max(...lons) + M, Math.max(...lats) + M],
+              [Math.min(...lons) - M, Math.max(...lats) + M],
+              [Math.min(...lons) - M, Math.min(...lats) - M]
+            ]] };
             const map = new maplibregl.Map({
               container: 'mapa',
               style: {
                 version: 8,
                 sources: { osm: { type: 'raster',
                   tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-                  tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap' } },
+                  tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap' },
+                openfreemap: { type: 'vector', url: 'https://tiles.openfreemap.org/planet' } },
                 layers: [{ id: 'osm', type: 'raster', source: 'osm' }]
               },
               bounds: [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
@@ -50,6 +60,17 @@ public static class GeneradorVisorMapa
             });
             map.on('load', () => {
               map.addSource('edificio', { type: 'geojson', data: GEOJSON });
+              map.addLayer({
+                id: 'contexto', type: 'fill-extrusion',
+                source: 'openfreemap', 'source-layer': 'building',
+                filter: ['!', ['within', huella]],
+                paint: {
+                  'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
+                  'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 8],
+                  'fill-extrusion-color': '#c9c4bc',
+                  'fill-extrusion-opacity': 0.85
+                }
+              });
               map.addLayer({
                 id: 'extrusion', type: 'fill-extrusion', source: 'edificio',
                 paint: {

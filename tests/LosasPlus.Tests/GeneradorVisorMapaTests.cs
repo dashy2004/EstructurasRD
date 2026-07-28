@@ -35,6 +35,20 @@ public class GeneradorVisorMapaTests
     }
 
     [Fact]
+    public void Maplibre_contiene_contexto_urbano_openfreemap_con_filtro_de_huella()
+    {
+        string html = GeneradorVisorMapa.GenerarMapLibre(GeojsonDemo);
+
+        Assert.Contains("tiles.openfreemap.org/planet", html);   // fuente vectorial sin token
+        Assert.Contains("'source-layer': 'building'", html);     // capa building del esquema OpenMapTiles
+        Assert.Contains("within", html);                          // filtro de huella
+        Assert.Contains("coalesce", html);                        // alturas OSM ausentes → default
+        Assert.Contains("render_height", html);
+        Assert.Contains("#c9c4bc", html);                         // contexto gris neutro
+        Assert.Contains("const huella", html);                    // bbox propio con margen
+    }
+
+    [Fact]
     public void Maplibre_escapa_cierre_de_script_del_geojson()
     {
         string malicioso = GeojsonDemo.Replace("Nivel 1", "a</script>b");
