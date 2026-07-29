@@ -146,9 +146,9 @@
                                     Command="{Binding CadEditor.AutoAlinearSistemasCommand}"
                                     ToolTip.Tip="Alinea losas vecinas y genera los bordes de continuidad."/>
                             <Border Width="1" Margin="6,4" Background="{DynamicResource Border}"/>
-                            <ToggleButton Classes="tool" Content="🧲  Snap"
-                                          IsChecked="{Binding CadEditor.SnapActivo, Mode=TwoWay}"
-                                          ToolTip.Tip="Imán de alineación a grilla y bordes vecinos."/>
+                            <!-- Snap retirado de la toolbar (2026-06): el imán sigue activo por
+                                 defecto vía CadEditor.SnapActivo (bindeado en CadCanvasHost); se
+                                 quita el botón para ganar pantalla. -->
                             <ToggleButton Classes="tool" Content="🔗  Conectadas"
                                           IsChecked="{Binding CadEditor.MoverConectadas, Mode=TwoWay}"
                                           ToolTip.Tip="Mover arrastra el bloque conectado por bordes."/>

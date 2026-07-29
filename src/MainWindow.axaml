@@ -146,176 +146,404 @@
         </Style>
     </Window.Styles>
 
-    <Grid ColumnDefinitions="240,*">
+    <Grid ColumnDefinitions="*">
 
         <!-- =============================================================
-             SIDEBAR (Fase D): branding + navegación de modo agrupada.
-             Reemplaza la doble banda de menús (modos en CAPS + acciones en
-             inglés) por un único sidebar de RadioButtons agrupados, al estilo
-             del blueprint MemoriaPlus. Las acciones (Archivo / Calcular /
-             Generar geometría / Exportar) viven ahora en la barra superior del
-             área de contenido.
+             ÁREA PRINCIPAL (rediseño 2026-06): el SIDEBAR de navegación se
+             ELIMINÓ — la navegación por categorías (Proyecto / Geometría /
+             Análisis / Salida / Sistema, con sus Vistas) vive ahora dentro del
+             ribbon, junto a las acciones de cada categoría. Una sola columna →
+             máxima pantalla de trabajo. El branding se reubicó (compacto) en la
+             franja de contexto NIVEL/SISTEMA.
              ============================================================= -->
-        <Border Grid.Column="0" Background="{DynamicResource BgSecondary}"
-                BorderBrush="{DynamicResource Border}" BorderThickness="0,0,1,0">
-            <Grid RowDefinitions="Auto,*">
+        <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto,Auto">
 
-                <!-- Branding (Fase C) -->
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="16,16,12,12" VerticalAlignment="Center">
-                    <Image Source="avares://LosasPlus/Resources/branding/EstructurasRD.png"
-                           Width="36" Height="36" Stretch="Uniform"
-                           VerticalAlignment="Center" Margin="0,0,10,0"/>
-                    <StackPanel VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{x:Static cmn:Branding.Producto}" FontSize="16" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource Accent}"/>
-                            <TextBlock Text="{Binding Version}" FontSize="10"
+            <!-- ============================================================
+                 TOP CHROME (rediseño 2026-06): RIBBON de pestañas + franja de
+                 contexto NIVEL/SISTEMA full-width. Reemplaza el Menu horizontal.
+                 Todos los Click/Command handlers se preservan 1:1 — sólo cambia
+                 la presentación. Tema/Apariencia migran a la pestaña «Ver».
+                 ============================================================ -->
+            <StackPanel Grid.Row="0">
+
+                <!-- RIBBON: Inicio · Insertar · Calcular · Exportar · Ver -->
+                <Border Background="{DynamicResource BgInput}"
+                        BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
+                    <Border.Styles>
+                        <!-- Botón grande de ribbon: icono arriba, etiqueta abajo.
+                             Template propio (Border#bd) para hover fiable, igual
+                             que el patrón .tool del CadView. -->
+                        <Style Selector="Button.rb">
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="Margin" Value="1,0"/>
+                            <Setter Property="Cursor" Value="Hand"/>
+                            <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                            <Setter Property="Template">
+                                <ControlTemplate>
+                                    <Border Name="bd" Background="Transparent" CornerRadius="5" Padding="9,5">
+                                        <ContentPresenter Content="{TemplateBinding Content}"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter>
+                        </Style>
+                        <Style Selector="Button.rb:pointerover /template/ Border#bd">
+                            <Setter Property="Background" Value="{DynamicResource BgTertiary}"/>
+                        </Style>
+                        <!-- icono / etiqueta: comunes a botones de acción (.rb) y de
+                             navegación (.rbnav) — selector sin prefijo de padre. -->
+                        <Style Selector="TextBlock.ic">
+                            <Setter Property="FontSize" Value="19"/>
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                        </Style>
+                        <Style Selector="TextBlock.lb">
+                            <Setter Property="FontSize" Value="10"/>
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                            <Setter Property="Margin" Value="0,2,0,0"/>
+                            <Setter Property="Foreground" Value="{DynamicResource FgSecondary}"/>
+                        </Style>
+
+                        <!-- Botón de NAVEGACIÓN de modo (RadioButton): mismo look que
+                             .rb pero con estado :checked resaltado en Accent. -->
+                        <Style Selector="RadioButton.rbnav">
+                            <Setter Property="Margin" Value="1,0"/>
+                            <Setter Property="Cursor" Value="Hand"/>
+                            <Setter Property="Foreground" Value="{DynamicResource FgPrimary}"/>
+                            <Setter Property="Template">
+                                <ControlTemplate>
+                                    <Border Name="bd" Background="Transparent" CornerRadius="5" Padding="9,5">
+                                        <ContentPresenter Content="{TemplateBinding Content}"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter>
+                        </Style>
+                        <Style Selector="RadioButton.rbnav:pointerover /template/ Border#bd">
+                            <Setter Property="Background" Value="{DynamicResource BgTertiary}"/>
+                        </Style>
+                        <Style Selector="RadioButton.rbnav:checked /template/ Border#bd">
+                            <Setter Property="Background" Value="{DynamicResource Accent}"/>
+                        </Style>
+                        <Style Selector="RadioButton.rbnav:checked TextBlock.ic">
+                            <Setter Property="Foreground" Value="White"/>
+                        </Style>
+                        <Style Selector="RadioButton.rbnav:checked TextBlock.lb">
+                            <Setter Property="Foreground" Value="White"/>
+                        </Style>
+                        <Style Selector="TextBlock.rbcap">
+                            <Setter Property="FontSize" Value="9"/>
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="HorizontalAlignment" Value="Center"/>
+                            <Setter Property="Foreground" Value="{DynamicResource FgMuted}"/>
+                            <Setter Property="Margin" Value="0,3,0,0"/>
+                        </Style>
+                        <Style Selector="Border.rbsep">
+                            <Setter Property="Width" Value="1"/>
+                            <Setter Property="Margin" Value="7,8"/>
+                            <Setter Property="Background" Value="{DynamicResource Border}"/>
+                        </Style>
+                        <Style Selector="TabControl.ribbon > TabItem">
+                            <Setter Property="FontSize" Value="12"/>
+                            <Setter Property="Padding" Value="16,7"/>
+                            <Setter Property="MinHeight" Value="0"/>
+                        </Style>
+                    </Border.Styles>
+
+                    <TabControl Classes="ribbon" Padding="0" Margin="0">
+                        <!-- ===== PROYECTO (Vistas de proyecto + acciones de archivo) ===== -->
+                        <TabItem Header="Proyecto">
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                <StackPanel Orientation="Horizontal" Margin="10,6,10,5">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton Classes="rbnav" GroupName="ModoNav" ToolTip.Tip="Explorador de proyectos"
+                                                         IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Explorador}">
+                                                <StackPanel><TextBlock Classes="ic" Text="📂"/><TextBlock Classes="lb" Text="Explorador"/></StackPanel>
+                                            </RadioButton>
+                                            <RadioButton Classes="rbnav" GroupName="ModoNav" ToolTip.Tip="Búsqueda"
+                                                         IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Busqueda}">
+                                                <StackPanel><TextBlock Classes="ic" Text="🔍"/><TextBlock Classes="lb" Text="Búsqueda"/></StackPanel>
+                                            </RadioButton>
+                                            <RadioButton Classes="rbnav" GroupName="ModoNav" ToolTip.Tip="Editor de Losas"
+                                                         IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Editor}">
+                                                <StackPanel><TextBlock Classes="ic" Text="✎"/><TextBlock Classes="lb" Text="Editor"/></StackPanel>
+                                            </RadioButton>
+                                            <RadioButton Classes="rbnav" GroupName="ModoNav" ToolTip.Tip="Validación normativa"
+                                                         IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}">
+                                                <StackPanel><TextBlock Classes="ic" Text="🛡"/><TextBlock Classes="lb" Text="Validación"/></StackPanel>
+                                            </RadioButton>
+                                        </StackPanel>
+                                        <TextBlock Classes="rbcap" Text="Vistas"/>
+                                    </StackPanel>
+                                    <Border Classes="rbsep"/>
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Classes="rb" Click="OnNewProjectClick" ToolTip.Tip="Nuevo proyecto">
+                                                <StackPanel><TextBlock Classes="ic" Text="📄"/><TextBlock Classes="lb" Text="Nuevo"/></StackPanel>
+                                            </Button>
+                                            <Button Classes="rb" Click="OnOpenProjectClick" ToolTip.Tip="Abrir proyecto">
+                                                <StackPanel><TextBlock Classes="ic" Text="📂"/><TextBlock Classes="lb" Text="Abrir"/></StackPanel>
+                                            </Button>
+                                            <Button Classes="rb" Click="OnSaveProjectClick" ToolTip.Tip="Guardar proyecto">
+                                                <StackPanel><TextBlock Classes="ic" Text="💾"/><TextBlock Classes="lb" Text="Guardar"/></StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock Classes="rbcap" Text="Proyecto"/>
+                                    </StackPanel>
+                                    <Border Classes="rbsep"/>
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Classes="rb" Click="OnOpenClick" ToolTip.Tip="Abrir .DL legacy">
+                                                <StackPanel><TextBlock Classes="ic" Text="📑"/><TextBlock Classes="lb" Text="Abrir .DL"/></StackPanel>
+                                            </Button>
+                                            <Button Classes="rb" Click="OnDiagnosticarDLClick" ToolTip.Tip="Diagnosticar .DL">
+                                                <StackPanel><TextBlock Classes="ic" Text="🩺"/><TextBlock Classes="lb" Text="Diagnosticar"/></StackPanel>
+                                            </Button>
+                                            <Button Classes="rb" Click="OnSaveClick" ToolTip.Tip="Guardar .DL agregado">
+                                                <StackPanel><TextBlock Classes="ic" Text="🗎"/><TextBlock Classes="lb" Text="Guardar .DL"/></StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock Classes="rbcap" Text="Legacy .DL"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ===== GEOMETRÍA (Vistas de geometría + inserción de modelo) ===== -->
+                        <TabItem Header="Geometría">
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                <StackPanel Orientation="Horizontal" Margin="10,6,10,5">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton Classes="rbnav" GroupName="ModoNav" ToolTip.Tip="Planta 2D"
+                                                         IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Planta2D}">
+                                                <StackPanel><TextBlock Classes="ic" Text="📐"/><TextBlock Classes="lb" Text="Planta 2D"/></StackPanel>
+                                            </RadioButton>
+                                            <RadioButton Classes="rbnav" GroupName="ModoNav" ToolTip.Tip="Plano CAD"
+                                                         IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}">
+                                                <StackPanel><TextBlock Classes="ic" Text="🗺"/><TextBlock Classes="lb" Text="Plano CAD"/></StackPanel>
+                                            </RadioButton>
+                                            <RadioButton Classes="rbnav" GroupName="ModoNav" ToolTip.Tip="Vista 3D"
+                                                         IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vista3D}">
+                                                <StackPanel><TextBlock Classes="ic" Text="🧊"/><TextBlock Classes="lb" Text="Vista 3D"/></StackPanel>
+                                            </RadioButton>
+                                            <RadioButton Classes="rbnav" GroupName="ModoNav" ToolTip.Tip="Visor PDF"
+                                                         IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=VisorPdf}">
+                                                <StackPanel><TextBlock Classes="ic" Text="📄"/><TextBlock Classes="lb" Text="Visor PDF"/></StackPanel>
+                                            </RadioButton>
+                                        </StackPanel>
+                                        <TextBlock Classes="rbcap" Text="Vistas"/>
+                                    </StackPanel>
+                                    <Border Classes="rbsep"/>
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Classes="rb" Click="OnGenerarEjesClick" ToolTip.Tip="Generar ejes del nivel (desde columnas)">
+                                                <StackPanel><TextBlock Classes="ic" Text="📐"/><TextBlock Classes="lb" Text="Ejes"/></StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock Classes="rbcap" Text="Geometría"/>
+                                    </StackPanel>
+                                    <Border Classes="rbsep"/>
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Classes="rb" Click="OnGenerarDesdeFotoClick" ToolTip.Tip="Generar sistema desde foto (IA local Qwen)">
+                                                <StackPanel><TextBlock Classes="ic" Text="🖼"/><TextBlock Classes="lb" Text="Desde foto"/></StackPanel>
+                                            </Button>
+                                            <Button Classes="rb" Click="OnGenerarDesdeDxfClick" ToolTip.Tip="Generar sistema desde DXF estructural">
+                                                <StackPanel><TextBlock Classes="ic" Text="📥"/><TextBlock Classes="lb" Text="Desde DXF"/></StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock Classes="rbcap" Text="Importar modelo"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ===== ANÁLISIS (Vistas de análisis + calculadoras) ===== -->
+                        <TabItem Header="Análisis">
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                <StackPanel Orientation="Horizontal" Margin="10,6,10,5">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton Classes="rbnav" GroupName="ModoNav" ToolTip.Tip="Cargas y Combinaciones"
+                                                         IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=CargasCombinaciones}">
+                                                <StackPanel><TextBlock Classes="ic" Text="📊"/><TextBlock Classes="lb" Text="Cargas"/></StackPanel>
+                                            </RadioButton>
+                                            <RadioButton Classes="rbnav" GroupName="ModoNav" ToolTip.Tip="Bajada de Cargas"
+                                                         IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=BajadaCargas}">
+                                                <StackPanel><TextBlock Classes="ic" Text="⬇"/><TextBlock Classes="lb" Text="Bajada"/></StackPanel>
+                                            </RadioButton>
+                                            <RadioButton Classes="rbnav" GroupName="ModoNav" ToolTip.Tip="Vigas Continuas"
+                                                         IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vigas}">
+                                                <StackPanel><TextBlock Classes="ic" Text="📐"/><TextBlock Classes="lb" Text="Vigas"/></StackPanel>
+                                            </RadioButton>
+                                            <RadioButton Classes="rbnav" GroupName="ModoNav" ToolTip.Tip="Columnas"
+                                                         IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Columnas}">
+                                                <StackPanel><TextBlock Classes="ic" Text="🏛"/><TextBlock Classes="lb" Text="Columnas"/></StackPanel>
+                                            </RadioButton>
+                                        </StackPanel>
+                                        <TextBlock Classes="rbcap" Text="Vistas"/>
+                                    </StackPanel>
+                                    <Border Classes="rbsep"/>
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Classes="rb" Click="OnCalcularCargaUltimaClick" ToolTip.Tip="Calcular carga última (Wu) desde geometría — LRFD 1.2D+1.6L">
+                                                <StackPanel><TextBlock Classes="ic" Text="∑"/><TextBlock Classes="lb" Text="Carga Wu"/></StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock Classes="rbcap" Text="Cargas"/>
+                                    </StackPanel>
+                                    <Border Classes="rbsep"/>
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Classes="rb" Command="{Binding CalcularConMotorCommand}" ToolTip.Tip="Calcular losas con el motor FEA nativo (FEM, sin Losas.exe)">
+                                                <StackPanel><TextBlock Classes="ic" Text="▶"/><TextBlock Classes="lb" Text="Motor FEM"/></StackPanel>
+                                            </Button>
+                                            <Button Classes="rb" Click="OnCalcularNativoClick" ToolTip.Tip="Calcular losas (Pieper-Martens nativo, sin Losas.exe)">
+                                                <StackPanel><TextBlock Classes="ic" Text="🧮"/><TextBlock Classes="lb" Text="Pieper-M."/></StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock Classes="rbcap" Text="Losas"/>
+                                    </StackPanel>
+                                    <Border Classes="rbsep"/>
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Classes="rb" Click="OnImportTxtClick" ToolTip.Tip="Importar la salida .TXT de Losas.exe">
+                                                <StackPanel><TextBlock Classes="ic" Text="📥"/><TextBlock Classes="lb" Text="Importar .TXT"/></StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock Classes="rbcap" Text="Importar"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ===== SALIDA (Vistas de salida + exportación) ===== -->
+                        <TabItem Header="Salida">
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                <StackPanel Orientation="Horizontal" Margin="10,6,10,5">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton Classes="rbnav" GroupName="ModoNav" ToolTip.Tip="DL Editor"
+                                                         IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DLEditor}">
+                                                <StackPanel><TextBlock Classes="ic" Text="▤"/><TextBlock Classes="lb" Text="DL Editor"/></StackPanel>
+                                            </RadioButton>
+                                            <RadioButton Classes="rbnav" GroupName="ModoNav" ToolTip.Tip="Salida .TXT"
+                                                         IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Salida}">
+                                                <StackPanel><TextBlock Classes="ic" Text="⇲"/><TextBlock Classes="lb" Text="Salida .TXT"/></StackPanel>
+                                            </RadioButton>
+                                            <RadioButton Classes="rbnav" GroupName="ModoNav" ToolTip.Tip="Aceros"
+                                                         IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Aceros}">
+                                                <StackPanel><TextBlock Classes="ic" Text="🔩"/><TextBlock Classes="lb" Text="Aceros"/></StackPanel>
+                                            </RadioButton>
+                                        </StackPanel>
+                                        <TextBlock Classes="rbcap" Text="Vistas"/>
+                                    </StackPanel>
+                                    <Border Classes="rbsep"/>
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Classes="rb" Command="{Binding GenerarMemoriaCommand}" ToolTip.Tip="Generar memoria → abrir MemoriaPlus (Ctrl+G)">
+                                                <StackPanel><TextBlock Classes="ic" Text="📝"/><TextBlock Classes="lb" Text="Memoria"/></StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock Classes="rbcap" Text="Memoria"/>
+                                    </StackPanel>
+                                    <Border Classes="rbsep"/>
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Classes="rb" Click="OnExportCsvClick" ToolTip.Tip="Exportar CSV">
+                                                <StackPanel><TextBlock Classes="ic" Text="📄"/><TextBlock Classes="lb" Text="CSV"/></StackPanel>
+                                            </Button>
+                                            <Button Classes="rb" Click="OnExportXlsxClick" ToolTip.Tip="Exportar XLSX">
+                                                <StackPanel><TextBlock Classes="ic" Text="📊"/><TextBlock Classes="lb" Text="XLSX"/></StackPanel>
+                                            </Button>
+                                            <Button Classes="rb" Click="OnExportSafClick" ToolTip.Tip="Exportar SAF (vigas)">
+                                                <StackPanel><TextBlock Classes="ic" Text="🏗"/><TextBlock Classes="lb" Text="SAF vigas"/></StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock Classes="rbcap" Text="Datos"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ===== SISTEMA (Vistas de sistema + apariencia) ===== -->
+                        <TabItem Header="Sistema">
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                <StackPanel Orientation="Horizontal" Margin="10,6,10,5">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton Classes="rbnav" GroupName="ModoNav" ToolTip.Tip="Reglamento"
+                                                         IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Reglamento}">
+                                                <StackPanel><TextBlock Classes="ic" Text="⚖"/><TextBlock Classes="lb" Text="Reglamento"/></StackPanel>
+                                            </RadioButton>
+                                            <RadioButton Classes="rbnav" GroupName="ModoNav" ToolTip.Tip="Configuración"
+                                                         IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Configuracion}">
+                                                <StackPanel><TextBlock Classes="ic" Text="⚙"/><TextBlock Classes="lb" Text="Configuración"/></StackPanel>
+                                            </RadioButton>
+                                            <RadioButton Classes="rbnav" GroupName="ModoNav" ToolTip.Tip="Plugins"
+                                                         IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Plugins}">
+                                                <StackPanel><TextBlock Classes="ic" Text="◆"/><TextBlock Classes="lb" Text="Plugins"/></StackPanel>
+                                            </RadioButton>
+                                            <RadioButton Classes="rbnav" GroupName="ModoNav" ToolTip.Tip="Acerca de"
+                                                         IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Acerca}">
+                                                <StackPanel><TextBlock Classes="ic" Text="ℹ"/><TextBlock Classes="lb" Text="Acerca"/></StackPanel>
+                                            </RadioButton>
+                                        </StackPanel>
+                                        <TextBlock Classes="rbcap" Text="Vistas"/>
+                                    </StackPanel>
+                                    <Border Classes="rbsep"/>
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Classes="rb" Click="OnToggleTheme" ToolTip.Tip="Ciclar tema Precision/Light/Dark">
+                                                <StackPanel><TextBlock Classes="ic" Text="🌓"/><TextBlock Classes="lb" Text="Tema"/></StackPanel>
+                                            </Button>
+                                            <Button Classes="rb" Click="OnAppearanceClick" ToolTip.Tip="Personalizar colores">
+                                                <StackPanel><TextBlock Classes="ic" Text="🎨"/><TextBlock Classes="lb" Text="Apariencia"/></StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                        <TextBlock Classes="rbcap" Text="Apariencia"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+                    </TabControl>
+                </Border>
+
+                <!-- FRANJA DE CONTEXTO: NIVEL / SISTEMA full-width + chip validación. -->
+                <Border Background="{DynamicResource BgSecondary}"
+                        BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1"
+                        Padding="16,5">
+                    <DockPanel LastChildFill="False">
+                        <!-- Chip de validación normativa: click → modo Validación. -->
+                        <Button DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,4"
+                                Cursor="Hand" BorderThickness="1" VerticalAlignment="Center"
+                                Background="{DynamicResource BgInput}"
+                                BorderBrush="{DynamicResource Border}"
+                                Click="OnChipValidacionClick"
+                                ToolTip.Tip="Abrir panel de validación normativa">
+                            <TextBlock VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource FgPrimary}"
+                                       Text="{Binding Validacion.ResumenIndicador}"/>
+                        </Button>
+
+                        <!-- Branding compacto (reubicado del antiguo sidebar eliminado). -->
+                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal"
+                                    VerticalAlignment="Center" Margin="0,0,18,0">
+                            <Image Source="avares://LosasPlus/Resources/branding/EstructurasRD.png"
+                                   Width="22" Height="22" Stretch="Uniform" Margin="0,0,7,0"/>
+                            <TextBlock Text="{x:Static cmn:Branding.Producto}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource Accent}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding Version}" FontSize="9"
                                        Foreground="{DynamicResource FgMuted}"
-                                       VerticalAlignment="Bottom" Margin="6,0,0,2"/>
+                                       VerticalAlignment="Bottom" Margin="5,0,0,2"/>
                         </StackPanel>
-                        <TextBlock Text="motor: F. Perdomo" FontSize="9"
-                                   Foreground="{DynamicResource FgMuted}"/>
-                    </StackPanel>
-                </StackPanel>
 
-                <!-- Navegación de modo agrupada. RadioButton.IsChecked ↔ ModoActivo
-                     vía EnumToBoolConverter (two-way: marcar setea el modo). -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="8,0,8,8">
-                    <StackPanel>
-                        <TextBlock Classes="sidecat" Text="PROYECTO"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="📂  Explorador"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Explorador}"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="🔍  Búsqueda"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Busqueda}"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="✎  Editor de Losas"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Editor}"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="🛡  Validación"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Validacion}"/>
-
-                        <TextBlock Classes="sidecat" Text="GEOMETRÍA"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="📐  Planta 2D"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Planta2D}"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="🗺  Plano CAD"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=PlanoCad}"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="🧊  Vista 3D"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vista3D}"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="📄  Visor PDF"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=VisorPdf}"/>
-
-                        <TextBlock Classes="sidecat" Text="ANÁLISIS"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="📊  Cargas y Combinaciones"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=CargasCombinaciones}"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="⬇  Bajada de Cargas"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=BajadaCargas}"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="📐  Vigas Continuas"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Vigas}"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="🏛  Columnas"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Columnas}"/>
-
-                        <TextBlock Classes="sidecat" Text="SALIDA"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="▤  DL Editor"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=DLEditor}"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="⇲  Salida .TXT"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Salida}"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="🔩  Aceros"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Aceros}"/>
-
-                        <TextBlock Classes="sidecat" Text="SISTEMA"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="⚖  Reglamento"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Reglamento}"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="⚙  Configuración"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Configuracion}"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="◆  Plugins"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Plugins}"/>
-                        <RadioButton Classes="navside" GroupName="ModoNav" Content="ℹ  Acerca de"
-                                     IsChecked="{Binding ModoActivo, Converter={StaticResource EnumToBoolConverter}, ConverterParameter=Acerca}"/>
-                    </StackPanel>
-                </ScrollViewer>
-            </Grid>
-        </Border>
-
-        <!-- =============================================================
-             ÁREA PRINCIPAL: barra de acciones + content switch + log + statusbar
-             ============================================================= -->
-        <Grid Grid.Column="1" RowDefinitions="Auto,*,Auto,Auto">
-
-            <!-- TOP ACTION BAR: menús + path Losas.exe + lanzar motor + chip validación. -->
-            <Border Grid.Row="0" Padding="16,8"
-                    Background="{DynamicResource BgInput}"
-                    BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1">
-                <DockPanel LastChildFill="True">
-                    <!-- Menús de ACCIÓN (Fase D): 100% en español. El antiguo "Engine"
-                         (que mezclaba cálculo + geometría + import) se parte en
-                         "Calcular" y "Generar geometría". Los handlers no cambian. -->
-                    <Menu DockPanel.Dock="Left" Background="Transparent" VerticalAlignment="Center">
-                        <MenuItem Header="Archivo">
-                            <MenuItem Header="Nuevo proyecto..." Click="OnNewProjectClick"/>
-                            <MenuItem Header="Abrir proyecto..." Click="OnOpenProjectClick"/>
-                            <MenuItem Header="Guardar proyecto..." Click="OnSaveProjectClick"/>
-                            <Separator/>
-                            <MenuItem Header="Abrir .DL legacy..." Click="OnOpenClick"/>
-                            <MenuItem Header="🩺 Diagnosticar .DL..." Click="OnDiagnosticarDLClick"/>
-                            <MenuItem Header="Guardar .DL agregado..." Click="OnSaveClick"/>
-                            <!-- "Pegar de Excel" se ofrece desde el botón de la barra de edición
-                                 (DockPanel de la grilla de losas); se elimina el duplicado del menú. -->
-                        </MenuItem>
-                        <MenuItem Header="Calcular">
-                            <MenuItem Header="Calcular carga última (Wu) desde geometría"
-                                      Click="OnCalcularCargaUltimaClick"
-                                      ToolTip.Tip="Calcula la carga última de cada losa (espesor, acabados, muros y uso; LRFD 1.2D + 1.6L), la escribe en cada losa y muestra el desglose Qmamp/Qmap/Qd/Ql/Qu por losa."/>
-                            <MenuItem Header="Calcular losas con el motor (FEM, sin Losas.exe)"
-                                      Command="{Binding CalcularConMotorCommand}"
-                                      ToolTip.Tip="Calcula los momentos de todas las losas con el motor FEA nativo (FEM), alternativa a Losas.exe. Requiere el motor instalado (comando configurable en la pestaña Aceros)."/>
-                            <MenuItem Header="Calcular losas (Pieper-Martens nativo, sin Losas.exe)"
-                                      Click="OnCalcularNativoClick"
-                                      ToolTip.Tip="Calcula momentos, balanceo y armaduras con el método de Pieper-Martens (tablas de Perdomo) dentro de la app, sin Losas.exe ni .TXT. El resultado aparece en la pestaña Aceros y queda listo para la Memoria."/>
-                            <Separator/>
-                            <MenuItem Header="Importar .TXT..." Click="OnImportTxtClick"
-                                      ToolTip.Tip="Importa la salida .TXT de Losas.exe para visualizar momentos y exportar."/>
-                        </MenuItem>
-                        <MenuItem Header="Generar geometría">
-                            <MenuItem Header="Generar ejes del nivel (desde columnas)"
-                                      Click="OnGenerarEjesClick"
-                                      ToolTip.Tip="Crea la rejilla de ejes A,B,C / 1,2,3 a partir de las columnas del nivel activo. Los ejes se dibujan en Planta 2D."/>
-                            <Separator/>
-                            <MenuItem Header="🖼 Generar sistema desde foto (IA local Qwen)…"
-                                      Click="OnGenerarDesdeFotoClick"
-                                      ToolTip.Tip="Subí una foto de un esquema de planta; la IA local (Qwen visión) detecta losas y vigas y las crea en el nivel activo. Requiere Ollama + qwen2.5vl corriendo."/>
-                            <MenuItem Header="📐 Generar sistema desde DXF estructural…"
-                                      Click="OnGenerarDesdeDxfClick"
-                                      ToolTip.Tip="Importá un DXF (limpio, solo elementos estructurales) con capas tipo VIGAS/COLUMNAS/LOSAS. Pipeline determinista: usa la geometría EXACTA del DXF para crear losas, vigas y columnas en el nivel activo. Qwen (texto) solo clasifica capas con nombres poco claros; no requiere GPU si las capas están bien nombradas."/>
-                        </MenuItem>
-                        <MenuItem Header="Exportar">
-                            <MenuItem Header="Generar memoria → abrir MemoriaPlus (Ctrl+G)"
-                                      Command="{Binding GenerarMemoriaCommand}"/>
-                            <Separator/>
-                            <MenuItem Header="Exportar CSV..." Click="OnExportCsvClick"/>
-                            <MenuItem Header="Exportar XLSX..." Click="OnExportXlsxClick"/>
-                            <MenuItem Header="Exportar SAF (vigas)..." Click="OnExportSafClick"/>
-                        </MenuItem>
-                    </Menu>
-
-                    <!-- Chip de validación normativa: click → modo Validación.
-                         (Color por severidad diferido a un pase visual; texto en vivo.) -->
-                    <Button DockPanel.Dock="Right" Margin="6,0,0,0" Padding="10,4"
-                            Cursor="Hand" BorderThickness="1"
-                            Background="{DynamicResource BgSecondary}"
-                            BorderBrush="{DynamicResource Border}"
-                            Click="OnChipValidacionClick"
-                            ToolTip.Tip="Abrir panel de validación normativa">
-                        <TextBlock VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource FgPrimary}"
-                                   Text="{Binding Validacion.ResumenIndicador}"/>
-                    </Button>
-
-                    <!-- Contexto NIVEL / SISTEMA activo + tema (relocado desde la
-                         antigua banda superior al perder ésta su rol de nav). -->
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal"
-                                VerticalAlignment="Center" Margin="12,0,8,0">
-                        <TextBlock Text="NIVEL" VerticalAlignment="Center"
+                        <!-- NIVEL -->
+                        <TextBlock DockPanel.Dock="Left" Text="NIVEL" VerticalAlignment="Center"
                                    FontWeight="Bold" FontSize="10" Margin="0,0,8,0"
                                    Foreground="{DynamicResource FgMuted}"/>
-                        <ComboBox x:Name="NivelesList" VerticalAlignment="Center" MinWidth="110"
+                        <ComboBox DockPanel.Dock="Left" x:Name="NivelesList" VerticalAlignment="Center" MinWidth="120"
                                   ItemsSource="{Binding NivelesDelEdificio}"
                                   SelectedIndex="{Binding IndiceNivelActivo, Mode=TwoWay}">
                             <ComboBox.ItemTemplate>
@@ -324,23 +552,24 @@
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
-                        <Button Content="+" Width="24" Height="24" Padding="0" Margin="4,0,0,0"
+                        <Button DockPanel.Dock="Left" Content="+" Width="24" Height="24" Padding="0" Margin="4,0,0,0"
                                 Click="OnAddNivel" VerticalAlignment="Center"
                                 Background="Transparent" BorderThickness="0"
                                 Foreground="{DynamicResource FgPrimary}"
                                 ToolTip.Tip="Agregar nuevo nivel"/>
-                        <Button Content="−" Width="24" Height="24" Padding="0" Margin="0,0,12,0"
+                        <Button DockPanel.Dock="Left" Content="−" Width="24" Height="24" Padding="0" Margin="0,0,12,0"
                                 Click="OnDeleteNivel" VerticalAlignment="Center"
                                 Background="Transparent" BorderThickness="0"
                                 Foreground="{DynamicResource FgMuted}"
                                 ToolTip.Tip="Eliminar nivel activo"/>
 
-                        <Border Width="1" Background="{DynamicResource Border}" Margin="0,4"/>
+                        <Border DockPanel.Dock="Left" Width="1" Background="{DynamicResource Border}" Margin="0,4"/>
 
-                        <TextBlock Text="SISTEMA" VerticalAlignment="Center"
+                        <!-- SISTEMA -->
+                        <TextBlock DockPanel.Dock="Left" Text="SISTEMA" VerticalAlignment="Center"
                                    FontWeight="Bold" FontSize="10" Margin="12,0,8,0"
                                    Foreground="{DynamicResource FgMuted}"/>
-                        <ComboBox x:Name="SistemasList" VerticalAlignment="Center" MinWidth="140"
+                        <ComboBox DockPanel.Dock="Left" x:Name="SistemasList" VerticalAlignment="Center" MinWidth="150"
                                   ItemsSource="{Binding NivelActivo.Sistemas}"
                                   SelectedItem="{Binding SistemaActivo, Mode=TwoWay}">
                             <ComboBox.ItemTemplate>
@@ -349,37 +578,25 @@
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
-                        <TextBox x:Name="SistemaNombreInline" VerticalAlignment="Center"
-                                 Width="110" Margin="6,0,0,0"
+                        <TextBox DockPanel.Dock="Left" x:Name="SistemaNombreInline" VerticalAlignment="Center"
+                                 Width="120" Margin="6,0,0,0"
                                  Text="{Binding SistemaActivo.Nombre, UpdateSourceTrigger=PropertyChanged}"
                                  ToolTip.Tip="Renombrar el sistema activo. El selector se actualiza en caliente."/>
-                        <TextBlock Text="Elev. Z:" VerticalAlignment="Center" Margin="12,0,4,0" FontSize="11" Foreground="{DynamicResource FgMuted}" ToolTip.Tip="Elevación del sistema (m)"/>
-                        <TextBox Text="{Binding SistemaActivo.Elevacion}" VerticalAlignment="Center" Width="45" FontSize="11" Padding="4,2"/>
-                        <Button Content="+" Width="24" Height="24" Padding="0" Margin="12,0,0,0"
+                        <TextBlock DockPanel.Dock="Left" Text="Elev. Z:" VerticalAlignment="Center" Margin="12,0,4,0" FontSize="11" Foreground="{DynamicResource FgMuted}" ToolTip.Tip="Elevación del sistema (m)"/>
+                        <TextBox DockPanel.Dock="Left" Text="{Binding SistemaActivo.Elevacion}" VerticalAlignment="Center" Width="50" FontSize="11" Padding="4,2"/>
+                        <Button DockPanel.Dock="Left" Content="+" Width="24" Height="24" Padding="0" Margin="12,0,0,0"
                                 Click="OnAddSistema" VerticalAlignment="Center"
                                 Background="Transparent" BorderThickness="0"
                                 Foreground="{DynamicResource FgPrimary}"
                                 ToolTip.Tip="Agregar nuevo sistema"/>
-                        <Button Content="−" Width="24" Height="24" Padding="0"
+                        <Button DockPanel.Dock="Left" Content="−" Width="24" Height="24" Padding="0"
                                 Click="OnDeleteSistema" VerticalAlignment="Center"
                                 Background="Transparent" BorderThickness="0"
                                 Foreground="{DynamicResource FgMuted}"
                                 ToolTip.Tip="Eliminar sistema seleccionado"/>
-                        <Border Width="1" Margin="10,6" Background="{DynamicResource Border}"/>
-                        <Button Content="Tema" Padding="8,3" Click="OnToggleTheme"
-                                VerticalAlignment="Center" Background="Transparent"
-                                Foreground="{DynamicResource FgSecondary}"
-                                BorderBrush="{DynamicResource Border}" BorderThickness="1"
-                                ToolTip.Tip="Ciclar Precision/Light/Dark"/>
-                        <Button Content="Apariencia" Padding="8,3" Margin="6,0,0,0"
-                                Click="OnAppearanceClick" VerticalAlignment="Center"
-                                Background="Transparent"
-                                Foreground="{DynamicResource FgSecondary}"
-                                BorderBrush="{DynamicResource Border}" BorderThickness="1"
-                                ToolTip.Tip="Personalizar colores"/>
-                    </StackPanel>
-                </DockPanel>
-            </Border>
+                    </DockPanel>
+                </Border>
+            </StackPanel>
 
             <!-- =========================================================
                  CONTENT SWITCH por ModoActivo.
