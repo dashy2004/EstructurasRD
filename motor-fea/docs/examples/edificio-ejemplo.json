@@ -1,0 +1,170 @@
+{
+  "version": 1,
+  "proyecto": {
+    "nombre": "Edificio de ejemplo",
+    "autor": "EstructurasRD",
+    "codigo_obra": "",
+    "ubicacion": "",
+    "fecha": ""
+  },
+  "cargas_globales": {
+    "muerta_adicional": 0.0,
+    "viva": 0.0
+  },
+  "combinaciones": [],
+  "edificios": [
+    {
+      "id": 1,
+      "nombre": "Bloque A",
+      "niveles": [
+        {
+          "id": 1,
+          "nombre": "Planta baja",
+          "cota": 0.0,
+          "losas": []
+        },
+        {
+          "id": 2,
+          "nombre": "Techo",
+          "cota": 3.0,
+          "losas": [
+            {
+              "id": 1,
+              "tipo": "maciza",
+              "espesor": 0.2,
+              "puntos": [
+                [
+                  0.0,
+                  0.0
+                ],
+                [
+                  5.0,
+                  0.0
+                ],
+                [
+                  5.0,
+                  4.0
+                ],
+                [
+                  0.0,
+                  4.0
+                ]
+              ],
+              "cargas": {
+                "muerta": 5.0,
+                "viva": 2.0
+              }
+            }
+          ]
+        }
+      ],
+      "elementos_verticales": [
+        {
+          "id": 1,
+          "cota_base": 0.0,
+          "cota_tope": 3.0,
+          "material": "H210",
+          "tipo": "columna",
+          "posicion": [
+            0.0,
+            0.0
+          ],
+          "seccion": {
+            "base": 0.3,
+            "peralte": 0.3
+          },
+          "zapata": {
+            "ancho": 1.2,
+            "largo": 1.2,
+            "peralte": 0.4
+          }
+        },
+        {
+          "id": 2,
+          "cota_base": 0.0,
+          "cota_tope": 3.0,
+          "material": "H210",
+          "tipo": "columna",
+          "posicion": [
+            5.0,
+            0.0
+          ],
+          "seccion": {
+            "base": 0.3,
+            "peralte": 0.3
+          },
+          "zapata": {
+            "ancho": 1.2,
+            "largo": 1.2,
+            "peralte": 0.4
+          }
+        },
+        {
+          "id": 3,
+          "cota_base": 0.0,
+          "cota_tope": 3.0,
+          "material": "H210",
+          "tipo": "columna",
+          "posicion": [
+            5.0,
+            4.0
+          ],
+          "seccion": {
+            "base": 0.3,
+            "peralte": 0.3
+          },
+          "zapata": {
+            "ancho": 1.2,
+            "largo": 1.2,
+            "peralte": 0.4
+          }
+        },
+        {
+          "id": 4,
+          "cota_base": 0.0,
+          "cota_tope": 3.0,
+          "material": "H210",
+          "tipo": "columna",
+          "posicion": [
+            0.0,
+            4.0
+          ],
+          "seccion": {
+            "base": 0.3,
+            "peralte": 0.3
+          },
+          "zapata": {
+            "ancho": 1.2,
+            "largo": 1.2,
+            "peralte": 0.4
+          }
+        },
+        {
+          "id": 5,
+          "cota_base": 0.0,
+          "cota_tope": 3.0,
+          "material": "H210",
+          "tipo": "muro",
+          "linea": [
+            [
+              5.0,
+              0.0
+            ],
+            [
+              5.0,
+              4.0
+            ]
+          ],
+          "seccion": {
+            "espesor": 0.2
+          },
+          "zapata": {
+            "ancho": 2.0,
+            "largo": 1.0,
+            "peralte": 0.4
+          }
+        }
+      ]
+    }
+  ]
+}

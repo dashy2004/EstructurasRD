@@ -1,0 +1,3 @@
+venv roto al mover. Recrealo con:
+
+  cd ~/dev/estructurasrd/engine/motor-fea && python3 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt
