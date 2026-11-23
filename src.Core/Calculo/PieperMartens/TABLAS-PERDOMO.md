@@ -101,13 +101,57 @@ Con `TablasPerdomo.json` + la convención de arriba, las losas 1-4 (Perdomo
 > bordes continuos" — revisar/reconciliar el mapeo **código `.DL` → sub-tipo de
 > tabla** contra `Losas.exe` antes de la Fase 1. La evidencia numérica manda.
 
-### Pendiente: mapa completo `código .DL` → `sub-tipo`
+### Mapa `código .DL` → `sub-tipo` (losas apoyadas en cuatro bordes)
 
-Sólo el 40 está verificado numéricamente (faltan fixtures para los demás). El
-mapeo código→borde del catálogo da el patrón N/E/S/W; cruzarlo con la columna
-"condición de borde" de §2 da el sub-tipo candidato, pero **debe confirmarse con
-`Losas.exe`** caso por caso. El Tipo 71 (voladizo/franja en una dirección) es un
-caso especial de una dirección, no sale de estas tablas.
+Validado con `tests/fixtures/sistema_demo_27_losas.DL/.TXT` (listado real de
+`Losas.exe` v5.20) en `SistemaDemo27LosasTests`: las 27 losas y sus 22 bordes
+balanceados coinciden con error ≤ 0.015 ton·m/m.
+
+| Código | Sub-tipo | Bordes continuos | Estado |
+|-------:|:--------:|------------------|--------|
+| 10 | 1  | ninguno                         | orientación confirmada; valores de tabla sin listado de control |
+| 21 | 2a | 1 horizontal (norte o sur)      | ídem |
+| 22 | 2b | 1 vertical (este u oeste)       | ídem |
+| 31 | 3a | norte y sur                     | ídem |
+| 32 | 3b | este y oeste                    | ídem |
+| 40 | 4  | 2 adyacentes                    | **verificado** (RESTAURANTE 2 y demo 27) |
+| 51 | 5a | 3; el apoyo simple es horizontal | **verificado** (losas 3, 12, 14) |
+| 52 | 5b | 3; el apoyo simple es vertical   | **verificado** (losas 2, 9) |
+| 60 | 6  | los 4                            | **verificado** (losas 1, 4, 7, 8) |
+
+Los tipos 10, 21, 22, 31 y 32 solo aparecen en el fixture como losas en una
+dirección (ver abajo). Eso confirma su orientación —qué momento de apoyo existe—
+pero no sus valores cuando ε cae dentro de la tabla.
+
+Siguen **sin mapear** las losas apoyadas en tres bordes (códigos 13 a 64,
+tablas 7 a 12) y el caso de abajo marcado como no verificado: el motor no las
+calcula y las reporta en `SalidaPerdomo.LosasNoParseadas` sin detener el resto.
+
+### Losas en una dirección (ε = Ly/Lx fuera de 0.50–2.00)
+
+`Losas.exe` no recorta ε al extremo de la tabla: trata la losa como franja sobre
+la **luz corta** `L`. Regla deducida del listado del fixture:
+
+| Extremos continuos de la franja | Momento de vano | Momento en cada extremo continuo |
+|:-:|:-:|:-:|
+| 0 | `q·L²/8`     | — |
+| 1 | `q·L²/10.24` | `q·L²/8` |
+| 2 | `q·L²/12`    | `q·L²/12` |
+
+El momento de vano es el promedio entre la viga simplemente apoyada (`1/8`) y la
+viga con su continuidad real (`1/8`, `9/128` o `1/24`). La dirección larga no
+lleva momento de vano. Si la losa tiene bordes continuos **paralelos** a la
+franja y ninguno en sus extremos, cada uno recibe `q·L²/8` (losas 10 y 24).
+
+Evidencia: tipo 10 (losa 17), 21 (losas 10, 13, 24, 25, 26, 27), 22 (losas 16 y
+18 a 22), 31 (losa 5), 32 (losa 6).
+
+**No verificado:** franja con extremos continuos **y además** bordes continuos
+paralelos (tipos 40, 51, 52 y 60 fuera de rango). No hay listado que diga qué
+momento transversal usa `Losas.exe`, así que el motor lo rechaza en vez de
+adivinarlo.
+
+El Tipo 71/72 (voladizo) es un caso aparte: `q·L²/2` sobre la luz que vuela.
 
 ---
 
