@@ -2183,10 +2183,19 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         _generandoMemoria = true;
         try
         {
-            Log("Guardando proyecto antes de abrir MemoriaPlus...");
+            Log("Guardando proyecto antes de generar la memoria...");
             if (!await GuardarAsync())
             {
                 StatusGeneracion = "Cancelado — necesitás guardar el proyecto primero.";
+                return;
+            }
+
+            // Con el motor memoria-diseno instalado, la memoria se arma directo
+            // desde el proyecto; sin él se abre MemoriaPlus, como antes.
+            string? carpetaMotor = CarpetaMotorMemoria();
+            if (carpetaMotor is not null)
+            {
+                await GenerarConMotorAsync(carpetaMotor);
                 return;
             }
 
@@ -2214,6 +2223,61 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     }
 
     private bool _generandoMemoria;
+
+    /// <summary>Carpeta del motor <c>memoria-diseno</c>, o <c>null</c> si no está instalado. Sustituible en pruebas.</summary>
+    public Func<string?> CarpetaMotorMemoria { get; set; } =
+        () => LosasPlus.Generation.MotorMemoriaDiseno.ResolverCarpeta(AppContext.BaseDirectory);
+
+    /// <summary>Corre el motor (carpeta, data.json, .docx, carpeta de trabajo, memoria.json). Sustituible en pruebas.</summary>
+    public Func<string, string, string, string, string, Task<LosasPlus.Generation.ResultadoMotorMemoria>> EjecutorMotorMemoria { get; set; } =
+        LosasPlus.Generation.MotorMemoriaDiseno.GenerarAsync;
+
+    /// <summary>Abre el documento generado con su programa asociado. Sustituible en pruebas.</summary>
+    public Action<string> AbridorDeDocumentos { get; set; } =
+        ruta => Process.Start(new ProcessStartInfo(ruta) { UseShellExecute = true });
+
+    /// <summary>
+    /// Arma la memoria con el motor <c>memoria-diseno</c>: escribe junto al
+    /// proyecto una carpeta <c>&lt;proyecto&gt;-memoria</c> con <c>data.json</c>
+    /// (se reescribe siempre) y <c>memoria.json</c> (solo si no existe, para no
+    /// pisar lo que el usuario editó), corre el motor y abre el Word.
+    /// </summary>
+    private async Task GenerarConMotorAsync(string carpetaMotor)
+    {
+        string nombre = Path.GetFileName(_proyecto.Archivo);
+        foreach (string ext in new[] { ProyectoSerializer.Extension, ".json" })
+        {
+            if (!nombre.EndsWith(ext, StringComparison.OrdinalIgnoreCase)) continue;
+            nombre = nombre[..^ext.Length];
+            break;
+        }
+        string dir = Path.Combine(Path.GetDirectoryName(_proyecto.Archivo) ?? ".", nombre + "-memoria");
+        Directory.CreateDirectory(dir);
+        string data = Path.Combine(dir, "data.json");
+        string config = Path.Combine(dir, "memoria.json");
+        string docx = Path.Combine(dir, $"Memoria - {nombre}.docx");
+
+        await File.WriteAllTextAsync(data, LosasPlus.Generation.MemoriaDisenoExporter.ExportarDatos(_proyecto));
+        if (!File.Exists(config))
+            await File.WriteAllTextAsync(config, LosasPlus.Generation.MemoriaDisenoExporter.ConfiguracionInicial(_proyecto));
+
+        StatusGeneracion = "Generando memoria…";
+        var resultado = await EjecutorMotorMemoria(carpetaMotor, data, docx, dir, config);
+        if (!resultado.Ok)
+        {
+            StatusGeneracion = "✕ No se generó la memoria: " + resultado.Mensaje;
+            Log("Error del motor de memorias: " + resultado.Mensaje);
+            return;
+        }
+        StatusGeneracion = $"✓ Memoria generada: {Path.GetFileName(docx)}";
+        Log($"Memoria generada en {docx}. Portada, firmas y datos del proyecto se editan en {config}.");
+        // No poder abrirla no es un fallo de generación: el documento ya existe.
+        try { AbridorDeDocumentos(docx); }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
+        {
+            Log("La memoria se generó, pero no se pudo abrir automáticamente: " + ex.Message);
+        }
+    }
 
     /// <summary>
     /// Localiza MemoriaPlus.exe en las ubicaciones probables:
