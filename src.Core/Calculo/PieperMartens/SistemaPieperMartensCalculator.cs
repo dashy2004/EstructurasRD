@@ -39,9 +39,18 @@ public sealed class SistemaPieperMartensCalculator
         // 1. Momentos por losa → filas MomentoLosa.
         var momentosPorLosa = new Dictionary<int, MomentosLosa>();
         var filaPorLosa = new Dictionary<int, MomentoLosa>();
+        // Una losa cuyo tipo o proporción no está verificada no detiene el resto:
+        // queda anotada en LosasNoParseadas y sin filas en la salida.
         foreach (var losa in sistema.Losas)
         {
-            var m = _momentos.Calcular(losa);
+            MomentosLosa m;
+            try { m = _momentos.Calcular(losa); }
+            catch (Exception ex) when (ex is NotSupportedException or ArgumentException)
+            {
+                // Tipo o proporción sin verificar, o luz no positiva.
+                salida.LosasNoParseadas.Add(losa.Id);
+                continue;
+            }
             momentosPorLosa[losa.Id] = m;
             var fila = new MomentoLosa(losa.Id, losa.Tipo, losa.Carga, losa.Espesor,
                 losa.Lx, losa.Ly, m.Mfx, m.Mfy, m.Msx, m.Msy);
@@ -55,6 +64,7 @@ public sealed class SistemaPieperMartensCalculator
         // distribución. Se anula el centro de la dirección que vuela.
         foreach (var losa in sistema.Losas)
         {
+            if (!filaPorLosa.ContainsKey(losa.Id)) continue;
             var d = AcerosLosaDesigner.DisenarLosa(filaPorLosa[losa.Id], fc, fy, losa.Rec * 100.0);
             bool voladizo = MomentosCalculator.EsVoladizo(losa.Tipo, out bool vuelaSegunY);
 
@@ -89,6 +99,16 @@ public sealed class SistemaPieperMartensCalculator
 
         var porId = new Dictionary<int, Losa>();
         foreach (var l in sistema.Losas) porId[l.Id] = l;
+        // Una losa que no se pudo calcular no debe conservar momentos de un
+        // cálculo o importación anterior: el diseño de acero los usaría como vigentes.
+        foreach (int id in salida.LosasNoParseadas)
+        {
+            if (!porId.TryGetValue(id, out var sinCalcular)) continue;
+            sinCalcular.Mfx = null;
+            sinCalcular.Mfy = null;
+            sinCalcular.MSx = null;
+            sinCalcular.MSy = null;
+        }
         foreach (var m in salida.Momentos)
         {
             if (!porId.TryGetValue(m.LosaId, out var losa)) continue;
@@ -107,6 +127,8 @@ public sealed class SistemaPieperMartensCalculator
     {
         foreach (var b in bordes)
         {
+            // Un borde con una losa sin calcular no se puede balancear.
+            if (!momentos.ContainsKey(b.BI) || !momentos.ContainsKey(b.BJ)) continue;
             var ap = _balanceo.Balancear(b.BI, b.BJ, direccion, b.Balanceo, momentos);
 
             var losaI = BuscarLosa(sistema, b.BI);

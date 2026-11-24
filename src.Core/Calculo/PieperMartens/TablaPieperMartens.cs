@@ -64,8 +64,9 @@ public sealed class TablaPieperMartens
 
     /// <summary>
     /// Mapea el código de tipo del .DL (p. ej. 40) al sub-tipo de tabla (p. ej. "4").
-    /// Sólo el 40 está verificado numéricamente contra Losas.exe (RESTAURANTE 2);
-    /// el resto se irá confirmando con más fixtures (ver TABLAS-PERDOMO.md).
+    /// Cubre las losas apoyadas en cuatro bordes (10 a 60). Las apoyadas en tres
+    /// bordes (13 a 64) siguen sin mapear: no hay listado de Losas.exe con que
+    /// confirmar su orientación (ver TABLAS-PERDOMO.md).
     /// </summary>
     public string SubtipoDeCodigoDL(int codigo)
         => CodigoASubtipo.TryGetValue(codigo, out var st)
@@ -73,10 +74,41 @@ public sealed class TablaPieperMartens
             : throw new NotSupportedException(
                 $"Código de tipo {codigo} aún no mapeado a sub-tipo de tabla (faltan fixtures de validación).");
 
+    /// <summary>
+    /// Cantidad de bordes continuos de un tipo de cuatro apoyos: <c>NS</c> en los
+    /// bordes horizontales (norte y sur) y <c>EW</c> en los verticales (este y
+    /// oeste). Lo usa el cálculo en una dirección.
+    /// </summary>
+    public (int NS, int EW) BordesContinuos(int codigo)
+        => ContinuosPorCodigo.TryGetValue(codigo, out var c)
+            ? c
+            : throw new NotSupportedException(
+                $"Código de tipo {codigo} aún no mapeado a sub-tipo de tabla (faltan fixtures de validación).");
+
+    // Verificados contra Losas.exe con el sistema de demostración de 27 losas
+    // dentro del rango de la tabla (error ≤ 0.015 ton·m/m): 40, 51, 52 y 60.
+    // Los tipos 10, 21, 22, 31 y 32 solo aparecen allí como losas en una
+    // dirección: su orientación (qué momento de apoyo existe) está confirmada,
+    // pero sus valores dentro del rango de la tabla no tienen listado de control.
     private static readonly IReadOnlyDictionary<int, string> CodigoASubtipo = new Dictionary<int, string>
     {
-        [40] = "4",   // 2 bordes adyacentes empotrados — verificado vs Losas.exe
+        [10] = "1",    // 4 apoyos simples
+        [21] = "2a",   // 1 borde continuo horizontal (norte o sur)
+        [22] = "2b",   // 1 borde continuo vertical (este u oeste)
+        [31] = "3a",   // 2 continuos opuestos, norte y sur
+        [32] = "3b",   // 2 continuos opuestos, este y oeste
+        [40] = "4",    // 2 continuos adyacentes
+        [51] = "5a",   // 3 continuos; el apoyo simple es horizontal
+        [52] = "5b",   // 3 continuos; el apoyo simple es vertical
+        [60] = "6",    // 4 continuos
     };
+
+    private static readonly IReadOnlyDictionary<int, (int NS, int EW)> ContinuosPorCodigo =
+        new Dictionary<int, (int NS, int EW)>
+        {
+            [10] = (0, 0), [21] = (1, 0), [22] = (0, 1), [31] = (2, 0), [32] = (0, 2),
+            [40] = (1, 1), [51] = (1, 2), [52] = (2, 1), [60] = (2, 2),
+        };
 
     // ---- helpers ---------------------------------------------------------
 

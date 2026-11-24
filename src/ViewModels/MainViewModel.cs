@@ -1432,6 +1432,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             var parsed = TxtParser.Parse(content, Sistema.Losas);
             TxtParser.Apply(parsed, Sistema.Losas);
             TxtParser.ApplyApoyos(parsed, Sistema.BordesX, Sistema.BordesY);
+            // La memoria lee las tablas de momentos y armaduras de SalidaPerdomo:
+            // sin esto, importar el .TXT no llegaba al documento.
+            Sistema.SalidaPerdomo = SalidaPerdomoAdapter.From(parsed, path, Sistema.Losas.Select(l => l.Id));
             OnPropertyChanged(nameof(LosasFiltradas));
             Aceros.Recargar();   // los momentos recién importados alimentan el diseño de acero
 
@@ -1468,6 +1471,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             OnPropertyChanged(nameof(LosasFiltradas));
             Aceros.Recargar();
             Log($"Cálculo nativo Pieper-Martens: {salida.Momentos.Count} losas (sin Losas.exe).");
+            if (salida.LosasNoParseadas.Count > 0)
+                Log("Sin calcular (tipo o proporción sin verificar contra Losas.exe): losas "
+                    + string.Join(", ", salida.LosasNoParseadas) + ". Use Losas.exe para esas losas.");
         }
         catch (Exception ex) { Log("Error en cálculo nativo Pieper-Martens: " + ex.Message); }
         finally { Ocupado = false; }
@@ -1950,7 +1956,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// </summary>
     public async Task<bool> GuardarAsync()
     {
-        if (string.IsNullOrEmpty(_proyecto.Archivo)) return await GuardarComoAsync();
+        // Abrir o guardar un .DL deja su ruta en Proyecto.Archivo. Guardar el
+        // proyecto ahí escribiría JSON dentro del .DL: se pide destino.
+        if (!EsArchivoDeProyecto(_proyecto.Archivo)) return await GuardarComoAsync();
         try
         {
             // Backup ANTES del Save, sobre el archivo existente (preserva
@@ -1983,6 +1991,9 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             new MemoriaPlus.Services.FileFilter("Proyecto LosasPlus", new[] { "*.lpx.json" }),
             new MemoriaPlus.Services.FileFilter("JSON", new[] { "*.json" }));
         if (ruta is null) return false;
+        // Sin extensión .json el archivo no se reconocería luego como proyecto
+        // y cada guardado volvería a pedir destino.
+        if (!EsArchivoDeProyecto(ruta)) ruta += ProyectoSerializer.Extension;
         try
         {
             ProyectoSerializer.Save(_proyecto, ruta);
@@ -2149,25 +2160,43 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// la lógica de generación.
     /// </para>
     /// </summary>
-    public void GenerarMemoria()
+    public void GenerarMemoria() => _ = GenerarMemoriaAsync();
+
+    /// <summary>True si la ruta es un proyecto serializado (<c>.lpx.json</c> o <c>.json</c>), no un <c>.DL</c>.</summary>
+    public static bool EsArchivoDeProyecto(string? ruta)
+        => !string.IsNullOrWhiteSpace(ruta) && ruta.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Abre MemoriaPlus con el archivo del proyecto. Sustituible en pruebas para
+    /// no lanzar un proceso real.
+    /// </summary>
+    public Action<string, string> LanzadorMemoria { get; set; } = (exe, archivo) =>
+        Process.Start(new ProcessStartInfo(exe) { Arguments = $"\"{archivo}\"", UseShellExecute = true });
+
+    /// <summary>
+    /// Guarda el proyecto (esperando al diálogo si aún no tiene archivo) y abre
+    /// MemoriaPlus con él.
+    /// </summary>
+    public async Task GenerarMemoriaAsync()
     {
+        if (_generandoMemoria) return;   // un segundo clic no abre otro diálogo de guardado
+        _generandoMemoria = true;
         try
         {
-            // Si el proyecto no está guardado, forzar guardar como.
-            if (string.IsNullOrEmpty(_proyecto.Archivo))
+            Log("Guardando proyecto antes de generar la memoria...");
+            if (!await GuardarAsync())
             {
-                Log("Guardando proyecto antes de abrir MemoriaPlus...");
-                GuardarComoLpx();
-                if (string.IsNullOrEmpty(_proyecto.Archivo))
-                {
-                    StatusGeneracion = "Cancelado — necesitás guardar el proyecto primero.";
-                    return;
-                }
+                StatusGeneracion = "Cancelado — necesitás guardar el proyecto primero.";
+                return;
             }
-            else
+
+            // Con el motor memoria-diseno instalado, la memoria se arma directo
+            // desde el proyecto; sin él se abre MemoriaPlus, como antes.
+            string? carpetaMotor = CarpetaMotorMemoria();
+            if (carpetaMotor is not null)
             {
-                // Auto-guardar antes de abrir.
-                GuardarProyectoLpx();
+                await GenerarConMotorAsync(carpetaMotor);
+                return;
             }
 
             var memoriaExe = ResolverMemoriaPlusExe();
@@ -2181,11 +2210,7 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
             // Lanzar MemoriaPlus.exe con el path del .lpx.json. La otra app
             // puede leerlo de Environment.GetCommandLineArgs() en su startup
             // y abrir el proyecto directamente.
-            Process.Start(new ProcessStartInfo(memoriaExe)
-            {
-                Arguments = $"\"{_proyecto.Archivo}\"",
-                UseShellExecute = true,
-            });
+            LanzadorMemoria(memoriaExe, _proyecto.Archivo);
             StatusGeneracion = $"→ MemoriaPlus abierto con {Path.GetFileName(_proyecto.Archivo)}";
             Log($"MemoriaPlus lanzado: {memoriaExe} con {_proyecto.Archivo}");
         }
@@ -2193,6 +2218,64 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
         {
             StatusGeneracion = $"✕ Error: {ex.Message}";
             Log("Error abriendo MemoriaPlus: " + ex.Message);
+        }
+        finally { _generandoMemoria = false; }
+    }
+
+    private bool _generandoMemoria;
+
+    /// <summary>Carpeta del motor <c>memoria-diseno</c>, o <c>null</c> si no está instalado. Sustituible en pruebas.</summary>
+    public Func<string?> CarpetaMotorMemoria { get; set; } =
+        () => LosasPlus.Generation.MotorMemoriaDiseno.ResolverCarpeta(AppContext.BaseDirectory);
+
+    /// <summary>Corre el motor (carpeta, data.json, .docx, carpeta de trabajo, memoria.json). Sustituible en pruebas.</summary>
+    public Func<string, string, string, string, string, Task<LosasPlus.Generation.ResultadoMotorMemoria>> EjecutorMotorMemoria { get; set; } =
+        LosasPlus.Generation.MotorMemoriaDiseno.GenerarAsync;
+
+    /// <summary>Abre el documento generado con su programa asociado. Sustituible en pruebas.</summary>
+    public Action<string> AbridorDeDocumentos { get; set; } =
+        ruta => Process.Start(new ProcessStartInfo(ruta) { UseShellExecute = true });
+
+    /// <summary>
+    /// Arma la memoria con el motor <c>memoria-diseno</c>: escribe junto al
+    /// proyecto una carpeta <c>&lt;proyecto&gt;-memoria</c> con <c>data.json</c>
+    /// (se reescribe siempre) y <c>memoria.json</c> (solo si no existe, para no
+    /// pisar lo que el usuario editó), corre el motor y abre el Word.
+    /// </summary>
+    private async Task GenerarConMotorAsync(string carpetaMotor)
+    {
+        string nombre = Path.GetFileName(_proyecto.Archivo);
+        foreach (string ext in new[] { ProyectoSerializer.Extension, ".json" })
+        {
+            if (!nombre.EndsWith(ext, StringComparison.OrdinalIgnoreCase)) continue;
+            nombre = nombre[..^ext.Length];
+            break;
+        }
+        string dir = Path.Combine(Path.GetDirectoryName(_proyecto.Archivo) ?? ".", nombre + "-memoria");
+        Directory.CreateDirectory(dir);
+        string data = Path.Combine(dir, "data.json");
+        string config = Path.Combine(dir, "memoria.json");
+        string docx = Path.Combine(dir, $"Memoria - {nombre}.docx");
+
+        await File.WriteAllTextAsync(data, LosasPlus.Generation.MemoriaDisenoExporter.ExportarDatos(_proyecto));
+        if (!File.Exists(config))
+            await File.WriteAllTextAsync(config, LosasPlus.Generation.MemoriaDisenoExporter.ConfiguracionInicial(_proyecto));
+
+        StatusGeneracion = "Generando memoria…";
+        var resultado = await EjecutorMotorMemoria(carpetaMotor, data, docx, dir, config);
+        if (!resultado.Ok)
+        {
+            StatusGeneracion = "✕ No se generó la memoria: " + resultado.Mensaje;
+            Log("Error del motor de memorias: " + resultado.Mensaje);
+            return;
+        }
+        StatusGeneracion = $"✓ Memoria generada: {Path.GetFileName(docx)}";
+        Log($"Memoria generada en {docx}. Portada, firmas y datos del proyecto se editan en {config}.");
+        // No poder abrirla no es un fallo de generación: el documento ya existe.
+        try { AbridorDeDocumentos(docx); }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException)
+        {
+            Log("La memoria se generó, pero no se pudo abrir automáticamente: " + ex.Message);
         }
     }
 
@@ -2204,31 +2287,25 @@ public class MainViewModel : INotifyPropertyChanged, MemoriaPlusVm.IValidacionHo
     /// Devuelve null si no la encuentra.
     /// </summary>
     private static string? ResolverMemoriaPlusExe()
+        => RutasCandidatasMemoriaPlus(AppContext.BaseDirectory).FirstOrDefault(File.Exists);
+
+    /// <summary>
+    /// Rutas donde puede estar el ejecutable de MemoriaPlus, en orden de
+    /// preferencia: junto a LosasPlus y, en desarrollo, en la salida de
+    /// <c>src.Memoria</c> (<c>net8.0</c>, que es el destino real del proyecto, y
+    /// el antiguo <c>net8.0-windows</c>), con y sin extensión <c>.exe</c>.
+    /// </summary>
+    public static IEnumerable<string> RutasCandidatasMemoriaPlus(string dirBase)
     {
-        var dir = AppContext.BaseDirectory;
-        // 1. Side-by-side (release packaged)
-        var sidebyside = Path.Combine(dir, "MemoriaPlus.exe");
-        if (File.Exists(sidebyside)) return sidebyside;
-        var sidebysideLinux = Path.Combine(dir, "MemoriaPlus");
-        if (File.Exists(sidebysideLinux)) return sidebysideLinux;
+        string[] nombres = { "MemoriaPlus.exe", "MemoriaPlus" };
+        foreach (var n in nombres) yield return Path.Combine(dirBase, n);
 
-        // 2-3. Dev: subir hasta encontrar el sibling src.Memoria/
-        var probe = new DirectoryInfo(dir);
-        for (int i = 0; i < 6 && probe != null; i++)
-        {
-            var devDebug   = Path.Combine(probe.FullName, "src.Memoria", "bin", "Debug",   "net8.0-windows", "MemoriaPlus.exe");
-            var devRelease = Path.Combine(probe.FullName, "src.Memoria", "bin", "Release", "net8.0-windows", "MemoriaPlus.exe");
-            if (File.Exists(devDebug))   return devDebug;
-            if (File.Exists(devRelease)) return devRelease;
-
-            var devDebugLinux   = Path.Combine(probe.FullName, "src.Memoria", "bin", "Debug",   "net8.0", "MemoriaPlus");
-            var devReleaseLinux = Path.Combine(probe.FullName, "src.Memoria", "bin", "Release", "net8.0", "MemoriaPlus");
-            if (File.Exists(devDebugLinux))   return devDebugLinux;
-            if (File.Exists(devReleaseLinux)) return devReleaseLinux;
-
-            probe = probe.Parent;
-        }
-        return null;
+        var probe = new DirectoryInfo(dirBase);
+        for (int i = 0; i < 6 && probe != null; i++, probe = probe.Parent)
+            foreach (var config in new[] { "Debug", "Release" })
+                foreach (var tfm in new[] { "net8.0", "net8.0-windows" })
+                    foreach (var n in nombres)
+                        yield return Path.Combine(probe.FullName, "src.Memoria", "bin", config, tfm, n);
     }
 
     private string SugerirNombreLpx()
