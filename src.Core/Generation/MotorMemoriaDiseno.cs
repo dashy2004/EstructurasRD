@@ -9,7 +9,10 @@ using System.Threading.Tasks;
 namespace LosasPlus.Generation;
 
 /// <summary>Resultado de una corrida del motor de memorias.</summary>
-public readonly record struct ResultadoMotorMemoria(bool Ok, string Mensaje);
+public readonly record struct ResultadoMotorMemoria(bool Ok, string Mensaje)
+{
+    public string? Avisos { get; init; }
+}
 
 /// <summary>
 /// Localiza y ejecuta el motor <c>memoria-diseno</c> (Python, repositorio
@@ -68,8 +71,15 @@ public static class MotorMemoriaDiseno
     /// <param name="salidaDocx">Ruta del Word a crear.</param>
     /// <param name="carpetaTrabajo">Carpeta de temporales e imágenes.</param>
     /// <param name="memoriaJson">Ruta de <c>memoria.json</c>.</param>
-    public static async Task<ResultadoMotorMemoria> GenerarAsync(
+    public static Task<ResultadoMotorMemoria> GenerarAsync(
         string carpetaMotor, string dataJson, string salidaDocx, string carpetaTrabajo, string memoriaJson)
+        => GenerarAsync(carpetaMotor, dataJson, salidaDocx, carpetaTrabajo, memoriaJson,
+            Path.Combine(carpetaTrabajo, "imagenes"));
+
+    /// <summary>Genera el documento con las figuras del expediente y temporales en una carpeta independiente.</summary>
+    public static async Task<ResultadoMotorMemoria> GenerarAsync(
+        string carpetaMotor, string dataJson, string salidaDocx, string carpetaTrabajo,
+        string memoriaJson, string carpetaImagenes)
     {
         var info = new ProcessStartInfo(ResolverPython(carpetaMotor))
         {
@@ -86,7 +96,7 @@ public static class MotorMemoriaDiseno
         foreach (string a in new[]
                  {
                      "-X", "utf8", Path.Combine(carpetaMotor, Guion), dataJson, "", salidaDocx,
-                     Path.Combine(carpetaTrabajo, "tmp"), Path.Combine(carpetaTrabajo, "imagenes"), memoriaJson,
+                     Path.Combine(carpetaTrabajo, "tmp"), carpetaImagenes, memoriaJson,
                  })
             info.ArgumentList.Add(a);
 
@@ -132,7 +142,13 @@ public static class MotorMemoriaDiseno
                 return new ResultadoMotorMemoria(false, UltimaLinea(err, $"El motor terminó con código {proceso.ExitCode}."));
             if (!File.Exists(salidaDocx))
                 return new ResultadoMotorMemoria(false, "El motor terminó sin crear el documento.");
-            return new ResultadoMotorMemoria(true, salidaDocx);
+            string avisos = string.Join(Environment.NewLine, err.Split('\n')
+                .Select(linea => linea.Trim())
+                .Where(linea => linea.StartsWith("AVISO:", StringComparison.Ordinal)));
+            return new ResultadoMotorMemoria(true, salidaDocx)
+            {
+                Avisos = avisos.Length == 0 ? null : avisos,
+            };
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException or InvalidOperationException)
         {

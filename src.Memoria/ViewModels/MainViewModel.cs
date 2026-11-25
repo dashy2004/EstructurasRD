@@ -33,7 +33,7 @@ namespace MemoriaPlus.ViewModels;
 /// commit posterior.
 /// </para>
 /// </summary>
-public sealed class MainViewModel : INotifyPropertyChanged
+public sealed partial class MainViewModel : INotifyPropertyChanged
 {
     public MainViewModel()
     {
@@ -53,6 +53,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
         ImportarCargasXlsCommand  = new AsyncRelayCommand(ImportarCargasXls);
         ImportarTxtPerdomoCommand = new AsyncRelayCommand(ImportarTxtPerdomo, () => SistemaActivo != null);
         QuitarTxtPerdomoCommand   = new RelayCommand(QuitarTxtPerdomo,   () => SistemaActivo?.TieneSalidaPerdomo == true);
+        GenerarDisenoCommand = new AsyncRelayCommand(GenerarDisenoAsync, () => !GenerandoDiseno);
+        SeleccionarDatosDisenoCommand = new AsyncRelayCommand(() => SeleccionarEntradaAsync(true), () => !GenerandoDiseno);
+        SeleccionarConfiguracionDisenoCommand = new AsyncRelayCommand(() => SeleccionarEntradaAsync(false), () => !GenerandoDiseno);
+        UsarProyectoDisenoCommand = new RelayCommand(RestablecerFuenteDiseno, () => !GenerandoDiseno);
+        AbrirDisenoCommand = new RelayCommand(AbrirDiseno, () => UltimoDiseno != null);
+        GenerarDisenoCommand.CanExecuteChanged += (_, _) => ContinuarCommand.RaiseCanExecuteChanged();
         GenerarMemoriaCommand     = new AsyncRelayCommand(GenerarMemoria);
         AbrirUltimaMemoriaCommand = new RelayCommand(AbrirUltimaMemoria, () => UltimoArchivoGenerado != null);
         AbrirProyectoRecienteCommand = new RelayCommand<string>(AbrirProyectoReciente);
@@ -110,7 +116,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         TabActivo = ResolverTabInicialDesdeArgs();
 
         // ---- Proyecto activo (semilla de ejemplo Torre Residencial + sistemas) ----
-        ProyectoActivo = SeedProyectoEjemplo();
+        ProyectoActivo = Environment.GetCommandLineArgs().Contains("--diseno", StringComparer.OrdinalIgnoreCase)
+            ? new Proyecto { Nombre = "" } : SeedProyectoEjemplo();
         SistemaActivo  = ProyectoActivo.Sistemas.FirstOrDefault();
 
         // ---- Recalculo inicial: llena HCalc/HEq/Qmamp/Qd/Qu en cada losa ----
@@ -230,6 +237,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 OnPropertyChanged(nameof(CurrentView));
                 ContinuarCommand.RaiseCanExecuteChanged();
                 OnPropertyChanged(nameof(TextoBotonContinuar));
+                OnPropertyChanged(nameof(FuenteDiseno));
+                OnPropertyChanged(nameof(MostrarValidacionProyecto));
             }
         }
     }
@@ -242,6 +251,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         set
         {
             _proyectoActivo = value;
+            RestablecerFuenteDiseno();
             OnPropertyChanged();
             OnPropertyChanged(nameof(TituloVentana));
             RefrescarChecklist();
@@ -315,6 +325,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// Solo el modo Cálculos muestra los tabs Datos/Cargas/Niveles/Generar
     /// y los botones Guardar/Continuar del top bar.
     /// </summary>
+    public bool MostrarValidacionProyecto => TabActivo?.Slug != "Generar";
+
     public bool MostrarTopBarTabs => _modoActivo == ModoSidebar.Calculos;
 
     private ProyectoResumen? _proyectoRecienteSeleccionado;
@@ -533,11 +545,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             TabActivo = Tabs[idx + 1];
         }
-        // En la pestaña Generar (última), el botón despachara la generación —
-        // por ahora es no-op, se conectará en el commit del MemoriaGenerator.
+        else if (idx >= 0 && GenerarDisenoCommand.CanExecute(null))
+            GenerarDisenoCommand.Execute(null);
     }
 
-    private bool PuedeContinuar() => Tabs.IndexOf(_tabActivo) < Tabs.Count - 1;
+    private bool PuedeContinuar()
+    {
+        int idx = Tabs.IndexOf(_tabActivo);
+        return idx >= 0 && (idx < Tabs.Count - 1 || GenerarDisenoCommand.CanExecute(null));
+    }
 
     /// <summary>
     /// Permite a un smoke test/launcher abrir la app directamente en una pestaña
@@ -960,7 +976,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     /// <summary>Título del Window — incluye el path del archivo si está guardado.</summary>
     public string TituloVentana =>
-        ProyectoActivo is null
+        ProyectoActivo is null || (string.IsNullOrWhiteSpace(ProyectoActivo.Nombre) && string.IsNullOrWhiteSpace(ProyectoActivo.Archivo))
             ? Branding.Producto
             : string.IsNullOrEmpty(ProyectoActivo.Archivo)
                 ? $"{Branding.Producto} — {ProyectoActivo.Nombre} (sin guardar)"

@@ -6,12 +6,57 @@
              x:CompileBindings="False"
              Background="{StaticResource SurfaceBrush}">
 
-    <Grid Margin="24,16,24,16" ColumnDefinitions="380,16,*">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="24,18,24,24" Spacing="16">
+            <StackPanel Spacing="3">
+                <TextBlock FontSize="26" FontWeight="SemiBold" Foreground="{StaticResource OnSurfaceBrush}"
+                           Text="Memoria de diseño"/>
+                <TextBlock TextWrapping="Wrap" Foreground="{StaticResource OnSurfaceVariantBrush}"
+                           Text="Genera un documento Word editable a partir del proyecto de MemoriaPlus o de un expediente de CDCRD Digital."/>
+            </StackPanel>
+
+            <Grid ColumnDefinitions="3*,14,2*">
+                <Border Grid.Column="0" Theme="{StaticResource SectionCardStyle}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Theme="{StaticResource H2Style}" Text="Datos del informe"/>
+                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="ORIGEN"/>
+                        <TextBlock Text="{Binding FuenteDiseno}" TextWrapping="Wrap"/>
+                        <WrapPanel>
+                            <Button Content="Usar proyecto activo" Margin="0,0,6,6"
+                                    Theme="{StaticResource SecondaryButtonStyle}" Command="{Binding UsarProyectoDisenoCommand}"/>
+                            <Button Content="Elegir data.json…" Margin="0,0,0,6"
+                                    Theme="{StaticResource SecondaryButtonStyle}" Command="{Binding SeleccionarDatosDisenoCommand}"/>
+                        </WrapPanel>
+                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="PORTADA Y CONFIGURACIÓN"/>
+                        <TextBlock Text="{Binding ConfiguracionDiseno}" TextWrapping="Wrap"/>
+                        <Button Content="Elegir memoria.json…" HorizontalAlignment="Left"
+                                Theme="{StaticResource SecondaryButtonStyle}" Command="{Binding SeleccionarConfiguracionDisenoCommand}"/>
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="2" Theme="{StaticResource SectionCardStyle}">
+                    <StackPanel Spacing="12">
+                        <TextBlock Theme="{StaticResource H2Style}" Text="Documento Word"/>
+                        <TextBlock Foreground="{StaticResource OnSurfaceVariantBrush}" TextWrapping="Wrap"
+                                   Text="El proyecto activo aporta sus niveles y losas. Un data.json preparado también puede incluir cargas, bloques de ETABS y fundaciones de SAFE."/>
+                        <Button Content="Generar memoria de diseño" HorizontalAlignment="Stretch"
+                                Theme="{StaticResource PrimaryButtonStyle}" Command="{Binding GenerarDisenoCommand}"/>
+                        <ProgressBar IsIndeterminate="True" IsVisible="{Binding GenerandoDiseno}" Height="4"/>
+                        <TextBlock Text="{Binding EstadoDiseno}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                        <TextBlock Text="{Binding UltimoDiseno}" TextWrapping="Wrap"
+                                   FontSize="12" Foreground="{StaticResource OnSurfaceVariantBrush}"/>
+                        <Button Content="Abrir Word generado" HorizontalAlignment="Left"
+                                Theme="{StaticResource SecondaryButtonStyle}" Command="{Binding AbrirDisenoCommand}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <Expander Header="Plantilla de losas de MemoriaPlus" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+    <Grid Margin="0,12,0,0" ColumnDefinitions="*,12,*">
 
         <!-- COL 1 — Checklist + acción primaria -->
         <Border Grid.Column="0" Theme="{StaticResource SectionCardStyle}">
             <Grid RowDefinitions="Auto,Auto,*,Auto">
-                <TextBlock Grid.Row="0" Theme="{StaticResource H2Style}" Text="Generar memoria"/>
+                <TextBlock Grid.Row="0" Theme="{StaticResource H2Style}" Text="Memoria de losas"/>
                 <TextBlock Grid.Row="1" Margin="0,4,0,16"
                            Foreground="{StaticResource OnSurfaceVariantBrush}"
                            FontSize="13" TextWrapping="Wrap"
@@ -54,7 +99,7 @@
 
                 <StackPanel Grid.Row="3">
                     <Button Theme="{StaticResource PrimaryButtonStyle}"
-                            Content="📄 Generar memoria .docx"
+                            Content="Generar con plantilla"
                             HorizontalAlignment="Stretch" Height="40"
                             Command="{Binding GenerarMemoriaCommand}"/>
                     <TextBlock Margin="0,8,0,0" Foreground="{StaticResource OnSurfaceVariantBrush}"
@@ -92,7 +137,7 @@
                                        Margin="0,12,0,4" Text="Aún no hay memoria generada"/>
                             <TextBlock Foreground="{StaticResource OnSurfaceVariantBrush}"
                                        FontSize="13" TextAlignment="Center" TextWrapping="Wrap"
-                                       Text="Presiona “Generar memoria .docx” a la izquierda para producir el documento. Verás aquí el reporte con la cantidad de placeholders sustituidos y el path al archivo final."/>
+                                       Text="Presiona “Generar con plantilla” a la izquierda para producir el documento. Verás aquí el reporte con la cantidad de placeholders sustituidos y el path al archivo final."/>
                         </StackPanel>
                     </Border>
 
@@ -157,4 +202,7 @@
             </Grid>
         </Border>
     </Grid>
+            </Expander>
+        </StackPanel>
+    </ScrollViewer>
 </UserControl>

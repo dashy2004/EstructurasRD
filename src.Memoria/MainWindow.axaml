@@ -132,6 +132,7 @@
                         <Button Margin="0,0,12,0" Padding="10,4" Cursor="Hand" BorderThickness="1"
                                 Background="{Binding Validacion.ColorIndicador, Converter={x:Static cmn:ValidacionConverters.ChipFondo}}"
                                 BorderBrush="{Binding Validacion.ColorIndicador, Converter={x:Static cmn:ValidacionConverters.ChipBorde}}"
+                                IsVisible="{Binding MostrarValidacionProyecto}"
                                 Command="{Binding Validacion.AbrirPanelCommand}"
                                 ToolTip.Tip="Abrir panel de validación normativa">
                             <TextBlock VerticalAlignment="Center"
