@@ -22,9 +22,9 @@ permissions:
 
 jobs:
   calcular:
-    uses: dashy2004/CDCRD-Digital/.github/workflows/calculo-losas.yml@54988a210a0ae0fd7c8aef8c8df8631319deef94
+    uses: dashy2004/CDCRD-Digital/.github/workflows/calculo-losas.yml@b717d371ba5809c29e80577971eff660a98272d4
     with:
-      revision_cdcrd: 54988a210a0ae0fd7c8aef8c8df8631319deef94
+      revision_cdcrd: b717d371ba5809c29e80577971eff660a98272d4
       motor_del_cliente: true
       proyecto: ${{ inputs.proyecto || '' }}
       usos: ${{ inputs.usos || '' }}

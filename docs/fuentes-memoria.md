@@ -10,7 +10,7 @@ El formato de revisión, sus pruebas y los flujos de referencia se mantienen en 
 
 ## Revisión sísmica por piso
 
-El flujo **Comprobar derivas de diseño por piso** llama al verificador de CDCRD-Digital fijado en `4739679`. El ejemplo de regresión reproduce el caso de igualdad del autotest de esa herramienta. La entrada usa altura de entrepiso y desplazamiento de diseño en metros, dirección, caso, tipo estructural, categoría de riesgo y condiciones de la tabla. Un cociente de deriva elástica exportado de un modelo necesita conversión y trazabilidad antes de utilizarse como desplazamiento de diseño.
+El flujo **Comprobar derivas de diseño por piso** ejecuta el verificador del commit de CDCRD-Digital indicado por el flujo reutilizable. El ejemplo de regresión reproduce el caso de igualdad del autotest de esa herramienta. La entrada usa altura de entrepiso y desplazamiento de diseño en metros, dirección, caso, tipo estructural, categoría de riesgo y condiciones de la tabla. Un cociente de deriva elástica exportado de un modelo necesita conversión y trazabilidad antes de utilizarse como desplazamiento de diseño.
 
 El push a la rama `codex/memoriaplus-diseno` de un archivo `entradas-sismo/derivas.json` activa la verificación y conserva la entrada y el resultado en el artefacto `revision-derivas`. En un repositorio público use exclusivamente ejemplos sintéticos. Para expedientes reales, utilice un repositorio privado autorizado o ejecute el verificador local. Un resultado **INCOMPLETO** identifica datos físicos o de aplicabilidad pendientes. El resultado describe la revisión de las filas aportadas. La deriva global, el espectro y las demás comprobaciones requieren sus propios datos.
 
