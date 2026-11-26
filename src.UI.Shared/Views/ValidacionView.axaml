@@ -7,6 +7,15 @@
              Width="420"
              Background="{StaticResource SurfaceBrush}">
 
+    <UserControl.Styles>
+        <Style Selector="PathIcon.gravedad">
+            <Setter Property="Data" Value="{StaticResource IconExclamationTriangle}"/>
+        </Style>
+        <Style Selector="PathIcon.gravedad.error">
+            <Setter Property="Data" Value="{StaticResource IconSlashCircle}"/>
+        </Style>
+    </UserControl.Styles>
+
     <UserControl.Resources>
         <!-- Pill de filtro: Todas/Errores/Observaciones -->
         <ControlTheme x:Key="FilterPillStyle" TargetType="RadioButton">
@@ -60,19 +69,23 @@
                         <TextBlock FontFamily="{StaticResource FontFamilyUI}"
                                    FontSize="16" FontWeight="SemiBold"
                                    Foreground="{StaticResource OnSurfaceBrush}"
-                                   Text="🛡  Validación normativa"/>
+                                   Text="Validación normativa"/>
                         <TextBlock FontFamily="{StaticResource FontFamilyMono}"
                                    FontSize="11"
                                    Foreground="{StaticResource OnSurfaceVariantBrush}"
                                    Margin="0,2,0,0"
                                    Text="{Binding Reporte.ReglamentoAplicable}"/>
                     </StackPanel>
-                    <Button Grid.Column="1" Content="✕" Padding="8,2"
+                    <Button Grid.Column="1" AutomationProperties.Name="Cerrar" Padding="8,2"
                             Background="Transparent" BorderThickness="0"
                             Cursor="Hand" FontSize="14"
                             Foreground="{StaticResource OnSurfaceVariantBrush}"
                             Command="{Binding CerrarPanelCommand}"
-                            ToolTip.Tip="Cerrar panel"/>
+                            ToolTip.Tip="Cerrar panel">
+                        <PathIcon Data="{StaticResource IconXLg}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+
+                                  AutomationProperties.AccessibilityView="Raw"/>
+                    </Button>
                 </Grid>
             </Border>
 
@@ -86,8 +99,7 @@
                         BorderThickness="1"
                         CornerRadius="{StaticResource CornerRadiusDefault}">
                     <StackPanel HorizontalAlignment="Center">
-                        <TextBlock Text="⊘" FontSize="18" HorizontalAlignment="Center"
-                                   Foreground="{StaticResource ErrorBrush}"/>
+                        <PathIcon Data="{StaticResource IconSlashCircle}" Width="18" Height="18" HorizontalAlignment="Center" Foreground="{StaticResource ErrorBrush}" AutomationProperties.AccessibilityView="Raw"/>
                         <TextBlock Text="{Binding TotalErrores}"
                                    FontFamily="{StaticResource FontFamilyMono}"
                                    FontSize="22" FontWeight="Bold"
@@ -106,8 +118,7 @@
                         BorderThickness="1"
                         CornerRadius="{StaticResource CornerRadiusDefault}">
                     <StackPanel HorizontalAlignment="Center">
-                        <TextBlock Text="⚠" FontSize="18" HorizontalAlignment="Center"
-                                   Foreground="{StaticResource WarningBrush}"/>
+                        <PathIcon Data="{StaticResource IconExclamationTriangle}" Width="18" Height="18" HorizontalAlignment="Center" Foreground="{StaticResource WarningBrush}" AutomationProperties.AccessibilityView="Raw"/>
                         <TextBlock Text="{Binding TotalObservaciones}"
                                    FontFamily="{StaticResource FontFamilyMono}"
                                    FontSize="22" FontWeight="Bold"
@@ -126,8 +137,7 @@
                         BorderThickness="1"
                         CornerRadius="{StaticResource CornerRadiusDefault}">
                     <StackPanel HorizontalAlignment="Center">
-                        <TextBlock Text="✓" FontSize="18" HorizontalAlignment="Center"
-                                   Foreground="{StaticResource SuccessBrush}"/>
+                        <PathIcon Data="{StaticResource IconCheckCircle}" Width="18" Height="18" HorizontalAlignment="Center" Foreground="{StaticResource SuccessBrush}" AutomationProperties.AccessibilityView="Raw"/>
                         <TextBlock Text="{Binding TotalConformes}"
                                    FontFamily="{StaticResource FontFamilyMono}"
                                    FontSize="22" FontWeight="Bold"
@@ -182,8 +192,7 @@
                             BorderThickness="1"
                             IsVisible="{Binding IssuesFiltrados.Count, Converter={x:Static cmn:ValidacionConverters.EsCero}}">
                         <StackPanel HorizontalAlignment="Center">
-                            <TextBlock Text="✓" FontSize="32" HorizontalAlignment="Center"
-                                       Foreground="{StaticResource SuccessBrush}"/>
+                            <PathIcon Data="{StaticResource IconCheckCircle}" Width="32" Height="32" HorizontalAlignment="Center" Foreground="{StaticResource SuccessBrush}" AutomationProperties.AccessibilityView="Raw"/>
                             <TextBlock Text="Sin hallazgos"
                                        FontFamily="{StaticResource FontFamilyUI}"
                                        FontSize="13" FontWeight="SemiBold"
@@ -202,9 +211,10 @@
                             <DataTemplate>
                                 <Border Theme="{StaticResource IssueCardStyle}">
                                     <Grid ColumnDefinitions="Auto,*,Auto">
-                                        <TextBlock Grid.Column="0" Margin="0,0,10,0"
-                                                   VerticalAlignment="Top" FontSize="18"
-                                                   Text="{Binding Severidad, Converter={x:Static cmn:ValidacionConverters.Icono}}"
+                                        <PathIcon Grid.Column="0" Margin="0,0,10,0"
+                                                   VerticalAlignment="Top" Width="18" Height="18"
+                                                   AutomationProperties.Name="{Binding Severidad, Converter={x:Static cmn:ValidacionConverters.Etiqueta}}"
+                                                   Classes="gravedad" Classes.error="{Binding Severidad, Converter={x:Static cmn:ValidacionConverters.EsError}}"
                                                    Foreground="{Binding Severidad, Converter={x:Static cmn:ValidacionConverters.Brush}}"/>
                                         <StackPanel Grid.Column="1">
                                             <TextBlock Text="{Binding Titulo}"
@@ -228,10 +238,16 @@
                                         </StackPanel>
                                         <Button Grid.Column="2" VerticalAlignment="Center"
                                                 Theme="{StaticResource SecondaryButtonStyle}"
-                                                Content="→ Ir" Padding="10,4"
+                                                AutomationProperties.Name="Ir" Padding="10,4"
                                                 Command="{Binding $parent[ItemsControl].DataContext.SeleccionarIssueCommand}"
                                                 CommandParameter="{Binding}"
-                                                ToolTip.Tip="Ver detalle de la violación normativa"/>
+                                                ToolTip.Tip="Ver detalle de la violación normativa">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <PathIcon Data="{StaticResource IconArrowRight}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                                          AutomationProperties.AccessibilityView="Raw"/>
+                                                <TextBlock Text="Ir" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -340,7 +356,7 @@
                             IsVisible="{Binding IssueSeleccionadoTieneAutoFix}"
                             Command="{Binding AplicarMinimoCommand}"
                             ToolTip.Tip="Setea el espesor de la losa al mínimo requerido por la norma">
-                        <TextBlock Text="{Binding IssueSeleccionado.ReferenciaNormativa, Mode=OneWay, StringFormat='✓ Aplicar mínimo {0}'}"/>
+                        <TextBlock Text="{Binding IssueSeleccionado.ReferenciaNormativa, Mode=OneWay, StringFormat='Aplicar mínimo {0}'}"/>
                     </Button>
 
                     <Button Margin="0,4,0,12" HorizontalAlignment="Stretch"
@@ -359,9 +375,15 @@
                 <Grid ColumnDefinitions="Auto,*,Auto">
                     <Button Grid.Column="0"
                             Theme="{StaticResource SecondaryButtonStyle}"
-                            Content="📋 Copiar reporte" Padding="10,0"
+                            AutomationProperties.Name="Copiar reporte" Padding="10,0"
                             Command="{Binding CopiarReporteCommand}"
-                            ToolTip.Tip="Copiar el reporte plano al portapapeles"/>
+                            ToolTip.Tip="Copiar el reporte plano al portapapeles">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconClipboard}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                      AutomationProperties.AccessibilityView="Raw"/>
+                            <TextBlock Text="Copiar reporte" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                     <TextBlock Grid.Column="1" VerticalAlignment="Center" Margin="12,0,12,0"
                                FontFamily="{StaticResource FontFamilyMono}" FontSize="10"
                                TextAlignment="Center"

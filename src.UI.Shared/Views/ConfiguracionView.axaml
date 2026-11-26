@@ -23,16 +23,40 @@
                 <RadioButton Theme="{StaticResource SidebarNavItemStyle}" GroupName="ConfigSubTab"
                              IsChecked="{Binding SubTabActivo, Converter={x:Static cmn:EnumToBoolConverter.Instance}, ConverterParameter=DatosIngeniero}"
                              IsVisible="{Binding MostrarDatosIngeniero}"
-                             Content="👤  Datos del ingeniero"/>
+                             AutomationProperties.Name="Datos del ingeniero">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconPerson}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                  AutomationProperties.AccessibilityView="Raw"/>
+                        <TextBlock Text="Datos del ingeniero" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </RadioButton>
                 <RadioButton Theme="{StaticResource SidebarNavItemStyle}" GroupName="ConfigSubTab"
                              IsChecked="{Binding SubTabActivo, Converter={x:Static cmn:EnumToBoolConverter.Instance}, ConverterParameter=Apariencia}"
-                             Content="🎨  Apariencia"/>
+                             AutomationProperties.Name="Apariencia">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconPalette}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                  AutomationProperties.AccessibilityView="Raw"/>
+                        <TextBlock Text="Apariencia" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </RadioButton>
                 <RadioButton Theme="{StaticResource SidebarNavItemStyle}" GroupName="ConfigSubTab"
                              IsChecked="{Binding SubTabActivo, Converter={x:Static cmn:EnumToBoolConverter.Instance}, ConverterParameter=Atajos}"
-                             Content="⌨  Atajos de teclado"/>
+                             AutomationProperties.Name="Atajos de teclado">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconKeyboard}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                  AutomationProperties.AccessibilityView="Raw"/>
+                        <TextBlock Text="Atajos de teclado" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </RadioButton>
                 <RadioButton Theme="{StaticResource SidebarNavItemStyle}" GroupName="ConfigSubTab"
                              IsChecked="{Binding SubTabActivo, Converter={x:Static cmn:EnumToBoolConverter.Instance}, ConverterParameter=Preferencias}"
-                             Content="⚙  Preferencias"/>
+                             AutomationProperties.Name="Preferencias">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconGear}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                  AutomationProperties.AccessibilityView="Raw"/>
+                        <TextBlock Text="Preferencias" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </RadioButton>
 
                 <!-- Status del último guardado -->
                 <Border Margin="0,24,0,0" Padding="10,8"

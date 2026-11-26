@@ -34,28 +34,70 @@
 
                 <StackPanel Grid.Row="1" Margin="16,4,16,12">
                     <Button Theme="{StaticResource PrimaryButtonStyle}" HorizontalAlignment="Stretch"
-                            Content="+ Nuevo proyecto" Command="{Binding NuevoProyectoCommand}"/>
+                            AutomationProperties.Name="Nuevo proyecto" Command="{Binding NuevoProyectoCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconPlusLg}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                      AutomationProperties.AccessibilityView="Raw"/>
+                            <TextBlock Text="Nuevo proyecto" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                     <Button Margin="0,6,0,0" Theme="{StaticResource SecondaryButtonStyle}" HorizontalAlignment="Stretch"
-                            Content="📂 Abrir proyecto…" Command="{Binding AbrirProyectoCommand}"/>
+                            AutomationProperties.Name="Abrir proyecto…" Command="{Binding AbrirProyectoCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconFolder2Open}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                      AutomationProperties.AccessibilityView="Raw"/>
+                            <TextBlock Text="Abrir proyecto…" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
 
                 <!-- Navegación primaria -->
                 <StackPanel Grid.Row="2" Margin="8,0,8,8">
                     <RadioButton Theme="{StaticResource SidebarNavItemStyle}" GroupName="SidebarNav"
                                  IsChecked="{Binding ModoActivo, Converter={x:Static cmn:EnumToBoolConverter.Instance}, ConverterParameter=Explorador}"
-                                 Content="📂  Explorador"/>
+                                 AutomationProperties.Name="Explorador">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconFolder2Open}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                      AutomationProperties.AccessibilityView="Raw"/>
+                            <TextBlock Text="Explorador" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </RadioButton>
                     <RadioButton Theme="{StaticResource SidebarNavItemStyle}" GroupName="SidebarNav"
                                  IsChecked="{Binding ModoActivo, Converter={x:Static cmn:EnumToBoolConverter.Instance}, ConverterParameter=Busqueda}"
-                                 Content="🔍  Búsqueda"/>
+                                 AutomationProperties.Name="Búsqueda">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconSearch}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                      AutomationProperties.AccessibilityView="Raw"/>
+                            <TextBlock Text="Búsqueda" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </RadioButton>
                     <RadioButton Theme="{StaticResource SidebarNavItemStyle}" GroupName="SidebarNav"
                                  IsChecked="{Binding ModoActivo, Converter={x:Static cmn:EnumToBoolConverter.Instance}, ConverterParameter=Calculos}"
-                                 Content="🧮  Cálculos"/>
+                                 AutomationProperties.Name="Cálculos">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconCalculator}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                      AutomationProperties.AccessibilityView="Raw"/>
+                            <TextBlock Text="Cálculos" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </RadioButton>
                     <RadioButton Theme="{StaticResource SidebarNavItemStyle}" GroupName="SidebarNav"
                                  IsChecked="{Binding ModoActivo, Converter={x:Static cmn:EnumToBoolConverter.Instance}, ConverterParameter=Plantillas}"
-                                 Content="📚  Plantillas"/>
+                                 AutomationProperties.Name="Plantillas">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconCollection}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                      AutomationProperties.AccessibilityView="Raw"/>
+                            <TextBlock Text="Plantillas" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </RadioButton>
                     <RadioButton Theme="{StaticResource SidebarNavItemStyle}" GroupName="SidebarNav"
                                  IsChecked="{Binding ModoActivo, Converter={x:Static cmn:EnumToBoolConverter.Instance}, ConverterParameter=Configuracion}"
-                                 Content="⚙  Configuración"/>
+                                 AutomationProperties.Name="Configuración">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconGear}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                      AutomationProperties.AccessibilityView="Raw"/>
+                            <TextBlock Text="Configuración" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </RadioButton>
                 </StackPanel>
 
                 <!-- Proyectos recientes -->

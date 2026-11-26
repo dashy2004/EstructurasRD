@@ -13,7 +13,13 @@
                      ToolTip.Tip="Buscar por nombre, ingeniero o CODIA"
                      Text="{Binding BusquedaTexto, UpdateSourceTrigger=PropertyChanged}"/>
             <Button Grid.Column="1" Theme="{StaticResource PrimaryButtonStyle}"
-                    Content="+ Nuevo proyecto" Command="{Binding NuevoProyectoCommand}"/>
+                    AutomationProperties.Name="Nuevo proyecto" Command="{Binding NuevoProyectoCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <PathIcon Data="{StaticResource IconPlusLg}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                              AutomationProperties.AccessibilityView="Raw"/>
+                    <TextBlock Text="Nuevo proyecto" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
         </Grid>
 
         <!-- Tabla de proyectos -->
@@ -82,9 +88,15 @@
                 </StackPanel>
 
                 <Button Grid.Row="2" Theme="{StaticResource PrimaryButtonStyle}"
-                        Content="📂 Abrir en Cálculos" HorizontalAlignment="Stretch"
+                        AutomationProperties.Name="Abrir en Cálculos" HorizontalAlignment="Stretch"
                         Command="{Binding AbrirEnCalculosCommand}"
-                        ToolTip.Tip="Abrir el proyecto seleccionado en la pestaña Cálculos (doble-click en la fila también funciona)"/>
+                        ToolTip.Tip="Abrir el proyecto seleccionado en la pestaña Cálculos (doble-click en la fila también funciona)">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconFolder2Open}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                  AutomationProperties.AccessibilityView="Raw"/>
+                        <TextBlock Text="Abrir en Cálculos" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
             </Grid>
         </Border>
 

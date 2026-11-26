@@ -14,7 +14,7 @@
                 <!-- Identificación -->
                 <Border Theme="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
                     <StackPanel>
-                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="🏛  IDENTIFICACIÓN"/>
+                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="IDENTIFICACIÓN"/>
                         <Grid Margin="0,12,0,0" RowDefinitions="Auto,8,Auto,8,Auto,8,Auto" ColumnDefinitions="*,12,*,12,*">
                             <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="5">
                                 <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Nombre del proyecto"/>
@@ -55,7 +55,7 @@
                 <!-- Ingeniero responsable -->
                 <Border Theme="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
                     <StackPanel>
-                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="👤  INGENIERO RESPONSABLE"/>
+                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="INGENIERO RESPONSABLE"/>
                         <Grid Margin="0,12,0,0" RowDefinitions="Auto,8,Auto" ColumnDefinitions="*,12,*">
                             <StackPanel Grid.Row="0" Grid.Column="0">
                                 <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Nombre"/>
@@ -84,7 +84,7 @@
                 <!-- Suelo y fundaciones -->
                 <Border Theme="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
                     <StackPanel>
-                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="🌍  DATOS DEL SUELO Y FUNDACIONES"/>
+                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="DATOS DEL SUELO Y FUNDACIONES"/>
                         <Grid Margin="0,12,0,0" RowDefinitions="Auto,8,Auto" ColumnDefinitions="2*,12,*,12,*">
                             <StackPanel Grid.Row="0" Grid.Column="0">
                                 <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Tipo de fundaciones"/>
@@ -112,7 +112,7 @@
                 <!-- Materiales y normas -->
                 <Border Theme="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
                     <StackPanel>
-                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="🧱  MATERIALES Y NORMAS"/>
+                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="MATERIALES Y NORMAS"/>
                         <Grid Margin="0,12,0,0" ColumnDefinitions="*,12,*,12,2*">
                             <StackPanel Grid.Column="0">
                                 <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="f'c (kg/cm²)"/>
@@ -160,7 +160,7 @@
         <Border Grid.Column="2" Theme="{StaticResource SectionCardStyle}" Margin="0,16,16,16">
             <Grid RowDefinitions="Auto,Auto,*">
                 <TextBlock Grid.Row="0" Theme="{StaticResource LabelCapsStyle}"
-                           Text="🔣  VISTA PREVIA DE PLACEHOLDERS"/>
+                           Text="VISTA PREVIA DE PLACEHOLDERS"/>
                 <TextBlock Grid.Row="1" Margin="0,4,0,12"
                            Foreground="{StaticResource OnSurfaceVariantBrush}"
                            FontSize="11" TextWrapping="Wrap"

@@ -73,6 +73,11 @@ public sealed partial class MainViewModel
     {
         ruta = Path.GetFullPath(ruta);
         await ValidarEntradaAsync(ruta, true);
+        ActivarDatosDiseno(ruta);
+    }
+
+    private void ActivarDatosDiseno(string ruta)
+    {
         string hermana = Path.Combine(Path.GetDirectoryName(ruta)!, "memoria.json");
         CambiarFuenteDiseno(ruta, File.Exists(hermana) ? hermana : null);
     }
@@ -133,11 +138,15 @@ public sealed partial class MainViewModel
     private void IndicarGeneracion(bool activa)
     {
         GenerandoDiseno = activa;
+        ActualizarComandosFuentes();
+        GenerarMemoriaCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(GenerandoDiseno));
         GenerarDisenoCommand.RaiseCanExecuteChanged();
         SeleccionarDatosDisenoCommand.RaiseCanExecuteChanged();
         SeleccionarConfiguracionDisenoCommand.RaiseCanExecuteChanged();
         UsarProyectoDisenoCommand.RaiseCanExecuteChanged();
+        CargarGitHubCommand.RaiseCanExecuteChanged();
+        ExportarChatGPTCommand.RaiseCanExecuteChanged();
     }
 
     private async Task GenerarDisenoAsync()

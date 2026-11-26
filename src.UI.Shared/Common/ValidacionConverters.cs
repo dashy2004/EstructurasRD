@@ -13,9 +13,8 @@ namespace MemoriaPlus.Common;
 /// </summary>
 public static class ValidacionConverters
 {
-    /// <summary>Severidad → icono (⊘ error, ⚠ observación).</summary>
-    public static readonly IValueConverter Icono =
-        new FuncValueConverter<ValidationSeverity, string>(s => s == ValidationSeverity.Error ? "⊘" : "⚠");
+    public static readonly IValueConverter EsError =
+        new FuncValueConverter<ValidationSeverity, bool>(severidad => severidad == ValidationSeverity.Error);
 
     /// <summary>Severidad → brush (rojo error, ámbar observación).</summary>
     public static readonly IValueConverter Brush =

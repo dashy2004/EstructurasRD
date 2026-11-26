@@ -43,7 +43,7 @@
             <Grid RowDefinitions="Auto,*,Auto">
                 <Border Grid.Row="0" Padding="16,12,16,8"
                         BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="0,0,0,1">
-                    <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="🏗  ESTRUCTURA"/>
+                    <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="ESTRUCTURA"/>
                 </Border>
 
                 <ListBox Grid.Row="1" BorderThickness="0" Background="Transparent"
@@ -82,10 +82,20 @@
 
                 <Grid Grid.Row="2" Margin="8,4,8,8" ColumnDefinitions="*,6,Auto">
                     <Button Grid.Column="0" Theme="{StaticResource SecondaryButtonStyle}"
-                            Content="+ Agregar nivel" Command="{Binding AgregarSistemaCommand}"/>
+                            AutomationProperties.Name="Agregar nivel" Command="{Binding AgregarSistemaCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconPlusLg}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                      AutomationProperties.AccessibilityView="Raw"/>
+                            <TextBlock Text="Agregar nivel" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                     <Button Grid.Column="2" Theme="{StaticResource SecondaryButtonStyle}"
-                            Content="🗑" Command="{Binding EliminarSistemaCommand}"
-                            ToolTip.Tip="Eliminar el nivel seleccionado"/>
+                            AutomationProperties.Name="Eliminar el nivel seleccionado" Command="{Binding EliminarSistemaCommand}"
+                            ToolTip.Tip="Eliminar el nivel seleccionado">
+                        <PathIcon Data="{StaticResource IconTrash3}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+
+                                  AutomationProperties.AccessibilityView="Raw"/>
+                    </Button>
                 </Grid>
             </Grid>
         </Border>
@@ -98,14 +108,20 @@
                     <Border BorderBrush="{StaticResource OutlineVariantBrush}" BorderThickness="0,0,0,1" Padding="16,10">
                         <Grid ColumnDefinitions="*,Auto">
                             <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="📐  LOSAS — NIVEL "/>
+                                <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="LOSAS — NIVEL "/>
                                 <TextBlock Theme="{StaticResource LabelCapsStyle}"
                                            Text="{Binding SistemaActivo.Nombre}"
                                            Foreground="{StaticResource PrimaryBrush}"/>
                             </StackPanel>
                             <Button Grid.Column="1" Theme="{StaticResource SecondaryButtonStyle}"
-                                    Content="+ Losa" Command="{Binding AgregarLosaCommand}"
-                                    ToolTip.Tip="Agregar losa al nivel activo (Ctrl+L)"/>
+                                    AutomationProperties.Name="Losa" Command="{Binding AgregarLosaCommand}"
+                                    ToolTip.Tip="Agregar losa al nivel activo (Ctrl+L)">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <PathIcon Data="{StaticResource IconPlusLg}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                              AutomationProperties.AccessibilityView="Raw"/>
+                                    <TextBlock Text="Losa" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                         </Grid>
                     </Border>
                 </Grid>
@@ -117,8 +133,7 @@
                             BorderThickness="1" CornerRadius="{StaticResource CornerRadiusDefault}"
                             IsVisible="{Binding HayIssuesEnSistemaActivo}">
                         <Grid ColumnDefinitions="Auto,*,Auto">
-                            <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"
-                                       FontSize="18" Foreground="{StaticResource WarningBrush}" Text="⚠"/>
+                            <PathIcon Data="{StaticResource IconExclamationTriangle}" Width="18" Height="18" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{StaticResource WarningBrush}" AutomationProperties.AccessibilityView="Raw"/>
                             <TextBlock Grid.Column="1" VerticalAlignment="Center"
                                        FontFamily="{StaticResource FontFamilyUI}" FontSize="12" TextWrapping="Wrap"
                                        Foreground="{StaticResource OnSurfaceBrush}">
@@ -207,7 +222,7 @@
                                                     BorderThickness="1" VerticalAlignment="Center"
                                                     ToolTip.Tip="Espesor insuficiente — ver Validación normativa"
                                                     IsVisible="{Binding EspesorInsuficiente}">
-                                                <TextBlock Text="⚠ Insuf."
+                                                <TextBlock Text="Insuf."
                                                            FontFamily="{StaticResource FontFamilyMono}"
                                                            FontSize="9" FontWeight="SemiBold"
                                                            Foreground="{StaticResource ErrorBrush}"/>
@@ -272,7 +287,7 @@
         <!-- COL 3 — Panel F. Perdomo -->
         <Border Grid.Column="4" Theme="{StaticResource SectionCardStyle}">
             <Grid RowDefinitions="Auto,Auto,Auto,*">
-                <TextBlock Grid.Row="0" Theme="{StaticResource LabelCapsStyle}" Text="📥  IMPORTACIÓN .TXT"/>
+                <TextBlock Grid.Row="0" Theme="{StaticResource LabelCapsStyle}" Text="IMPORTACIÓN .TXT"/>
 
                 <Button Grid.Row="1" Margin="0,12,0,0"
                         Theme="{StaticResource PrimaryButtonStyle}"
@@ -296,7 +311,7 @@
                             <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="ESTADO"/>
                             <TextBlock Margin="0,4,0,0" FontFamily="{StaticResource FontFamilyMono}" FontSize="12"
                                        Foreground="{StaticResource WarningBrush}"
-                                       Text="⚠  Sin .txt importado para este nivel"/>
+                                       Text="Sin .txt importado para este nivel"/>
                             <TextBlock Margin="0,8,0,0" FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
                                        Foreground="{StaticResource OnSurfaceVariantBrush}" TextWrapping="Wrap"
                                        Text="Bloque F. Perdomo no aparecerá en la memoria hasta importar."/>
@@ -311,10 +326,16 @@
                             IsVisible="{Binding SistemaActivo.TieneSalidaPerdomo}">
                         <StackPanel>
                             <Grid>
-                                <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="✓ .TXT IMPORTADO"
+                                <TextBlock Theme="{StaticResource LabelCapsStyle}" Text=".TXT IMPORTADO"
                                            Foreground="{StaticResource SuccessBrush}" VerticalAlignment="Center"/>
                                 <Button HorizontalAlignment="Right" Theme="{StaticResource SecondaryButtonStyle}"
-                                        Content="✕ Quitar" Padding="8,0" Command="{Binding QuitarTxtPerdomoCommand}"/>
+                                        AutomationProperties.Name="Quitar" Padding="8,0" Command="{Binding QuitarTxtPerdomoCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource IconXLg}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                                  AutomationProperties.AccessibilityView="Raw"/>
+                                        <TextBlock Text="Quitar" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
                             </Grid>
 
                             <TextBlock Margin="0,12,0,0" Theme="{StaticResource LabelCapsStyle}" Text="ARCHIVO"/>

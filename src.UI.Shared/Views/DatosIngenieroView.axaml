@@ -17,7 +17,7 @@
             <!-- IDENTIDAD -->
             <Border Theme="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
                 <StackPanel>
-                    <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="🆔  IDENTIDAD"/>
+                    <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="IDENTIDAD"/>
                     <Grid Margin="0,12,0,0" RowDefinitions="Auto,8,Auto" ColumnDefinitions="*,12,*,12,*">
                         <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="5">
                             <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Nombre completo"/>
@@ -46,7 +46,7 @@
             <!-- CONTACTO -->
             <Border Theme="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
                 <StackPanel>
-                    <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="📞  CONTACTO"/>
+                    <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="CONTACTO"/>
                     <Grid Margin="0,12,0,0" RowDefinitions="Auto,8,Auto" ColumnDefinitions="*,12,*">
                         <StackPanel Grid.Row="0" Grid.Column="0">
                             <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Teléfono fijo"/>
@@ -71,7 +71,7 @@
             <!-- FIRMA Y SELLO con drag-drop + preview -->
             <Border Theme="{StaticResource SectionCardStyle}" Margin="0,0,0,12">
                 <StackPanel>
-                    <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="✍  FIRMA Y SELLO"/>
+                    <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="FIRMA Y SELLO"/>
                     <TextBlock Margin="0,4,0,12"
                                Foreground="{StaticResource OnSurfaceVariantBrush}"
                                FontSize="11" TextWrapping="Wrap"
@@ -89,8 +89,7 @@
                                 <Grid>
                                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16"
                                                 IsVisible="{Binding Perfil.FirmaPath, Converter={x:Static cmn:StringConverters.IsNullOrEmpty}}">
-                                        <TextBlock Text="📥" FontSize="28" HorizontalAlignment="Center"
-                                                   Foreground="{StaticResource OutlineBrush}"/>
+                                        <PathIcon Data="{StaticResource IconBoxArrowInDown}" Width="28" Height="28" HorizontalAlignment="Center" Foreground="{StaticResource OutlineBrush}" AutomationProperties.AccessibilityView="Raw"/>
                                         <TextBlock Margin="0,8,0,0" TextAlignment="Center" TextWrapping="Wrap"
                                                    FontSize="11" Foreground="{StaticResource OnSurfaceVariantBrush}"
                                                    Text="Arrastra un PNG aquí o usa Examinar"/>
@@ -110,9 +109,21 @@
                                        Text="{Binding Perfil.FirmaPath, TargetNullValue='(sin firma)'}"/>
                             <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                 <Button Theme="{StaticResource SecondaryButtonStyle}"
-                                        Content="📂 Examinar…" Padding="10,2" Click="ExaminarFirma_Click"/>
+                                        AutomationProperties.Name="Examinar…" Padding="10,2" Click="ExaminarFirma_Click">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource IconFolder2Open}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                                  AutomationProperties.AccessibilityView="Raw"/>
+                                        <TextBlock Text="Examinar…" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
                                 <Button Theme="{StaticResource SecondaryButtonStyle}"
-                                        Content="✕ Quitar" Padding="10,2" Margin="6,0,0,0" Click="QuitarFirma_Click"/>
+                                        AutomationProperties.Name="Quitar" Padding="10,2" Margin="6,0,0,0" Click="QuitarFirma_Click">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource IconXLg}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                                  AutomationProperties.AccessibilityView="Raw"/>
+                                        <TextBlock Text="Quitar" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
                             </StackPanel>
                         </StackPanel>
 
@@ -128,8 +139,7 @@
                                 <Grid>
                                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16"
                                                 IsVisible="{Binding Perfil.SelloPath, Converter={x:Static cmn:StringConverters.IsNullOrEmpty}}">
-                                        <TextBlock Text="📥" FontSize="28" HorizontalAlignment="Center"
-                                                   Foreground="{StaticResource OutlineBrush}"/>
+                                        <PathIcon Data="{StaticResource IconBoxArrowInDown}" Width="28" Height="28" HorizontalAlignment="Center" Foreground="{StaticResource OutlineBrush}" AutomationProperties.AccessibilityView="Raw"/>
                                         <TextBlock Margin="0,8,0,0" TextAlignment="Center" TextWrapping="Wrap"
                                                    FontSize="11" Foreground="{StaticResource OnSurfaceVariantBrush}"
                                                    Text="Arrastra un PNG/JPG aquí o usa Examinar"/>
@@ -149,9 +159,21 @@
                                        Text="{Binding Perfil.SelloPath, TargetNullValue='(sin sello)'}"/>
                             <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                 <Button Theme="{StaticResource SecondaryButtonStyle}"
-                                        Content="📂 Examinar…" Padding="10,2" Click="ExaminarSello_Click"/>
+                                        AutomationProperties.Name="Examinar…" Padding="10,2" Click="ExaminarSello_Click">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource IconFolder2Open}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                                  AutomationProperties.AccessibilityView="Raw"/>
+                                        <TextBlock Text="Examinar…" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
                                 <Button Theme="{StaticResource SecondaryButtonStyle}"
-                                        Content="✕ Quitar" Padding="10,2" Margin="6,0,0,0" Click="QuitarSello_Click"/>
+                                        AutomationProperties.Name="Quitar" Padding="10,2" Margin="6,0,0,0" Click="QuitarSello_Click">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="{StaticResource IconXLg}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                                  AutomationProperties.AccessibilityView="Raw"/>
+                                        <TextBlock Text="Quitar" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
                             </StackPanel>
                         </StackPanel>
                     </Grid>
@@ -162,7 +184,7 @@
             <Expander Margin="0,0,0,12" IsExpanded="False"
                       Foreground="{StaticResource OnSurfaceBrush}">
                 <Expander.Header>
-                    <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="🎓  FORMACIÓN (opcional)"/>
+                    <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="FORMACIÓN (opcional)"/>
                 </Expander.Header>
                 <Border Theme="{StaticResource SectionCardStyle}" Margin="0,8,0,0">
                     <Grid RowDefinitions="Auto,8,Auto" ColumnDefinitions="2*,12,*">
@@ -185,8 +207,14 @@
             <!-- FOOTER -->
             <StackPanel Orientation="Horizontal" Margin="0,8,0,0" HorizontalAlignment="Right">
                 <Button Theme="{StaticResource PrimaryButtonStyle}"
-                        Content="💾 Guardar perfil" Padding="16,0"
-                        Command="{Binding GuardarPerfilCommand}"/>
+                        AutomationProperties.Name="Guardar perfil" Padding="16,0"
+                        Command="{Binding GuardarPerfilCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconFloppy}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                  AutomationProperties.AccessibilityView="Raw"/>
+                        <TextBlock Text="Guardar perfil" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
             </StackPanel>
 
         </StackPanel>

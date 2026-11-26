@@ -5,15 +5,12 @@ namespace MemoriaPlus.Common;
 
 /// <summary>
 /// Converters para el checklist real de "Verificaciones previas" (Fase C).
-/// Traducen un bool de estado a un glifo (✓ / ○) y un color (verde éxito /
-/// gris atenuado) para que los checkmarks reflejen el estado real del proyecto
-/// en vez de ser decorativos.
+/// Exponen el estado como texto accesible y color.
 /// </summary>
 public static class ChecklistConverters
 {
-    /// <summary>true → "✓" ; false → "○".</summary>
-    public static readonly IValueConverter CheckGlyph =
-        new FuncValueConverter<bool, string>(ok => ok ? "✓" : "○");
+    public static readonly IValueConverter CheckLabel =
+        new FuncValueConverter<bool, string>(ok => ok ? "Disponible" : "Pendiente");
 
     /// <summary>
     /// true → verde éxito ; false → gris atenuado. Colores fijos (no dependen

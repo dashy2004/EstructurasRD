@@ -6,50 +6,130 @@
              x:CompileBindings="False"
              Background="{StaticResource SurfaceBrush}">
 
+    <UserControl.Styles>
+        <Style Selector="PathIcon.estadoFuente">
+            <Setter Property="Data" Value="{StaticResource IconCircle}"/>
+        </Style>
+        <Style Selector="PathIcon.estadoFuente.lista">
+            <Setter Property="Data" Value="{StaticResource IconCheckCircle}"/>
+        </Style>
+        <Style Selector="TextBlock.ayuda">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Foreground" Value="{DynamicResource OnSurfaceVariantBrush}"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style Selector="PathIcon.encabezado">
+            <Setter Property="Width" Value="22"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+            <Setter Property="AutomationProperties.AccessibilityView" Value="Raw"/>
+        </Style>
+        <Style Selector="TextBlock.ruta">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+    </UserControl.Styles>
+
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="24,18,24,24" Spacing="16">
-            <StackPanel Spacing="3">
-                <TextBlock FontSize="26" FontWeight="SemiBold" Foreground="{StaticResource OnSurfaceBrush}"
-                           Text="Memoria de diseño"/>
-                <TextBlock TextWrapping="Wrap" Foreground="{StaticResource OnSurfaceVariantBrush}"
-                           Text="Genera un documento Word editable a partir del proyecto de MemoriaPlus o de un expediente de CDCRD Digital."/>
-            </StackPanel>
-
+            <TextBlock FontSize="26" FontWeight="SemiBold" Foreground="{StaticResource OnSurfaceBrush}"
+                       Text="Memoria de diseño"/>
             <Grid ColumnDefinitions="3*,14,2*">
-                <Border Grid.Column="0" Theme="{StaticResource SectionCardStyle}">
-                    <StackPanel Spacing="10">
-                        <TextBlock Theme="{StaticResource H2Style}" Text="Datos del informe"/>
-                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="ORIGEN"/>
-                        <TextBlock Text="{Binding FuenteDiseno}" TextWrapping="Wrap"/>
-                        <WrapPanel>
-                            <Button Content="Usar proyecto activo" Margin="0,0,6,6"
-                                    Theme="{StaticResource SecondaryButtonStyle}" Command="{Binding UsarProyectoDisenoCommand}"/>
-                            <Button Content="Elegir data.json…" Margin="0,0,0,6"
-                                    Theme="{StaticResource SecondaryButtonStyle}" Command="{Binding SeleccionarDatosDisenoCommand}"/>
-                        </WrapPanel>
-                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="PORTADA Y CONFIGURACIÓN"/>
-                        <TextBlock Text="{Binding ConfiguracionDiseno}" TextWrapping="Wrap"/>
-                        <Button Content="Elegir memoria.json…" HorizontalAlignment="Left"
-                                Theme="{StaticResource SecondaryButtonStyle}" Command="{Binding SeleccionarConfiguracionDisenoCommand}"/>
-                    </StackPanel>
-                </Border>
-                <Border Grid.Column="2" Theme="{StaticResource SectionCardStyle}">
+                <Border Grid.Column="0" Theme="{StaticResource SectionCardStyle}" VerticalAlignment="Top">
                     <StackPanel Spacing="12">
-                        <TextBlock Theme="{StaticResource H2Style}" Text="Documento Word"/>
-                        <TextBlock Foreground="{StaticResource OnSurfaceVariantBrush}" TextWrapping="Wrap"
-                                   Text="El proyecto activo aporta sus niveles y losas. Un data.json preparado también puede incluir cargas, bloques de ETABS y fundaciones de SAFE."/>
-                        <Button Content="Generar memoria de diseño" HorizontalAlignment="Stretch"
-                                Theme="{StaticResource PrimaryButtonStyle}" Command="{Binding GenerarDisenoCommand}"/>
-                        <ProgressBar IsIndeterminate="True" IsVisible="{Binding GenerandoDiseno}" Height="4"/>
-                        <TextBlock Text="{Binding EstadoDiseno}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-                        <TextBlock Text="{Binding UltimoDiseno}" TextWrapping="Wrap"
-                                   FontSize="12" Foreground="{StaticResource OnSurfaceVariantBrush}"/>
-                        <Button Content="Abrir Word generado" HorizontalAlignment="Left"
-                                Theme="{StaticResource SecondaryButtonStyle}" Command="{Binding AbrirDisenoCommand}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <PathIcon Classes="encabezado" Data="{StaticResource IconDatabase}"/>
+                            <TextBlock Theme="{StaticResource H2Style}" Text="Fuentes de cálculo"/>
+                        </StackPanel>
+                        <TabControl Padding="0" Background="Transparent" BorderThickness="0" SelectedIndex="0">
+                            <TabItem Theme="{StaticResource MemoriaTabItemStyle}" Header="Archivos">
+                                <StackPanel Spacing="10" Margin="0,10,0,2">
+                                    <TextBlock Classes="ayuda"
+                                        Text="Añade modelos de ETABS o SAFE, un libro Excel de cargas o listados TXT y DL de losas. También puedes elegir un fuentes.json con las rutas del proyecto."/>
+                                    <WrapPanel>
+                                        <Button Content="Añadir archivo…" Command="{Binding AgregarFuenteDisenoCommand}"
+                                                Theme="{StaticResource SecondaryButtonStyle}" Margin="0,0,6,4"/>
+                                        <Button Content="Limpiar selección" Command="{Binding LimpiarFuentesDisenoCommand}"
+                                                Theme="{StaticResource SecondaryButtonStyle}" Margin="0,0,0,4"/>
+                                    </WrapPanel>
+                                    <TextBlock Text="{Binding FuentesExtraccion}" Classes="ruta"
+                                               IsVisible="{Binding FuentesExtraccion, Converter={x:Static cmn:StringConverters.NotNullOrEmpty}}"/>
+                                    <Button Content="Extraer y guardar datos…" Command="{Binding ExtraerDatosDisenoCommand}"
+                                            HorizontalAlignment="Left" Theme="{StaticResource PrimaryButtonStyle}"/>
+                                    <Button Content="Cancelar extracción" Command="{Binding CancelarExtraccionCommand}"
+                                            IsVisible="{Binding ExtraccionEnCurso}" HorizontalAlignment="Left"
+                                            Theme="{StaticResource SecondaryButtonStyle}"/>
+                                    <TextBlock Classes="ayuda" Text="Los modelos EDB y FDB requieren el programa correspondiente y su licencia en este equipo."/>
+                                    <TextBlock Text="{Binding EstadoExtraccion}" Classes="ruta" AutomationProperties.LiveSetting="Polite"
+                                               IsVisible="{Binding EstadoExtraccion, Converter={x:Static cmn:StringConverters.NotNullOrEmpty}}"/>
+                                </StackPanel>
+                            </TabItem>
+                            <TabItem Theme="{StaticResource MemoriaTabItemStyle}" Header="Proyecto o JSON">
+                                <StackPanel Spacing="10" Margin="0,10,0,2">
+                                    <TextBlock Classes="ayuda" Text="Usa los niveles y las losas del proyecto abierto, o selecciona un informe de datos que ya hayas extraído."/>
+                                    <WrapPanel>
+                                        <Button Content="Usar proyecto activo" Margin="0,0,6,4"
+                                            Theme="{StaticResource SecondaryButtonStyle}" Command="{Binding UsarProyectoDisenoCommand}"/>
+                                        <Button Content="Elegir data.json…" Margin="0,0,0,4"
+                                            Theme="{StaticResource SecondaryButtonStyle}" Command="{Binding SeleccionarDatosDisenoCommand}"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </TabItem>
+                            <TabItem Theme="{StaticResource MemoriaTabItemStyle}" Header="GitHub">
+                                <StackPanel Spacing="10" Margin="0,10,0,2">
+                                    <TextBlock Classes="ayuda" Text="Pega el enlace a un data.json de un repositorio público para cargarlo en MemoriaPlus."/>
+                                    <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Enlace al archivo"/>
+                                    <TextBox AutomationProperties.Name="Enlace al archivo en GitHub"
+                                             Text="{Binding EnlaceGitHub, Mode=TwoWay}" Watermark="https://github.com/…/data.json"/>
+                                    <Button Content="Cargar desde GitHub" HorizontalAlignment="Left"
+                                            Theme="{StaticResource SecondaryButtonStyle}" Command="{Binding CargarGitHubCommand}"/>
+                                </StackPanel>
+                            </TabItem>
+                        </TabControl>
+                        <Separator/>
+                        <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="DATOS EN USO"/>
+                        <TextBlock Text="{Binding FuenteDiseno}" Classes="ruta" AutomationProperties.LiveSetting="Polite"/>
                     </StackPanel>
                 </Border>
-            </Grid>
 
+                <StackPanel Grid.Column="2" Spacing="14">
+                    <Border Theme="{StaticResource SectionCardStyle}">
+                        <StackPanel Spacing="10">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <PathIcon Classes="encabezado" Data="{StaticResource IconFileEarmarkWord}"/>
+                                <TextBlock Theme="{StaticResource H2Style}" Text="Documento Word"/>
+                            </StackPanel>
+                            <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="PORTADA Y CONFIGURACIÓN"/>
+                            <TextBlock Text="{Binding ConfiguracionDiseno}" Classes="ruta"/>
+                            <Button Content="Elegir memoria.json…" HorizontalAlignment="Left"
+                                    Theme="{StaticResource SecondaryButtonStyle}" Command="{Binding SeleccionarConfiguracionDisenoCommand}"/>
+                            <Button Content="Generar memoria de diseño" HorizontalAlignment="Stretch"
+                                    Theme="{StaticResource PrimaryButtonStyle}" Command="{Binding GenerarDisenoCommand}"/>
+                            <ProgressBar IsIndeterminate="True" IsVisible="{Binding GenerandoDiseno}" Height="4"/>
+                            <TextBlock Text="{Binding EstadoDiseno}" Classes="ruta" AutomationProperties.LiveSetting="Polite"
+                                       IsVisible="{Binding EstadoDiseno, Converter={x:Static cmn:StringConverters.NotNullOrEmpty}}"/>
+                            <TextBlock Text="{Binding UltimoDiseno}" Classes="ruta"
+                                       IsVisible="{Binding UltimoDiseno, Converter={x:Static cmn:StringConverters.NotNullOrEmpty}}"/>
+                            <Button Content="Abrir Word generado" HorizontalAlignment="Left"
+                                    IsVisible="{Binding UltimoDiseno, Converter={x:Static cmn:StringConverters.NotNullOrEmpty}}"
+                                    Theme="{StaticResource SecondaryButtonStyle}" Command="{Binding AbrirDisenoCommand}"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Theme="{StaticResource SectionCardStyle}">
+                        <StackPanel Spacing="10">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <PathIcon Classes="encabezado" Data="{StaticResource IconBoxArrowUp}"/>
+                                <TextBlock Theme="{StaticResource H2Style}" Text="Revisión con ChatGPT"/>
+                            </StackPanel>
+                            <TextBlock Classes="ayuda" Text="Guarda un archivo Markdown en tu equipo. Puedes revisarlo antes de adjuntarlo al chat."/>
+                            <Button Content="Preparar para ChatGPT…" HorizontalAlignment="Left"
+                                    Theme="{StaticResource SecondaryButtonStyle}" Command="{Binding ExportarChatGPTCommand}"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+            <TextBlock Text="{Binding EstadoIntercambio}" Classes="ruta" AutomationProperties.LiveSetting="Polite"
+                       IsVisible="{Binding EstadoIntercambio, Converter={x:Static cmn:StringConverters.NotNullOrEmpty}}"/>
             <Expander Header="Plantilla de losas de MemoriaPlus" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
     <Grid Margin="0,12,0,0" ColumnDefinitions="*,12,*">
 
@@ -66,33 +146,37 @@
                     <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="VERIFICACIONES PREVIAS" Margin="0,0,0,8"/>
 
                     <Grid Margin="0,0,0,6" ColumnDefinitions="20,*">
-                        <TextBlock Grid.Column="0" FontSize="14" FontWeight="Bold"
-                                   Text="{Binding TieneDatosGenerales, Converter={x:Static cmn:ChecklistConverters.CheckGlyph}}"
+                        <PathIcon Grid.Column="0" Width="14" Height="14"
+                                  AutomationProperties.Name="{Binding TieneDatosGenerales, Converter={x:Static cmn:ChecklistConverters.CheckLabel}}"
+                                  Classes="estadoFuente" Classes.lista="{Binding TieneDatosGenerales}"
                                    Foreground="{Binding TieneDatosGenerales, Converter={x:Static cmn:ChecklistConverters.CheckBrush}}"/>
                         <TextBlock Grid.Column="1" Text="Datos generales del proyecto" Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"/>
                     </Grid>
                     <Grid Margin="0,0,0,6" ColumnDefinitions="20,*">
-                        <TextBlock Grid.Column="0" FontSize="14" FontWeight="Bold"
-                                   Text="{Binding TieneCargasConfiguradas, Converter={x:Static cmn:ChecklistConverters.CheckGlyph}}"
+                        <PathIcon Grid.Column="0" Width="14" Height="14"
+                                  AutomationProperties.Name="{Binding TieneCargasConfiguradas, Converter={x:Static cmn:ChecklistConverters.CheckLabel}}"
+                                  Classes="estadoFuente" Classes.lista="{Binding TieneCargasConfiguradas}"
                                    Foreground="{Binding TieneCargasConfiguradas, Converter={x:Static cmn:ChecklistConverters.CheckBrush}}"/>
                         <TextBlock Grid.Column="1" Text="Cargas globales configuradas" Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"/>
                     </Grid>
                     <Grid Margin="0,0,0,6" ColumnDefinitions="20,*">
-                        <TextBlock Grid.Column="0" FontSize="14" FontWeight="Bold"
-                                   Text="{Binding TieneNiveles, Converter={x:Static cmn:ChecklistConverters.CheckGlyph}}"
+                        <PathIcon Grid.Column="0" Width="14" Height="14"
+                                  AutomationProperties.Name="{Binding TieneNiveles, Converter={x:Static cmn:ChecklistConverters.CheckLabel}}"
+                                  Classes="estadoFuente" Classes.lista="{Binding TieneNiveles}"
                                    Foreground="{Binding TieneNiveles, Converter={x:Static cmn:ChecklistConverters.CheckBrush}}"/>
                         <TextBlock Grid.Column="1" FontSize="13" Foreground="{StaticResource OnSurfaceBrush}"
                                    Text="{Binding ProyectoActivo.Sistemas.Count, Mode=OneWay, StringFormat='Niveles cargados ({0})'}"/>
                     </Grid>
                     <Grid Margin="0,0,0,6" ColumnDefinitions="20,*">
-                        <TextBlock Grid.Column="0" FontSize="14" FontWeight="Bold"
-                                   Text="{Binding HayDatosPerdomo, Converter={x:Static cmn:ChecklistConverters.CheckGlyph}}"
+                        <PathIcon Grid.Column="0" Width="14" Height="14"
+                                  AutomationProperties.Name="{Binding HayDatosPerdomo, Converter={x:Static cmn:ChecklistConverters.CheckLabel}}"
+                                  Classes="estadoFuente" Classes.lista="{Binding HayDatosPerdomo}"
                                    Foreground="{Binding HayDatosPerdomo, Converter={x:Static cmn:ChecklistConverters.CheckBrush}}"/>
                         <TextBlock Grid.Column="1" FontSize="13" Foreground="{StaticResource OnSurfaceBrush}"
                                    Text="Importar salida de Losas.exe (F. Perdomo) — sin esto las tablas salen vacías"/>
                     </Grid>
                     <Grid Margin="0,0,0,6" ColumnDefinitions="20,*">
-                        <TextBlock Grid.Column="0" Text="✓" Foreground="{StaticResource SuccessBrush}" FontSize="14" FontWeight="Bold"/>
+                        <PathIcon Data="{StaticResource IconCheckCircle}" Width="14" Height="14" Grid.Column="0" Foreground="{StaticResource SuccessBrush}" AutomationProperties.AccessibilityView="Raw"/>
                         <TextBlock Grid.Column="1" Text="Plantilla bundleada en Resources/templates/" Foreground="{StaticResource OnSurfaceBrush}" FontSize="13"/>
                     </Grid>
                 </StackPanel>
@@ -114,9 +198,15 @@
             <Grid RowDefinitions="Auto,*">
                 <Grid Grid.Row="0" Margin="0,0,0,12" ColumnDefinitions="*,Auto">
                     <TextBlock Grid.Column="0" Theme="{StaticResource LabelCapsStyle}"
-                               Text="📋  RESULTADO DE LA GENERACIÓN" VerticalAlignment="Center"/>
+                               Text="RESULTADO DE LA GENERACIÓN" VerticalAlignment="Center"/>
                     <Button Grid.Column="1" Theme="{StaticResource SecondaryButtonStyle}"
-                            Content="📂 Abrir archivo" Command="{Binding AbrirUltimaMemoriaCommand}"/>
+                            AutomationProperties.Name="Abrir archivo" Command="{Binding AbrirUltimaMemoriaCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconFolder2Open}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                      AutomationProperties.AccessibilityView="Raw"/>
+                            <TextBlock Text="Abrir archivo" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </Grid>
 
                 <Grid Grid.Row="1">
@@ -131,8 +221,7 @@
                             </MultiBinding>
                         </Border.IsVisible>
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="420">
-                            <TextBlock FontSize="48" HorizontalAlignment="Center"
-                                       Foreground="{StaticResource OutlineBrush}" Text="📄"/>
+                            <PathIcon Data="{StaticResource IconFileEarmarkText}" Width="48" Height="48" HorizontalAlignment="Center" Foreground="{StaticResource OutlineBrush}" AutomationProperties.AccessibilityView="Raw"/>
                             <TextBlock Theme="{StaticResource H2Style}" HorizontalAlignment="Center"
                                        Margin="0,12,0,4" Text="Aún no hay memoria generada"/>
                             <TextBlock Foreground="{StaticResource OnSurfaceVariantBrush}"
@@ -148,9 +237,7 @@
                             IsVisible="{Binding GeneracionExitosa}">
                         <StackPanel>
                             <Grid ColumnDefinitions="Auto,*">
-                                <TextBlock Grid.Column="0" Text="✓" FontSize="32"
-                                           Foreground="{StaticResource SuccessBrush}"
-                                           Margin="0,0,16,0" VerticalAlignment="Top"/>
+                                <PathIcon Data="{StaticResource IconCheckCircle}" Width="32" Height="32" Grid.Column="0" Foreground="{StaticResource SuccessBrush}" Margin="0,0,16,0" VerticalAlignment="Top" AutomationProperties.AccessibilityView="Raw"/>
                                 <StackPanel Grid.Column="1">
                                     <TextBlock Theme="{StaticResource H2Style}" Text="Memoria generada"/>
                                     <TextBlock Margin="0,4,0,0" Foreground="{StaticResource OnSurfaceBrush}"
@@ -186,9 +273,7 @@
                             BorderThickness="1" CornerRadius="{StaticResource CornerRadiusDefault}" Padding="20"
                             IsVisible="{Binding GeneracionConError}">
                         <Grid ColumnDefinitions="Auto,*">
-                            <TextBlock Grid.Column="0" Text="⚠" FontSize="32"
-                                       Foreground="{StaticResource ErrorBrush}"
-                                       Margin="0,0,16,0" VerticalAlignment="Top"/>
+                            <PathIcon Data="{StaticResource IconExclamationTriangle}" Width="32" Height="32" Grid.Column="0" Foreground="{StaticResource ErrorBrush}" Margin="0,0,16,0" VerticalAlignment="Top" AutomationProperties.AccessibilityView="Raw"/>
                             <StackPanel Grid.Column="1">
                                 <TextBlock Theme="{StaticResource H2Style}"
                                            Foreground="{StaticResource ErrorBrush}"

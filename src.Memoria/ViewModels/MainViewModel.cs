@@ -53,13 +53,19 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         ImportarCargasXlsCommand  = new AsyncRelayCommand(ImportarCargasXls);
         ImportarTxtPerdomoCommand = new AsyncRelayCommand(ImportarTxtPerdomo, () => SistemaActivo != null);
         QuitarTxtPerdomoCommand   = new RelayCommand(QuitarTxtPerdomo,   () => SistemaActivo?.TieneSalidaPerdomo == true);
+        AgregarFuenteDisenoCommand = new AsyncRelayCommand(AgregarFuenteDisenoAsync, () => !GenerandoDiseno);
+        LimpiarFuentesDisenoCommand = new RelayCommand(LimpiarFuentesDiseno, () => !GenerandoDiseno && _seleccion.Archivos.Count != 0);
+        CancelarExtraccionCommand = new RelayCommand(CancelarExtraccion, () => _cancelacionExtraccion is { IsCancellationRequested: false });
+        ExtraerDatosDisenoCommand = new AsyncRelayCommand(ExtraerDatosDisenoAsync, () => !GenerandoDiseno && _seleccion.Archivos.Count != 0);
         GenerarDisenoCommand = new AsyncRelayCommand(GenerarDisenoAsync, () => !GenerandoDiseno);
         SeleccionarDatosDisenoCommand = new AsyncRelayCommand(() => SeleccionarEntradaAsync(true), () => !GenerandoDiseno);
         SeleccionarConfiguracionDisenoCommand = new AsyncRelayCommand(() => SeleccionarEntradaAsync(false), () => !GenerandoDiseno);
         UsarProyectoDisenoCommand = new RelayCommand(RestablecerFuenteDiseno, () => !GenerandoDiseno);
+        CargarGitHubCommand = new AsyncRelayCommand(CargarGitHubAsync, () => !GenerandoDiseno);
+        ExportarChatGPTCommand = new AsyncRelayCommand(ExportarChatGPTAsync, () => !GenerandoDiseno);
         AbrirDisenoCommand = new RelayCommand(AbrirDiseno, () => UltimoDiseno != null);
         GenerarDisenoCommand.CanExecuteChanged += (_, _) => ContinuarCommand.RaiseCanExecuteChanged();
-        GenerarMemoriaCommand     = new AsyncRelayCommand(GenerarMemoria);
+        GenerarMemoriaCommand     = new AsyncRelayCommand(GenerarMemoria, () => !GenerandoDiseno);
         AbrirUltimaMemoriaCommand = new RelayCommand(AbrirUltimaMemoria, () => UltimoArchivoGenerado != null);
         AbrirProyectoRecienteCommand = new RelayCommand<string>(AbrirProyectoReciente);
         AgregarLosaCommand    = new RelayCommand(AgregarLosa,    () => SistemaActivo != null);
@@ -251,6 +257,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         set
         {
             _proyectoActivo = value;
+            LimpiarFuentesDiseno();
             RestablecerFuenteDiseno();
             OnPropertyChanged();
             OnPropertyChanged(nameof(TituloVentana));
@@ -1110,6 +1117,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     /// </summary>
     private async Task GenerarMemoria()
     {
+        IndicarGeneracion(true);
         try
         {
             var plantilla = ResolverPlantillaPath();
@@ -1167,6 +1175,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             _generacionExito = false;
             StatusGeneracion = $"Error generando memoria: {ex.Message}";
         }
+        finally { IndicarGeneracion(false); }
     }
 
     private void AbrirUltimaMemoria()

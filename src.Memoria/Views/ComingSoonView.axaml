@@ -11,8 +11,7 @@
                     Padding="32" BorderBrush="{StaticResource OutlineVariantBrush}"
                     BorderThickness="1">
                 <StackPanel HorizontalAlignment="Center">
-                    <TextBlock FontSize="48" HorizontalAlignment="Center"
-                               Foreground="{StaticResource OutlineBrush}" Text="🛠"/>
+                    <PathIcon Data="{StaticResource IconTools}" Width="48" Height="48" HorizontalAlignment="Center" Foreground="{StaticResource OutlineBrush}" AutomationProperties.AccessibilityView="Raw"/>
                     <TextBlock Theme="{StaticResource H1Style}" HorizontalAlignment="Center"
                                Margin="0,12,0,4"
                                Text="{Binding $parent[UserControl].Tag}"/>
@@ -27,7 +26,7 @@
                         <TextBlock FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
                                    Foreground="{StaticResource OnSurfaceVariantBrush}"
                                    TextAlignment="Center"
-                                   Text="{Binding Version, Mode=OneWay, StringFormat='🚧  Próximamente en {0}'}"/>
+                                   Text="{Binding Version, Mode=OneWay, StringFormat='Próximamente en {0}'}"/>
                     </Border>
                 </StackPanel>
             </Border>

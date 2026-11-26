@@ -36,7 +36,7 @@
                     <StackPanel>
                         <Grid>
                             <TextBlock Theme="{StaticResource LabelCapsStyle}"
-                                       Text="🏢  PESOS PROPIOS — ENTREPISO" VerticalAlignment="Center"/>
+                                       Text="PESOS PROPIOS — ENTREPISO" VerticalAlignment="Center"/>
                             <TextBlock HorizontalAlignment="Right"
                                        FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
                                        Foreground="{StaticResource OnSurfaceVariantBrush}"
@@ -59,7 +59,7 @@
                     <StackPanel>
                         <Grid>
                             <TextBlock Theme="{StaticResource LabelCapsStyle}"
-                                       Text="🏠  PESOS PROPIOS — TECHO" VerticalAlignment="Center"/>
+                                       Text="PESOS PROPIOS — TECHO" VerticalAlignment="Center"/>
                             <TextBlock HorizontalAlignment="Right"
                                        FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
                                        Foreground="{StaticResource OnSurfaceVariantBrush}"
@@ -84,12 +84,18 @@
                 <StackPanel>
                     <Grid>
                         <TextBlock Theme="{StaticResource LabelCapsStyle}"
-                                   Text="📐  CARGA MUERTA POR ESPESOR" VerticalAlignment="Center"/>
+                                   Text="CARGA MUERTA POR ESPESOR" VerticalAlignment="Center"/>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                             <Button Theme="{StaticResource SecondaryButtonStyle}" Content="↺ Restaurar"
                                     Command="{Binding RestaurarCargasCommand}" Margin="0,0,8,0"/>
-                            <Button Theme="{StaticResource SecondaryButtonStyle}" Content="📥 Importar de .xls"
-                                    Command="{Binding ImportarCargasXlsCommand}"/>
+                            <Button Theme="{StaticResource SecondaryButtonStyle}" AutomationProperties.Name="Importar de .xls"
+                                    Command="{Binding ImportarCargasXlsCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <PathIcon Data="{StaticResource IconBoxArrowInDown}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                              AutomationProperties.AccessibilityView="Raw"/>
+                                    <TextBlock Text="Importar de .xls" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
                     </Grid>
                     <TextBlock Margin="0,4,0,0" Foreground="{StaticResource OnSurfaceVariantBrush}" FontSize="11"
@@ -112,7 +118,7 @@
             <!-- CARD 3 — Cargas vivas + factores -->
             <Border Theme="{StaticResource SectionCardStyle}">
                 <StackPanel>
-                    <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="🚶  CARGAS VIVAS Y COMBINACIÓN ACI 318-05"/>
+                    <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="CARGAS VIVAS Y COMBINACIÓN ACI 318-05"/>
                     <Grid Margin="0,12,0,0" ColumnDefinitions="*,12,*,12,*,20,*,12,*,12,*">
                         <StackPanel Grid.Column="0">
                             <TextBlock Theme="{StaticResource FieldLabelStyle}" Text="Entrepiso (t/m²)"/>

@@ -120,7 +120,7 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
         try
         {
             PerfilIngenieroService.Save(Perfil);
-            StatusGuardado = "✓ Perfil guardado. Los nuevos proyectos lo cargarán automáticamente.";
+            StatusGuardado = "Perfil guardado. Los nuevos proyectos lo cargarán automáticamente.";
         }
         catch (System.Exception ex)
         {
@@ -133,7 +133,7 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
         try
         {
             AparienciaService.Save(Apariencia);
-            StatusGuardado = "✓ Apariencia guardada y aplicada.";
+            StatusGuardado = "Apariencia guardada y aplicada.";
             AparienciaGuardada?.Invoke(this, System.EventArgs.Empty);
         }
         catch (System.Exception ex)
@@ -147,7 +147,7 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
         AparienciaService.Reset();
         Apariencia = new AparienciaConfig();
         OnPropertyChanged(nameof(Apariencia));
-        StatusGuardado = "✓ Apariencia restaurada a defaults.";
+        StatusGuardado = "Apariencia restaurada a defaults.";
         AparienciaGuardada?.Invoke(this, System.EventArgs.Empty);
     }
 
@@ -159,7 +159,7 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
             // tanto LosasPlus como MemoriaPlus se suscriben → aplicación en vivo
             // sin un evento propio del VM (antes había un AtajosGuardados muerto).
             AtajosService.Save(Atajos);
-            StatusGuardado = "✓ Atajos guardados. Cambios aplicados en vivo.";
+            StatusGuardado = "Atajos guardados. Cambios aplicados en vivo.";
         }
         catch (System.Exception ex)
         {
@@ -172,7 +172,7 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
         Atajos.RestaurarDefaults();
         // Notificar a la UI que el config completo cambió.
         OnPropertyChanged(nameof(Atajos));
-        StatusGuardado = "✓ Atajos restaurados a defaults. No olvides Guardar.";
+        StatusGuardado = "Atajos restaurados a defaults. No olvides Guardar.";
     }
 
     private void GuardarPreferencias()
@@ -180,7 +180,7 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
         try
         {
             PreferenciasService.Save(Preferencias);
-            StatusGuardado = "✓ Preferencias guardadas.";
+            StatusGuardado = "Preferencias guardadas.";
         }
         catch (System.Exception ex)
         {
@@ -193,7 +193,7 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
         PreferenciasService.Reset();
         Preferencias = new PreferenciasConfig();
         OnPropertyChanged(nameof(Preferencias));
-        StatusGuardado = "✓ Preferencias restauradas a defaults.";
+        StatusGuardado = "Preferencias restauradas a defaults.";
     }
 
     // =================================================================
@@ -241,7 +241,7 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
             RecargarPresets();
             PresetSeleccionado = nombre;
             NombrePresetNuevo = "";
-            StatusGuardado = $"✓ Preset «{nombre}» guardado. Disponible en el combo.";
+            StatusGuardado = $"Preset «{nombre}» guardado. Disponible en el combo.";
         }
         catch (System.Exception ex)
         {
@@ -262,7 +262,7 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
         Apariencia = preset.Apariencia;
         OnPropertyChanged(nameof(Apariencia));
         try { AparienciaService.Save(Apariencia); } catch { /* sigue, fallar silenciosamente */ }
-        StatusGuardado = $"✓ Preset «{nombre}» cargado y aplicado.";
+        StatusGuardado = $"Preset «{nombre}» cargado y aplicado.";
         AparienciaGuardada?.Invoke(this, System.EventArgs.Empty);
     }
 
@@ -276,7 +276,7 @@ public sealed class ConfiguracionViewModel : INotifyPropertyChanged
             {
                 RecargarPresets();
                 if (PresetSeleccionado == nombre) PresetSeleccionado = null;
-                StatusGuardado = $"✓ Preset «{nombre}» eliminado.";
+                StatusGuardado = $"Preset «{nombre}» eliminado.";
             }
             else
             {

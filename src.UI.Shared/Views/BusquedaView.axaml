@@ -43,8 +43,7 @@
                                            Foreground="{StaticResource OnSurfaceVariantBrush}"
                                            TextTrimming="CharacterEllipsis"/>
                             </StackPanel>
-                            <TextBlock Grid.Column="2" VerticalAlignment="Center" FontSize="14"
-                                       Foreground="{StaticResource OnSurfaceVariantBrush}" Text="→"/>
+                            <PathIcon Data="{StaticResource IconArrowRight}" Width="14" Height="14" Grid.Column="2" VerticalAlignment="Center" Foreground="{StaticResource OnSurfaceVariantBrush}" AutomationProperties.AccessibilityView="Raw"/>
                         </Grid>
                     </Border>
                 </ControlTemplate>
@@ -76,8 +75,14 @@
                 </TextBox>
                 <Button Grid.Column="1" Margin="8,0,0,0"
                         Theme="{StaticResource SecondaryButtonStyle}"
-                        Padding="14,0" Content="✕ Limpiar"
-                        Command="{Binding Busqueda.LimpiarCommand}"/>
+                        Padding="14,0" AutomationProperties.Name="Limpiar"
+                        Command="{Binding Busqueda.LimpiarCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="{StaticResource IconXLg}" Width="16" Height="16" Foreground="{Binding $parent[Button].Foreground}"
+                                  AutomationProperties.AccessibilityView="Raw"/>
+                        <TextBlock Text="Limpiar" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
             </Grid>
         </StackPanel>
 
@@ -109,8 +114,7 @@
                         HorizontalAlignment="Center" VerticalAlignment="Top"
                         IsVisible="{Binding Busqueda.BusquedaVacia}">
                     <StackPanel HorizontalAlignment="Center">
-                        <TextBlock Text="🔍" FontSize="40" HorizontalAlignment="Center"
-                                   Foreground="{StaticResource OutlineBrush}"/>
+                        <PathIcon Data="{StaticResource IconSearch}" Width="40" Height="40" HorizontalAlignment="Center" Foreground="{StaticResource OutlineBrush}" AutomationProperties.AccessibilityView="Raw"/>
                         <TextBlock Text="Empieza a buscar"
                                    FontFamily="{StaticResource FontFamilyUI}"
                                    FontSize="14" FontWeight="SemiBold"
@@ -135,8 +139,7 @@
                         </MultiBinding>
                     </Border.IsVisible>
                     <StackPanel HorizontalAlignment="Center">
-                        <TextBlock Text="⊘" FontSize="40" HorizontalAlignment="Center"
-                                   Foreground="{StaticResource OutlineBrush}"/>
+                        <PathIcon Data="{StaticResource IconSlashCircle}" Width="40" Height="40" HorizontalAlignment="Center" Foreground="{StaticResource OutlineBrush}" AutomationProperties.AccessibilityView="Raw"/>
                         <TextBlock Text="Sin resultados"
                                    FontFamily="{StaticResource FontFamilyUI}"
                                    FontSize="14" FontWeight="SemiBold"
@@ -152,7 +155,7 @@
                 <StackPanel IsVisible="{Binding Busqueda.HayResultados}">
                     <StackPanel Margin="0,0,0,16">
                         <Grid Margin="0,0,0,8" ColumnDefinitions="Auto,*">
-                            <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="📂  PROYECTOS"/>
+                            <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="PROYECTOS"/>
                             <TextBlock Grid.Column="1" HorizontalAlignment="Right"
                                        FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
                                        Foreground="{StaticResource OnSurfaceVariantBrush}"
@@ -169,7 +172,7 @@
 
                     <StackPanel Margin="0,0,0,16">
                         <Grid Margin="0,0,0,8" ColumnDefinitions="Auto,*">
-                            <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="🏗  NIVELES"/>
+                            <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="NIVELES"/>
                             <TextBlock Grid.Column="1" HorizontalAlignment="Right"
                                        FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
                                        Foreground="{StaticResource OnSurfaceVariantBrush}"
@@ -186,7 +189,7 @@
 
                     <StackPanel Margin="0,0,0,16">
                         <Grid Margin="0,0,0,8" ColumnDefinitions="Auto,*">
-                            <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="📐  LOSAS"/>
+                            <TextBlock Theme="{StaticResource LabelCapsStyle}" Text="LOSAS"/>
                             <TextBlock Grid.Column="1" HorizontalAlignment="Right"
                                        FontFamily="{StaticResource FontFamilyMono}" FontSize="11"
                                        Foreground="{StaticResource OnSurfaceVariantBrush}"

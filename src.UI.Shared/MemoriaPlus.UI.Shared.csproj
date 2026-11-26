@@ -44,6 +44,8 @@
          empaquetados como recursos Avalonia (avares://). -->
     <AvaloniaResource Include="Resources\icons\*.svg" />
     <AvaloniaResource Include="Resources\Theme.axaml" />
+    <AvaloniaResource Include="Resources\Iconos.axaml" />
+    <Content Include="Resources\LICENSE-Bootstrap-Icons.txt" CopyToOutputDirectory="PreserveNewest" />
     <!-- Logo de marca compartido (PNG transparente). Lo consumen ambas apps
          vía avares://MemoriaPlus.UI.Shared/Resources/branding/EstructurasRD.png -->
     <AvaloniaResource Include="Resources\branding\*.png" />
