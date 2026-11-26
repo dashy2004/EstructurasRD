@@ -81,6 +81,54 @@ public static class MotorMemoriaDiseno
         string carpetaMotor, string dataJson, string salidaDocx, string carpetaTrabajo,
         string memoriaJson, string carpetaImagenes)
     {
+        // El flujo de Word siempre comprueba que su documento sea producto de esta corrida.
+        if (File.Exists(salidaDocx))
+        {
+            try { File.Delete(salidaDocx); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return new ResultadoMotorMemoria(false,
+                    $"No se pudo reemplazar {Path.GetFileName(salidaDocx)}: ciérrelo en Word y vuelva a generar.");
+            }
+        }
+        return await EjecutarGuionAsync(carpetaMotor, Path.Combine(carpetaMotor, Guion), salidaDocx,
+            dataJson, "", salidaDocx, Path.Combine(carpetaTrabajo, "tmp"), carpetaImagenes, memoriaJson);
+    }
+
+    /// <summary>Ubicación de la herramienta canónica en el paquete instalado o en el checkout de CDCRD-Digital.</summary>
+    public static string? ResolverRevisionIA(string carpetaMotor)
+    {
+        var raiz = Path.GetFullPath(carpetaMotor);
+        return new[] { Path.Combine(raiz, "revision_ia.py"), Path.Combine(raiz, "..", "herramientas", "revision_ia.py") }
+            .Select(Path.GetFullPath).FirstOrDefault(File.Exists);
+    }
+
+    /// <summary>Invoca la herramienta de CDCRD-Digital y publica el Markdown cuando finaliza correctamente.</summary>
+    public static async Task<ResultadoMotorMemoria> GenerarRevisionIAAsync(
+        string carpetaMotor, string datos, string destino, string origen)
+    {
+        string? guion = ResolverRevisionIA(carpetaMotor);
+        if (guion == null)
+            return new ResultadoMotorMemoria(false, "Falta revision_ia.py de CDCRD-Digital. Actualice el motor incluido con MemoriaPlus.");
+        destino = Path.GetFullPath(destino);
+        if (!string.Equals(Path.GetExtension(destino), ".md", StringComparison.OrdinalIgnoreCase))
+            return new ResultadoMotorMemoria(false, "Seleccione un archivo con extensión .md.");
+        string temporal = Path.Combine(Path.GetDirectoryName(destino)!, $".revision-{Guid.NewGuid():N}.md");
+        try
+        {
+            var resultado = await EjecutarGuionAsync(carpetaMotor, guion, temporal, "--tipo", "memoria",
+                "--entrada", datos, "--salida", temporal, "--origen", origen);
+            if (!resultado.Ok) return resultado;
+            if (new FileInfo(temporal).Length == 0) return new ResultadoMotorMemoria(false, "El motor devolvió una revisión vacía.");
+            File.Move(temporal, destino, overwrite: true);
+            return new ResultadoMotorMemoria(true, destino);
+        }
+        finally { File.Delete(temporal); }
+    }
+
+    private static async Task<ResultadoMotorMemoria> EjecutarGuionAsync(
+        string carpetaMotor, string guion, string salidaEsperada, params string[] argumentos)
+    {
         var info = new ProcessStartInfo(ResolverPython(carpetaMotor))
         {
             WorkingDirectory = carpetaMotor,
@@ -88,31 +136,15 @@ public static class MotorMemoriaDiseno
             CreateNoWindow = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            // El guion corre con -X utf8: sin esto los acentos del mensaje de error llegan rotos.
             StandardOutputEncoding = System.Text.Encoding.UTF8,
             StandardErrorEncoding = System.Text.Encoding.UTF8,
         };
-        // ArgumentList escapa cada argumento: las rutas con espacios o comillas no se parten.
-        foreach (string a in new[]
-                 {
-                     "-X", "utf8", Path.Combine(carpetaMotor, Guion), dataJson, "", salidaDocx,
-                     Path.Combine(carpetaTrabajo, "tmp"), carpetaImagenes, memoriaJson,
-                 })
-            info.ArgumentList.Add(a);
-
+        info.ArgumentList.Add("-X");
+        info.ArgumentList.Add("utf8");
+        info.ArgumentList.Add(guion);
+        foreach (string argumento in argumentos) info.ArgumentList.Add(argumento);
         try
         {
-            // Un documento de una corrida anterior no debe pasar por recién generado.
-            if (File.Exists(salidaDocx))
-            {
-                try { File.Delete(salidaDocx); }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    return new ResultadoMotorMemoria(false,
-                        $"No se pudo reemplazar {Path.GetFileName(salidaDocx)}: ciérrelo en Word y vuelva a generar.");
-                }
-            }
-
             using var proceso = Process.Start(info);
             if (proceso is null) return new ResultadoMotorMemoria(false, "No se pudo iniciar Python.");
 
@@ -140,12 +172,12 @@ public static class MotorMemoriaDiseno
 
             if (proceso.ExitCode != 0)
                 return new ResultadoMotorMemoria(false, UltimaLinea(err, $"El motor terminó con código {proceso.ExitCode}."));
-            if (!File.Exists(salidaDocx))
+            if (!File.Exists(salidaEsperada))
                 return new ResultadoMotorMemoria(false, "El motor terminó sin crear el documento.");
             string avisos = string.Join(Environment.NewLine, err.Split('\n')
                 .Select(linea => linea.Trim())
                 .Where(linea => linea.StartsWith("AVISO:", StringComparison.Ordinal)));
-            return new ResultadoMotorMemoria(true, salidaDocx)
+            return new ResultadoMotorMemoria(true, salidaEsperada)
             {
                 Avisos = avisos.Length == 0 ? null : avisos,
             };

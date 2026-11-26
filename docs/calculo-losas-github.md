@@ -1,5 +1,7 @@
 # Calcular las losas de Revit en GitHub
 
+CDCRD-Digital mantiene el flujo y el generador de revisión. El flujo de EstructurasRD delega en la versión fijada de CDCRD-Digital y conserva las entradas del repositorio que inicia la ejecución. [Guía principal](https://github.com/dashy2004/CDCRD-Digital/tree/codex/revision-ia/docs/revision-ia)
+
 La acción **Calcular losas exportadas de Revit** procesa la exportación de paños y sus usos mediante la misma versión de `puente-losas` y `plugin-losas` indicada en el flujo. Utiliza el motor FEM de EstructurasRD, la comparación Pieper-Martens y la selección de acero del complemento. El trabajo corre en Linux con Python. Revit interviene al leer el modelo original y al aplicar cambios posteriores.
 
 ## Ejecutar desde la rama
@@ -17,6 +19,6 @@ El contrato y el ejemplo usados por la acción están en la versión fijada del 
 
 ## Leer la salida
 
-Abra el resumen de la ejecución y descargue **calculo-losas** en **Artifacts**. Se conserva durante siete días. `informe_losas.xlsx` contiene las hojas Losas, Apoyos PM y Supuestos. `resultados.json` conserva los resultados FEM y Pieper-Martens por marca. `acero_pm.json` conserva la selección comercial del complemento y `lectura.json` identifica las entradas por SHA-256 y las revisiones exactas de código. `Revision para ChatGPT.md` transcribe los momentos PM con sus marcas y unidades e indica cuáles archivos adjuntar manualmente en una conversación. La acción no envía datos a ChatGPT.
+Abra el resumen de la ejecución y descargue **calculo-losas** en **Artifacts**. Se conserva durante siete días. `informe_losas.xlsx` contiene las hojas Losas, Apoyos PM y Supuestos. `resultados.json` conserva los resultados FEM y Pieper-Martens por marca. `acero_pm.json` conserva la selección comercial del complemento y `lectura.json` identifica las entradas por SHA-256 y las revisiones exactas de código. `Revision para IA.md` transcribe los momentos PM con sus marcas y unidades e indica cuáles archivos adjuntar manualmente en una conversación. El informe se puede entregar al asistente que elija el usuario.
 
 La pantalla **Generar** de MemoriaPlus espera un `data.json` preparado por los lectores del motor de memorias. El archivo `resultados.json` del puente tiene otro esquema, organizado en `panos` y `pieper_martens`. Para incorporar automáticamente esta salida al Word hace falta un adaptador que conserve marcas, apoyos, unidades y procedencia. El Excel y los JSON descargados se pueden revisar como respaldo independiente. El alcance de este ejemplo es el predimensionado de losas. Las hojas de diseño sísmico y los análisis nativos de ETABS y SAFE siguen un flujo diferente.

@@ -146,7 +146,7 @@ public sealed partial class MainViewModel
         SeleccionarConfiguracionDisenoCommand.RaiseCanExecuteChanged();
         UsarProyectoDisenoCommand.RaiseCanExecuteChanged();
         CargarGitHubCommand.RaiseCanExecuteChanged();
-        ExportarChatGPTCommand.RaiseCanExecuteChanged();
+        ExportarRevisionIACommand.RaiseCanExecuteChanged();
     }
 
     private async Task GenerarDisenoAsync()

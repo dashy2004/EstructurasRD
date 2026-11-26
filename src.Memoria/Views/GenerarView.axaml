@@ -119,11 +119,11 @@
                         <StackPanel Spacing="10">
                             <StackPanel Orientation="Horizontal" Spacing="10">
                                 <PathIcon Classes="encabezado" Data="{StaticResource IconBoxArrowUp}"/>
-                                <TextBlock Theme="{StaticResource H2Style}" Text="Revisión con ChatGPT"/>
+                                <TextBlock Theme="{StaticResource H2Style}" Text="Revisión para IA"/>
                             </StackPanel>
-                            <TextBlock Classes="ayuda" Text="Guarda un archivo Markdown en tu equipo. Puedes revisarlo antes de adjuntarlo al chat."/>
-                            <Button Content="Preparar para ChatGPT…" HorizontalAlignment="Left"
-                                    Theme="{StaticResource SecondaryButtonStyle}" Command="{Binding ExportarChatGPTCommand}"/>
+                            <TextBlock Classes="ayuda" Text="CDCRD-Digital prepara un archivo Markdown local que puedes revisar y compartir con la IA que elijas."/>
+                            <Button Content="Preparar revisión para IA…" HorizontalAlignment="Left"
+                                    Theme="{StaticResource SecondaryButtonStyle}" Command="{Binding ExportarRevisionIACommand}"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>

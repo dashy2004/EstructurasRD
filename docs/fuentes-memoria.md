@@ -2,9 +2,11 @@
 
 En **MemoriaPlus → Generar → Archivos** seleccione el modelo ETABS (`.edb`), la cimentación SAFE (`.fdb`), el libro de cargas (`.xls`, `.xlsx` o `.xlsm`) o el listado de Losas.exe (`.txt` y su `.dl`). Un manifiesto local `fuentes.json` permite asociar libros de espectro y Art. 38 con su bloque de ETABS. **Extraer y guardar datos** escribe un `data.json` reutilizable. La lectura de modelos requiere CSI instalado y licencia disponible. El extractor trabaja con copias. Las hojas de Excel se leen con sus valores guardados.
 
-En **GitHub** pegue el enlace a un `data.json` público y elija dónde guardar su copia local. En **Proyecto o JSON** puede abrir los datos de disco. **Generar memoria de diseño** produce un Word editable. **Preparar para ChatGPT** guarda un Markdown con los datos del informe y su SHA-256. El usuario revisa nombres, ubicaciones y resultados antes de adjuntarlo. La aplicación transmite únicamente la solicitud de lectura a GitHub cuando se utiliza esa opción.
+En **GitHub** pegue el enlace a un `data.json` público y elija dónde guardar su copia local. En **Proyecto o JSON** puede abrir los datos de disco. **Generar memoria de diseño** produce un Word editable. **Preparar revisión para IA** ejecuta el generador de CDCRD-Digital y guarda un Markdown con los datos del informe y su SHA-256. Puede adjuntarlo a un asistente con carga de archivos o utilizarlo en una herramienta local. El usuario revisa nombres, ubicaciones y resultados antes de adjuntarlo. La aplicación transmite únicamente la solicitud de lectura a GitHub cuando se utiliza esa opción.
 
 El botón **Generar** y el cálculo de losas de GitHub utilizan contratos diferentes. El informe de losas devuelve sus propios resultados y un archivo de revisión, que se pueden consultar independientemente. [Cálculo desde la exportación de Revit](calculo-losas-github.md)
+
+El formato de revisión, sus pruebas y los flujos de referencia se mantienen en CDCRD-Digital. [Generador y ejemplos](https://github.com/dashy2004/CDCRD-Digital/tree/codex/revision-ia/docs/revision-ia)
 
 ## Revisión sísmica por piso
 

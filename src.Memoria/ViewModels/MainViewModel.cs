@@ -62,7 +62,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         SeleccionarConfiguracionDisenoCommand = new AsyncRelayCommand(() => SeleccionarEntradaAsync(false), () => !GenerandoDiseno);
         UsarProyectoDisenoCommand = new RelayCommand(RestablecerFuenteDiseno, () => !GenerandoDiseno);
         CargarGitHubCommand = new AsyncRelayCommand(CargarGitHubAsync, () => !GenerandoDiseno);
-        ExportarChatGPTCommand = new AsyncRelayCommand(ExportarChatGPTAsync, () => !GenerandoDiseno);
+        ExportarRevisionIACommand = new AsyncRelayCommand(ExportarRevisionIAAsync, () => !GenerandoDiseno);
         AbrirDisenoCommand = new RelayCommand(AbrirDiseno, () => UltimoDiseno != null);
         GenerarDisenoCommand.CanExecuteChanged += (_, _) => ContinuarCommand.RaiseCanExecuteChanged();
         GenerarMemoriaCommand     = new AsyncRelayCommand(GenerarMemoria, () => !GenerandoDiseno);

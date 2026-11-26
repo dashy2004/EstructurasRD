@@ -40,7 +40,7 @@
 
 ## Memoria de diseño en Word
 
-La interfaz incorpora extracción local de fuentes, lectura de datos públicos de GitHub y exportación para revisión con ChatGPT. [Guía de fuentes, cálculos en GitHub y checklist](docs/fuentes-memoria.md)
+La interfaz incorpora extracción local de fuentes, lectura de datos públicos de GitHub y revisión con cualquier asistente mediante el generador de CDCRD-Digital. [Guía de fuentes, cálculos en GitHub y checklist](docs/fuentes-memoria.md)
 
 En **MemoriaPlus → Generar**, seleccione el proyecto activo para utilizar las losas y los niveles de un archivo de LosasPlus. Para trabajar con resultados ya extraídos de ETABS, SAFE y hojas de cargas, elija el `data.json` del motor **memoria-diseno** de CDCRD-Digital. MemoriaPlus detecta el `memoria.json` situado junto al archivo de datos. Puede elegir otra configuración para cambiar la portada, las vistas y los anexos. **Generar memoria de diseño** abre el diálogo de destino del DOCX.
 

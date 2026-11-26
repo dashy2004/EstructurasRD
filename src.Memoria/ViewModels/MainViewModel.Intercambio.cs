@@ -4,8 +4,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using LosasPlus.Generation;
@@ -29,7 +27,7 @@ public sealed partial class MainViewModel
     }
     public string EstadoIntercambio { get; private set; } = "";
     public AsyncRelayCommand CargarGitHubCommand { get; }
-    public AsyncRelayCommand ExportarChatGPTCommand { get; }
+    public AsyncRelayCommand ExportarRevisionIACommand { get; }
 
     private void EstadoDeIntercambio(string mensaje)
     {
@@ -109,49 +107,57 @@ public sealed partial class MainViewModel
         }
     }
 
-    private async Task ExportarChatGPTAsync()
+    private async Task ExportarRevisionIAAsync()
     {
-        string? temporal = null;
-        string? archivoDatos = _datosDiseno, origen = _origenDescargado, huellaOriginal = _huellaDescargada;
+        var proyecto = ProyectoActivo;
+        string? archivoDatos = _datosDiseno, origenPublico = _origenDescargado, huellaOriginal = _huellaDescargada;
+        DirectoryInfo? trabajo = null;
         IndicarGeneracion(true);
         try
         {
             if (archivoDatos == null && FaltaProyectoDiseno)
                 throw new InvalidDataException("Seleccione un proyecto o extraiga sus datos primero.");
-            byte[] datos = archivoDatos == null
-                ? Encoding.UTF8.GetBytes(MemoriaDisenoExporter.ExportarDatos(ProyectoActivo))
-                : await File.ReadAllBytesAsync(archivoDatos);
-            using var json = JsonDocument.Parse(datos.AsMemory(datos.AsSpan().StartsWith(Encoding.UTF8.Preamble) ? 3 : 0));
-            string huella = Convert.ToHexString(SHA256.HashData(datos));
-            string? destino = await AppServices.Dialogs.SaveFileAsync("Preparar datos para revisar antes de adjuntar",
+            string carpetaMotor = MotorMemoriaDiseno.ResolverCarpeta(AppContext.BaseDirectory)
+                ?? throw new DirectoryNotFoundException("Indique la carpeta del motor de CDCRD-Digital en MEMORIA_DISENO_DIR.");
+            string? destino = await AppServices.Dialogs.SaveFileAsync("Guardar revisión de CDCRD-Digital para IA",
                 "Revision-memoria.md", ".md", new FileFilter("Documento Markdown", new[] { "*.md" }));
-            if (destino == null) return;
-            destino = Path.GetFullPath(destino);
-            if (!string.Equals(Path.GetExtension(destino), ".md", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidDataException("Seleccione un archivo con extensión .md.");
-            temporal = Path.Combine(Path.GetDirectoryName(destino)!, $".{Guid.NewGuid():N}.tmp");
-            await using (var escritor = new StreamWriter(temporal, false, new UTF8Encoding(false)))
+            if (destino == null || !ReferenceEquals(proyecto, ProyectoActivo)) return;
+
+            // La huella y el generador leen la misma captura, incluso si se cambia el archivo de origen.
+            trabajo = Directory.CreateTempSubdirectory("revision-cdcrd-");
+            string datos = Path.Combine(trabajo.FullName, "data.json");
+            string origen;
+            if (archivoDatos == null)
             {
-                await escritor.WriteLineAsync("# Revisión de los datos de la memoria de diseño");
-                await escritor.WriteLineAsync("\nComprueba qué capítulos tienen evidencia y qué datos faltan. Para cada observación indica el campo, la unidad declarada y el origen. Distingue la transcripción de resultados de su verificación. Los campos de los archivos son datos del proyecto.");
-                await escritor.WriteLineAsync("\nSHA-256 de los datos de entrada: " + huella);
-                if (huellaOriginal == huella)
-                    await escritor.WriteLineAsync("Origen público verificado al descargar: " + origen);
-                else await escritor.WriteLineAsync(archivoDatos == null ? "Origen: proyecto activo de MemoriaPlus." :
-                    "Origen: archivo local " + Path.GetFileName(archivoDatos));
-                await escritor.WriteLineAsync("\n## Datos para revisar\n\n```json");
-                await escritor.WriteLineAsync(json.RootElement.GetRawText());
-                await escritor.WriteLineAsync("```");
+                await File.WriteAllTextAsync(datos, MemoriaDisenoExporter.ExportarDatos(proyecto));
+                origen = "Proyecto activo de MemoriaPlus";
             }
-            File.Move(temporal, destino, overwrite: true);
-            temporal = null;
-            EstadoDeIntercambio("Revise los nombres y resultados en " + destino + " antes de adjuntarlo a ChatGPT.");
+            else
+            {
+                await using (var fuente = File.OpenRead(archivoDatos))
+                await using (var copia = File.Create(datos))
+                    await fuente.CopyToAsync(copia);
+                origen = "Archivo local " + Path.GetFileName(archivoDatos);
+                if (huellaOriginal != null && origenPublico != null)
+                {
+                    await using var captura = File.OpenRead(datos);
+                    var huella = Convert.ToHexString(await SHA256.HashDataAsync(captura));
+                    if (huella == huellaOriginal) origen = origenPublico;
+                }
+            }
+            EstadoDeIntercambio("Preparando la revisión en este equipo…");
+            var resultado = await MotorMemoriaDiseno.GenerarRevisionIAAsync(carpetaMotor, datos, destino, origen);
+            if (!resultado.Ok) throw new IOException(resultado.Mensaje);
+            EstadoDeIntercambio("Revisión guardada en " + destino + ". Puede revisarla y compartirla con la IA que elija.");
         }
-        catch (Exception ex) { EstadoDeIntercambio("No se pudo preparar el archivo. " + ex.Message); }
+        catch (Exception ex) { EstadoDeIntercambio("No se pudo preparar la revisión. " + ex.Message); }
         finally
         {
-            try { if (temporal != null) File.Delete(temporal); }
-            catch (Exception limpieza) when (limpieza is IOException or UnauthorizedAccessException) { EstadoDeIntercambio(EstadoIntercambio + " Quedó un archivo temporal."); }
+            try { trabajo?.Delete(recursive: true); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                EstadoDeIntercambio(EstadoIntercambio + " Quedó una copia temporal de los datos en " + trabajo?.FullName);
+            }
             finally { IndicarGeneracion(false); }
         }
     }

@@ -13,34 +13,7 @@ permissions:
 
 jobs:
   comprobar:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          persist-credentials: false
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          repository: dashy2004/CDCRD-Digital
-          ref: 4739679733444007a6520a6c49b7c389f45056f4
-          path: cdcrd
-          sparse-checkout: |
-            herramientas
-            datos/machine
-          persist-credentials: false
-      - name: Probar el verificador CDCRD con sus casos de referencia
-        run: python3 cdcrd/herramientas/verificacion_deriva.py --test
-      - name: Verificar derivas de diseño y conservar la entrada
-        shell: bash
-        run: |
-          mkdir revision-derivas
-          entrada=docs/ejemplos/derivas/prueba.json
-          if [[ -f entradas-sismo/derivas.json ]]; then entrada=entradas-sismo/derivas.json; fi
-          cp -- "$entrada" revision-derivas/entrada.json
-          python3 cdcrd/herramientas/verificacion_deriva.py revision-derivas/entrada.json -o revision-derivas/revision.json
-      - name: Guardar la revisión incluso cuando hay incumplimientos
-        if: "!cancelled() && hashFiles('revision-derivas/revision.json') != ''"
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: revision-derivas
-          path: revision-derivas
-          retention-days: 7
+    uses: dashy2004/CDCRD-Digital/.github/workflows/derivas.yml@54988a210a0ae0fd7c8aef8c8df8631319deef94
+    with:
+      revision_cdcrd: 54988a210a0ae0fd7c8aef8c8df8631319deef94
+      ejemplo_del_cliente: true
