@@ -1,0 +1,11 @@
+{
+  "id": "PRUEBA-SINTETICA-TABLA-19",
+  "categoria_riesgo": "I_II",
+  "cds": "C",
+  "tipo_estructura": "Todas las demas estructuras",
+  "componentes_acomodan_desplazamiento": true,
+  "sistema_exclusivamente_porticos_momento": false,
+  "pisos": [
+    {"piso": "N1", "direccion": "X", "caso": "Ex", "hpx_m": 3.0, "deriva_diseno_m": 0.048, "dos_lineas_resistencia_2_10_11_2": false}
+  ]
+}
